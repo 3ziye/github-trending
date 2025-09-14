@@ -6,6 +6,8 @@
     <br>Github-Trending</br>
 </h1>
 
+[![GitHub Trending Report (Docker)](https://github.com/3ziye/github-trending/actions/workflows/github-trending.yml/badge.svg)](https://github.com/3ziye/github-trending/actions/workflows/github-trending.yml)
+
 <div align="center" style="line-height: 2;">
   [<a href="/README_EN.md">English</a>] | [<a href="/README.md">中文(简体)</a>]
 </div>

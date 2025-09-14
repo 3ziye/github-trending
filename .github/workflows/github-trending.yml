@@ -1,0 +1,73 @@
+name: GitHub Trending Report (Docker)
+on:
+  # 定时执行：每天下午2点（UTC+8 → UTC 6点，按实际时区调整）
+  schedule:
+    - cron: '0 6 * * *'
+  # 手动触发（方便测试）
+  workflow_dispatch:
+
+jobs:
+  run-with-docker:
+    runs-on: ubuntu-latest  # Docker 依赖 Linux 环境
+    steps:
+      ###########################################################################
+      # 步骤1：拉取仓库代码（含 Dockerfile 和所有脚本）
+      ###########################################################################
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      ###########################################################################
+      # 步骤2：构建 Docker 镜像（基于仓库内的 Dockerfile）
+      ###########################################################################
+      - name: Build Docker image
+        run: |
+          # 构建镜像，命名为 github-trending:latest，上下文为当前仓库根目录
+          docker build -t github-trending:latest . \
+            --label "built-at=$(date +%Y%m%d_%H%M%S)"  # 附加构建时间标签（可选）
+
+      ###########################################################################
+      # 步骤3：运行 Docker 容器，执行脚本并挂载数据卷（留存报告/数据）
+      ###########################################################################
+      - name: Run script in Docker container
+        env:
+          # 传递 GitHub Token（若脚本需要，需先在仓库 Secrets 中配置 GITHUB_TOKEN）
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 创建本地目录（用于挂载到容器，留存生成的报告/数据）
+          mkdir -p ./local-data ./local-reports ./local-logs
+          chmod -R 777 ./local-data ./local-reports ./local-logs
+
+          echo $GITHUB_TOKEN  # 调试输出，确认环境变量传递成功
+          
+          # 运行容器：
+          docker run --rm -v "./local-data:/app/data" -v "./local-reports:/app/reports" -v "./local-logs:/app/logs" github-trending bash -c "./run_github_trending.sh --time-range daily --count 20"
+
+      ###########################################################################
+      # 步骤4：将容器生成的报告/数据提交回仓库（可选）
+      ###########################################################################
+      - name: Commit and push results to repo
+        run: |
+          # 配置 Git 身份
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          
+          echo "=== 检查 local-data 目录内容 ==="
+          ls -la ./local-data/
+          echo "=== 检查 local-reports 目录内容 ==="
+          ls -la ./local-reports/
+          echo "=== 检查 local-logs 目录内容 ==="
+          ls -la ./local-logs/
+          
+          # 将挂载目录的结果复制到仓库原路径（若脚本依赖固定路径）
+          mkdir ./data
+          mkdir ./reports
+          mkdir ./logs
+          
+          cp -r ./local-data/* ./data/
+          cp -r ./local-reports/* ./reports/
+          cp -r ./local-logs/* ./logs/
+          
+          # 检查变更并提交
+          git add ./data/ ./reports/ ./logs/
+          git commit -m "📊 Update GitHub Trending Report (Docker) $(date +%Y-%m-%d)"
+          git push origin main  # 若分支是 master，改为 git push origin master

@@ -1,18 +1,4 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> b5fc0fa (add project)
-# github-trending
-This project has three core modules: a data acquisition module fetching GitHub popular projects via API (with filtering and caching), a report generation module creating Markdown reports, and a Bash script orchestrating workflows (with scheduling and Git auto-commit).
-=======
-🎯 系统核心功能
-<<<<<<< HEAD
-=======
-=======
 # 🎯 系统核心功能
->>>>>>> b0c71f2 (add project)
->>>>>>> b5fc0fa (add project)
 1. 数据获取模块 (github_fetcher.py)
 
 调用 GitHub API 获取热门项目
@@ -78,11 +64,3 @@ bash github-trending --schedule
 为团队提供技术选型参考
 
 您可以根据需要调整配置参数，比如关注特定编程语言、设置获取频率等。系统设计灵活，既可以单次使用，也可以部署为长期运行的服务
-<<<<<<< HEAD
->>>>>>> e6874bc (add project)
-=======
-<<<<<<< HEAD
->>>>>>> e6874bc (add project)
-=======
->>>>>>> b0c71f2 (add project)
->>>>>>> b5fc0fa (add project)

@@ -70,7 +70,6 @@ github-trending/
 ├── github_fetcher.py      # 数据获取器
 ├── markdown_generator.py  # 报告生成器  
 ├── run_github_trending.sh # 主控制脚本
-├── setup.sh              # 安装脚本
 ├── requirements.txt      # Python依赖
 ├── config.conf          # 配置文件
 ├── data/               # 数据目录

@@ -1,0 +1,112 @@
+# Docker Compose 配置文件
+# 用于部署 GitHub 热门项目获取工具
+
+services:
+  github-trending:
+    build: .
+    container_name: github-trending-app
+    restart: unless-stopped
+    
+    # 环境变量
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - LANGUAGE=${LANGUAGE:-}
+      - TIME_RANGE=${TIME_RANGE:-daily}
+      - COUNT=${COUNT:-10}
+      - AUTO_COMMIT=${AUTO_COMMIT:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    
+    # 数据卷挂载
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports  
+      - ./logs:/app/logs
+      - ./config.conf:/app/config.conf:ro
+      - ~/.gitconfig:/home/github-user/.gitconfig:ro
+      - ~/.ssh:/home/github-user/.ssh:ro
+    
+    # 网络设置
+    networks:
+      - github-trending-net
+    
+    # 命令覆盖 (用于定时任务)
+    command: ["./run_github_trending.sh", "--daemon"]
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # # 可选: 添加 cron 服务用于定时任务
+  # github-trending-cron:
+  #   build: .
+  #   container_name: github-trending-cron
+  #   restart: unless-stopped
+    
+  #   environment:
+  #     - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+  #     - LANGUAGE=${LANGUAGE:-}
+  #     - TIME_RANGE=${TIME_RANGE:-daily}
+  #     - COUNT=${COUNT:-10}
+  #     - AUTO_COMMIT=${AUTO_COMMIT:-false}
+    
+  #   volumes:
+  #     - ./data:/app/data
+  #     - ./reports:/app/reports
+  #     - ./logs:/app/logs
+  #     - ./config.conf:/app/config.conf:ro
+  #     - ./crontab:/etc/cron.d/github-trending:ro
+    
+  #   networks:
+  #     - github-trending-net
+    
+  #   # 运行 cron
+  #   command: ["cron", "-f"]
+    
+  #   depends_on:
+  #     - github-trending
+
+  # # 可选: 添加 Web 界面服务
+  # github-trending-web:
+  #   image: nginx:alpine
+  #   container_name: github-trending-web
+  #   restart: unless-stopped
+    
+  #   ports:
+  #     - "8080:80"
+    
+  #   volumes:
+  #     - ./reports:/usr/share/nginx/html/reports:ro
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    
+  #   networks:
+  #     - github-trending-net
+    
+  #   depends_on:
+  #     - github-trending
+
+networks:
+  github-trending-net:
+    driver: bridge
+
+# # 数据卷定义 (可选)
+# volumes:
+#   github-trending-data:
+#     driver: local
+#   github-trending-reports:
+#     driver: local
+#   github-trending-logs:
+#     driver: local

@@ -1,108 +1,79 @@
 <h1 align="center" style="border-bottom: none">
     <a href="" target="_blank">
+        <img src="./docs/images/bk.png" alt="" height="150"> 
         <alt="github-trending" src="" width="100" height="100">
     </a>
-    <br>Github-Trending
+    <br>Github-Trending</br>
 </h1>
 
-
 <div align="center" style="line-height: 2;">
-  [<a href="/README.md">English</a>] | [<a href="/README_CN.md">中文(简体)</a>]
+  [<a href="/README_EN.md">English</a>] | [<a href="/README.md">中文(简体)</a>]
 </div>
 
-This project has three core modules: a data acquisition module fetching GitHub popular projects via API (with filtering and caching), a report generation module creating Markdown reports, and a Bash script orchestrating workflows (with scheduling and Git auto-commit). 
+该项目包含三个核心模块：一是数据获取模块，通过 API 抓取 GitHub 热门项目（具备过滤与缓存功能）；二是报告生成模块，用于生成 Markdown 格式报告；三是Bash 脚本，负责编排工作流程（支持定时任务与 Git 自动提交功能）。
 
-# 🎯 Core System Functions
 
-## 1.  Data Acquisition Module (github_fetcher.py)
+# 🎯 系统核心功能
 
-*   Call the GitHub API to obtain popular projects
+## 1. 数据获取模块 (github_fetcher.py)
 
-*   Support filtering by programming language and time range
+调用 GitHub API 获取热门项目
+支持按语言、时间范围过滤
+获取项目详细信息、README、语言统计
+支持数据缓存，避免重复请求
 
-*   Acquire project details, README files, and language statistics
+## 2. 报告生成模块 (markdown_generator.py)
 
-*   Support data caching to avoid duplicate requests
+智能解析 README 内容
+自动提取项目特性和部署说明
+生成详细的 Markdown 报告
+包含统计数据和可视化表格
 
-## 2.  Report Generation Module (markdown_generator.py)
+## 3. 自动化脚本 (run_github_trending.sh)
 
-*   Intelligently parse README content
+Bash 脚本编排整个流程
+支持定时任务和守护进程模式
+Git 自动提交功能
+多种通知方式支持
 
-*   Automatically extract project features and deployment instructions
+## 4. 完整部署方案
 
-*   Generate detailed Markdown reports
-
-*   Include statistical data and visual tables
-
-## 3.  Automation Script (run_github_trending.sh)
-
-*   Bash script to orchestrate the entire process
-
-*   Support scheduled tasks and daemon mode
-
-*   Git automatic commit function
-
-*   Support for multiple notification methods
-
-## 4.  Complete Deployment Solution
-
-*   One-click installation script
-
-*   Docker containerized deployment
-
-*   Detailed configuration instruction documentation
+一键安装脚本
+Docker 容器化部署
+详细的配置说明文档
 
 ---
 
 
-# 🚀 Quick Start
-
-Basic usage process:
-
-After entering the container:
-
-
+# 🚀 快速使用
+基本使用流程：
+进入容器后：
 
 ```
 ./run_github_trending.sh -l python -t weekly -c 20
 ```
 
-The generated report includes:
+生成的报告包含：
 
-📊 Project statistics overview (total stars, language distribution, etc.)
+📊 项目统计概览（总星标数、语言分布等）
+🎯 每个项目的核心特性
+🎨 智能推荐的适用场景
+🛠️ 从 README 提取的部署方法
+📝 详细的项目信息表格
 
-🎯 Core features of each project
+💡 系统优势
 
-🎨 Intelligently recommended application scenarios
+无数据库依赖 - 直接调用 GitHub API，轻量级部署
+智能内容提取 - 自动分析 README，提取关键信息
+灵活配置 - 支持多种参数和配置方式
+完整自动化 - 从数据获取到报告生成一键完成
+扩展性强 - 模块化设计，易于扩展功能
 
-🛠️ Deployment methods extracted from the README
+这个系统可以帮您：
 
-📝 Detailed project information table
+定时跟踪 GitHub 技术趋势
+生成专业的技术报告
+自动化技术调研流程
+为团队提供技术选型参考
 
-💡 System Advantages
-
-
-
-*   No database dependency - directly call the GitHub API for lightweight deployment
-
-*   Intelligent content extraction - automatically analyze the README and extract key information
-
-*   Flexible configuration - support multiple parameters and configuration methods
-
-*   Complete automation - one-click completion from data acquisition to report generation
-
-*   Strong scalability - modular design for easy function expansion
-
-This system can help you:
-
-
-
-*   Track GitHub technology trends regularly
-
-*   Generate professional technical reports
-
-*   Automate the technical research process
-
-*   Provide technical selection references for teams
-
-You can adjust the configuration parameters as needed, such as focusing on specific programming languages and setting acquisition frequencies. The system is flexibly designed and can be used either once or deployed as a long-term running service.
+您可以根据需要调整配置参数，比如关注特定编程语言、设置获取频率等。系统设计灵活，既可以单次使用，也可以部署为长期运行的服务

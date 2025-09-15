@@ -1,74 +1,79 @@
 name: GitHub Trending Report (Docker)
+
 on:
-  # # 定时执行：上海时区（UTC+8）每天早上10点40分
-  # # 换算逻辑：上海10:40 = UTC 02:40（10:40 - 8 = 02:40），cron表达式格式为「分 时 日 月 星期」
-  # schedule:
-  #   - cron: '40 2 * * *'
-  # 定时执行：每30分钟触发一次
+  # 定时任务
   schedule:
-    - cron: '0 */30 * * *'
+    # 每 30 分钟执行一次
+    - cron: "*/30 * * * *"
+    # 每天上海时间 10:10（UTC 02:10）
+    - cron: "10 2 * * *"
   # 手动触发（方便测试）
   workflow_dispatch:
+
+permissions:
+  contents: write   # 允许推送到仓库
 
 jobs:
   run-with-docker:
     runs-on: ubuntu-latest  # Docker 依赖 Linux 环境
     steps:
       ###########################################################################
-      # 步骤1：拉取仓库代码（含 Dockerfile 和所有脚本）
+      # 步骤1：拉取仓库代码
       ###########################################################################
       - name: Checkout repository
         uses: actions/checkout@v4
 
       ###########################################################################
-      # 步骤2：构建 Docker 镜像（基于仓库内的 Dockerfile）
+      # 步骤2：构建 Docker 镜像
       ###########################################################################
       - name: Build Docker image
         run: |
-          # 构建镜像，命名为 github-trending:latest，上下文为当前仓库根目录
           docker build -t github-trending:latest . \
-            --label "built-at=$(date +%Y%m%d_%H%M%S)"  # 附加构建时间标签（可选）
+            --label "built-at=$(date +%Y%m%d_%H%M%S)"
 
       ###########################################################################
-      # 步骤3：运行 Docker 容器，执行脚本并挂载数据卷（留存报告/数据）
+      # 步骤3：运行 Docker 容器，执行脚本
       ###########################################################################
       - name: Run script in Docker container
         env:
-          # 传递 GitHub Token（若脚本需要，需先在仓库 Secrets 中配置 GITHUB_TOKEN）
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 创建本地目录（用于挂载到容器，留存生成的报告/数据）
           mkdir -p ./local-data ./local-reports ./local-logs
           chmod -R 777 ./local-data ./local-reports ./local-logs
+          echo "GITHUB_TOKEN=$GITHUB_TOKEN"
 
-          echo $GITHUB_TOKEN  # 调试输出，确认环境变量传递成功
-          
-          # 运行容器：
-          docker run --rm -v "./local-data:/app/data" -v "./local-reports:/app/reports" -v "./local-logs:/app/logs" github-trending bash -c "./run_github_trending.sh --time-range daily --count 20"
+          docker run --rm \
+            -v "$(pwd)/local-data:/app/data" \
+            -v "$(pwd)/local-reports:/app/reports" \
+            -v "$(pwd)/local-logs:/app/logs" \
+            -e GITHUB_TOKEN=$GITHUB_TOKEN \
+            github-trending:latest \
+            bash -c "./run_github_trending.sh --time-range daily --count 20"
 
       ###########################################################################
-      # 步骤4：将容器生成的报告/数据提交回仓库（可选）
+      # 步骤4：提交结果回仓库
       ###########################################################################
       - name: Commit and push results to repo
         run: |
-          # 配置 Git 身份
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          
-          echo "=== 检查 local-data 目录内容 ==="
-          ls -la ./local-data/
-          echo "=== 检查 local-reports 目录内容 ==="
-          ls -la ./local-reports/
-          echo "=== 检查 local-logs 目录内容 ==="
-          ls -la ./local-logs/
-          
+
+          echo "=== 检查 local-data ==="
+          ls -la ./local-data/ || true
+          echo "=== 检查 local-reports ==="
+          ls -la ./local-reports/ || true
+          echo "=== 检查 local-logs ==="
+          ls -la ./local-logs/ || true
+
           mkdir -p ./data ./reports ./logs
-          # 将挂载目录的结果复制到仓库原路径（若脚本依赖固定路径）
-          cp -r ./local-data/* ./data/
-          cp -r ./local-reports/* ./reports/
-          cp -r ./local-logs/* ./logs/
-          
-          # 检查变更并提交
+          cp -r ./local-data/* ./data/ || true
+          cp -r ./local-reports/* ./reports/ || true
+          cp -r ./local-logs/* ./logs/ || true
+
           git add ./data/ ./reports/ ./logs/
-          git commit -m "📊 Update GitHub Trending Report (Docker) $(date +%Y-%m-%d)"
-          git push origin main  # 若分支是 master，改为 git push origin master
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "📊 Update GitHub Trending Report (Docker) $(date +%Y-%m-%d)"
+            git push origin HEAD:${GITHUB_REF#refs/heads/}
+          fi

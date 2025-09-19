@@ -343,7 +343,9 @@ parse_args() {
     local time_range="daily"
     local count=10
     local token=""
-    local title="GitHub 热门项目报告"
+    local date=$(date +"%Y%m%d")
+    local lang_label="all"
+    local title="热点项目-${date}-${lang_label}"
     local auto_commit=false
     local schedule_mode=false
     
@@ -351,6 +353,11 @@ parse_args() {
         case $1 in
             -l|--language)
                 language="$2"
+                lang_label=${language:-"all"}
+                # 如果没有指定标题，则使用动态生成的标题
+                if [[ "$title" == "热点项目-$(date +"%Y%m%d")-all" ]]; then
+                    title="热点项目-$(date +"%Y%m%d")-${lang_label}"
+                fi
                 shift 2
                 ;;
             -t|--time-range)

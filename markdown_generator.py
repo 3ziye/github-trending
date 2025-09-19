@@ -17,12 +17,14 @@ class MarkdownReportGenerator:
     def __init__(self):
         self.template_sections = {
             "header": self._generate_header,
-            "summary": self._generate_summary,
-            "projects": self._generate_projects_section,
-            "footer": self._generate_footer
+            "projects": self._generate_projects_section
         }
+        self.date = ""
+        self.language = ""
     
-    def generate_report(self, data: List[Dict], output_file: str = "", title: str = "GitHub 热门项目报告", time_range: str = "daily"):
+    def generate_report(self, data: List[Dict], output_file: str = "", title: str = "GitHub 热门项目报告", time_range: str = "daily", date: str = "", language: str = ""):
+        self.date = date
+        self.language = language
         """
         生成完整的 Markdown 报告
         
@@ -48,17 +50,16 @@ class MarkdownReportGenerator:
         report_projects_dir = os.path.join(report_dir, report_folder_name)
         os.makedirs(report_projects_dir, exist_ok=True)
         
+        # 首先添加报告说明和相关链接（移到最前面）
+        report_content.append(self._generate_report_info())
+        
         # 头部
         report_content.append(self._generate_header(title, len(data), time_range))
         
-        # 摘要
-        report_content.append(self._generate_summary(data))
-        
-        # 项目详情
+        # 项目详情（不再包含数据概览）
         report_content.append(self._generate_projects_section(data, report_projects_dir))
         
-        # 脚注
-        report_content.append(self._generate_footer())
+        # 不再添加脚注（报告说明已移至最前面）
         
         # 合并内容
         full_report = "\n\n".join(report_content)
@@ -531,9 +532,15 @@ class MarkdownReportGenerator:
         except:
             return ""
     
-    def _generate_footer(self) -> str:
-        """生成报告脚注"""
-        footer = f"""## 📝 报告说明
+    def _generate_report_info(self) -> str:
+        """生成报告说明和相关链接，放在报告最前面"""
+        # 使用date和language生成动态标题
+        if self.date and self.language:
+            report_title = f"热点项目-{self.date}-{self.language}"
+        else:
+            report_title = "报告说明"
+        
+        report_info = f"""## 📝 {report_title}
 
 <div style="background-color: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
 - 🤖 本报告基于 GitHub API 自动生成
@@ -541,6 +548,7 @@ class MarkdownReportGenerator:
 - 🌟 星标数等统计信息为生成时的实时数据
 - 📚 项目信息来源于各项目的 README 文档
 - 💡 热度指数计算方式: 星标数 + Fork数 × 0.5
+- 本报告由 三子叶开源 github-trending项目分析工具自动生成
 </div>
 
 ## 🔗 相关链接
@@ -548,10 +556,9 @@ class MarkdownReportGenerator:
 - [GitHub API 文档](https://docs.github.com/en/rest)
 - [项目数据获取器源码](https://github.com/3ziye/github-trending)
 
----
-*本报告由 三子叶开源 github-trending项目分析工具自动生成*"""
+---"""
         
-        return footer
+        return report_info
 
 
 def main():
@@ -576,13 +583,22 @@ def main():
     generator = MarkdownReportGenerator()
     
     output_file = args.output
+    date = ""
+    language = ""
     if not output_file:
         # 自动生成输出文件名
         date = datetime.now().strftime("%Y%m%d")
         language = args.language if args.language else "all"
         output_file = f"3ziye-{date}-{language}.md"
+    else:
+        # 从输出文件名中提取日期和语言信息
+        # 文件名格式: 3ziye-{date}-{language}.md
+        file_parts = os.path.basename(output_file).split('.')[0].split('-')
+        if len(file_parts) >= 3:
+            date = file_parts[1]
+            language = file_parts[2]
     
-    generator.generate_report(data, output_file, args.title, args.time_range)
+    generator.generate_report(data, output_file, args.title, args.time_range, date, language)
 
 
 if __name__ == "__main__":

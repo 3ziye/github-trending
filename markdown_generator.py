@@ -22,7 +22,7 @@ class MarkdownReportGenerator:
             "footer": self._generate_footer
         }
     
-    def generate_report(self, data: List[Dict], output_file: str = "", title: str = "GitHub 热门项目报告"):
+    def generate_report(self, data: List[Dict], output_file: str = "", title: str = "GitHub 热门项目报告", time_range: str = "daily"):
         """
         生成完整的 Markdown 报告
         
@@ -30,6 +30,7 @@ class MarkdownReportGenerator:
             data: 项目数据列表
             output_file: 输出文件名
             title: 报告标题
+            time_range: 时间范围 (daily, weekly, monthly, yearly, triennial)
         """
         if not data:
             print("没有数据可生成报告")
@@ -48,7 +49,7 @@ class MarkdownReportGenerator:
         os.makedirs(report_projects_dir, exist_ok=True)
         
         # 头部
-        report_content.append(self._generate_header(title, len(data)))
+        report_content.append(self._generate_header(title, len(data), time_range))
         
         # 摘要
         report_content.append(self._generate_summary(data))
@@ -73,15 +74,26 @@ class MarkdownReportGenerator:
         else:
             print(full_report)
     
-    def _generate_header(self, title: str, project_count: int) -> str:
+    def _generate_header(self, title: str, project_count: int, time_range: str = "daily") -> str:
         """生成报告头部"""
         current_time = datetime.now(pytz.timezone('Asia/Shanghai')).strftime("%Y年%m月%d日 %H:%M")
+        
+        # 时间范围中文映射
+        time_range_map = {
+            "daily": "日榜",
+            "weekly": "周榜",
+            "monthly": "月榜",
+            "yearly": "年榜",
+            "triennial": "三年榜"
+        }
+        time_range_cn = time_range_map.get(time_range, "未知")
         
         header = f"""# {title}
 
 <div align="center">
 📊 <strong>生成时间</strong>: {current_time}  •  
 🎯 <strong>项目数量</strong>: {project_count} 个  •  
+⏱️ <strong>热度时间</strong>: {time_range_cn}  •  
 🔥 <strong>数据来源</strong>: GitHub API
 </div>
 
@@ -547,6 +559,8 @@ def main():
     parser.add_argument("input_file", help="输入的 JSON 数据文件")
     parser.add_argument("--output", "-o", help="输出的 Markdown 文件")
     parser.add_argument("--title", "-t", default="GitHub 热门项目报告", help="报告标题")
+    parser.add_argument("--language", "-l", default="all", help="编程语言标签")
+    parser.add_argument("--time-range", "-r", default="daily", help="热度时间范围 (daily, weekly, monthly, yearly, triennial)")
     
     args = parser.parse_args()
     
@@ -564,10 +578,11 @@ def main():
     output_file = args.output
     if not output_file:
         # 自动生成输出文件名
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"github_report_{timestamp}.md"
+        date = datetime.now().strftime("%Y%m%d")
+        language = args.language if args.language else "all"
+        output_file = f"3ziye-{date}-{language}.md"
     
-    generator.generate_report(data, output_file, args.title)
+    generator.generate_report(data, output_file, args.title, args.time_range)
 
 
 if __name__ == "__main__":

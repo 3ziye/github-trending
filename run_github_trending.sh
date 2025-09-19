@@ -195,22 +195,25 @@ fetch_data() {
 generate_report() {
     local data_file="$1"
     local title="$2"
+    local language="$3"
+    local time_range="$4"
 
-    log  "生成报告: $data_file title: $title ..."
+    log  "生成报告: $data_file title: $title language: $language time_range: $time_range ..."
     
     if [[ ! -f "$data_file" ]]; then
         error "数据文件不存在: $data_file"
         exit 1
     fi
     
-    local timestamp=$(date +"%Y%m%d_%H%M%S")
-    local report_file="${REPORTS_DIR}/github_report_${timestamp}.md"
-    local log_file="${LOGS_DIR}/report_${timestamp}.log"
+    local date=$(date +"%Y%m%d")
+    local lang_label=${language:-"all"}
+    local report_file="${REPORTS_DIR}/3ziye-${date}-${lang_label}.md"
+    local log_file="${LOGS_DIR}/report_${date}_${lang_label}.log"
     
     log "开始生成 Markdown 报告..."
     
     local cmd="python3 ${SCRIPT_DIR}/markdown_generator.py"
-    cmd="$cmd $data_file --output $report_file --title '$title'"
+    cmd="$cmd $data_file --output $report_file --title '$title' --language '$lang_label' --time-range '$time_range'"
     
     if eval "$cmd" > "$log_file" 2>&1; then
         log "报告生成完成: $report_file"
@@ -320,7 +323,7 @@ run_pipeline() {
     # 生成报告
     log "生成报告"
     local report_file
-    report_file=$(generate_report "$data_file" "$title")
+    report_file=$(generate_report "$data_file" "$title" "$language" "$time_range")
     
     # 自动提交
     log "自动提交"

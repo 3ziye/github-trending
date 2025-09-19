@@ -33,20 +33,45 @@ jobs:
       # 步骤3：运行 Docker 容器，执行脚本
       ###########################################################################
       - name: Run script in Docker container
+        id: language_selection
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p ./local-data ./local-reports ./local-logs
           chmod -R 777 ./local-data ./local-reports ./local-logs
           echo "GITHUB_TOKEN=$GITHUB_TOKEN"
-
+          
+          # 根据星期几选择不同的编程语言参数
+          # 0=周日, 1=周一, ..., 6=周六
+          DAY_OF_WEEK=$(date +%w)
+          
+          case $DAY_OF_WEEK in
+            0) LANGUAGE="python" ;;
+            1) LANGUAGE="cpp" ;;
+            2) LANGUAGE="go" ;;
+            3) LANGUAGE="java" ;;
+            4) LANGUAGE="javascript" ;;
+            5) LANGUAGE="rust" ;;
+            6) LANGUAGE="全部" ;;
+          esac
+          
+          echo "今日选择的编程语言: $LANGUAGE"
+          # 设置输出变量，供后续步骤使用
+          echo "selected_language=$LANGUAGE" >> $GITHUB_OUTPUT
+          
+          # 传递给Docker容器时，如果是"全部"则使用空字符串
+          DOCKER_LANGUAGE="$LANGUAGE"
+          if [ "$LANGUAGE" = "全部" ]; then
+            DOCKER_LANGUAGE=""
+          fi
+          
           docker run --rm \
             -v "$(pwd)/local-data:/app/data" \
             -v "$(pwd)/local-reports:/app/reports" \
             -v "$(pwd)/local-logs:/app/logs" \
             -e GITHUB_TOKEN=$GITHUB_TOKEN \
             github-trending:latest \
-            bash -c "./run_github_trending.sh --time-range daily --count 20"
+            bash -c "./run_github_trending.sh --language \"$DOCKER_LANGUAGE\" --time-range monthly --count 20"
 
       ###########################################################################
       # 步骤4：提交结果回仓库
@@ -72,6 +97,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "📊 Update GitHub Trending Report (Docker) $(date +%Y-%m-%d)"
+            git commit -m "📊 Update GitHub Trending Report (Docker) - Language: ${{ steps.language_selection.outputs.selected_language }} $(date +%Y-%m-%d)"
             git push origin HEAD:${GITHUB_REF#refs/heads/}
           fi

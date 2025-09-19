@@ -50,7 +50,9 @@ class GitHubFetcher:
         date_map = {
             "daily": 1,
             "weekly": 7,
-            "monthly": 30
+            "monthly": 30,
+            "year": 365,
+            "triennial": 1095
         }
         
         days_ago = date_map.get(time_range, 1)

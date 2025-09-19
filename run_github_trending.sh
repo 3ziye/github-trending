@@ -53,7 +53,7 @@ GitHub 热门项目自动获取和报告生成工具
 
 选项:
     -l, --language LANG     指定编程语言 (如: python, javascript, go)
-    -t, --time-range RANGE  时间范围 (daily, weekly, monthly)
+    -t, --time-range RANGE  时间范围 (daily, weekly, monthly, year, triennial)
     -c, --count COUNT       获取项目数量 (默认: 10)
     -o, --output DIR        输出目录 (默认: reports)
     --token TOKEN           GitHub Personal Access Token

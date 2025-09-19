@@ -11,6 +11,7 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any
 import argparse
+import pytz
 
 class MarkdownReportGenerator:
     def __init__(self):
@@ -37,6 +38,15 @@ class MarkdownReportGenerator:
         # 生成报告内容
         report_content = []
         
+        # 获取报告文件名和目录
+        report_basename = os.path.basename(output_file)
+        report_dir = os.path.dirname(output_file) if os.path.dirname(output_file) else os.getcwd()
+        
+        # 创建与报告同名的文件夹（去掉.md扩展名）
+        report_folder_name = os.path.splitext(report_basename)[0]
+        report_projects_dir = os.path.join(report_dir, report_folder_name)
+        os.makedirs(report_projects_dir, exist_ok=True)
+        
         # 头部
         report_content.append(self._generate_header(title, len(data)))
         
@@ -44,7 +54,7 @@ class MarkdownReportGenerator:
         report_content.append(self._generate_summary(data))
         
         # 项目详情
-        report_content.append(self._generate_projects_section(data))
+        report_content.append(self._generate_projects_section(data, report_projects_dir))
         
         # 脚注
         report_content.append(self._generate_footer())
@@ -65,7 +75,7 @@ class MarkdownReportGenerator:
     
     def _generate_header(self, title: str, project_count: int) -> str:
         """生成报告头部"""
-        current_time = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+        current_time = datetime.now(pytz.timezone('Asia/Shanghai')).strftime("%Y年%m月%d日 %H:%M")
         
         header = f"""# {title}
 
@@ -104,7 +114,7 @@ class MarkdownReportGenerator:
             total_issues += stats.get("open_issues", 0)
             
             # 统计主题标签
-            project_topics = tech.get("topics", [])
+            project_topics = project.get("tech_info", {}).get("topics", [])
             for topic in project_topics:
                 topics[topic] = topics.get(topic, 0) + 1
             
@@ -175,17 +185,17 @@ class MarkdownReportGenerator:
         
         return "\n".join(result)
     
-    def _generate_projects_section(self, data: List[Dict]) -> str:
+    def _generate_projects_section(self, data: List[Dict], report_projects_dir: str) -> str:
         """生成项目详情部分"""
         projects_md = ["## 🚀 热门项目详情"]
         
         for i, project in enumerate(data, 1):
-            project_md = self._generate_single_project(project, i)
+            project_md = self._generate_single_project(project, i, report_projects_dir)
             projects_md.append(project_md)
         
         return "\n\n".join(projects_md)
     
-    def _generate_single_project(self, project: Dict, index: int) -> str:
+    def _generate_single_project(self, project: Dict, index: int, report_projects_dir: str) -> str:
         """生成单个项目的 Markdown"""
         basic = project.get("basic_info", {})
         stats = project.get("stats", {})
@@ -200,6 +210,18 @@ class MarkdownReportGenerator:
         forks = stats.get('forks', 0)
         hot_score = int(stars + forks * 0.5) if stars + forks > 0 else 0
         
+        # 保存README文件为指定格式：1-DeepSeek-V3-Readme.md
+        project_name = basic.get('name', 'unknown').replace(' ', '_')
+        readme_filename = f"{index}-{project_name}-Readme.md"
+        readme_path = os.path.join(report_projects_dir, readme_filename)
+        
+        # 获取报告文件夹名称
+        report_folder_name = os.path.basename(report_projects_dir)
+        
+        readme_content = content.get("readme", "")
+        with open(readme_path, "w", encoding="utf-8") as f:
+            f.write(readme_content if readme_content else "暂无README内容")
+        
         # 基本信息 - 使用列表格式
         info_list = [
             f"**项目名称**: [{basic.get('full_name', '')}]({basic.get('url', '')})",
@@ -210,7 +232,8 @@ class MarkdownReportGenerator:
             f"**🍴 Fork 数**: {forks:,}",
             f"**👀 关注数**: {stats.get('watchers', 0):,}",
             f"**🐛 开放问题**: {stats.get('open_issues', 0)}",
-            f"**最后更新**: {self._format_date(basic.get('updated_at', ''))}"
+            f"**最后更新**: {self._format_date(basic.get('updated_at', ''))}",
+            f"**📖 项目文档**: [README]({report_folder_name}/{readme_filename})"
         ]
         info_text = "\n".join(info_list)
         
@@ -264,6 +287,12 @@ class MarkdownReportGenerator:
             r"## 特性\s*\n(.*?)(?=\n##|\n#|$)",
             r"### Features?\s*\n(.*?)(?=\n###|\n##|\n#|$)",
             r"## What.*\s*\n(.*?)(?=\n##|\n#|$)",
+            r"### What.*\s*\n(.*?)(?=\n###|\n##|\n#|$)",
+            r"## Main Features?\s*\n(.*?)(?=\n##|\n#|$)",
+            r"## Core Features?\s*\n(.*?)(?=\n##|\n#|$)",
+            r"## Highlights?\s*\n(.*?)(?=\n##|\n#|$)",
+            r"## Advantages?\s*\n(.*?)(?=\n##|\n#|$)",
+            r"## Benefits?\s*\n(.*?)(?=\n##|\n#|$)",
         ]
         
         features_text = ""
@@ -273,14 +302,25 @@ class MarkdownReportGenerator:
                 features_text = match.group(1).strip()
                 break
         
+        # 如果没有找到特性章节，尝试从描述和前几行提取关键点
+        if not features_text:
+            # 从README前3000字符中提取可能的特性点
+            preview_text = readme_content[:3000]
+            # 查找列表项
+            bullet_pattern = r"(?:^|\n)[-*]\s+([^\n]+)"  
+            bullets = re.findall(bullet_pattern, preview_text, re.MULTILINE)
+            if bullets:
+                features_text = "\n".join(bullets[:8])  # 取前8个列表项
+        
         if features_text:
             # 清理文本，保留主要内容
-            lines = features_text.split('\n')[:5]  # 只取前5行
+            lines = features_text.split('\n')[:8]  # 增加到8行
             cleaned_lines = []
             for line in lines:
                 line = line.strip()
-                if line and not line.startswith('![') and len(line) < 200:
-                    if not line.startswith('-') and not line.startswith('*'):
+                # 过滤图片、代码块开始标记和过长行
+                if line and not line.startswith('![') and not line.startswith('```') and len(line) < 250:
+                    if not line.startswith('-') and not line.startswith('*') and not line.startswith('1.'):
                         line = f"- {line}"
                     cleaned_lines.append(line)
             
@@ -344,12 +384,12 @@ class MarkdownReportGenerator:
             use_cases.append("博客系统搭建")
         
         # 去重并限制数量
-        unique_cases = list(dict.fromkeys(use_cases))[:4]
+        use_cases = list(dict.fromkeys(use_cases))[:6]  # 增加到最多6个场景
         
-        if unique_cases:
-            return "\n".join([f"- {case}" for case in unique_cases])
+        if use_cases:
+            return "\n".join([f"- {case}" for case in use_cases])
         
-        return "- 通用软件开发\n- 学习参考项目"
+        return ""
     
     def _extract_setup_instructions(self, readme_content: str) -> str:
         """从 README 中提取安装和部署说明"""
@@ -397,37 +437,87 @@ class MarkdownReportGenerator:
     
     def _generate_tech_stack(self, tech_info: Dict) -> str:
         """生成技术栈信息"""
-        languages = tech_info.get("languages", {})
-        main_language = tech_info.get("language")
-        topics = tech_info.get("topics", [])
+        if not tech_info:
+            return ""
         
-        stack_items = []
+        tech_stack = []
         
-        if main_language:
-            stack_items.append(main_language)
+        # 主要语言
+        if tech_info.get("language"):
+            tech_stack.append(f"**主要语言**: {tech_info.get('language')}")
         
-        # 添加其他主要语言
-        for lang, percentage in sorted(languages.items(), key=lambda x: x[1], reverse=True)[:3]:
-            if lang != main_language:
-                stack_items.append(lang)
+        # 其他语言
+        other_languages = tech_info.get("other_languages", [])
+        if other_languages:
+            tech_stack.append(f"**其他语言**: {', '.join(other_languages[:5])}")
         
-        # 添加技术主题
-        tech_topics = [topic for topic in topics if any(keyword in topic.lower() 
-                      for keyword in ['react', 'vue', 'angular', 'node', 'express', 'django', 'flask', 'spring'])]
-        stack_items.extend(tech_topics[:2])
+        # 依赖项
+        dependencies = tech_info.get("dependencies", [])
+        if dependencies:
+            tech_stack.append(f"**主要依赖**: {', '.join(dependencies[:8])}")
         
-        return " • ".join(stack_items) if stack_items else ""
+        # 框架
+        frameworks = tech_info.get("frameworks", [])
+        if frameworks:
+            tech_stack.append(f"**使用框架**: {', '.join(frameworks[:5])}")
+        
+        # 数据库
+        databases = tech_info.get("databases", [])
+        if databases:
+            tech_stack.append(f"**数据库**: {', '.join(databases[:3])}")
+        
+        # 部署相关技术
+        deployment = tech_info.get("deployment", [])
+        if deployment:
+            tech_stack.append(f"**部署技术**: {', '.join(deployment[:3])}")
+        
+        return "\n".join(tech_stack) if tech_stack else ""
     
     def _format_date(self, date_str: str) -> str:
         """格式化日期"""
         if not date_str:
-            return "未知"
+            return ""
         
         try:
-            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            return dt.strftime("%Y-%m-%d")
+            # 处理 ISO 格式的日期
+            if 'T' in date_str:
+                date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            else:
+                date_obj = datetime.fromisoformat(date_str)
+            
+            # 计算相对时间 - 使用上海时区
+            shanghai_tz = pytz.timezone('Asia/Shanghai')
+            if date_obj.tzinfo:
+                date_obj_shanghai = date_obj.astimezone(shanghai_tz)
+            else:
+                date_obj_shanghai = shanghai_tz.localize(date_obj)
+            
+            now = datetime.now(shanghai_tz)
+            delta = now - date_obj
+            
+            if delta.days == 0:
+                if delta.seconds < 3600:
+                    hours = delta.seconds // 3600
+                    minutes = (delta.seconds % 3600) // 60
+                    if hours > 0:
+                        return f"{date_obj_shanghai.strftime('%Y-%m-%d')} ({hours}小时前)"
+                    else:
+                        return f"{date_obj_shanghai.strftime('%Y-%m-%d')} ({minutes}分钟前)"
+                else:
+                    hours = delta.seconds // 3600
+                    return f"{date_obj_shanghai.strftime('%Y-%m-%d')} ({hours}小时前)"
+            elif delta.days == 1:
+                return f"{date_obj_shanghai.strftime('%Y-%m-%d')} (1天前)"
+            elif delta.days < 30:
+                return f"{date_obj_shanghai.strftime('%Y-%m-%d')} ({delta.days}天前)"
+            elif delta.days < 365:
+                months = delta.days // 30
+                return f"{date_obj_shanghai.strftime('%Y-%m-%d')} ({months}个月前)"
+            else:
+                years = delta.days // 365
+                return f"{date_obj_shanghai.strftime('%Y-%m-%d')} ({years}年前)"
         except:
-            return date_str[:10] if len(date_str) >= 10 else date_str
+            return ""
     
     def _generate_footer(self) -> str:
         """生成报告脚注"""
@@ -435,7 +525,7 @@ class MarkdownReportGenerator:
 
 <div style="background-color: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
 - 🤖 本报告基于 GitHub API 自动生成
-- 📅 数据更新时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+- 📅 数据更新时间: {datetime.now(pytz.timezone('Asia/Shanghai')).strftime("%Y-%m-%d %H:%M:%S")} (上海时区)
 - 🌟 星标数等统计信息为生成时的实时数据
 - 📚 项目信息来源于各项目的 README 文档
 - 💡 热度指数计算方式: 星标数 + Fork数 × 0.5
@@ -444,10 +534,10 @@ class MarkdownReportGenerator:
 ## 🔗 相关链接
 
 - [GitHub API 文档](https://docs.github.com/en/rest)
-- [项目数据获取器源码](https://github.com)
+- [项目数据获取器源码](https://github.com/3ziye/github-trending)
 
 ---
-*本报告由 GitHub 项目分析工具自动生成*"""
+*本报告由 三子叶开源 github-trending项目分析工具自动生成*"""
         
         return footer
 

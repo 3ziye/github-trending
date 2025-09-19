@@ -40,7 +40,7 @@ class GitHubFetcher:
         
         Args:
             language: 编程语言过滤 (如: python, javascript)
-            time_range: 时间范围 (daily, weekly, monthly)
+            time_range: 时间范围 (daily, weekly, monthly, yearly, triennial)
             per_page: 每页返回数量
             
         Returns:
@@ -51,7 +51,7 @@ class GitHubFetcher:
             "daily": 1,
             "weekly": 7,
             "monthly": 30,
-            "year": 365,
+            "yearly": 365,
             "triennial": 1095
         }
         
@@ -274,7 +274,7 @@ class GitHubFetcher:
 def main():
     parser = argparse.ArgumentParser(description="GitHub 热门项目获取器")
     parser.add_argument("--language", "-l", default="", help="编程语言过滤")
-    parser.add_argument("--time-range", "-t", choices=["daily", "weekly", "monthly"], 
+    parser.add_argument("--time-range", "-t", choices=["daily", "weekly", "monthly", "yearly", "triennial"], 
                        default="daily", help="时间范围")
     parser.add_argument("--count", "-c", type=int, default=10, help="获取数量")
     parser.add_argument("--token", help="GitHub Personal Access Token")

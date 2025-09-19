@@ -69,9 +69,11 @@ class MarkdownReportGenerator:
         
         header = f"""# {title}
 
-📊 **生成时间**: {current_time}  
-🎯 **项目数量**: {project_count} 个  
-🔥 **数据来源**: GitHub API
+<div align="center">
+📊 <strong>生成时间</strong>: {current_time}  •  
+🎯 <strong>项目数量</strong>: {project_count} 个  •  
+🔥 <strong>数据来源</strong>: GitHub API
+</div>
 
 ---"""
         
@@ -80,10 +82,13 @@ class MarkdownReportGenerator:
     def _generate_summary(self, data: List[Dict]) -> str:
         """生成报告摘要"""
         # 统计信息
-        languages = {}
+        languages = {} 
         total_stars = 0
         total_forks = 0
-        licenses = {}
+        licenses = {} 
+        total_watchers = 0
+        total_issues = 0
+        topics = {}
         
         for project in data:
             # 统计语言
@@ -95,6 +100,13 @@ class MarkdownReportGenerator:
             stats = project.get("stats", {})
             total_stars += stats.get("stars", 0)
             total_forks += stats.get("forks", 0)
+            total_watchers += stats.get("watchers", 0)
+            total_issues += stats.get("open_issues", 0)
+            
+            # 统计主题标签
+            project_topics = tech.get("topics", [])
+            for topic in project_topics:
+                topics[topic] = topics.get(topic, 0) + 1
             
             # 统计许可证
             license_name = project.get("tech_info", {}).get("license")
@@ -105,18 +117,28 @@ class MarkdownReportGenerator:
         top_languages = sorted(languages.items(), key=lambda x: x[1], reverse=True)[:5]
         top_licenses = sorted(licenses.items(), key=lambda x: x[1], reverse=True)[:3]
         
+        # 排序主题标签
+        top_topics = sorted(topics.items(), key=lambda x: x[1], reverse=True)[:10]
+        
         summary = f"""## 📈 数据概览
 
 ### 🌟 项目统计
 - **总星标数**: {total_stars:,}
 - **总 Fork 数**: {total_forks:,}
+- **总关注数**: {total_watchers:,}
+- **开放问题数**: {total_issues:,}
 - **平均星标数**: {total_stars // len(data):,}
 
 ### 💻 热门编程语言
 {self._format_language_stats(top_languages)}
 
 ### 📄 许可证分布
-{self._format_license_stats(top_licenses)}"""
+{self._format_license_stats(top_licenses)}
+
+### 🏷️ 热门主题标签
+{self._format_topic_stats(top_topics)}
+
+---"""
         
         return summary
     
@@ -142,6 +164,17 @@ class MarkdownReportGenerator:
         
         return "\n".join(result)
     
+    def _format_topic_stats(self, topics: List[tuple]) -> str:
+        """格式化主题标签统计"""
+        if not topics:
+            return "- 暂无数据"
+        
+        result = []
+        for topic, count in topics:
+            result.append(f"- `{topic}`: {count} 个项目")
+        
+        return "\n".join(result)
+    
     def _generate_projects_section(self, data: List[Dict]) -> str:
         """生成项目详情部分"""
         projects_md = ["## 🚀 热门项目详情"]
@@ -162,19 +195,24 @@ class MarkdownReportGenerator:
         # 项目标题
         title = f"### {index}. {basic.get('name', 'Unknown')}"
         
-        # 基本信息表格
-        info_table = f"""
-| 项目信息 | 详情 |
-|---------|------|
-| **项目名称** | [{basic.get('full_name', '')}]({basic.get('url', '')}) |
-| **项目描述** | {(basic.get('description') or '暂无描述')[:100]}{'...' if len(basic.get('description') or '') > 100 else ''} |
-| **主要语言** | {tech.get('language', '未知')} |
-| **许可证** | {tech.get('license', '未指定')} |
-| **⭐ 星标数** | {stats.get('stars', 0):,} |
-| **🍴 Fork 数** | {stats.get('forks', 0):,} |
-| **👀 关注数** | {stats.get('watchers', 0):,} |
-| **🐛 开放问题** | {stats.get('open_issues', 0)} |
-| **最后更新** | {self._format_date(basic.get('updated_at', ''))} |"""
+        # 计算项目热度指数 (基于星标数和fork数)
+        stars = stats.get('stars', 0)
+        forks = stats.get('forks', 0)
+        hot_score = int(stars + forks * 0.5) if stars + forks > 0 else 0
+        
+        # 基本信息 - 使用列表格式
+        info_list = [
+            f"**项目名称**: [{basic.get('full_name', '')}]({basic.get('url', '')})",
+            f"**项目描述**: {(basic.get('description') or '暂无描述')[:120]}{'...' if len(basic.get('description') or '') > 120 else ''}",
+            f"**主要语言**: {tech.get('language', '未知')}",
+            f"**许可证**: {tech.get('license', '未指定')}",
+            f"**⭐ 星标数**: {stars:,}",
+            f"**🍴 Fork 数**: {forks:,}",
+            f"**👀 关注数**: {stats.get('watchers', 0):,}",
+            f"**🐛 开放问题**: {stats.get('open_issues', 0)}",
+            f"**最后更新**: {self._format_date(basic.get('updated_at', ''))}"
+        ]
+        info_text = "\n".join(info_list)
         
         # 核心特性 (从 README 中提取)
         features = self._extract_features(content.get("readme", ""))
@@ -182,16 +220,18 @@ class MarkdownReportGenerator:
         # 适用场景 (基于语言和主题推断)
         use_cases = self._generate_use_cases(project)
         
-        # 编译部署方法 (从 README 中提取)
-        setup_instructions = self._extract_setup_instructions(content.get("readme", ""))
-        
         # 技术栈
         tech_stack = self._generate_tech_stack(tech)
+        
+        # 项目标签
+        project_topics = tech.get("topics", [])
+        topics_display = "\n".join([f"- `{topic}`" for topic in project_topics[:8]]) if project_topics else "- 暂无标签"
         
         # 组装项目部分
         project_sections = [
             title,
-            info_table,
+            f"**🔥 热度指数**: {hot_score:,}",
+            info_text,
             f"**🏠 项目主页**: {basic.get('homepage', '无') if basic.get('homepage') else '无'}",
             f"**📂 克隆地址**: `{basic.get('clone_url', '')}`"
         ]
@@ -199,14 +239,17 @@ class MarkdownReportGenerator:
         if tech_stack:
             project_sections.append(f"**💻 技术栈**: {tech_stack}")
         
+        if project_topics:
+            project_sections.append(f"#### 🏷️ 项目标签\n{topics_display}")
+        
         if features:
             project_sections.append(f"#### 🎯 核心特性\n{features}")
         
         if use_cases:
             project_sections.append(f"#### 🎨 适用场景\n{use_cases}")
         
-        if setup_instructions:
-            project_sections.append(f"#### 🛠️ 快速开始\n{setup_instructions}")
+        # 添加分隔线，提高可读性
+        project_sections.append("---")
         
         return "\n\n".join(project_sections)
     
@@ -388,14 +431,15 @@ class MarkdownReportGenerator:
     
     def _generate_footer(self) -> str:
         """生成报告脚注"""
-        footer = f"""---
+        footer = f"""## 📝 报告说明
 
-## 📝 说明
-
-- 本报告基于 GitHub API 自动生成
-- 数据更新时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-- 星标数等统计信息为生成时的实时数据
-- 项目信息来源于各项目的 README 文档
+<div style="background-color: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+- 🤖 本报告基于 GitHub API 自动生成
+- 📅 数据更新时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+- 🌟 星标数等统计信息为生成时的实时数据
+- 📚 项目信息来源于各项目的 README 文档
+- 💡 热度指数计算方式: 星标数 + Fork数 × 0.5
+</div>
 
 ## 🔗 相关链接
 

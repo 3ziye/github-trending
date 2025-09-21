@@ -1,0 +1,122 @@
+# SpikingBrain：Spiking Brain-inspired Large Models
+
+📄 Technical Report: [Chinese](SpikingBrain_Report_Chi.pdf) | [English](SpikingBrain_Report_Eng.pdf)  
+🚀 Arxiv: [arXiv:2509.05276](https://www.arxiv.org/abs/2509.05276)  
+🧩 Models: [Available Models](#available-models)   
+
+---
+
+## About SpikingBrain
+
+Inspired by brain mechanisms, **SpikingBrain** integrates **hybrid efficient attention**, **MoE modules**, and **spike encoding** into its architecture, supported by a universal conversion pipeline compatible with the open-source model ecosystem. This enables continual pre-training with less than 2\% of the data while achieving performance comparable to mainstream open-source models. We further adapt frameworks, operators, parallel strategies, and communication primitives for **non-NVIDIA (MetaX) clusters**, ensuring stable large-scale training and inference. SpikingBrain achieves over 100× speedup in TTFT for 4M-token sequences, while spiking delivers over 69\% sparsity at the micro level. Combined with macro-level MoE sparsity, these advances provide valuable guidance for the design of next-generation neuromorphic chips.
+
+![](assets/fig1.png)
+
+---
+
+## Project Structure
+This repository provides the full implementation and weights of **SpikingBrain-7B**, including the **HuggingFace version**, **vLLM inference version**, and **quantized version**, enabling flexible deployment and research across different scenarios.
+
+```
+SpikingBrain-7B/
+├── hf_7B_model/ # HuggingFace version
+├── run_model/   # Model run examples
+├── vllm_hymeta/ # vLLM plugins and inference support
+├── W8ASpike/    # Quantized inference version
+├── setup.py
+├── requirements.txt 
+└── README.md 
+```
+
+--- 
+
+## vLLM-HyMeta
+
+**vllm-hymeta** is the plugin adaptation of HyMeta (Hybrid Models built on MetaX GPUs) for the [vLLM inference framework](https://github.com/vllm-project/vllm/tree/main), providing efficient inference support on NVIDIA GPUs.
+
+By leveraging the [plugins mechanism](https://blog.vllm.ai/2025/05/12/hardware-plugin.html) in vLLM, hardware backends can be integrated in a modular fashion, bringing the following benefits:
+
+- **Decoupled codebase**: Backend-specific code remains independent, keeping the vLLM core cleaner.
+
+- **Reduced maintenance cost**: vLLM developers can focus on general functionality without being affected by backend-specific implementations.
+
+- **Faster integration**: New backends can be integrated quickly and evolve independently with less engineering effort.
+
+### Container Deployment (NVIDIA)
+```bash
+sudo docker run -itd \
+    --entrypoint /bin/bash \
+    --network host \
+    --name hymeta-bench \
+    --shm-size 160g \
+    --gpus all \
+    --privileged \
+    -v /host_path:/container_path \
+    docker.1ms.run/vllm/vllm-openai:v0.10.0
+```
+
+### Plugin Installation
+```bash
+git clone https://github.com/BICLab/SpikingBrain-7B.git
+cd SpikingBrain-7B
+pip install .
+```
+
+Recommended environment for installing **vllm-hymeta** on NVIDIA GPUs:
+
+```makefile
+torch==2.7.1
+transformers==4.55.2
+triton==3.3.1
+flash_attn==2.7.3
+flash-linear-attention==0.1
+vllm==0.10.0
+scipy
+pyyaml
+decorator
+setuptools
+setuptools-scm
+```
+
+Due to the conflict between `flash-linear-attention==0.1` and `transformers==4.55.2`, You can refer to [fla-org/flash-linear-attention#425](https://github.com/fla-org/flash-linear-attention/issues/425) to modify `<your_path_to_python3.12>/dist-packages/fla/models/bitnet/init.py` as follows:
+
+Change from:
+```python
+AutoConfig.register(ABCConfig.model_type, ABCConfig)
+AutoModel.register(ABCConfig, ABCModel)
+AutoModelForCausalLM.register(ABCConfig, ABCForCausalLM)
+```
+to:
+```python
+AutoConfig.register(ABCConfig.model_type, ABCConfig, exist_ok=True)
+AutoModel.register(ABCConfig, ABCModel, exist_ok=True)
+AutoModelForCausalLM.register(ABCConfig, ABCForCausalLM, exist_ok=True)
+```
+That is, add `exist_ok=True` to each line.
+
+### Run with vLLM
+
+You can serve a model with vLLM in the simplest way using the following command:
+
+```bash
+vllm serve <your_model_path> \
+  --served-model-name <model_name> \
+  --gpu-memory-utilization <ratio> \
+  --block-size <size> \
+  --dtype bfloat16 \
+  --port <port_number>
+```
+
+You may also set `--tensor-parallel-size` and `--pipeline-parallel-size` when launching if you want to run with multiple GPUs. 
+
+---
+
+## W8ASpike
+
+**W8ASpike** is the quantized inference version of SpikingBrain-7B, aiming to reduce inference cost under low-precision settings and explore the potential of Spiking Neural Networks (SNNs).
+
+The current implementation adopts **pseudo-spiking**, where activations are approximated as spike-like signals at the tensor level, rather than true asynchronous event-driven spiking on neuromorphic hardware.
+
+- **Pseudo-spiking**: Efficient approximation at the tensor level, suitable for prototyping and research.
+
+- **True-spiking**: Requires asynchronous hardware and eve

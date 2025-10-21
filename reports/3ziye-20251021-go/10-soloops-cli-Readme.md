@@ -1,0 +1,200 @@
+# SoloOps CLI
+
+[![CI](https://github.com/Desmond-Osy/soloops-cli/workflows/CI/badge.svg)](https://github.com/Desmond-Osy/soloops-cli/actions)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Desmond-Osy/soloops-cli)](https://goreportcard.com/report/github.com/Desmond-Osy/soloops-cli)
+
+SoloOps is a command-line tool for scaffolding, validating, and managing infrastructure blueprints described in a YAML manifest (`soloops.yaml`). It generates Terraform code from your declarative configuration, making it easy to provision cloud resources with best practices built-in.
+
+## Features
+
+- **Declarative Infrastructure**: Define your infrastructure in a simple YAML manifest
+- **Blueprint System**: Pre-built templates for common patterns (serverless APIs, static sites, databases)
+- **Multi-Cloud Support**: AWS, GCP, and Azure (AWS fully implemented in MVP)
+- **Budget Aware**: Automatic budget alerts and cost controls
+- **Security First**: Built-in WAF, HTTPS enforcement, and compliance policies
+- **Terraform Generation**: Generates clean, readable Terraform code
+- **Easy to Use**: Simple CLI commands for the entire lifecycle
+
+## Quick Start
+
+### Installation
+
+**No Go installation required!** Choose your preferred method:
+
+#### One-Line Installer (Recommended)
+
+**Linux/macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/Desmond-Osy/soloops-cli/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/Desmond-Osy/soloops-cli/main/scripts/install.ps1 | iex
+```
+
+#### Manual Download
+
+Download pre-built binaries from the [releases page](https://github.com/Desmond-Osy/soloops-cli/releases):
+
+```bash
+# Linux (amd64)
+wget https://github.com/Desmond-Osy/soloops-cli/releases/latest/download/soloops-linux-amd64.tar.gz
+tar xzf soloops-linux-amd64.tar.gz
+sudo mv soloops-linux-amd64 /usr/local/bin/soloops
+
+# macOS (Apple Silicon)
+wget https://github.com/Desmond-Osy/soloops-cli/releases/latest/download/soloops-darwin-arm64.tar.gz
+tar xzf soloops-darwin-arm64.tar.gz
+sudo mv soloops-darwin-arm64 /usr/local/bin/soloops
+
+# Windows: Download soloops-windows-amd64.zip from releases and extract
+```
+
+#### Using Docker
+
+```bash
+docker pull soloops/soloops-cli:latest
+docker run --rm -v $(pwd):/workspace soloops/soloops-cli:latest init
+```
+
+#### Build from Source (for developers)
+
+```bash
+git clone https://github.com/Desmond-Osy/soloops-cli.git
+cd soloops-cli
+make build
+# Or: go install github.com/Desmond-Osy/soloops-cli/cmd/soloops@latest
+```
+
+### Basic Usage
+
+1. **Initialize a new project**:
+
+```bash
+soloops init
+```
+
+This creates a `soloops.yaml` manifest with sensible defaults.
+
+2. **Customize your configuration**:
+
+Edit `soloops.yaml` to define your infrastructure:
+
+```yaml
+project: my-awesome-app
+cloud: aws
+environments:
+  - name: prod
+    region: us-east-1
+    budget_usd: 150
+    blueprints:
+      web_api:
+        runtime: node18
+        ingress: edge
+      static_site:
+        domain: myapp.com
+policies:
+  require_https: true
+  deny_public_s3: true
+```
+
+3. **Validate your configuration**:
+
+```bash
+soloops validate
+```
+
+4. **Generate Terraform code**:
+
+```bash
+soloops generate
+```
+
+This creates Terraform files in the `infra/` directory.
+
+5. **Preview changes**:
+
+```bash
+soloops preview
+```
+
+Shows what infrastructure will be created (runs `terraform plan`).
+
+6. **Apply changes**:
+
+```bash
+soloops apply
+```
+
+Provisions your infrastructure (runs `terraform apply`).
+
+7. **Destroy when done**:
+
+```bash
+soloops destroy
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `soloops init` | Create a new soloops.yaml manifest |
+| `soloops validate` | Validate the configuration |
+| `soloops generate` | Generate Terraform files |
+| `soloops preview` | Preview infrastructure changes |
+| `soloops apply` | Provision infrastructure |
+| `soloops destroy` | Destroy infrastructure |
+| `soloops version` | Show version information |
+
+### Global Flags
+
+- `--file, -f`: Path to soloops.yaml (default: `soloops.yaml`)
+- `--env, -e`: Target environment (defaults to first in manifest)
+
+## Configuration
+
+### Project Structure
+
+```
+my-project/
+├── soloops.yaml          # Your infrastructure manifest
+├── infra/                # Generated Terraform files
+│   ├── provider.tf
+│   ├── variables.tf
+│   ├── main.tf
+│   ├── budget.tf
+│   └── outputs.tf
+└── terraform.tfstate     # Terraform state (created after apply)
+```
+
+### Example soloops.yaml
+
+```yaml
+project: acme-api
+cloud: aws
+environments:
+  - name: prod
+    region: us-east-1
+    budget_usd: 150
+    blueprints:
+      web_api:
+        runtime: node18
+        ingress: edge
+      static_site:
+        domain: acme.com
+      database:
+        type: aurora_serverless_v2
+policies:
+  require_https: true
+  deny_public_s3: true
+```
+
+## Supported Blueprints
+
+### Web API (AWS)
+
+Creates a serverless API with:
+- AWS Lambda function
+- API Gateway HTTP API

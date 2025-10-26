@@ -1,0 +1,96 @@
+# DreamOmni2: Multimodal Instruction-based Editing and Generation
+
+<p align="center">
+    <a href="https://arxiv.org/html/2510.06679v1">
+            <img alt="Build" src="https://img.shields.io/badge/arXiv%20paper-2510.06679v1-b31b1b.svg">
+    </a>
+    <a href="https://pbihao.github.io/projects/DreamOmni2/index.html">
+        <img alt="Project Page" src="https://img.shields.io/badge/Project-Page-blue">
+    </a>
+    <a href="https://www.youtube.com/watch?v=8xpoiRK57uU">
+        <img alt="Video Demo" src="https://img.shields.io/badge/Video-Demo-red">
+    </a>
+    <a href="https://huggingface.co/datasets/xiabs/DreamOmni2Bench">
+        <img alt="Build" src="https://img.shields.io/badge/DreamOmni2-Benchmark-green">
+    </a>
+    <a href="https://huggingface.co/xiabs/DreamOmni2">
+        <img alt="Build" src="https://img.shields.io/badge/🤗-HF%20Model-yellow">
+    </a>    
+    <a href="https://huggingface.co/spaces/wcy1122/DreamOmni2-Edit">
+        <img alt="Build" src="https://img.shields.io/badge/🤗-HF%20Editing%20Demo-yellow">
+    </a>
+    <a href="https://huggingface.co/spaces/wcy1122/DreamOmni2-Gen">
+        <img alt="Build" src="https://img.shields.io/badge/🤗-HF%20Generation%20Demo-yellow">
+    </a>
+    <a href="https://www.runninghub.ai/workflow/1980131298238959618">
+        <img alt="Build" src="https://img.shields.io/badge/ComfyUI-Runninghub-blue">
+    </a>
+</p>
+
+## 🔥 News
+- 🔥**2025.10.10**: Release DreamOmni2 [editing demo](https://huggingface.co/spaces/wcy1122/DreamOmni2-Edit) and [generation demo](https://huggingface.co/spaces/wcy1122/DreamOmni2-Gen)
+- 🔥**2025.10.10**: Release DreamOmni2 [Benchmark](https://huggingface.co/datasets/xiabs/DreamOmni2Bench).
+- 🔥**2025.10.10**: Release DreamOmni2's [codes](https://github.com/dvlab-research/DreamOmni2) and [models](https://huggingface.co/xiabs/DreamOmni2).
+- 🔥**2025.10.09**: Release DreamOmni2 [tech report](https://arxiv.org/html/2510.06679v1).
+
+
+<p align="center">
+  <img width="600" src="imgs/gallery.png">
+</p>
+
+
+<div align="center">
+  <a href="https://cloud.video.taobao.com/vod/HxWB8i8sYkh0DdfvfByoMHqRtezNMCpWJdjzWTOCqdY.mp4">
+    <img src="imgs/cover.png" alt="Watch the video" style="width: 600px;">
+  </a>
+</div>
+
+
+## Introduction
+
+**(1) Multimodal Instruction-based Generation**
+
+For traditional subject-driven generation based on concrete objects, DreamOmni2 achieves the best results among open-source models, showing superior identity and pose consistency. Additionally, DreamOmni2 can reference abstract attributes (such as material, texture, makeup, hairstyle, posture, design style, artistic style, etc.), even surpassing commercial models in this area.
+
+**(2) Multimodal Instruction-based Editing**
+
+Beyond traditional instruction-based editing models, DreamOmni2 supports multimodal instruction editing. In everyday editing tasks, there are often elements that are difficult to describe purely with language and require reference images. Our model addresses this need, supporting references to any concrete objects and abstract attributes, with performance comparable to commercial models.
+
+**(3) Unified Generation and Editing Model**
+
+Building upon these two new tasks, we introduce DreamOmni2, which is capable of multimodal instruction-based editing and generation under any concrete or abstract concept guidance. Overall, DreamOmni2 is a more intelligent and powerful open-sourced unified generation and editing model, offering enhanced capabilities across a wide range of tasks.
+
+## Editing and Generation Model?
+Editing and generation are distinct tasks. Editing requires strict consistency in preserving the non-edited areas of the source image, while generation only needs to retain the ID, IP, or attribution from the reference image as per the instructions, allowing the entire image to be regenerated with a focus on aesthetics. We’ve found that the instructions for generation and editing are often similar, so we’ve separated these two tasks to make it easier for users to choose the appropriate task type.
+
+## Quick Start
+
+### Requirements and Installation
+
+First, install the necessary dependencies:
+```bash
+git clone https://github.com/dvlab-research/DreamOmni2
+cd ./DreamOmni2
+pip install -r requirements.txt
+```
+
+Next, download the DreamOmni2 weights into the models folder.
+
+```bash
+huggingface-cli download --resume-download --local-dir-use-symlinks False xiabs/DreamOmni2 --local-dir ./models
+```
+
+### Inference
+
+Multimodal Instriction-based Editing
+
+**Notably, for editing tasks, due to the format settings of the training data, we need to place the image to be edited in the first position.**
+
+```bash
+python3 /mnt/bn/unifygen/xiabin_dev/iclr2026/DreamOmni2/inference_edit.py \
+    --input_img_path "example_input/edit_tests/src.jpg" "example_input/edit_tests/ref.jpg" \
+    --input_instruction "Make the woman from the second image stand on the road in the first image." \
+    --output_path "example_input/edit_tests/edit_res.png"
+```
+
+Multimodal Instriction-based Generation

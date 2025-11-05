@@ -1,0 +1,135 @@
+# AIPEXBASE
+
+<p align="center">
+  <strong>Backend-as-a-Service Infrastructure for the AI Era</strong>
+</p>
+<p align="center">
+  <a href="https://opensource.org/license/apache-2-0">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License">
+  </a>
+  <a href="https://github.com/kuafuai/aipexbase">
+    <img src="https://img.shields.io/badge/version-1.0.0-brightgreen.svg" alt="Version">
+  </a>
+  <a href="https://spring.io/projects/spring-boot">
+    <img src="https://img.shields.io/badge/Spring%20Boot-2-brightgreen.svg" alt="Spring Boot">
+  </a>
+  <a href="https://vuejs.org/">
+    <img src="https://img.shields.io/badge/Vue-3-green.svg" alt="Vue 3">
+  </a>
+</p>
+<p align="center">
+  <em>Enabling developers to build AI applications without worrying about backend API development</em>
+</p>
+
+
+<p align="center">
+Supported by: <a href="https://www.codeflying.app/"><strong>CodeFlying</strong></a> | Cursor | Trae and other products · Together advancing the new era of AI CODING
+</p> 
+
+<p align="center">
+<img height="600" weight="348" src="docs/aipexbase_en.png">
+</p>
+
+## 🚀 Core Philosophy
+
+**Complete Backend Without Writing Backend Code**
+
+AIPEXBASE provides standardized AI-native backend capabilities, allowing developers to **stop worrying about backend implementation itself**. Regardless of which AI Coding tool you use (such as Cursor, Trae, etc.), you can easily integrate AIPEXBASE SDK and directly complete end-to-end development from frontend to cloud with AI assistance.
+
+<img src="./docs/aipexbase.jpg">
+## 🎥 Feature Demo
+([Feature demonstration video: Build a full-stack web application in one minute](https://www.bilibili.com/video/BV1icW9zRERh/))
+
+## ✨ Features
+
+### 🧠 AI-Native Architecture
+- **Native MCP (Model Context Protocol) Compatibility**: Models and intelligent agents can directly invoke backend capabilities
+- **Unified Context and Data Layer**: Enables AI applications with long-term memory and traceable state management
+- **Frontend-as-Backend**: Frontend developers don't need to worry about API, Server, and DB implementation, focusing on business logic
+
+### 🛠️ Out-of-the-Box Backend Capabilities
+- **Data Storage**: Automated database operations and management
+- **User Authentication**: Complete identity authentication and permission control
+- **Third-Party Integration**: Seamless integration with mainstream AI services and platforms
+- **Context Management**: Intelligent session and state maintenance
+
+### 🇨🇳 Comprehensive Chinese Ecosystem Adaptation
+- **Native Support**: Feishu, DingTalk, WeChat, and other mainstream domestic platforms
+- **Multi-Platform Compatibility**: HarmonyOS applications, mini-programs, WebView containers
+- **China-Friendly**: Deep adaptation to Chinese development ecosystem
+
+
+## 🚀 5-Minute Quick Start
+#### Step 1: Installation
+
+**Method 1: Source Code Installation**
+
+1. System Requirements
+- Java 1.8+
+- Node.js 18+
+- MySQL 8.0+ 
+
+2. Clone the Repository
+```bash
+git clone https://github.com/kuafuai/aipexbase.git
+cd aipexbase
+```
+
+3. Import SQL Script to Local MySQL Database [SQL](./install/mysql/init.sql)
+
+
+
+4. Modify Database Connection Configuration
+```bash
+cd backend/src/main/resources
+Modify the default JDBC configuration in application-mysql.yml file
+```
+
+5. Start Backend Service Locally
+```bash
+mvn spring-boot:run
+
+Service starts at http://localhost:8080
+```
+
+6. Start Management Console Locally (Optional)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+
+**Method 2: Docker Compose Quick Deployment (Recommended)**
+
+[View Installation Guide](./docs/INSTALL.md)
+
+#### Step 2: Integrate AI IDE (such as Trae, Cursor, etc.) to Rapidly Build Your Application
+
+[View Integration Guide](./docs/IntegrationAI.md)
+
+## 📅 Roadmap
+
+[View RoadMap](./docs/ROADMAP.md)
+
+## User Manual
+[AIPEXBASE User Manual](https://vvx03gck2p.feishu.cn/wiki/LCDZwmer8iPNhZkKKJpcxp78nKd)
+
+
+## 🌟 Vision
+Enable every developer and every AI Agent to easily build intelligent applications with complete backend capabilities.
+
+AIPEXBASE is committed to becoming the infrastructure and industry standard for AI application development, promoting the popularization and development of AI-native development.
+
+## Contact Us
+📮 Email: service@kuafuai.net
+ 
+
+## 🎮 Join Our Discord
+
+[![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/VRbmaFjm)
+
+
+## Chinese Version
+[中文文档](./docs/zh/README_zh.md)
+

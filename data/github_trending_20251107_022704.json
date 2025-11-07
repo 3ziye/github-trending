@@ -1,0 +1,798 @@
+[
+  {
+    "basic_info": {
+      "name": "deepseek-ocr.rs",
+      "full_name": "TimmyOVO/deepseek-ocr.rs",
+      "owner": "TimmyOVO",
+      "description": "Rust implementation of DeepSeek-OCR with OpenAI-compatible server & CLI No Python environment needed - just download and run.",
+      "url": "https://github.com/TimmyOVO/deepseek-ocr.rs",
+      "clone_url": "https://github.com/TimmyOVO/deepseek-ocr.rs.git",
+      "ssh_url": "git@github.com:TimmyOVO/deepseek-ocr.rs.git",
+      "homepage": "",
+      "created_at": "2025-10-25T13:42:10Z",
+      "updated_at": "2025-11-07T00:55:41Z",
+      "pushed_at": "2025-11-05T15:20:09Z"
+    },
+    "stats": {
+      "stars": 1703,
+      "forks": 131,
+      "watchers": 1703,
+      "open_issues": 11,
+      "size": 954
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 457448,
+        "Python": 49675,
+        "Dockerfile": 1057
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "candle",
+        "ocr",
+        "ocr-recognition",
+        "openai",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "# deepseek-ocr.rs 🚀\n\nRust implementation of the DeepSeek-OCR inference stack with a fast CLI and an OpenAI-compatible HTTP server. The workspace packages the vision-language model, prompt tooling, and serving layer so you can build document understanding pipelines that run locally on CPU, Apple Metal, or (alpha) NVIDIA CUDA GPUs.\n\n> 中文文档请看 [README_CN.md](README_CN.md)。  \n\n> Want ready-made binaries? Latest macOS (Metal-enabled) and Windows bundles live in the [build-binaries workflow artifacts](https://github.com/TimmyOVO/deepseek-ocr.rs/actions/workflows/build-binaries.yml). Grab them from the newest green run.\n\n## Inside `crates/core` 🔬\n\n- **Vision preprocessing** – `prepare_vision_input_from_image` builds a square global canvas with letterboxing (`build_global_view`) and, when crop mode is enabled, applies `dynamic_preprocess` tiling to produce high-resolution local crops plus optional thumbnails.\n- **SAM + CLIP fusion** – each view is normalised via `image_to_tensor`, pushed through the Candle ports of SAM (`SamBackbone`) and CLIP-L (`ClipVisionModel`), then flattened with `build_clip_sam_tokens` so the features stay spatially aligned.\n- **Projector & layout tokens** – the custom `ImageProjector` linearly maps concatenated SAM/CLIP channels into the language hidden size while injecting learned `image_newline`/`view_separator` tokens to preserve grid structure, yielding the multimodal embeddings used during decoding.\n- **Tokenizer alignment** – `build_prompt_tokens` synthesises `<image>` spans whose length exactly matches the projected token count (global + local grids), ensuring OpenAI-style prompts remain consistent even after chat history pruning.\n- **Decoder & caching** – the text stack is a Candle reimplementation of DeepSeek-V2 (`DeepseekLanguageModel`) with optional FlashAttention, rotary position embeddings, and `DynamicCache` guards so both the CLI and server can stream tokens efficiently.\n- **Observability & parity** – debug builds expose CLIP/SAM traces (`VisionDebugFeatures`) so we can diff intermediate tensors against the PyTorch reference; most stages are already numerically aligned, and the few remaining deltas (mainly projector normalisation + vision tiling) are tracked on the roadmap for upcoming releases.\n\n## Why Rust? 💡\n\nThe original DeepSeek-OCR ships as a Python + Transformers stack—powerful, but hefty to deploy and awkward to embed. Rewriting the pipeline in Rust gives us:\n\n- Smaller deployable artifacts with zero Python runtime or conda baggage.\n- Memory-safe, thread-friendly infrastructure that blends into native Rust backends.\n- Unified tooling (CLI + server) running on Candle + Rocket without the Python GIL overhead.\n- Drop-in compatibility with OpenAI-style clients while tuned for single-turn OCR prompts.\n\n## Technical Stack ⚙️\n\n- **Candle** for tensor compute, with Metal and CUDA backends and FlashAttention support.\n- **Rocket** + async streaming for OpenAI-compatible `/v1/responses` and `/v1/chat/completions`.\n- **tokenizers** (upstream DeepSeek release) wrapped by `crates/assets` for deterministic caching via Hugging Face and ModelScope mirrors.\n- **Pure Rust vision/prompt pipeline** shared by CLI and server to avoid duplicated logic.\n\n## Advantages over the Python Release 🥷\n\n- Faster cold-start on Apple Silicon, lower RSS, and native binary distribution.\n- Deterministic dual-source (Hugging Face + ModelScope) asset download + verification built into the workspace.\n- Automatic single-turn chat compaction so OCR outputs stay stable even when clients send history.\n- Ready-to-use OpenAI compatibility for tools like Open WebUI without adapters.\n\n## Highlights ✨\n\n- **One repo, two entrypoints** – a batteries-included CLI for batch jobs and a Rocket-based server that speaks `/v1/responses` and `/v1/chat/completions`.\n- **Works out of the box** – pulls model weights, configs, and tokenizer from whichever of Hugging Face or ModelScope responds fastest on first run.\n- **Optimised for Apple Silicon** – optional Metal backend with FP16 execution for real-time OCR on laptops.\n- **CUDA (alpha)** – experimental support via `--features cuda` + `--device cuda --dtype f16`; expect rough edges while we finish kernel coverage.\n- **Intel MKL (preview)** – faster BLAS on x86 via `--features mkl` (install Intel oneMKL beforehand).\n- **OpenAI client compatibility** – drop-in replacement for popular SDKs; the server automatically collapses chat history to the latest user turn for OCR-friendly prompts.\n\n## Quick Start 🏁\n\n### Prerequisites\n\n- Rust 1.78+ (edition 2024 support)\n- Git\n- Optional: Apple Silicon running macOS 13+ for Metal acceleration\n- Optional: CUDA 12.2+ toolkit + driver for experimental NVIDIA GPU acceleration on Linux/Windows\n- Optional: Intel oneAPI MKL for preview x86 acceleration (see below)\n- (Recommended) Hugging Face account with `HF_TOKEN` when pulling from the `deepseek-ai/DeepSeek-OCR` repo (ModelScope is used automatically when it’s faster/reachable).\n\n### Clone the Worksp",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-11-07T02:27:05.197664"
+  },
+  {
+    "basic_info": {
+      "name": "firm",
+      "full_name": "42futures/firm",
+      "owner": "42futures",
+      "description": "A text-based work management system for technologists.",
+      "url": "https://github.com/42futures/firm",
+      "clone_url": "https://github.com/42futures/firm.git",
+      "ssh_url": "git@github.com:42futures/firm.git",
+      "homepage": "",
+      "created_at": "2025-10-10T11:42:37Z",
+      "updated_at": "2025-11-06T21:37:32Z",
+      "pushed_at": "2025-10-18T16:47:46Z"
+    },
+    "stats": {
+      "stars": 641,
+      "forks": 29,
+      "watchers": 641,
+      "open_issues": 8,
+      "size": 254
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 290171,
+        "Typst": 1971,
+        "PowerShell": 1412,
+        "Shell": 1222
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "business",
+        "cli",
+        "dsl",
+        "firm",
+        "graph",
+        "work"
+      ]
+    },
+    "content": {
+      "readme": "# Firm: Business-as-code\nA text-based work management system for technologists.\n\n![Firm CLI demo](media/demo.gif)\n\n## Why?\nModern businesses are natively digital, but lack a unified view. Your data is scattered across SaaS tools you don't control, so you piece together answers by jumping between platforms.\n\nYour business is a graph: customers link to projects, projects link to tasks, people link to organizations. Firm lets you define these relationships in plain text files (you own!).\n\nVersion controlled, locally stored and structured as code with the Firm DSL. This structured representation of your work, *business-as-code*, makes your business readable to yourself and to the robots that help you run it.\n\n### Features\n- **Everything in one place:** Organizations, contacts, projects, and how they relate.\n- **Own your data:** Plain text files and tooling that runs on your machine.\n- **Open data model:** Tailor to your business with custom schemas.\n- **Automate anything:** Search, report, integrate, whatever. It's just code.\n- **AI-ready:** LLMs can read, write, and query your business structure.\n\n## Getting started\nFirm operates on a \"workspace\": a directory containing all your `.firm` DSL files. The Firm CLI processes every file in this workspace to build a unified, queryable graph of your business.\n\nThe first step is to add an entity to your workspace. You can do this either by using the CLI or by writing the DSL yourself.\n\n### Add entities with the CLI\nUse `firm add` to interactively generate new entities. Out of the box, Firm supports a set of pre-built entity schemas for org mapping, customer relations and work management. The CLI will prompt you for the necessary info and generate corresponding DSL.\n\n```bash\n$ firm add\n```\n```\nAdding new entity\n\n> Type: organization\n> ID: megacorp\n> Name: Megacorp Ltd.\n> Email: mega@corp.com\n> Urls: [\"corp.com\"]\n\nWriting generated DSL to file my_workspace/generated/organization.firm\n```\n\n### Write DSL manually\nAlternatively, you can create a `.firm` file and write the DSL yourself.\n\n```firm\norganization megacorp {\n  name = \"Megacorp Ltd.\"\n  email = \"mega@corp.com\"\n  urls = [\"corp.com\"]\n}\n```\n\nBoth of these methods achieve the same result: a new entity defined in your Firm workspace.\n\n### Querying the workspace\nOnce you have entities in your workspace, you can query them using the CLI.\n\n#### Listing entities\nUse `firm list` to see all entities of a specific type.\n\n```bash\n$ firm list task\n```\n```\nFound 7 entities with type 'task'\n\nID: task.design_homepage\nName: Design new homepage\nIs completed: false\nAssignee ref: person.jane_doe\n\n...\n```\n\n#### Getting an entity\nTo view the full details of a single entity, use `firm get` followed by the entity's type and ID.\n\n```bash\n$ firm get person john_doe\n```\n```\nFound 'person' entity with ID 'john_doe'\n\nID: person.john_doe\nName: John Doe\nEmail: john@doe.com\n```\n\n#### Exploring relationships\nThe power of Firm lies in its ability to travel a graph of your business. Use `firm related` to explore connections to/from any entity.\n\n```bash\n$ firm related contact john_doe\n```\n```\nFound 1 relationships for 'contact' entity with ID 'john_doe'\n\nID: interaction.megacorp_intro\nType: Call\nSubject: Initial discussion about Project X\nInteraction date: 2025-09-30 09:45:00 +02:00\nInitiator ref: person.jane_smith\nPrimary contact ref: contact.john_doe\n```\n\n## Installation\nThe Firm CLI is available to download via [Github Releases](https://github.com/42futures/firm/releases/). Install scripts are provided to make the process easy.\n\n### Linux and macOS\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/42futures/firm/main/install.sh | sudo bash\n```\n\nIf you don't feel confident running it with `sudo`, you can:\n\n1. **Download the release**\n   - Go to [Github Releases](https://github.com/42futures/firm/releases/)\n   - Download the appropriate archive for your operating system and architecture. You can run `uname -m` in your terminal if you're not sure which one to pick.\n\n2. **Extract the archive**\n```bash\ntar -xzf firm-[OS]-[ARCH].tar.gz\n```\n\n3. **Navigate to the extracted directory**\n```bash\ncd firm-[OS]-[ARCH]\n```\n\n4. **Run the application**\n\n**Option A:** Run from current directory\n```bash\n./firm\n```\n\n**Option B:** Install globally (recommended)\n```bash\n# Make executable (if needed)\nchmod +x firm\n\n# Move to system PATH\nsudo mv firm /usr/local/bin/\n\n# Now you can run firm from anywhere\nfirm\n```\n\n### Windows\n```bash\nirm https://raw.githubusercontent.com/42futures/firm/main/install.ps1 | iex\n```\n\n## Using Firm as a library\nBeyond the CLI, you can integrate Firm's core logic directly into your own software using the `firm_core` and `firm_lang` Rust packages. This allows you to build more powerful automations and integrations on top of Firm.\n\nFirst, add the Firm crates to your `Cargo.toml`:\n\n```toml\n[dependencies]\nfirm_core = { git = \"https://github.com/42futures/firm.git\" }\nfirm_lang = { git = \"https://github.com/42futures/firm.git\" }\n```\n\nYou can then l",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:06.358283"
+  },
+  {
+    "basic_info": {
+      "name": "fnox",
+      "full_name": "jdx/fnox",
+      "owner": "jdx",
+      "description": "encrypted/remote secret manager",
+      "url": "https://github.com/jdx/fnox",
+      "clone_url": "https://github.com/jdx/fnox.git",
+      "ssh_url": "git@github.com:jdx/fnox.git",
+      "homepage": "https://fnox.jdx.dev",
+      "created_at": "2025-10-18T11:19:04Z",
+      "updated_at": "2025-11-07T01:15:29Z",
+      "pushed_at": "2025-11-01T22:34:30Z"
+    },
+    "stats": {
+      "stars": 615,
+      "forks": 15,
+      "watchers": 615,
+      "open_issues": 1,
+      "size": 603
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 345712,
+        "Shell": 276380,
+        "Pkl": 1246
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 🔐 fnox\n\n**Fort Knox for your secrets.**\n\n[![CI](https://github.com/jdx/fnox/actions/workflows/ci.yml/badge.svg)](https://github.com/jdx/fnox/actions/workflows/ci.yml)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n\nManage secrets with encryption or cloud providers—or both! fnox gives you a unified interface to work with secrets across development, CI, and production.\n\n## Quick Start\n\n```bash\n# Install via mise (recommended)\nmise use -g fnox\n\n# Initialize in your project\nfnox init\n\n# Set a secret (encrypted by default)\nfnox set DATABASE_URL \"postgresql://localhost/mydb\"\n\n# Get a secret\nfnox get DATABASE_URL\n\n# Run commands with secrets loaded\nfnox exec -- npm start\n\n# Enable shell integration (auto-load on cd)\neval \"$(fnox activate bash)\"  # or zsh, fish\n```\n\n## What is fnox?\n\nfnox lets you store secrets in two ways:\n\n1. **Encrypted in git** - Using age, AWS KMS, Azure KMS, or GCP KMS\n2. **Remote in cloud** - Using AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, 1Password, Bitwarden, Infisical, or HashiCorp Vault\n\nYour `fnox.toml` config file either contains encrypted secrets or references to remote secrets. Use `fnox exec` to run commands with secrets loaded, or enable shell integration to auto-load secrets when you `cd` into a directory.\n\n## Supported Providers\n\n### 🔐 Encryption (secrets in git, encrypted)\n\n- **age** - Modern encryption (works with SSH keys!)\n- **aws-kms** - AWS Key Management Service\n- **azure-kms** - Azure Key Vault encryption\n- **gcp-kms** - Google Cloud KMS\n\n### ☁️ Cloud Secret Storage (remote, centralized)\n\n- **aws-sm** - AWS Secrets Manager\n- **azure-sm** - Azure Key Vault Secrets\n- **gcp-sm** - Google Cloud Secret Manager\n- **vault** - HashiCorp Vault\n\n### 🔑 Password Managers & Secret Services\n\n- **1password** - 1Password CLI\n- **bitwarden** - Bitwarden/Vaultwarden\n- **infisical** - Infisical secrets management\n\n### 💻 Local Storage\n\n- **keychain** - OS Keychain (macOS/Windows/Linux)\n- **plain** - Plain text (for defaults only!)\n\n## Documentation\n\n**📚 [Complete Documentation](https://fnox.jdx.dev/)**\n\n### Quick Links\n\n- [Installation](https://fnox.jdx.dev/guide/installation)\n- [Quick Start Guide](https://fnox.jdx.dev/guide/quick-start)\n- [How It Works](https://fnox.jdx.dev/guide/how-it-works)\n- [Shell Integration](https://fnox.jdx.dev/guide/shell-integration)\n- [Providers Overview](https://fnox.jdx.dev/providers/overview)\n- [Real-World Example](https://fnox.jdx.dev/guide/real-world-example)\n\n### Provider Guides\n\n- [Age Encryption](https://fnox.jdx.dev/providers/age) - Simple, free, works with SSH keys\n- [AWS Secrets Manager](https://fnox.jdx.dev/providers/aws-sm) - Centralized AWS secret management\n- [1Password](https://fnox.jdx.dev/providers/1password) - Integrate with 1Password CLI\n- [Bitwarden](https://fnox.jdx.dev/providers/bitwarden) - Open source password manager\n\n[**View all providers →**](https://fnox.jdx.dev/providers/overview)\n\n### Reference\n\n- [CLI Reference](https://fnox.jdx.dev/cli/)\n- [Environment Variables](https://fnox.jdx.dev/reference/environment)\n- [Configuration File](https://fnox.jdx.dev/reference/configuration)\n\n## Example\n\n```toml\n# fnox.toml\n\n[providers]\nage = { type = \"age\", recipients = [\"age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\"] }\n\n[secrets]\n# Development secrets (encrypted in git)\nDATABASE_URL = { provider = \"age\", value = \"YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNjcnlwdC...\" }  # ← encrypted, safe to commit\nAPI_KEY = { default = \"dev-key-12345\" }  # ← plain default for local dev\n\n[profiles.production.providers]\naws = { type = \"aws-sm\", region = \"us-east-1\", prefix = \"myapp/\" }\n\n[profiles.production.secrets]\nDATABASE_URL = { provider = \"aws\", value = \"database-url\" }  # ← reference to AWS secret\n```\n\n```bash\n# Development (uses encrypted secrets)\nfnox exec -- npm start\n\n# Production (uses AWS Secrets Manager)\nfnox exec --profile production -- ./deploy.sh\n```\n\n## Why fnox?\n\n- **Flexible** - Mix and match encryption and cloud providers\n- **Team-friendly** - Encrypted secrets in git, everyone can decrypt\n- **Multi-environment** - Different providers for dev, staging, prod\n- **Shell integration** - Auto-load secrets on directory change\n- **Developer-focused** - Simple config, powerful features\n- **No vendor lock-in** - Switch providers anytime\n\n## Installation\n\n### Using mise (recommended)\n\n```bash\nmise use -g fnox\n```\n\n### Using Cargo\n\n```bash\ncargo install fnox\n```\n\n### From Source\n\n```bash\ngit clone https://github.com/jdx/fnox\ncd fnox\ncargo install --path .\n```\n\n## Development\n\nSee [CLAUDE.md](./CLAUDE.md) for development guidelines.\n\n```bash\n# Build\nmise run build\n\n# Run tests\nmise run test\n\n# Run specific tests\nmise run test:cargo\nmise run test:bats\n\n# Lint\nmise run lint\n\n# Full CI check\nmise run ci\n```\n\n## License\n\nMIT License - see [LICENSE](LICENSE) for details.\n\n## Links\n\n- [Documentation](https://fnox.jdx.dev/)\n- [GitHub Repository](https://github.com/jdx/fnox)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:07.564028"
+  },
+  {
+    "basic_info": {
+      "name": "percolator",
+      "full_name": "aeyakovenko/percolator",
+      "owner": "aeyakovenko",
+      "description": null,
+      "url": "https://github.com/aeyakovenko/percolator",
+      "clone_url": "https://github.com/aeyakovenko/percolator.git",
+      "ssh_url": "git@github.com:aeyakovenko/percolator.git",
+      "homepage": null,
+      "created_at": "2025-10-19T18:16:33Z",
+      "updated_at": "2025-11-06T15:05:54Z",
+      "pushed_at": "2025-11-05T03:23:14Z"
+    },
+    "stats": {
+      "stars": 433,
+      "forks": 96,
+      "watchers": 433,
+      "open_issues": 5,
+      "size": 159928
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1674423,
+        "Shell": 178047,
+        "Makefile": 1098
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Percolator\n\nA formally-verified perpetual futures exchange protocol for Solana with three-tier bad debt defense, constant product AMM, and rigorous security guarantees.\n\n> **⚠️ EDUCATIONAL USE ONLY**\n>\n> This code is provided for educational and research purposes only. It has not been independently audited for production use and should not be deployed to handle real funds. Use at your own risk.\n\n## Overview\n\nPercolator is a high-assurance decentralized exchange (DEX) protocol built on Solana that combines:\n\n- **Formal Verification**: 70+ Kani proofs covering safety-critical invariants\n- **Three-Tier Bad Debt Defense**: Insurance fund → Warmup burn → Equity haircut\n- **O(1) Crisis Resolution**: Constant-time loss socialization via global scale factors\n- **Insurance Fund**: Separate vault with configurable authority, fee accrual, and payout caps\n- **Constant Product AMM**: Verified x·y=k invariant with fee accrual\n- **Cross-Margin Portfolio**: Net exposure calculation for capital efficiency\n- **Adaptive PnL Vesting**: Taylor series approximation for withdrawal throttling\n- **Zero Allocations**: Pure `no_std` Rust optimized for Solana BPF\n\n**Verification Coverage**: 85% of production operations use formally verified functions\n\n## Quick Start\n\n```bash\n# Build all programs and CLI\ncargo build-sbf\ncargo build --release --bin percolator\n\n# Run unit tests (257 passing)\ncargo test --lib\n\n# Run formal verification proofs\ncargo kani -p proofs-kani --harness i2_conservation_2users_3steps\ncargo kani -p model_safety --harness proof_c3_no_overburn\n\n# Deploy to localnet\nsolana-test-validator &\n./target/release/percolator -n localnet deploy --all\n\n# Initialize exchange and run integration tests\n./target/release/percolator -n localnet test --all\n```\n\n## Architecture\n\n### Two-Program Design\n\n#### Router Program\n**Global coordinator managing collateral, portfolio margin, and cross-slab routing**\n\nResponsibilities:\n- Maintain user portfolios with equity and net exposure tracking\n- Manage central collateral vaults (SPL tokens, currently SOL only)\n- Registry of whitelisted matcher programs\n- Execute trades via CPI to matchers\n- Handle liquidations when equity < maintenance margin\n- Apply adaptive PnL vesting (warmup period throttling)\n\n#### Slab (Matcher) Program\n**LP-owned order book maintaining its own state and matching logic**\n\nResponsibilities:\n- Maintain local order book with price-time priority\n- Update quote cache for router exposure calculations\n- Verify router authority and sequence numbers (TOCTOU protection)\n- Execute fills at captured maker prices\n- Never holds or moves funds (router-only)\n\n### Safety Architecture\n\n```\n┌──────────────────┐\n│  User Wallets    │\n└────────┬─────────┘\n         │ SOL deposits/withdrawals\n         ▼\n┌──────────────────┐     CPI      ┌──────────────────┐\n│  Router Program  │─────────────▶│  Slab Programs   │\n│  (Authority)     │◀─────────────│  (Matchers)      │\n│                  │   read-only  │                  │\n│ • Collateral     │              │ • Order books    │\n│ • Portfolios     │              │ • Quote cache    │\n│ • Liquidations   │              │ • Matching       │\n│ • Vesting        │              │                  │\n└──────────────────┘              └──────────────────┘\n         │\n         ▼\n  Formally Verified\n  Model Safety Layer\n```\n\n**Security Rules**:\n- All funds stay in router vaults\n- Router → Matcher is one-way CPI (no callbacks)\n- Whitelist controls which matchers can be invoked\n- Sequence numbers prevent TOCTOU attacks\n- Atomicity: any CPI failure aborts entire transaction\n\n## Core Features\n\n### 1. Three-Tier Bad Debt Defense (O(1))\n\nWhen liquidations create bad debt, the protocol uses a three-tier defense mechanism to socialize losses across winners without iterating over users.\n\n**Loss Waterfall**:\n1. **Insurance Fund** (first line of defense)\n   - Separate vault PDA controlled by insurance authority\n   - Accrues fees from trades\n   - Pays out during liquidations with bad debt\n   - Configurable authority for topup/withdrawal\n   - Hard caps: per-event payout (0.5% of OI) and daily limit (3% of vault)\n\n2. **Warming PnL** (second line of defense)\n   - Burns unvested profits from users\n   - Only after insurance exhausted\n\n3. **Equity Haircut** (final resort)\n   - Global scale factor applied to all users\n   - Only after insurance AND warmup exhausted\n   - Haircut = (deficit - insurance - warmup) / total_equity\n\n```rust\nuse model_safety::crisis::*;\n\n// Example: 150 SOL bad debt, 50 SOL insurance, 800 SOL equity\nlet mut accums = Accums::new();\naccums.sigma_principal = 800_000_000_000;        // 800 SOL\naccums.sigma_collateral = 650_000_000_000;      // 650 SOL (150 SOL deficit)\naccums.sigma_insurance = 50_000_000_000;        // 50 SOL\n\nlet outcome = crisis_apply_haircuts(&mut accums);\n\n// Result:\n// - Insurance drawn: 50 SOL (exhausted completely)\n// - Remaining deficit: 100 SOL\n// - Haircut ratio: 100 / 800 = 12.5%\n// - User with 300 SOL → keeps 262.5 SOL (loses 37.5",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-11-07T02:27:08.729749"
+  },
+  {
+    "basic_info": {
+      "name": "pipedash",
+      "full_name": "hcavarsan/pipedash",
+      "owner": "hcavarsan",
+      "description": "A desktop app for managing CI/CD pipelines from multiple providers",
+      "url": "https://github.com/hcavarsan/pipedash",
+      "clone_url": "https://github.com/hcavarsan/pipedash.git",
+      "ssh_url": "git@github.com:hcavarsan/pipedash.git",
+      "homepage": "",
+      "created_at": "2025-10-31T00:02:21Z",
+      "updated_at": "2025-11-07T02:09:43Z",
+      "pushed_at": "2025-11-07T02:10:01Z"
+    },
+    "stats": {
+      "stars": 388,
+      "forks": 32,
+      "watchers": 388,
+      "open_issues": 3,
+      "size": 4610
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 440884,
+        "TypeScript": 331243,
+        "JavaScript": 5450,
+        "Python": 3709,
+        "CSS": 3117,
+        "HTML": 582
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "buildkite",
+        "cicd",
+        "devops",
+        "devtools",
+        "gitlab",
+        "jenkins",
+        "sre",
+        "tekton"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <br>\n  <img src=\"./app-icon.png\" width=\"102px\" alt=\"Pipedash Logo\" />\n  <h1>Pipedash</h1>\n  <p>A desktop app for managing CI/CD pipelines from multiple providers </p>\n\n</div>\n\n<p align=\"center\">\n<div align=\"center\">\n<img src=\"./public/pipedashbg.png\" alt=\"Pipedash Screenshot\" style=\"box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); border-radius: 8px;\"/>\n</div>\n</p>\n\n> **[WIP]** This is an work-in-progress project. It works for basic use cases but hasn't been thoroughly tested. Things might break, APIs might change, and there are probably bugs. Tested primarily on macOS – not sure if it works properly on Linux and Windows due to webview differences.\n\n## About\n\nPipedash aggregates CI/CD pipelines from multiple providers into a single desktop interface. Instead of switching between GitHub Actions, GitLab CI, Buildkite, Jenkins, and Tekton dashboards, view everything in one place.\n\nBuilt with Tauri, Rust, React, and TypeScript.\n\n## Why\n\nMost development teams use multiple CI/CD platforms over time. Open source projects often use GitHub Actions, internal services might run on GitLab CI or Buildkite, Kubernetes-native workloads use Tekton, and there's usually some Jenkins instance handling legacy systems. Checking everything means opening multiple tabs and manually refreshing.\n\nThis tool pulls pipeline data from different providers and shows it together.\n\n## Supported Providers\n\n- GitHub Actions\n- GitLab CI\n- Buildkite\n- Jenkins\n- Tekton CD\n\nThe plugin architecture allows adding more providers.\n\n## What It Does\n\nThe app polls configured providers and displays pipelines organized by repository and workflow. Background refresh runs every X seconds (configurable per provider). When pipeline status changes, the UI updates automatically.\n\nMain capabilities:\n- View pipeline status across multiple providers\n- Browse run history with commit info and execution times\n- Trigger workflows with parameters dynamically loaded from each provider\n- Re-run previous executions with the same parameters\n- Cancel running builds\n- Multiple instances of the same provider type\n\nWhen triggering or re-running a workflow, the app fetches available parameters directly from the provider plugin (workflow inputs for GitHub Actions, pipeline variables for GitLab CI, build parameters for Jenkins and Buildkite, etc.) and displays them in a form.\n\n**Privacy First**\n\nEverything runs locally on the machine. The app only connects to configured CI/CD providers – no analytics, telemetry, or third-party services. Pipeline data is stored in a local SQLite database and API tokens are encrypted in the system keyring.\n\n## Installation\n\nDownload the latest release for your platform from the [releases page](https://github.com/hcavarsan/pipedash/releases).\n\nAvailable for macOS, Windows, and Linux.\n\n## Setup\n\nLaunch the app and add a provider via the sidebar. Each provider needs an API token:\n\n**GitHub Actions**: Personal Access Token with `repo` and `workflow` scopes. Optionally set a custom base URL for GitHub Enterprise.\n\n**GitLab CI**: Personal Access Token with `api` scope. Supports both GitLab.com and self-hosted instances.\n\n**Buildkite**: API Access Token with read permissions and the organization slug.\n\n**Jenkins**: API token, username, and server URL.\n\n**Tekton CD**: Kubernetes config file path and context. Automatically detects namespaces with Tekton pipelines.\n\nAfter adding a provider, the app validates credentials and fetches available repositories. Select which ones to monitor and save. Pipelines will appear in the main view and refresh automatically.\n\n## How It Works\n\n**Store**\n\nProvider configurations are stored in a local SQLite database. Tokens are kept separate in the system keyring.\n\nEach provider has its own refresh interval (default: 30 seconds), adjustable based on API rate limits.\n\n\n\n**Plugin System**\n\nEach CI/CD provider is implemented as a plugin that exposes a common interface. The core application doesn't know the specifics of how GitHub Actions, GitLab CI, Buildkite, Jenkins, or Tekton work—it just calls standard methods like `fetch_pipelines()` or `trigger_pipeline()` and the plugin handles the details.\n\nPlugins are compiled into the application at build time, not loaded dynamically at runtime. This keeps things simpler and avoids the security concerns of runtime plugin loading.\n\nWhen the app starts, it loads cached pipeline data from SQLite immediately. In the background, a refresh loop polls each provider's API and updates the cache when changes are detected. The frontend listens for events and re-renders when new data arrives.\n\n## Adding Providers\n\nTo add support for a new CI/CD platform, create a new crate in `crates/pipedash-plugin-{name}/` and implement the `Plugin` trait from `pipedash-plugin-api`. The trait defines methods for fetching pipelines, validating credentials, triggering builds, and retrieving run history.\n\nEach plugin should follow this structure:\n- `schema.rs` - Table and column definitions speci",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:09.941216"
+  },
+  {
+    "basic_info": {
+      "name": "agentfs",
+      "full_name": "penberg/agentfs",
+      "owner": "penberg",
+      "description": "The filesystem for agents",
+      "url": "https://github.com/penberg/agentfs",
+      "clone_url": "https://github.com/penberg/agentfs.git",
+      "ssh_url": "git@github.com:penberg/agentfs.git",
+      "homepage": "",
+      "created_at": "2025-10-24T17:05:06Z",
+      "updated_at": "2025-11-07T02:09:44Z",
+      "pushed_at": "2025-11-06T08:05:54Z"
+    },
+    "stats": {
+      "stars": 361,
+      "forks": 18,
+      "watchers": 361,
+      "open_issues": 8,
+      "size": 146
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 201121,
+        "TypeScript": 62549,
+        "C": 19986,
+        "Shell": 9029,
+        "Makefile": 639
+      },
+      "license": null,
+      "topics": [
+        "agents",
+        "filesystem",
+        "sqlite",
+        "turso"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <h1 align=\"center\">AgentFS</h1>\n</p>\n\n<p align=\"center\">\n  The filesystem for agents\n</p>\n\n---\n\n> **⚠️ Warning:** This software is ALPHA; use only for development, testing, and experimentation. We are working to make it production-ready, but do not use it for critical data until it is ready.\n\n## What is AgentFS?\n\nAgentFS is a filesystem designed specifically for AI agents. Just as traditional filesystems provide file and directory abstractions for applications, AgentFS provides the storage abstractions that AI agents need.\n\nAt the heart of AgentFS is the [agent filesystem](SPEC.md) - a complete SQLite-based storage system for agents implemented using [Turso](https://github.com/tursodatabase/turso). It combines three essential components: a POSIX-like virtual filesystem for files and directories, a key-value store for agent state and context, and an audit trail tool for debugging and analysis. Everything an agent does - every file it creates, every piece of state it stores, every tool it invokes - lives in a single SQLite database file.\n\n## Components\n\nAgentFS provides four main components:\n\n* **[CLI](MANUAL.md)** - Command-line interface for managing agents\n* **SDK** - TypeScript and Rust libraries for programmatic access\n* **Sandbox** - Linux-compatible execution environment\n* **[Specification](SPEC.md)** - SQLite-based filesystem architecture\n\n## Getting Started\n\n### Using the CLI\n\nInitialize an agent filesystem:\n\n```bash\n$ agentfs init\nCreated agent filesystem: agent.db\n```\n\nRun a program in the sandbox with the agent filesystem mounted at `/agent`:\n\n```bash\n$ agentfs run /bin/bash\nWelcome to AgentFS!\n\n$ echo \"hello from agent\" > /agent/hello.txt\n$ cat /agent/hello.txt\nhello from agent\n$ exit\n```\n\nInspect the agent filesystem from outside:\n\n```bash\n$ agentfs fs ls\nf hello.txt\n\n$ agentfs fs cat hello.txt\nhello from agent\n```\n\nRead the **[User Manual](MANUAL.md)** for complete documentation.\n\n### Using the SDK\n\nInstall the SDK in your project:\n\n```bash\nnpm install agentfs-sdk\n```\n\nUse it in your agent code:\n\n```typescript\nimport { AgentFS } from 'agentfs-sdk';\n\nconst agent = new AgentFS('./agent.db');\n\n// Key-value operations\nawait agent.kv.set('user:preferences', { theme: 'dark' });\nconst prefs = await agent.kv.get('user:preferences');\n\n// Filesystem operations\nawait agent.fs.writeFile('/output/report.pdf', pdfBuffer);\nconst files = await agent.fs.readdir('/output');\n\n// Tool call tracking\nawait agent.tools.record(\n  'web_search',\n  Date.now() / 1000,\n  Date.now() / 1000 + 1.5,\n  { query: 'AI' },\n  { results: [...] }\n);\n```\n\nSee the **[SDK documentation in MANUAL.md](MANUAL.md#agentfs-sdk)** and **[examples](sdk/examples/)** for more details.\n\n## Why AgentFS?\n\n**Auditability**: Every file operation, tool call, and state change is recorded in SQLite. Query your agent's complete history with SQL to debug issues, analyze behavior, or meet compliance requirements.\n\n**Reproducibility**: Snapshot an agent's state at any point with `cp agent.db snapshot.db`. Restore it later to reproduce exact execution states, test what-if scenarios, or roll back mistakes.\n\n**Portability**: The entire agent runtime—files, state, history —is stored in a single SQLite file. Move it between machines, check it into version control, or deploy it to any system where Turso runs.\n\n**Simplicity**: No configuration files, no database servers, no distributed systems. Just a single file and a simple API.\n\n**Sandboxing**: Run agents in an isolated Linux environment where filesystem access is controlled and monitored. Perfect for testing untrusted code or enforcing security policies.\n\n## Learn More\n\n- **[User Manual](MANUAL.md)** - Complete guide to using the AgentFS CLI and SDK\n- **[Agent Filesystem Specification](SPEC.md)** - Technical specification of the SQLite schema\n- **[SDK Examples](sdk/examples/)** - Working code examples\n- **[Turso database](https://github.com/tursodatabase/turso)** - an in-process SQL database, compatible with SQLite.\n\n## License\n\nMIT\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:11.096481"
+  },
+  {
+    "basic_info": {
+      "name": "otterlang",
+      "full_name": "jonathanmagambo/otterlang",
+      "owner": "jonathanmagambo",
+      "description": "Otterlang programming language 🦦",
+      "url": "https://github.com/jonathanmagambo/otterlang",
+      "clone_url": "https://github.com/jonathanmagambo/otterlang.git",
+      "ssh_url": "git@github.com:jonathanmagambo/otterlang.git",
+      "homepage": "",
+      "created_at": "2025-10-27T02:11:00Z",
+      "updated_at": "2025-11-07T01:59:25Z",
+      "pushed_at": "2025-11-07T01:22:16Z"
+    },
+    "stats": {
+      "stars": 256,
+      "forks": 5,
+      "watchers": 256,
+      "open_issues": 5,
+      "size": 57928
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 864862,
+        "Nix": 2037,
+        "Shell": 11
+      },
+      "license": "MIT License",
+      "topics": [
+        "language",
+        "otter",
+        "otterlang",
+        "programming-language",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "# OtterLang 🦦\n\n<p>\n    <picture>\n      <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://github.com/jonathanmagambo/otterlang/blob/main/image.png?raw=true\" width=\"400\">\n      <img src=\"https://github.com/jonathanmagambo/otterlang/blob/main/image.png?raw=true\" width=\"400\" alt=\"OtterLang Logo\" />\n    </picture>\n    <br>\n    <strong>Simple syntax, native performance, transparent Rust FFI.</strong>\n</p>\n\n[![Build Status](https://github.com/jonathanmagambo/otterlang/workflows/CI/badge.svg)](https://github.com/jonathanmagambo/otterlang/actions)\n[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/y3b4QuvyFk)\n\nAn indentation-sensitive programming language with an LLVM backend. OtterLang compiles to native binaries with a focus on simplicity and performance.\n\n## Why OtterLang?\n\n| Feature | OtterLang | Nim |\n|---------|-----------|-----|\n| **Transparent Rust FFI** | ✅ Auto-extracts entire public API | ❌ Manual bindings required |\n| **Indentation-based Syntax** | ✅ Clean and readable | ✅ Similar |\n| **LLVM Backend** | ✅ Native code generation | ✅ Also uses LLVM |\n| **Memory Management** | ✅ Automatic GC + profiling | ✅ GC available |\n| **Zero-cost Abstractions** | ✅ Direct LLVM compilation | ✅ Good |\n| **Type Inference** | ✅ Full inference | ✅ Advanced |\n| **Async/Await** | ✅ Built-in task system | ✅ Async/await |\n| **Cross-compilation** | ✅ WASM, embedded targets | ✅ Good support |\n| **REPL** | ✅ Interactive development | ❌ Limited |\n| **Code Formatting** | ✅ Built-in formatter | ✅ Built-in |\n| **Memory Profiling** | ✅ Built-in profiler | ❌ External tools |\n| **Rust Ecosystem Access** | ✅ Transparent bridging | ❌ Manual bindings |\n| **Compilation Speed** | ✅ Fast (LLVM) | ✅ Fast |\n| **Runtime Performance** | ✅ Near C speed (1.28x) | ✅ Near C speed |\n\n## Quick Start\n\n```bash\ngit clone https://github.com/jonathanmagambo/otterlang.git\ncd otterlang\n\n# Option 1: Using Nix (recommended)\nnix develop\ncargo build --release\n\n# Option 2: Using setup script\n./setup.sh\n\n# Create and run your first program\ncat > hello.ot << 'EOF'\nuse otter:fmt\n\nfn main():\n    fmt.println(\"Hello from OtterLang!\")\nEOF\n\notter run hello.ot\n```\n\n## Installation\n\n### Using Nix (Recommended)\n\n```bash\nnix develop\ncargo build --release\n```\n\nThe Nix flake automatically provides Rust nightly, LLVM 15, and all dependencies.\n\n### Manual Setup\n\n**Prerequisites:**\n- Rust (via rustup) - nightly required for FFI features\n- LLVM 15\n\n**macOS:**\n```bash\nbrew install llvm@15\nexport LLVM_SYS_150_PREFIX=$(brew --prefix llvm@15)\nexport PATH=\"$LLVM_SYS_150_PREFIX/bin:$PATH\"\n./setup.sh\n```\n\n**Ubuntu/Debian:**\n```bash\nsudo apt-get install -y llvm-15 llvm-15-dev clang-15\nexport LLVM_SYS_150_PREFIX=/usr/lib/llvm-15\n./setup.sh\n```\n\nThe setup script automatically installs Rust nightly and configures the project.\n\n## Language Features\n\n### Syntax\n\nClean indentation-based syntax with modern features:\n\n```otter\nuse otter:fmt\nuse otter:math\n\nfn greet(name: str) -> str:\n    return \"Hello, \" + name + \"!\"\n\nstruct Point:\n    x: float\n    y: float\n\n    fn distance(self) -> float:\n        return math.sqrt(self.x * self.x + self.y * self.y)\n\nfn main():\n    let message = greet(\"World\")\n    fmt.println(message)\n\n    let p = Point(x=3.0, y=4.0)\n    let dist = p.distance()\n    fmt.println(\"Point: (\" + stringify(p.x) + \", \" + stringify(p.y) + \"), distance: \" + stringify(dist))\n\n    if len(message) > 10:\n        fmt.println(\"Long message\")\n\n    for i in 0..10:\n        fmt.println(stringify(i))\n```\n\n### Transparent Rust FFI\n\nAutomatically use any Rust crate without manual configuration:\n\n```otter\nuse rust:rand\nuse otter:fmt\n\nfn main():\n    let random = rand.random_f64()\n    fmt.println(\"Random: \" + stringify(random))\n```\n\n**Key advantages:**\n- ✅ No manual bindings needed\n- ✅ Automatic API extraction via rustdoc (requires Rust nightly)\n- ✅ Memory management handled automatically\n- ✅ Async/await support for Rust Futures\n- ✅ Type checking integrated\n\nSee [docs/FFI_TRANSPARENT.md](docs/FFI_TRANSPARENT.md) for details.\n\n### Standard Library\n\nBuilt-in modules:\n- `otter:math` - Mathematical functions\n- `otter:io` - File I/O\n- `otter:time` - Time utilities\n- `otter:task` - Task-based concurrency\n- `otter:rand` - Random numbers\n- `otter:json` - JSON parsing\n- `otter:net` - Networking\n- `otter:http` - HTTP client/server\n\n### Exception Handling\n\nModern exception handling with zero-cost success path:\n\n```otter\nuse otter:fmt\n\nfn divide(x: int, y: int) -> int:\n    if y == 0:\n        raise \"Division by zero\"\n    return x / y\n\nfn safe_operation():\n    try:\n        let result = divide(10, 0)\n        fmt.println(\"Result: \" + stringify(result))\n    except Error as e:\n        fmt.println(\"Caught error: \" + stringify(e))\n    else:\n        fmt.println(\"No errors occurred\")\n    finally:\n        fmt.println(\"Cleanup always runs\")\n\nfn nested_exceptions():\n    try:\n        try:\n            raise \"Inner error\"\n        except Error:\n ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:12.265951"
+  },
+  {
+    "basic_info": {
+      "name": "adabraka-ui",
+      "full_name": "Augani/adabraka-ui",
+      "owner": "Augani",
+      "description": "A ui component library for building desktop applications in rust",
+      "url": "https://github.com/Augani/adabraka-ui",
+      "clone_url": "https://github.com/Augani/adabraka-ui.git",
+      "ssh_url": "git@github.com:Augani/adabraka-ui.git",
+      "homepage": null,
+      "created_at": "2025-10-21T19:25:32Z",
+      "updated_at": "2025-11-06T14:19:43Z",
+      "pushed_at": "2025-10-28T18:01:50Z"
+    },
+    "stats": {
+      "stars": 239,
+      "forks": 5,
+      "watchers": 239,
+      "open_issues": 0,
+      "size": 6663
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 913224
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# adabraka-ui\n\n[![Crates.io](https://img.shields.io/crates/v/adabraka-ui.svg)](https://crates.io/crates/adabraka-ui)\n[![Downloads](https://img.shields.io/crates/d/adabraka-ui.svg)](https://crates.io/crates/adabraka-ui)\n[![Documentation](https://docs.rs/adabraka-ui/badge.svg)](https://docs.rs/adabraka-ui)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n[![Rust](https://img.shields.io/badge/rust-nightly-orange.svg)](https://www.rust-lang.org/)\n[![GitHub Stars](https://img.shields.io/github/stars/Augani/adabraka-ui?style=social)](https://github.com/Augani/adabraka-ui)\n\nA comprehensive, professional UI component library for [GPUI](https://github.com/zed-industries/zed), the GPU-accelerated UI framework powering the Zed editor. Inspired by [shadcn/ui](https://ui.shadcn.com/), adabraka-ui provides 73+ polished, accessible components for building beautiful desktop applications in Rust.\n\n**[📖 Documentation](https://augani.github.io/adabraka-ui/)** · **[🚀 Getting Started](#installation)** · **[📦 Components](#components)** · **[💡 Examples](#examples)**\n\n## ✨ Features\n\n- 🎨 **Complete Theme System** - Built-in light/dark themes with semantic color tokens\n- 🧩 **73+ Components** - Comprehensive library covering all UI needs from buttons to data tables\n- 📱 **Responsive Layout** - Flexible layout utilities (VStack, HStack, Grid)\n- 🎭 **Professional Animations** - Smooth transitions with cubic-bezier easing and spring physics\n- ✍️ **Typography System** - Built-in Text component with semantic variants\n- 💻 **Code Editor** - Multi-line editor with syntax highlighting and full keyboard support\n- ♿ **Accessibility** - Full keyboard navigation, ARIA labels, and screen reader support\n- 🎯 **Type-Safe** - Leverages Rust's type system for compile-time guarantees\n- 🚀 **High Performance** - Optimized for GPUI's retained-mode rendering with virtual scrolling\n- 📚 **Well Documented** - Extensive examples and comprehensive API documentation\n\n## 🎬 Showcase\n\nSee adabraka-ui in action in real applications:\n\n### Desktop Music Player\n![Music Player App](docs/assets/images/music-player.png)\n\nA beautiful desktop music player with offline playing capabilities. Features smooth animations, responsive UI, and a polished user experience built entirely with adabraka-ui components.\n\n### Project Task Manager\n![Task Manager App](docs/assets/images/task-manager.png)\n\nA powerful task management application used to track the development of this UI library. Features drag-and-drop task organization with smooth animations, showcasing the library's advanced capabilities.\n\n## 🚀 Installation\n\n> **Note:** Currently requires Rust nightly due to GPUI dependencies. Install with: `rustup toolchain install nightly`\n\nAdd adabraka-ui to your `Cargo.toml`:\n\n```toml\n[dependencies]\nadabraka-ui = \"0.2.2\"\ngpui = \"0.2.0\"\n```\n\nBuild your project with nightly:\n```bash\ncargo +nightly build\n```\n\n## ✨ What's New in v0.2.2\n\n**Latest Release (October 28, 2025)** - Improved form usability and documentation!\n\n### 🔐 Password Input Fixed\nThe password input eye icon now properly toggles between masked (••••) and visible text with immediate state updates. Click the eye icon to reveal or hide your password.\n\n```rust\nInput::new(password_input, cx)\n    .password(true)  // Enables eye icon toggle\n    .placeholder(\"Enter password\")\n```\n\n### ⌨️ Tab Navigation\nAdded full keyboard navigation support between form inputs. Press Tab to move to the next input, Shift-Tab to go back. Works automatically with proper FocusHandle configuration.\n\n```rust\n// Tab navigation works automatically\nInput::new(&email_input, cx).placeholder(\"Email\")\nInput::new(&password_input, cx).password(true).placeholder(\"Password\")\n// Press Tab to move between inputs!\n```\n\n### 🗺️ Comprehensive Roadmap\nNew [ROADMAP.md](ROADMAP.md) with complete component inventory (73+ components), phase-based development plan, and prioritized quick wins for desktop integration features.\n\n### 🧹 Code Quality\nRemoved 13 unnecessary inline comments across 6 files for a cleaner, more production-ready codebase.\n\n---\n\n## Quick Start\n\n```rust\nuse adabraka_ui::prelude::*;\nuse gpui::*;\n\nfn main() {\n    Application::new().run(|cx| {\n        // Initialize the UI library\n        adabraka_ui::init(cx);\n\n        // Install a theme\n        install_theme(cx, Theme::dark());\n\n        cx.open_window(\n            WindowOptions {\n                titlebar: Some(TitlebarOptions {\n                    title: Some(\"My App\".into()),\n                    ..Default::default()\n                }),\n                ..Default::default()\n            },\n            |_, cx| cx.new(|_| MyApp::new()),\n        ).unwrap();\n    });\n}\n\nstruct MyApp;\n\nimpl MyApp {\n    fn new() -> Self {\n        Self\n    }\n}\n\nimpl Render for MyApp {\n    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {\n        VStack::new()\n            .p(px(32.0))\n            .gap(px(16.0))\n            .child(\n                d",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:13.491654"
+  },
+  {
+    "basic_info": {
+      "name": "superseedr",
+      "full_name": "Jagalite/superseedr",
+      "owner": "Jagalite",
+      "description": "A BitTorrent Client in your Terminal",
+      "url": "https://github.com/Jagalite/superseedr",
+      "clone_url": "https://github.com/Jagalite/superseedr.git",
+      "ssh_url": "git@github.com:Jagalite/superseedr.git",
+      "homepage": "",
+      "created_at": "2025-10-18T22:09:46Z",
+      "updated_at": "2025-11-06T22:34:49Z",
+      "pushed_at": "2025-11-07T01:18:37Z"
+    },
+    "stats": {
+      "stars": 233,
+      "forks": 7,
+      "watchers": 233,
+      "open_issues": 1,
+      "size": 1535
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 523238,
+        "Shell": 16522
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# superseedr - A BitTorrent Client in your Terminal\n\nA BitTorrent client written fully in Rust using **[Ratatui](https://ratatui.rs/)**.\n\n![Feature Demo](https://github.com/Jagalite/superseedr-assets/blob/main/superseedr_landing.webp)\n\n## Installation\n\nFind releases for all platforms on the [releases page](https://github.com/Jagalite/superseedr/releases)\n\nMagnet links and torrent files are fully supported with installation.\n\n> [!NOTE]  \n> Some terminals start with very low ulimits (256). superseedr can still operate, but consider increasing for maximum performance and stability: `ulimit -n 65536`.\n\n> [!NOTE]  \n> macOS's default terminal application does not support truecolor just yet (soon!), try using kitty or Ghostty.\n\n### Private Tracker Builds\nThis installation is intended for private trackers, as it disables peer-discovery features (DHT & PEX).\nThese features will not be included in the final build of the private versions of superseedr.\nThese builds are also available on the releases page.\n\n### Installing from source\nYou can also install from source using `cargo`.\n```bash\n# Standard Build\ncargo install superseedr\n\n# Private Tracker Build\ncargo install superseedr --no-default-features\n```\n\n## Usage\nOpen up a terminal and run:\n```bash\nsuperseedr\n```\n\n> [!NOTE]  \n> Add torrents by clicking on magnet links from the browser and or opening torrent files. \n> A download directory needs to be set first. Configure this inside the application with `c`.\n\nWhile in the app, add torrents by pasting (`ctrl+v` or `v`) a magnet link or path to a `.torrent` file. \nYou can also add torrents or magnet links via another terminal command line while the TUI is running (make sure to set a download path first):\n```bash\n# Magnet links or torrent paths can be pasted when the TUI is running.\ncrtl+v \"magnet:?xt=urn:btih:...\"\ncrtl+v \"/absolute/path/to/my.torrent\"\n\n# CLI - Run in another terminal\nsuperseedr \"magnet:?xt=urn:btih:...\"\nsuperseedr \"/absolute/path/to/my.torrent\"\nsuperseedr stop-client\n```\n\nConfiguration files are located in the user's Application Support folder:\n`Press [m] in the tui to see log and config path`\n\n## Current Status & Features\n\nThe client is in a late-alpha stage, with most core BitTorrent features implemented and functional.\nTesting and refining for V1.0 release.\n\n### Core Protocol & Peer Discovery\n- **Real Time Performance Tuning:** Periodic resource optimizations (file handles) to maximize speeds and disk stability.\n- **Peer Discovery:** Full support for Trackers, DHT, PEX, and Magnet Links (including metadata download).\n- **Piece Selection:** Utilizes a Rarest-First strategy for optimal swarm health, switching to Endgame Mode for the final pieces.\n- **Choking Algorithm:** Employs a tit-for-tat based choking algorithm with optimistic unchoking for efficient upload slot management.\n\n### User Interface (TUI)\n- **Real-time Dashboard:** A `ratatui`-based terminal UI displaying overall status, individual torrent progress, peer lists, and network graphs.\n- **High Performance TUI:** FPS selector that allows 1-60fps.\n- **Network Graph:** Historic time periods selector on network activity for network speed and disk failures.\n\n### Configuration & Management\n- **Persistent State:** Saves the torrent list, progress, and lifetime stats to a configuration file.\n- **Speed Limits:** Allows setting global upload and download speed limits.\n\n## Roadmap to V1.0\n- **Testing:** Ongoing testing across various platforms and terminals.\n- **Unit Testing:** Expansion of unit test coverage.\n- **Bugs Startup and Shutdown** Fixing of serveral edge cases when users quit during certain critical phases.\n\n## Roadmap to V1.5\n- Fix and refactor synchronous startup and validation\n- **Docker:** Docker setup with VPN container networking passthrough.\n\n## Future (V2.0 and Beyond)\n\n### Refactors \n- **Codebase:** Reduce dependencies by implementing some of these features in the codebase.\n\n### Networking & Protocol\n- **Protocol Encryption (PE/MSE):** Encrypts BitTorrent.\n- **Full IPv6 Support:** Allow connecting to IPv6 peers and announcing to IPv6 trackers, including parsing compact peers6 responses.\n- **UPnP / NAT-PMP:** Automatically configure port forwarding on compatible routers to improve connectability.\n- **Tracker Scraping:** Implement the ability to query trackers for seeder/leecher counts without doing a full announce (useful for displaying stats).\n- **Network History:** Persisting network history to disk.\n\n### Torrent & File Management\n- **Selective File Downloading:** Allow users to choose which specific files inside a multi-file torrent they want to download.\n- **Sequential Downloading:** Download pieces in order, primarily useful for streaming media files while they're downloading.\n- **Torrent Prioritization / Queueing:** Allow users to set priorities for torrents and configure limits on the number of active downloading or seeding torrents.\n- **Per-Torrent Settings:** Allow setting individual speed limits, ratio goals, or connection ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:14.684586"
+  },
+  {
+    "basic_info": {
+      "name": "neura-hustle-tracker",
+      "full_name": "adolfousier/neura-hustle-tracker",
+      "owner": "adolfousier",
+      "description": "An open-source time-tracking tool for monitoring your productivity with privacy-first approach. Own your hustle, optimize those  \"grind sessions,\" and uncover inefficiencies. Built with Rust, Ratatui and Postgres.",
+      "url": "https://github.com/adolfousier/neura-hustle-tracker",
+      "clone_url": "https://github.com/adolfousier/neura-hustle-tracker.git",
+      "ssh_url": "git@github.com:adolfousier/neura-hustle-tracker.git",
+      "homepage": "",
+      "created_at": "2025-10-14T18:05:20Z",
+      "updated_at": "2025-11-06T15:19:27Z",
+      "pushed_at": "2025-11-06T15:19:23Z"
+    },
+    "stats": {
+      "stars": 161,
+      "forks": 8,
+      "watchers": 161,
+      "open_issues": 1,
+      "size": 33391
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 320507,
+        "PowerShell": 11347,
+        "Makefile": 6875,
+        "Shell": 1643,
+        "Batchfile": 203
+      },
+      "license": "Other",
+      "topics": [
+        "productivity-tools",
+        "productivity-tracker",
+        "ratatui",
+        "rust",
+        "time-tracker",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "[![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org)\n[![Ratatui](https://img.shields.io/badge/ratatui-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)](https://ratatui.rs)\n[![Docker](https://img.shields.io/badge/docker-%23000000.svg?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)\n[![Make](https://img.shields.io/badge/Make-%23000000.svg?style=for-the-badge&logo=gnu&logoColor=white)](https://www.gnu.org/software/make/)\n[![PostgreSQL](https://img.shields.io/badge/postgresql-%23000000.svg?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)\n\n[![Neura Hustle Tracker](https://img.shields.io/badge/Neura%20Hustle%20Tracker-7f56da)](https://meetneura.ai) [![Powered by Neura AI](https://img.shields.io/badge/Powered%20by-Neura%20AI-7f56da)](https://meetneura.ai)\n\n# Neura Hustle Tracker BETA\n\n**Track what apps you use and how long you spend on them.**\n\nThis app runs in your terminal and shows you exactly where your time goes during work sessions. Built with Ratatui.\n\n![Demo](src/screenshots/hustler-tracker-demo-new.gif)\n\n## What Does This Do?\n\n- **Tracks your app usage** - Automatically monitors which programs you're using\n- **Shows pretty charts** - See your time broken down by app and category\n- **Saves your data** - Everything stored locally in your own PostgreSQL database\n- **Works everywhere** - Linux, macOS, and Windows\n\n## Quick Start (Easiest Way)\n\n### Linux\n\nCopy and paste this into your terminal:\n\n```bash\nsudo apt update && sudo apt install -y make docker.io curl git openssl && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source ~/.cargo/env && git clone https://github.com/adolfousier/neura-hustle-tracker.git && cd neura-hustle-tracker && make run\n```\n\nThat's it! The app will start tracking automatically.\n\n### macOS\n\n1. Install [Docker Desktop](https://docs.docker.com/desktop/install/mac-install/) first\n2. Then paste this into Terminal:\n\n```bash\nbrew install make git rustup-init && rustup-init -y && source ~/.cargo/env && git clone https://github.com/adolfousier/neura-hustle-tracker.git && cd neura-hustle-tracker && make daemon-start\n```\n\n3. View your stats anytime: `make view`\n\n### Windows\n\n1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)\n2. Open PowerShell as Administrator\n3. Run this:\n\n```powershell\npowershell -Command \"iwr -useb https://raw.githubusercontent.com/adolfousier/neura-hustle-tracker/main/src/scripts/windows_build/windows-install.ps1 | iex\"\n```\n\n4. View your stats anytime: `hustle-view`\n\n## Already Have Rust and Docker?\n\nIf you already have the prerequisites installed:\n\n```bash\ngit clone https://github.com/adolfousier/neura-hustle-tracker\ncd neura-hustle-tracker\nmake run\n```\n\nDone! The app handles everything else automatically.\n\n## How to Use It\n\nOnce the app is running:\n\n- **Tab** - Switch between Daily, Weekly, and Monthly views\n- **h** - See your complete session history\n- **r** - Rename apps to organize them better\n- **Shift+C** - See all available commands\n- **q** - Quit\n\nThe app tracks automatically. Just switch between your programs normally and it records everything.\n\n## Two Ways to Run (Important!)\n\n### Linux Users → Use \"Unified Mode\"\n\nRun `make run` and you're done. Everything works in one window.\n\n**Available commands for Linux:**\n\n- `make run` - Start DB + build + run app (all in one!)\n- `make dev` - Start DB + run in dev mode (faster builds)\n- `make db-up` - Start PostgreSQL in Docker\n- `make db-down` - Stop PostgreSQL\n- `make build` - Build TUI binary only\n- `make build-daemon` - Build daemon binary only\n- `make clean` - Clean all build artifacts and stop DB\n- `make help` - Show all available commands\n\n### macOS/Windows Users → Use \"Daemon Mode\"\n\nYou need two steps because of how these systems work:\n\n1. **Start tracking in background**: `make daemon-start`\n2. **Open the dashboard**: `make view`\n\nWhy? On macOS/Windows, if the tracking runs in the dashboard window, it can't see when you switch to other apps. Running it in the background fixes this.\n\n**Commands for daemon mode:**\n\n- `make daemon-start` - Start tracking\n- `make view` - Open dashboard\n- `make daemon-stop` - Stop tracking\n- `make daemon-status` - Check if running\n\n## What You Need\n\n- **Computer**: Windows 10+, macOS 10.15+, or Linux with a desktop\n- **Space**: About 500MB for Docker and dependencies\n- **Permissions**:\n  - **macOS**: Terminal application needs the following permissions (daemon binary itself does NOT need permissions):\n    - Accessibility\n    - Screen & System Audio Settings\n    - Input Monitoring\n  - **Windows**: Works out of the box\n  - **Linux**: Needs a desktop environment (GNOME, KDE, etc.)\n\n  **Note**: On macOS/Windows, the daemon runs in the background without needing permissions. The **Terminal application** itself needs the permissions listed above to monitor your system properly.\n\n## Special Notes\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:15.843650"
+  },
+  {
+    "basic_info": {
+      "name": "docx_compressor",
+      "full_name": "adysec/docx_compressor",
+      "owner": "adysec",
+      "description": "一个轻量级的跨平台工具，用于压缩 Word (.docx) 文件中的图片，显著减小文档体积。支持 Windows 与 Linux，拥有简洁的图形化界面。",
+      "url": "https://github.com/adysec/docx_compressor",
+      "clone_url": "https://github.com/adysec/docx_compressor.git",
+      "ssh_url": "git@github.com:adysec/docx_compressor.git",
+      "homepage": "",
+      "created_at": "2025-11-05T03:51:40Z",
+      "updated_at": "2025-11-07T02:02:43Z",
+      "pushed_at": "2025-11-07T02:02:39Z"
+    },
+    "stats": {
+      "stars": 148,
+      "forks": 145,
+      "watchers": 148,
+      "open_issues": 0,
+      "size": 53
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 10071
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "docs",
+        "docx"
+      ]
+    },
+    "content": {
+      "readme": "# 📘 DOCX 图片压缩器\n\n**DOCX Compressor** 是一个轻量级、跨平台的图形化工具，用于压缩 Word (`.docx`) 文档中的图片，以减小文件体积。  \n适合用于编写标书、报告、论文等需要减小上传大小的文档场景。\n\n---\n\n## ✨ 功能特点\n\n- 🖼️ **智能图片压缩**：自动检测 DOCX 内的所有图片并按指定质量与尺寸进行压缩。  \n- ⚙️ **可调参数**：自定义图片压缩质量（1-100）与最大分辨率（宽度）。  \n- 💾 **保持文档结构**：仅压缩图片，不影响文字、格式或样式。  \n- 💻 **跨平台支持**：基于egui提供图形化界面\n  - ✅ Windows（自动隐藏控制台窗口）\n  - ✅ Linux（同时支持 Wayland 与 X11 桌面环境）\n- 🌐 **中文界面**：内置 Noto Sans CJK 字体，完美显示中文。\n\n---\n\n<img width=\"1402\" height=\"1068\" alt=\"图片\" src=\"https://github.com/user-attachments/assets/fbee7718-5f4d-4cdf-8ff2-c634a49839e7\" />\n\n## 🖥️ 使用方法\n\n1. **运行程序**\n   - Windows 用户：直接双击 `docx_compressor.exe`\n   - Linux 用户：执行 `./docx_compressor`\n\n2. **选择输入文件**\n   - 点击「📂 输入文件」选择 `.docx` 文档。\n\n3. **设置参数**\n   - 压缩质量（1–100，默认 70）\n   - 最大宽度（默认 1280px）\n\n4. **选择输出文件路径**\n   - 默认输出到同目录下，文件名为 `原文件名_压缩后.docx`\n\n5. **点击「🚀 开始压缩」**\n   - 进度条与耗时将实时显示。\n\n---\n\n## 🧩 构建说明\n\n### 依赖项\n\n请确保系统已安装以下依赖：\n\n- Rust 1.75 或更高版本  \n- `libfontconfig`（Linux）  \n- C 编译工具链（如 `mingw`）\n\n### 构建命令\n\n```bash\n# 克隆仓库\ngit clone https://github.com/AdySec/docx-compressor.git\ncd docx-compressor\n\n# 构建可执行文件\ncargo build --release\ncargo build --release --target x86_64-unknown-linux-gnu\ncargo build --release --target x86_64-pc-windows-gnu\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:17.006693"
+  },
+  {
+    "basic_info": {
+      "name": "hist-rs",
+      "full_name": "noamteyssier/hist-rs",
+      "owner": "noamteyssier",
+      "description": "An efficient unique-line counter (25x over `sort | uniq -c`)",
+      "url": "https://github.com/noamteyssier/hist-rs",
+      "clone_url": "https://github.com/noamteyssier/hist-rs.git",
+      "ssh_url": "git@github.com:noamteyssier/hist-rs.git",
+      "homepage": "",
+      "created_at": "2025-10-22T20:10:22Z",
+      "updated_at": "2025-11-05T17:27:30Z",
+      "pushed_at": "2025-11-04T17:26:29Z"
+    },
+    "stats": {
+      "stars": 111,
+      "forks": 1,
+      "watchers": 111,
+      "open_issues": 2,
+      "size": 40
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 10670,
+        "Just": 1817
+      },
+      "license": null,
+      "topics": [
+        "command-line-interface",
+        "counting"
+      ]
+    },
+    "content": {
+      "readme": "# hist\n\n[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.md)\n[![Crates.io](https://img.shields.io/crates/d/hist-rs?color=orange&label=crates.io)](https://crates.io/crates/hist-rs)\n\nA high-throughput CLI to count unique lines.\n\nThis is a standalone tool with equivalent functionality to `sort | uniq -c | sort -n`.\n\nThere is also support for deduplicating an input stream (i.e. only printing unique lines).\n\n## Installation\n\n```bash\ncargo install hist-rs\n```\n\n## Usage\n\n```bash\n# count unique lines in a file\nhist <file>\n\n# count unique lines from stdin\n/bin/cat <file> | hist\n\n# skip counting and just write unique lines (in the same order as they appear)\nhist <file> -u\n\n# exclude lines matching a pattern while counting\nhist <file> -e <pattern>\n\n# include lines matching a pattern while counting\nhist <file> -i <pattern>\n\n# only output lines with abundance greater than or equal to a threshold\nhist <file> -m <threshold>\n\n# only output lines with abundance less than or equal to a threshold\nhist <file> -M <threshold>\n\n# sort output by the key (default: by abundance)\nhist <file> -n\n\n# sort output in descending order (default: ascending)\nhist <file> -d\n\n# show the last-k entries and a count of the other entries (lines + number of elements)\nhist <file> -k <k>\n\n# create histogram but skip sorting by value\nhist <file> -S\n\n# perform pattern substitution on incoming lines (regex compatible pattern matching)\nhist <file> -s <pattern> <replacement>\n\n# perform multiple pattern substitutions on incoming lines (can be used multiple times)\nhist <file> -s <pattern> <replacement> -s <pattern> <replacement>\n```\n\n## Benchmarks\n\n### Benchmarks `(sort | uniq -c | sort -n)`\n\nI use [`nucgen`](https://crates.io/crates/nucgen) to generate a random 1M line [FASTQ file](https://en.wikipedia.org/wiki/FASTQ_format) and pipe it into different tools to compare their throughput with [`hyperfine`](https://lib.rs/crates/hyperfine).\n\nI am measuring the performance of equivalent `sort <file | uniq -c | sort -n` functionality.\n\nTools compared:\n- [`hist`](https://lib.rs/crates/hist-rs)\n- [`cuniq`](https://lib.rs/crates/cuniq)\n- [`huniq`](https://lib.rs/crates/huniq)\n- [`sortuniq`](https://lib.rs/crates/sortuniq)\n- [`awk`](https://www.gnu.org/software/gawk/manual/gawk.html)\n- Naive Implementation (coreutils `sort <file | uniq -c | sort -n`)\n- Naive implementation ([rust-coreutils](https://github.com/uutils/coreutils) `sort <file | uniq -c | sort -n`)\n- Naive no cache (LC_ALL=C)\n- Naive no cache size hints (LC_ALL=C; size hints for `sort`)\n\nFor the specific commands used please check the [`justfile`](./justfile).\n\n#### Benchmark Table `(sort | uniq -c | sort -n)`\n\n> Measured on MacBook M3 Pro\n\n| Command | Mean [ms] | Min [ms] | Max [ms] | Relative |\n|:---|---:|---:|---:|---:|\n| `hist` | 231.5 ± 4.6 | 226.4 | 243.8 | 1.00 |\n| `cuniq` | 561.9 ± 12.4 | 538.2 | 576.9 | 2.43 ± 0.07 |\n| `naive-rust` | 890.1 ± 4.5 | 883.6 | 897.5 | 3.84 ± 0.08 |\n| `naive-no-locale-size-hints` | 1179.2 ± 40.2 | 1132.8 | 1241.6 | 5.09 ± 0.20 |\n| `naive-no-locale` | 1219.5 ± 28.7 | 1188.2 | 1276.6 | 5.27 ± 0.16 |\n| `awk` | 1265.4 ± 7.1 | 1254.5 | 1278.5 | 5.47 ± 0.11 |\n| `huniq` | 2814.8 ± 67.8 | 2735.9 | 2951.7 | 12.16 ± 0.38 |\n| `sortuniq` | 3166.9 ± 71.3 | 3121.1 | 3351.3 | 13.68 ± 0.41 |\n| `naive-size-hints` | 5610.1 ± 53.8 | 5542.2 | 5691.7 | 24.23 ± 0.53 |\n| `naive` | 5637.6 ± 67.2 | 5527.9 | 5781.1 | 24.35 ± 0.56 |\n\n### Benchmarks (deduplicate stream)\n\nI use [`nucgen`](https://crates.io/crates/nucgen) to generate a random 1M line [FASTQ file](https://en.wikipedia.org/wiki/FASTQ_format) and pipe it into different tools to compare their throughput with [`hyperfine`](https://lib.rs/crates/hyperfine).\n\nI am measuring the performance of deduplicating an input stream (i.e. only printing unique lines).\n\nTools compared:\n- [`hist`](https://lib.rs/crates/hist-rs)\n- [`huniq`](https://lib.rs/crates/huniq)\n- [`runiq`](https://lib.rs/crates/runiq)\n- [`uq`](https://lib.rs/crates/uq)\n- [`ripuniq`](https://lib.rs/crates/ripuniq)\n- [`unic`](https://github.com/donatj/unic)\n- [`awk`](https://www.gnu.org/software/gawk/manual/gawk.html)\n\nFor the specific commands used please check the [`justfile`](./justfile).\n\n#### Benchmark Table (deduplicate stream)\n\n> Measured on MacBook M3 Pro\n\n| Command | Mean [ms] | Min [ms] | Max [ms] | Relative |\n|:---|---:|---:|---:|---:|\n| `hist` | 180.6 ± 5.8 | 167.2 | 188.9 | 1.00 |\n| `ripuniq` | 215.5 ± 4.7 | 210.4 | 226.2 | 1.19 ± 0.05 |\n| `awk` | 1307.1 ± 20.0 | 1289.3 | 1357.0 | 7.24 ± 0.26 |\n| `huniq` | 2338.3 ± 52.8 | 2257.4 | 2402.7 | 12.95 ± 0.51 |\n| `runiq` | 2413.4 ± 49.0 | 2358.7 | 2535.4 | 13.36 ± 0.51 |\n| `uq` | 2942.1 ± 56.0 | 2892.1 | 3068.6 | 16.29 ± 0.61 |\n| `unic` | 7915.2 ± 87.0 | 7807.9 | 8034.2 | 43.83 ± 1.49 |\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:18.181292"
+  },
+  {
+    "basic_info": {
+      "name": "envoluntary",
+      "full_name": "dfrankland/envoluntary",
+      "owner": "dfrankland",
+      "description": "Automatic Nix development environments for your shell.",
+      "url": "https://github.com/dfrankland/envoluntary",
+      "clone_url": "https://github.com/dfrankland/envoluntary.git",
+      "ssh_url": "git@github.com:dfrankland/envoluntary.git",
+      "homepage": "",
+      "created_at": "2025-10-15T05:45:53Z",
+      "updated_at": "2025-11-06T22:50:45Z",
+      "pushed_at": "2025-11-06T22:50:42Z"
+    },
+    "stats": {
+      "stars": 110,
+      "forks": 1,
+      "watchers": 110,
+      "open_issues": 2,
+      "size": 124
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 119134,
+        "Nix": 11067,
+        "Shell": 12
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# envoluntary\n\n**Automatic Nix development environments for your shell.**\n\nEnvoluntary seamlessly loads and unloads Nix development environments based on\ndirectory patterns, eliminating the need for per-project `.envrc` / `flake.nix`\nfiles while giving you centralized control over your development tooling.\n\nThis bridges the gap between installing packages declaratively via NixOS /\nhome-manager and defining them for each project being worked in via `flake.nix`\n/ direnv / nix-direnv. Especially useful when projects don't use Nix!\n\n```mermaid\ngraph TD\n    A[\"🌍 System-Wide Approach<br/>(NixOS/home-manager)\"] -->|Pro: Centralized<br/>Con: Loses project specificity| B[\"Management Challenge\"]\n    C[\"📁 Per-Project Approach<br/>(flake.nix/direnv)\"] -->|Pro: Project-specific<br/>Con: Setup burden| B\n    B -->|Envoluntary Solution| D[\"✨ Pattern-Based Centralized<br/>(Best of both worlds)\"]\n    D --> E[\"✅ Centralized config<br/>✅ Project-aware<br/>✅ No per-project setup<br/>✅ Works for non-Nix projects\"]\n```\n\n## Features\n\n- **Pattern-based matching**: Define directory patterns once in your config, get\n  automatic environment loading everywhere\n- **Flake-native**: Built for Nix flakes from the ground up\n- **Shell agnostic**: Works with bash, zsh, and fish\n- **Fast caching**: Profiles are cached and only rebuilt when needed\n- **Zero per-project setup**: No `.envrc` files to commit or maintain\n\n## Quick Start\n\n1. **Install**:\n\n   ```bash\n   cargo install envoluntary\n   ```\n\n   Or use via Nix shell\n\n   ```bash\n   nix shell github:dfrankland/envoluntary -c envoluntary --help\n   ```\n\n2. **Add the shell hook** to your `.bashrc`, `.zshrc`, or `config.fish`:\n\n   ```bash\n   # Bash/Zsh\n   eval \"$(envoluntary shell hook bash)\"  # or zsh\n\n   # Fish\n   envoluntary shell hook fish | source\n   ```\n\n   Or use via Nix shell\n\n   ```bash\n   # Bash/Zsh\n   eval \"$(nix shell github:dfrankland/envoluntary -c envoluntary shell hook bash)\"  # or zsh\n\n   # Fish\n   nix shell github:dfrankland/envoluntary -c envoluntary shell hook fish | source\n   ```\n\n3. **Configure your environments** in `~/.config/envoluntary/config.toml`:\n\n   ```toml\n   [[entries]]\n   pattern = \".*/projects/my-website(/.*)?\"\n   flake_reference = \"~/nix-dev-shells/nodejs\"\n   # Set whether the flake is impure\n   impure = true\n\n   [[entries]]\n   # Patterns can match on tilde too\n   pattern = \"~/projects/rust-.*\"\n   flake_reference = \"github:NixOS/templates/30a6f18?dir=rust\"\n\n   # Adjacent files or directories can be used to narrow pattern matches\n   [[entries]]\n   pattern = \".*\"\n   pattern_adjacent = \".*/Cargo\\\\.toml\"\n   flake_reference = \"github:NixOS/templates/30a6f18?dir=rust\"\n   ```\n\n4. **Navigate** to a matching directory and your environment loads automatically!\n\n## Installing with Nix\n\nThe `envoluntary` flake exports a Nix overlay, making it easy to integrate into\nyour own Nix flake.\n\n### About the Flake\n\nThe `flake.nix` in this repository is a [flake-parts](https://flake.parts/)\nmodule that:\n\n- Exports the `envoluntary` package as its `defaultPackage`\n- Provides an overlay that makes `envoluntary` available in your own flakes\n\n<details>\n<summary><strong>Using the Overlay</strong></summary>\n\nTo use `envoluntary` in your own `flake.nix`, follow these steps:\n\n#### 1. Add the input\n\nAdd `envoluntary` to your flake inputs:\n\n```nix\n{\n  description = \"Your flake description\";\n\n  inputs = {\n    nixpkgs.url = \"github:NixOS/nixpkgs/nixpkgs-unstable\";\n    envoluntary = {\n      url = \"github:dfrankland/envoluntary\";\n      inputs.nixpkgs.follows = \"nixpkgs\";\n    };\n  };\n\n  outputs = { self, nixpkgs, envoluntary }:\n    # ... rest of your flake\n}\n```\n\n#### 2. Apply the overlay\n\nApply the overlay to your `pkgs`:\n\n```nix\noutputs = { self, nixpkgs, envoluntary }:\n  let\n    system = \"x86_64-linux\"; # or your system\n    pkgs = import nixpkgs {\n      inherit system;\n      overlays = [ envoluntary.overlays.default ];\n    };\n  in {\n    # Now pkgs.envoluntary is available\n  }\n```\n\n#### 3. Use in your environment\n\nYou can now use `envoluntary` in your development shell or system configuration:\n\n```nix\ndevShells.default = pkgs.mkShell {\n  buildInputs = [ pkgs.envoluntary ];\n};\n```\n\n</details>\n\n<details>\n<summary><strong>Using the home-manager Module</strong></summary>\n\nThe `envoluntary` flake exports a home-manager module for seamless integration\nwith your home configuration.\n\n> **Note:** The overlay must be applied to your `pkgs` for this module to work.\n> See the \"Using the Overlay\" section above.\n\n#### 1. Add the input\n\nAdd `envoluntary` to your flake inputs (if not already added):\n\n```nix\n{\n  description = \"Your flake description\";\n\n  inputs = {\n    nixpkgs.url = \"github:NixOS/nixpkgs/nixpkgs-unstable\";\n    home-manager = {\n      url = \"github:nix-community/home-manager\";\n      inputs.nixpkgs.follows = \"nixpkgs\";\n    };\n    envoluntary = {\n      url = \"github:dfrankland/envoluntary\";\n      inputs.nixpkgs.follows = \"nixpkgs\";\n      inputs.home-manager.follows = \"home-manager\";\n    };\n  };\n\n  ou",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:19.342629"
+  },
+  {
+    "basic_info": {
+      "name": "state-machines-rs",
+      "full_name": "state-machines/state-machines-rs",
+      "owner": "state-machines",
+      "description": "Compile-time state machine DSL for Rust, inspired by the Ruby state_machines gem.",
+      "url": "https://github.com/state-machines/state-machines-rs",
+      "clone_url": "https://github.com/state-machines/state-machines-rs.git",
+      "ssh_url": "git@github.com:state-machines/state-machines-rs.git",
+      "homepage": null,
+      "created_at": "2025-10-08T21:33:46Z",
+      "updated_at": "2025-11-06T15:03:49Z",
+      "pushed_at": "2025-10-14T13:05:06Z"
+    },
+    "stats": {
+      "stars": 104,
+      "forks": 1,
+      "watchers": 104,
+      "open_issues": 1,
+      "size": 222
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 182431
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "embedded",
+        "no-std",
+        "procedural-macro",
+        "rust",
+        "state-machines"
+      ]
+    },
+    "content": {
+      "readme": "# state-machines\n\n> **A learning-focused Rust port of Ruby's state_machines gem**\n\n[![Crates.io](https://img.shields.io/crates/v/state-machines.svg)](https://crates.io/crates/state-machines)\n[![Documentation](https://docs.rs/state-machines/badge.svg)](https://docs.rs/state-machines)\n[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)\n[![GitHub](https://img.shields.io/badge/github-state--machines/state--machines--rs-blue)](https://github.com/state-machines/state-machines-rs)\n\n## About This Project\n\nThis is a Rust port of the popular [state_machines](https://github.com/state-machines/state_machines) Ruby gem, created as a **learning platform for Rubyists transitioning to Rust**.\n\nWhile learning Rust, I chose to port something familiar and widely used—so I could compare implementations side-by-side and understand Rust's patterns through a lens I already knew. This library is intentionally **over-commented**, not because the code is disorganized, but because it's designed to be a **teaching tool**. The goal is elegant, idiomatic Rust code that Rubyists can learn from without the usual compile-pray-repeat cycle.\n\n### Philosophy\n\n- **Learning Ground First**: Extensive inline comments explain Rust concepts, ownership, trait bounds, and macro magic\n- **Ruby Parallels**: Familiar DSL syntax and callbacks make the transition smoother\n- **Production Ready**: Despite the educational focus, this is a fully functional state machine library with:\n  - **Typestate pattern** for compile-time state safety\n  - **Zero-cost abstractions** using PhantomData\n  - Guards and unless conditions\n  - Before/after event callbacks\n  - Sync and async support\n  - `no_std` compatibility (for embedded systems)\n  - Payload support for event data\n  - Move semantics preventing invalid state transitions\n\n### For the Rust Community\n\n**You're welcome to open PRs** to fix fundamentally wrong Rust concepts—but please **don't remove comments just because \"we know it\"**. This codebase serves beginners. If something can be explained better, improve the comment. If a pattern is unidiomatic, fix it *and document why*.\n\n---\n\n## Features\n\n**Typestate Pattern** – Compile-time state safety using Rust's type system with zero runtime overhead\n\n**Guards & Unless** – Conditional transitions at event and transition levels\n\n**Callbacks** – `before`/`after` hooks at event level\n\n**Around Callbacks** – Wrap transitions with Before/AfterSuccess stages for transaction-like semantics\n\n**Async Support** – First-class `async`/`await` for guards and callbacks\n\n**Event Payloads** – Pass data through transitions with type-safe payloads\n\n**No-std Compatible** – Works on embedded targets (ESP32, bare metal)\n\n**Type-safe** – Invalid transitions become compile errors, not runtime errors\n\n**Hierarchical States** – Superstates with polymorphic transitions via SubstateOf trait\n\n**Dynamic Dispatch** – Runtime event dispatch for event-driven systems (opt-in via feature flag or explicit config)\n\n---\n\n## Quick Start\n\nAdd to your `Cargo.toml`:\n\n```toml\n[dependencies]\nstate-machines = \"0.1\"\n```\n\n### Basic Example\n\n```rust\nuse state_machines::state_machine;\n\n// Define your state machine\nstate_machine! {\n    name: TrafficLight,\n\n    initial: Red,\n    states: [Red, Yellow, Green],\n    events {\n        next {\n            transition: { from: Red, to: Green }\n            transition: { from: Green, to: Yellow }\n            transition: { from: Yellow, to: Red }\n        }\n    }\n}\n\nfn main() {\n    // Typestate pattern: each transition returns a new typed machine\n    let light = TrafficLight::new(());\n    // Type is TrafficLight<Red>\n\n    let light = light.next().unwrap();\n    // Type is TrafficLight<Green>\n\n    let light = light.next().unwrap();\n    // Type is TrafficLight<Yellow>\n}\n```\n\n### With Guards and Callbacks\n\n```rust\nuse state_machines::{state_machine, core::GuardError};\nuse std::sync::atomic::{AtomicBool, Ordering};\n\nstatic DOOR_OBSTRUCTED: AtomicBool = AtomicBool::new(false);\n\nstate_machine! {\n    name: Door,\n\n    initial: Closed,\n    states: [Closed, Open],\n    events {\n        open {\n            guards: [path_clear],\n            before: [check_safety],\n            after: [log_opened],\n            transition: { from: Closed, to: Open }\n        }\n        close {\n            transition: { from: Open, to: Closed }\n        }\n    }\n}\n\nimpl<C, S> Door<C, S> {\n    fn path_clear(&self, _ctx: &C) -> bool {\n        !DOOR_OBSTRUCTED.load(Ordering::Relaxed)\n    }\n\n    fn check_safety(&self) {\n        println!(\"Checking if path is clear...\");\n    }\n\n    fn log_opened(&self) {\n        println!(\"Door opened at {:?}\", std::time::SystemTime::now());\n    }\n}\n\nfn main() {\n    // Successful transition\n    let door = Door::new(());\n    let door = door.open().unwrap();\n    let door = door.close().unwrap();\n\n    // Failed guard check\n    DOOR_OBSTRUCTED.store(true, Ordering::Relaxed);\n    let err = door.open().expect_err(\"should fail when obstructed\"",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-11-07T02:27:20.520342"
+  },
+  {
+    "basic_info": {
+      "name": "work-tuimer",
+      "full_name": "Kamyil/work-tuimer",
+      "owner": "Kamyil",
+      "description": "Simple, keyboard-driven TUI for time-tracking that allows you to quickly add time blocks and automatically group time if same task was done in different sessions",
+      "url": "https://github.com/Kamyil/work-tuimer",
+      "clone_url": "https://github.com/Kamyil/work-tuimer.git",
+      "ssh_url": "git@github.com:Kamyil/work-tuimer.git",
+      "homepage": "",
+      "created_at": "2025-10-31T13:26:31Z",
+      "updated_at": "2025-11-07T02:09:26Z",
+      "pushed_at": "2025-11-06T12:54:19Z"
+    },
+    "stats": {
+      "stars": 98,
+      "forks": 2,
+      "watchers": 98,
+      "open_issues": 7,
+      "size": 940
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 137859,
+        "Just": 1382,
+        "Nix": 123
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# WorkTimer TUI\n\n![WorkTimer TUI Example](work_tuimer_example.png)\n<img width=\"2984\" height=\"1744\" alt=\"image\" src=\"https://github.com/user-attachments/assets/ce8becf0-ff3d-45cc-bde0-ba2d9ffc08d3\" />\n\nLive demo: https://x.com/KsenKamil/status/1985423210859368716\n\nSimple, keyboard-driven TUI for time-tracking that allows you to quickly add time blocks and automatically group time if same task was done in different sessions\nBuilt with Rust and ratatui for efficient time management.\n\n## Features\n\n- **Fully keyboard-driven**: No mouse required - everything accessible via keybinds\n- **Time as PIN-Inputs**: Easly type time with 4 clicks, since all time inputs are PIN-input alike\n- **Log tasks and breaks, get totals automatically**: Add work entries with start/end times - durations are calculated and summed\n- **Task picker with history**: Quickly select from previously used task names or create new ones\n- **Calendar navigation**: Jump between days, weeks, and months\n- **Arrow keys or Vim motions**: Navigate with arrow keys + Enter, or use h/j/k/l + i for Vim-style workflow\n- **Inline editing with undo/redo**: Fix mistakes in place, up to 50 levels of history\n- **Auto-saves locally per day**: Data stored as JSON files, for each day, on your machine (`~/.local/share/work-tuimer/`)\n- **Optional ticket integration**: Detect and link to JIRA, Linear, GitHub issues from task names - open ticket URLs directly in your browser from the app\n\n## Installation\n\nNo package managers support yet, will be done soon :(\n\n### Pre-built Binaries\n\nDownload the latest pre-built binary for your platform from [GitHub Releases](https://github.com/Kamyil/work-tuimer/releases):\n\n- **Linux (x86_64)**: `work-tuimer-linux-x86_64`\n- **macOS (Intel)**: `work-tuimer-macos-x86_64`\n- **macOS (Apple Silicon)**: `work-tuimer-macos-aarch64`\n- **Windows**: `work-tuimer-windows-x86_64.exe`\n\nAfter downloading, make the binary executable and run it:\n\n```bash\n# Linux / macOS\nchmod +x work-tuimer-linux-x86_64\n./work-tuimer-linux-x86_64\n\n# Windows\nwork-tuimer-windows-x86_64.exe\n```\n\n### Build from Source\n\nIf you prefer to build from source or don't see a binary for your platform:\n\n```bash\ncargo build --release\n./target/release/work-tuimer\n```\n\n## Usage\n\n### Browse Mode\n\n| Key | Action |\n|-----|--------|\n| `↑/k` | Move selection up |\n| `↓/j` | Move selection down |\n| `←/h` | Move field left (Name → Start → End) |\n| `→/l` | Move field right (Name → Start → End) |\n| `[` | Navigate to previous day (auto-saves) |\n| `]` | Navigate to next day (auto-saves) |\n| `C` | Open calendar view for date navigation |\n| `Enter/i` | Enter edit mode on selected field |\n| `c` | Change task name (opens picker to select/filter/create) |\n| `n` | Add new work record |\n| `b` | Add break (uses selected record's end time as start) |\n| `d` | Delete selected record |\n| `v` | Enter visual mode (multi-select) |\n| `t` | Set current time on selected field |\n| `T` | Open ticket in browser (only visible if config exists) |\n| `L` | Open worklog URL in browser (only visible if config exists) |\n| `u` | Undo last change |\n| `r` | Redo undone change |\n| `s` | Save to file |\n| `q` | Quit (auto-saves) |\n\n### Edit Mode\n\n| Key | Action |\n|-----|--------|\n| `Tab` | Next field (Name → Start → End → Description → Name) |\n| `Enter` | Save changes and exit edit mode |\n| `Esc` | Cancel and exit edit mode |\n| `Backspace` | Delete character |\n| Any char | Insert character |\n\n### Task Picker (accessed via `c` in Browse mode)\n\nPress `c` on the Name field to open the task picker:\n- Shows all unique task names from the current day\n- Type to filter the list\n- Press Enter to select a task or create a new one\n\n| Key | Action |\n|-----|--------|\n| Any char | Type to filter tasks or create new name (including h/j/k/l) |\n| `↑` | Move selection up in filtered list |\n| `↓` | Move selection down in filtered list |\n| `Enter` | Select highlighted task or create typed name |\n| `Backspace` | Delete character from filter |\n| `Esc` | Cancel and return to browse mode |\n\n### Visual Mode\n\n| Key | Action |\n|-----|--------|\n| `↑/k` | Extend selection up |\n| `↓/j` | Extend selection down |\n| `d` | Delete selected records |\n| `Esc` | Exit visual mode |\n\n### Calendar View\n\n| Key | Action |\n|-----|--------|\n| `↑/k` | Move selection up (1 week) |\n| `↓/j` | Move selection down (1 week) |\n| `←/h` | Move selection left (1 day) |\n| `→/l` | Move selection right (1 day) |\n| `[/</,` | Previous month |\n| `]/>/.` | Next month |\n| `Enter` | Jump to selected date |\n| `Esc` | Close calendar view |\n\n## Issue Tracker Integration (Optional)\n\nWorkTimer supports automatic ticket detection from task names and browser integration for **any** issue tracker (JIRA, Linear, GitHub Issues, GitLab, Azure DevOps, etc.). \n\n**This feature is completely optional** - the application works perfectly without any configuration.\n\n### Quick Start\n\n1. **Include ticket IDs in task names**: `\"PROJ-123: Fix login bug\"` or `\"#456: Update docs\"`\n2. **See the ticket badge**: Tasks w",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:21.673634"
+  },
+  {
+    "basic_info": {
+      "name": "CVE-2018-9995-rs",
+      "full_name": "0xDamian/CVE-2018-9995-rs",
+      "owner": "0xDamian",
+      "description": "POC of CVE-2018-9995 written in Rust.",
+      "url": "https://github.com/0xDamian/CVE-2018-9995-rs",
+      "clone_url": "https://github.com/0xDamian/CVE-2018-9995-rs.git",
+      "ssh_url": "git@github.com:0xDamian/CVE-2018-9995-rs.git",
+      "homepage": null,
+      "created_at": "2025-10-28T15:30:18Z",
+      "updated_at": "2025-11-05T18:28:11Z",
+      "pushed_at": "2025-11-01T22:39:23Z"
+    },
+    "stats": {
+      "stars": 91,
+      "forks": 15,
+      "watchers": 91,
+      "open_issues": 0,
+      "size": 86
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 5072
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "## Overview\n\nThis repository contains a proof-of-concept (PoC) exploit implemented in Rust targeting CVE-2018-9995. The code is for research and educational purposes only.\n\n## CVE Details\n\n- Identifier: `CVE-2018-9995`\n    \n- Summary: Proof-of-concept exploit demonstrating the vulnerability (see public advisories for technical details).\n\n## Requirements\n\n- Rust toolchain (stable) — `rustc` and `cargo`.\n    \n- Linux or any platform supported by Rust.\n\n## Usage\n\nThe repository is a PoC. Typical usage (example):\n\n```bash\ncargo run -- IP PORT\n```\n\nEg:\n```bash\ncargo run -- 0.0.0.0 85\n```\n\nDefaults to port `80` if port isn't specified.\n\n\n<img width=\"1367\" height=\"769\" alt=\"how-it-works\" src=\"https://github.com/user-attachments/assets/1d293806-b937-493f-961b-f21af02f38ff\" />\n\n---\n\n## Finding Vulnerable Devices\n\n### Google Dork\n\n```\nintitle:\"DVR Login\"\n```\n<img width=\"1036\" height=\"573\" alt=\"googlePOC\" src=\"https://github.com/user-attachments/assets/939995ea-0858-4d27-862b-464232dc193a\" />\n\n### Shodan (shodan.io)\n\n```\n\"Server GNU rsp/1.0\"\n```\n<img width=\"1347\" height=\"599\" alt=\"image\" src=\"https://github.com/user-attachments/assets/12f2a968-e05c-4140-828a-56975a444bb1\" />\n\n### Zoomeye (zoomeye.ai)\n```\n\"/login.rsp\"\n```\n<img width=\"1200\" height=\"594\" alt=\"image\" src=\"https://github.com/user-attachments/assets/94fe9d05-2114-4a2e-b33d-5709b2adab2a\" />\n\n\n## Watching Live Feeds\n\nTo watch live feeds from compromised CCTV cameras, you need a browser that supports ActiveX. \nAll modern browsers have dropped support for ActiveX, so one of the few ways to watch live feeds is to use Internet Explorer.\nYou can either install a Windows 7 VM or use \"IE Mode\" in Edge on Windows 10/11.\n\n<img width=\"1367\" height=\"769\" alt=\"image\" src=\"https://github.com/user-attachments/assets/52c11891-c4ba-4480-bc57-36fcd8f02e76\" />\n\n\n---\n## Credits\n\n- Author: 0xDamian, [@damnsec1](https://x.com/damnsec1) on Twitter\n    \n- References: https://nvd.nist.gov/vuln/detail/cve-2018-9995 (CVE Database), https://github.com/ezelf/CVE-2018-9995_dvr_credentials (Python POC)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:22.949873"
+  },
+  {
+    "basic_info": {
+      "name": "fairshare",
+      "full_name": "WilliamJudge94/fairshare",
+      "owner": "WilliamJudge94",
+      "description": "Fair resource allocation for shared Linux systems",
+      "url": "https://github.com/WilliamJudge94/fairshare",
+      "clone_url": "https://github.com/WilliamJudge94/fairshare.git",
+      "ssh_url": "git@github.com:WilliamJudge94/fairshare.git",
+      "homepage": "",
+      "created_at": "2025-10-23T22:21:03Z",
+      "updated_at": "2025-11-06T23:16:38Z",
+      "pushed_at": "2025-11-03T02:59:27Z"
+    },
+    "stats": {
+      "stars": 91,
+      "forks": 5,
+      "watchers": 91,
+      "open_issues": 0,
+      "size": 3511
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 123705,
+        "Shell": 20652,
+        "Makefile": 2416,
+        "Dockerfile": 491,
+        "Python": 413
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# fairshare\n\n**Fair resource allocation for shared Linux systems**\n\nA lightweight resource manager that prevents any single user from monopolizing CPU and memory on multi-user Linux servers. fairshare automatically enforces per-user limits while allowing users to request additional resources dynamically when they need them.\n\n### The Problem fairshare Solves\n\nOn shared Linux systems, one user running a heavy workload can consume all available CPU and memory, leaving nothing for other users. This creates a terrible experience and reduces productivity.\n\n### The Solution\n\nfairshare allocates resources fairly across all users:\n- **Default**: Each user gets 1 CPU core and 2GB RAM by default\n- **Reserved**: System reserves resources for OS and background processes (2 CPUs, 4GB RAM by default)\n- **On-demand**: Users can request more resources when needed (up to 1000 CPU cores and 10000 GB RAM)\n- **Automatic**: The system grants requests only if resources are truly available\n- **Fair**: No user can monopolize the entire system\n\n## Installation\n\n### Quick Install (Recommended)\n\nThe easiest way to install fairshare is using the installation script:\n\n```bash\n# Download and run the installer\ncurl -sSL https://raw.github.com/WilliamJudge94/fairshare/main/install.sh | bash\n```\n\nOr if you prefer to inspect the script first:\n\n```bash\n# Download the installer\nwget https://raw.github.com/WilliamJudge94/fairshare/main/install.sh\n\n# Review it\ncat install.sh\n\n# Run it\nbash install.sh\n```\n\nThe installer will:\n- Detect if PolicyKit is installed (automatically installs it if missing)\n- Download the latest release binary for your architecture\n- Install the binary and wrapper script\n- Set up PolicyKit policies\n- Configure default resource limits (1 CPU core, 2GB RAM per user)\n- Set system reserves (2 CPUs, 4GB RAM by default)\n\n![Admin Setup](static/root-admin-setup.png)\n\n### Build from Source\n\nIf you prefer to build from source or are developing fairshare:\n\n```bash\n# 1. Build the release binary\ncargo build --release\n\n# 2. Run the installer (it will detect the local build and install PolicyKit if needed)\nbash install.sh\n```\n\nAlternatively, use the Makefile for manual installation:\n\n```bash\n# Build and install binary and wrapper\ncargo build --release\nsudo make release\n\n# Ensure PolicyKit is installed (required for fairshare to work)\n# Debian/Ubuntu\nsudo apt install policykit-1\n\n# Fedora/RHEL\nsudo dnf install polkit\n\n# Arch Linux\nsudo pacman -S polkit\n\n# Setup admin defaults and PolicyKit policies (REQUIRED)\nsudo fairshare admin setup --cpu 1 --mem 2\n```\n\n### What Gets Installed\n\n- **`/usr/local/bin/fairshare`** - Wrapper script (user-facing command)\n- **`/usr/local/libexec/fairshare-bin`** - Real binary (internal use only)\n- **PolicyKit policies** - Allow passwordless execution for active users\n- **Systemd configuration** - Default resource limits for all user slices\n\nThe wrapper script automatically detects whether you're running an admin command (requires `sudo`) or a regular user command (automatically uses `pkexec`).\n\n### Requirements\n- **Linux** with systemd (including user session support)\n- **PolicyKit (polkit)** for privilege escalation (automatically installed by the installer if missing)\n- **Rust 1.70+** (only needed for building from source)\n\n### Uninstall\n\nTo remove fairshare from your system:\n\n```bash\n# Using the uninstall script\ncurl -sSL https://raw.github.com/WilliamJudge94/fairshare/main/uninstall.sh | bash\n\n# Or if you have the repository\nbash uninstall.sh\n\n# Or manually\nsudo fairshare admin uninstall --force\n```\n\n## Usage Guide\n\n### User Commands (No sudo required)\n\nRegular users can manage their own resource allocations. The wrapper script automatically handles privilege escalation via PolicyKit, so you don't need to type `pkexec` or `sudo`.\n\n#### 1. Check System Status\nSee how much CPU and memory is available and what each user is currently using.\n```bash\nfairshare status\n```\n\n![User Status](static/user-status.png)\n\n#### 2. Check Your Current Allocation\nView how much CPU and memory your user session has access to.\n```bash\nfairshare info\n```\n\n#### 3. Request Resources\nAsk for CPU and memory resources. The system uses **smart delta-based checking** - it only needs enough free resources to cover the increase from your current allocation.\n\n```bash\nfairshare request --cpu 4 --mem 8\n```\n\n![User Request](static/user-request.png)\n\n**Smart Allocation Example:**\n- You currently have: 9GB RAM allocated\n- System has: 2GB free\n- You request: 10GB RAM\n- Result: **SUCCESS** (net increase is only 1GB, which fits in the 2GB available)\n\n**Constraints:**\n- CPU: 1–1000 cores\n- Memory: 1–10000 GB\n\n#### 4. Release Resources\nReturn your resources to the system and revert to the default allocation (1 CPU core, 2GB RAM).\n```bash\nfairshare release\n```\n\n![User Release](static/user-release.png)\n\n### Administrator Commands (Requires sudo)\n\n> **Note:** Admin commands must be run with `sudo`\n\n#### Set Default Limits and System Reserves\nConfigure",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:24.210373"
+  },
+  {
+    "basic_info": {
+      "name": "PhantomTask",
+      "full_name": "BlWasp/PhantomTask",
+      "owner": "BlWasp",
+      "description": "A tool to play with scheduled tasks on Windows, in Rust",
+      "url": "https://github.com/BlWasp/PhantomTask",
+      "clone_url": "https://github.com/BlWasp/PhantomTask.git",
+      "ssh_url": "git@github.com:BlWasp/PhantomTask.git",
+      "homepage": null,
+      "created_at": "2025-10-31T16:49:42Z",
+      "updated_at": "2025-11-06T14:49:24Z",
+      "pushed_at": "2025-11-01T11:10:09Z"
+    },
+    "stats": {
+      "stars": 85,
+      "forks": 11,
+      "watchers": 85,
+      "open_issues": 0,
+      "size": 26
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 16931
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# PhantomTask\n\nA Windows command-line utility for creating and executing scheduled tasks with session-specific control. PhantomTask leverages the Windows Task Scheduler API to create tasks that run in specific user sessions with elevated privileges.\n\n## Features\n\n- **Session Management**: Create tasks targeting specific Windows Terminal Services sessions\n- **Session Enumeration**: List all active sessions on the local machine with detailed information\n- **Flexible Authentication**: Support for both interactive token and password-based authentication\n- **Elevated Privileges**: Tasks can be configured to run with highest privileges\n- **Immediate Execution**: Automatically triggers tasks after creation with configurable session targeting\n- **Hidden Tasks**: Tasks are created as hidden by default\n\n## Requirements\n\n- Windows operating system\n- Rust toolchain (2024 edition)\n- Administrator privileges (recommended for full functionality)\n\n## Installation\n\nClone the repository and build using Cargo:\n\n```powershell\ngit clone <repository-url>\ncd phantomtask\ncargo build --release\n```\n\nThe compiled binary will be available at `target/release/phantomtask.exe`\n\n## Usage\n\n### Help\n\n```powershell\nUsage: phantomtask.exe [OPTIONS]\n\nOptions:\n  -l, --list                   List active sessions on the local machine\n  -n, --name <taskname>        The name of the task to create\n  -f, --program <program>      The program to execute\n  -a, --arguments <arguments>  The arguments to pass to the program\n  -u, --username <username>    The username to run the task as\n  -p, --password <password>    The password for the specified username\n  -s, --sessionid <sessionid>  The session ID to run the task in\n  -h, --help                   Print help\n  -V, --version                Print version\n```\n\n### List Active Sessions\n\nDisplay all active Windows Terminal Services sessions with their details:\n\n```powershell\nphantomtask.exe --list\n# or\nphantomtask.exe -l\n```\n\nOutput example:\n\n```\n===== Active Sessions =====\n\nSessionID  User                 State           Station              Domain              \n=====================================================================================\n0          <None>               Active          Services             <Local>            \n1          Administrator        Active          Console              WORKSTATION        \n```\n\n### Create and Execute a Task\n\n**If you want to execute a task as `SYSTEM` (session 0), change the username in `get_user_from_session()`!** It is localisation dependent (Système, System, ...), and there is no automatic resolution on this account.\n\nCreate a scheduled task that runs in a specific session:\n\n```powershell\nphantomtask.exe --name \"MyTask\" --program \"C:\\path\\to\\program.exe\" --sessionid 1\n```\n\n#### Required Arguments\n\n- `-n, --name <TASKNAME>`: Name of the task to create\n- `-f, --program <PROGRAM>`: The program to execute\n- `-s, --sessionid <SESSIONID>`: Session ID where the task should run\n\n#### Optional Arguments\n\n- `-a, --arguments <ARGUMENTS>`: Arguments to pass to the program\n- `-u, --username <USERNAME>`: Username to run the task as\n- `-p, --password <PASSWORD>`: Password for the specified username\n\n### Examples\n\n#### Basic Task Creation\n\n```powershell\nphantomtask.exe -n \"NotepadTask\" -f \"notepad.exe\" -s 1\n```\n\n#### Task with Arguments\n\n```powershell\nphantomtask.exe -n \"CmdTask\" -f \"cmd.exe\" -a \"/c dir\" -s 1\n```\n\n#### Task with Specific User Credentials\n\n```powershell\nphantomtask.exe -n \"UserTask\" -f \"C:\\Tools\\app.exe\" -u \"DOMAIN\\User\" -p \"Password123\" -s 1\n```\n\n## How It Works\n\n1. **COM Initialization**: Initializes the Component Object Model (COM) library with multithreaded apartment\n2. **Task Scheduler Connection**: Connects to the Windows Task Scheduler service\n3. **Task Definition**: Creates a new task definition with:\n   - Time trigger (scheduled to run 1 minute after creation)\n   - Execution action with specified program and arguments\n   - Principal configuration (user and logon type)\n   - Security settings (run with highest privileges)\n4. **Session Resolution**: Resolves the username associated with the target session ID\n5. **Task Registration**: Registers the task in the root folder of Task Scheduler\n6. **Immediate Execution**: Triggers the task immediately using the resolved session context\n\n## Project Structure\n\n```\nphantomtask/\n├── Cargo.toml          # Project dependencies and configuration\n├── src/\n│   ├── main.rs         # Entry point and CLI argument parsing\n│   ├── tasks.rs        # Task creation and registration logic\n│   ├── sessions.rs     # Session enumeration and user resolution\n│   └── utils.rs        # Utility functions (wide string conversion)\n└── README.md\n```\n\n## Dependencies\n\n- **windows**: Windows API bindings for Rust (v0.62.2)\n  - Task Scheduler COM interfaces\n  - Remote Desktop Services API\n  - COM and OLE support\n- **windows-core**: Core Windows types (v0.62.2)\n- **clap**: Command-line argument parser (v4.5.51)\n\n## Limitations\n\n- Windows-o",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-11-07T02:27:25.381326"
+  },
+  {
+    "basic_info": {
+      "name": "rust-rasterizer",
+      "full_name": "tchauffi/rust-rasterizer",
+      "owner": "tchauffi",
+      "description": "A raytracer implementation in Rust",
+      "url": "https://github.com/tchauffi/rust-rasterizer",
+      "clone_url": "https://github.com/tchauffi/rust-rasterizer.git",
+      "ssh_url": "git@github.com:tchauffi/rust-rasterizer.git",
+      "homepage": null,
+      "created_at": "2025-10-22T20:27:06Z",
+      "updated_at": "2025-11-06T05:02:29Z",
+      "pushed_at": "2025-11-04T08:29:23Z"
+    },
+    "stats": {
+      "stars": 78,
+      "forks": 1,
+      "watchers": 78,
+      "open_issues": 0,
+      "size": 4793
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 191039,
+        "WGSL": 26904,
+        "HTML": 11758
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Rust Raytracer\n\n> A high-performance path tracing renderer with CPU, GPU, and real-time interactive implementations\n\n![Example Render](doc/bunny_rotated.png)\n\n## 🚀 Quick Start\n\n**Try it online:** [Live WebGPU Raytracer](https://tchauffi.github.io/rust-rasterizer/)\n\n**Run locally:**\n```bash\ngit clone https://github.com/tchauffi/rust-rasterizer.git\ncd rust-rasterizer\ncargo run --bin live_raytracer --release\n```\n\nUse your mouse to rotate the camera and press `SPACE` to toggle rendering modes!\n\n## ✨ What is this?\n\nThis project demonstrates three different approaches to ray tracing - a rendering technique that simulates how light behaves in the real world to create photorealistic images:\n\n1. **🖥️ CPU Raytracer** - Traditional software rendering with full path tracing\n2. **⚡ GPU Raytracer** - Hardware-accelerated offline rendering using compute shaders\n3. **🎮 Live GPU Raytracer** - Real-time interactive raytracer you can navigate and explore\n\nWhether you're learning about ray tracing, exploring Rust graphics programming, or looking for a starting point for your own renderer, this project provides working examples of multiple rendering approaches.\n\n## 🎯 Key Features\n\n- **Multiple Rendering Backends**: Choose between CPU, offline GPU, or real-time GPU rendering\n- **Path Tracing**: Physically-based lighting with multiple light bounces for realistic illumination\n- **Mesh Support**: Load and render complex .obj models with triangle meshes\n- **HDR Environment Maps**: Support for high dynamic range .exr skyboxes\n- **Interactive Controls**: Real-time camera navigation with mouse controls\n- **WebAssembly Support**: Runs in the browser using WebGPU\n- **Multiple Materials**: Diffuse, metallic surface properties\n- **Acceleration Structures**: BVH for efficient ray-mesh intersection\n- **Progressive Rendering**: Denoising and sample accumulation for high-quality images\n\n## 📦 Installation & Usage\n\n### 🖥️ CPU Raytracer (Software Rendering)\n\nThe CPU version renders scenes using traditional CPU-based raytracing and outputs to a PPM image file. Best for learning how raytracing works under the hood.\n\n```bash\n# Build and run (outputs to stdout, redirect to file)\ncargo run --release > output.ppm\n\n# Or build first, then run\ncargo build --release\n./target/release/rust-raytracer > output.ppm\n```\n\n**Use this when:**\n\n- Learning raytracing fundamentals\n- Debugging rendering algorithms\n- No GPU compute support available\n\n**Features:**\n\n- Full path tracing with multiple bounces\n- Direct and indirect lighting\n- Mesh support (.obj files)\n- Sphere primitives\n\n### ⚡ GPU Raytracer (Offline Rendering)\n\nThe GPU version uses compute shaders to accelerate rendering, outputting to a PPM file. Significantly faster than CPU rendering for high-quality images.\n\n```bash\n# Build and run\ncargo run --bin gpu_raytracer --release > output.ppm\n\n# Or build separately\ncargo build --bin gpu_raytracer --release\n./target/release/gpu_raytracer > output.ppm\n```\n\n**Use this when:**\n\n- Rendering high-quality final images\n- Need faster rendering than CPU\n- Don't need real-time interaction\n\n**Features:**\n\n- GPU-accelerated compute shader rendering\n- Same scene quality as CPU version\n- Significantly faster rendering times (10-100x speedup)\n- Hardware-accelerated ray-triangle intersection\n\n### 🎮 Live GPU Raytracer (Interactive Real-time)\n\nThe live version provides a real-time interactive window where you can navigate the scene. Perfect for exploring scenes and iterating on designs.\n\n```bash\n# Run the live raytracer\ncargo run --bin live_raytracer --release\n```\n\n**Use this when:**\n\n- Exploring and navigating scenes interactively\n- Setting up camera angles for final renders\n- Demonstrating raytracing in real-time\n- Debugging scene geometry\n\n**Controls:**\n\n- **Mouse**: Click and drag to rotate the camera\n- **SPACE**: Toggle between raytracing and normals visualization modes\n- **Window Title**: Displays current mode and FPS\n\n**Features:**\n\n- Real-time GPU raytracing (30-60 FPS on modern GPUs)\n- Interactive camera controls\n- Two rendering modes:\n  - **Raytracing**: Full path tracing with lighting and shadows\n  - **Normals**: Fast visualization showing surface normals (useful for debugging)\n- Live FPS counter in window title\n- WebAssembly support for browser-based rendering\n\n## 🛠️ Requirements\n\n- **Rust**: Latest stable version (install from [rustup.rs](https://rustup.rs/))\n- **GPU versions**: A GPU with compute shader support\n  - Vulkan (Linux, Windows, Android)\n  - Metal (macOS, iOS)\n  - DirectX 12 (Windows)\n- **Web version**: A browser with WebGPU support (Chrome 113+, Edge 113+, Firefox with flag)\n\n## 🌐 Web Deployment\n\nThe project can be built for WebAssembly and deployed to GitHub Pages:\n\n```bash\n# Install trunk (if not already installed)\ncargo install trunk\n\n# Build for web\ntrunk build --release\n\n# The output will be in the dist/ directory\n```\n\n## ⚙️ Performance\n\nPerformance varies based on hardware and scene complexity:\n\n| Renderer | Resolution | FPS/Time | Notes |\n|------",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-07T02:27:26.540788"
+  },
+  {
+    "basic_info": {
+      "name": "wayscriber",
+      "full_name": "devmobasa/wayscriber",
+      "owner": "devmobasa",
+      "description": "Instant on-screen annotations/markup for Wayland (ZoomIt-inspired)",
+      "url": "https://github.com/devmobasa/wayscriber",
+      "clone_url": "https://github.com/devmobasa/wayscriber.git",
+      "ssh_url": "git@github.com:devmobasa/wayscriber.git",
+      "homepage": "https://wayscriber.com",
+      "created_at": "2025-10-13T21:36:14Z",
+      "updated_at": "2025-11-06T10:03:19Z",
+      "pushed_at": "2025-11-05T06:00:18Z"
+    },
+    "stats": {
+      "stars": 73,
+      "forks": 2,
+      "watchers": 73,
+      "open_issues": 1,
+      "size": 793
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 551869,
+        "Shell": 23053
+      },
+      "license": "MIT License",
+      "topics": [
+        "annotations",
+        "arch-linux",
+        "hyprland",
+        "omarchy",
+        "wayland",
+        "zoomit"
+      ]
+    },
+    "content": {
+      "readme": "# wayscriber\n\n> TL;DR: wayscriber is a ZoomIt-like screen annotation tool for Wayland compositors, written in Rust.\n> Works on compositors with the wlr-layer-shell protocol (Hyprland, Sway, river, …); building from source requires Rust 1.85+.\n> Quick start: [set it up in four steps](#quick-start).\n\n<details>\n<summary>📹 Demo Video (Click to expand)</summary>\n\nhttps://github.com/user-attachments/assets/7c4b36ec-0f6a-4aad-93fb-f9c966d43873\n\n</details>\n\n<details>\n<summary>🖼️ Demo GIF (Click to expand)</summary>\n\n![Demo GIF](https://github.com/user-attachments/assets/e99eb161-c603-4133-926b-79de7a8fb567)\n\n</details>\n\n![License](https://img.shields.io/badge/license-MIT-blue.svg)\n![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)\n\n- [Why wayscriber?](#why-wayscriber)\n- [Quick Start](#quick-start)\n- [Features at a Glance](#features-at-a-glance)\n- [Demo](#demo)\n- [Installation](#installation)\n- [Running wayscriber](#running-wayscriber)\n- [Controls Reference](#controls-reference)\n- [Configuration](#configuration)\n- [Troubleshooting](#troubleshooting)\n- [Additional Information](#additional-information)\n- [Project History](#project-history)\n- [Contributing & Credits](#contributing--credits)\n\n## Why wayscriber?\n\n- Works across Wayland compositors (Sway, Wayfire, River, Hyprland, …) via wlr-layer-shell. Tested extensively on Hyprland and confirmed working on Niri; reports from other compositors welcome.\n- Built for live presentations, classroom sessions, and screenshares - toggle with a key and annotate your screen instantly without breaking flow.\n- Complements tools like [Satty](https://github.com/gabm/Satty): Satty excels at capture → annotate → save workflows, while wayscriber stays resident as an always-available drawing layer with instant mode switching.\n\n## Quick Start\n\n**1. Install wayscriber**\n1. Arch Linux (AUR):  (build from source)\n\t- `yay -S wayscriber` \n\t- `paru -S wayscriber` \n2. Arch Linux (AUR, prebuilt): \n\t- `yay -S wayscriber-bin` \n\t- `paru -S wayscriber-bin`.\n3. Other distros: see [Installation](#installation), then install `wl-clipboard`, `grim`, and `slurp` for the fastest screenshot workflow.\n\n**2. Choose how to run it:**\n\n### Option 1: One-Shot Mode (Simple)\nLaunch wayscriber when you need it, exit when done:\n\n```bash\nwayscriber --active\n```\n\nOr bind to a key in `~/.config/hypr/hyprland.conf`:\n```conf\nbind = SUPER, D, exec, wayscriber --active\n```\n\nPress `F10` for help, `F11` for configurator, `Escape`/`Ctrl+Q` to exit, and `F12` to toggle the status bar.\n\n### Option 2: Daemon Mode (Background Service)\nRun wayscriber in the background and toggle it with a keybind:\n\n**Enable the service:**\n```bash\nsystemctl --user enable --now wayscriber.service\n```\n\n**Add keybinding** to `~/.config/hypr/hyprland.conf`:\n```conf\nbind = SUPER, D, exec, pkill -SIGUSR1 wayscriber\n```\n\n**Reload Hyprland:**\n```bash\nhyprctl reload\n```\n\n**Note:** If the daemon doesn't start after a reboot, see [Troubleshooting](#daemon-not-starting-after-reboot).\n\n**Alternative:** Use Hyprland's exec-once instead of systemd:\n```conf\nexec-once = wayscriber --daemon\nbind = SUPER, D, exec, pkill -SIGUSR1 wayscriber\n```\n\n## Features at a Glance\n\n- **Drawing & editing**: Freehand pen, straight lines, rectangles, ellipses, arrows, and multiline text with smoothing; undo & redo; quick line-width and color changes via hotkeys or scroll.\n- **Board modes**: Whiteboard, blackboard, and transparent overlays, each with isolated frames and auto pen contrast; snap back to transparent with `Ctrl+Shift+T`.\n- **Capture shortcuts**: Full-screen saves, active-window grabs, and region capture to file or clipboard using `grim`, `slurp`, and `wl-clipboard` when available.\n- **Session persistence**: Opt-in per board/monitor storage that restores your canvas plus pen color & thickness; inspect with `wayscriber --session-info` or clear with `wayscriber --clear-session`.\n- **Workflow helpers**: Background daemon with SIGUSR1 toggle, tray icon, one-shot mode, live status bar, and in-app help overlay (`F10`).\n- **Click highlights**: Presenter-style halo on mouse clicks with configurable colors, radius, and duration; follows your pen color by default, toggle the effect with `Ctrl+Shift+H` or swap to highlight-only mode with `Ctrl+Alt+H`.\n- **Configurator & CLI**: Launch `wayscriber-configurator` (or press `F11`) to tweak colors, bindings, persistence, compression, and more; power users can edit the TOML or use CLI switches.\n- **Performance & reliability**: Dirty-region rendering keeps redraws fast, while session files use atomic writes, size limits, compression, and backups for safety.\n\n### Session Persistence\n\nWayscriber can remember your boards between runs (per monitor and per board color) along with pen color/thickness. Persistence is opt-in. Toggle it from the configurator (`F11 → Session` tab) or launch the GUI directly:\n\n```bash\nwayscriber-configurator\n```\n\nPrefer text? Edit `~/.config/wayscriber/config.toml`. Helpful commands:\n\n```bash\nwayscriber --se",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-11-07T02:27:27.785931"
+  }
+]

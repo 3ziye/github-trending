@@ -1,0 +1,808 @@
+[
+  {
+    "basic_info": {
+      "name": "deepseek-ocr.rs",
+      "full_name": "TimmyOVO/deepseek-ocr.rs",
+      "owner": "TimmyOVO",
+      "description": "Rust implementation of DeepSeek-OCR with OpenAI-compatible server & CLI No Python environment needed - just download and run.",
+      "url": "https://github.com/TimmyOVO/deepseek-ocr.rs",
+      "clone_url": "https://github.com/TimmyOVO/deepseek-ocr.rs.git",
+      "ssh_url": "git@github.com:TimmyOVO/deepseek-ocr.rs.git",
+      "homepage": "",
+      "created_at": "2025-10-25T13:42:10Z",
+      "updated_at": "2025-11-14T01:27:09Z",
+      "pushed_at": "2025-11-11T13:37:31Z"
+    },
+    "stats": {
+      "stars": 1854,
+      "forks": 141,
+      "watchers": 1854,
+      "open_issues": 7,
+      "size": 1177
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 649913,
+        "Python": 62963,
+        "Dockerfile": 1057
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "candle",
+        "ocr",
+        "ocr-recognition",
+        "openai",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "# deepseek-ocr.rs 🚀\n\nRust implementation of the DeepSeek-OCR inference stack with a fast CLI and an OpenAI-compatible HTTP server. The workspace packages multiple OCR backends, prompt tooling, and a serving layer so you can build document understanding pipelines that run locally on CPU, Apple Metal, or (alpha) NVIDIA CUDA GPUs.\n\n> 中文文档请看 [README_CN.md](README_CN.md)。  \n\n> Want ready-made binaries? Latest macOS (Metal-enabled) and Windows bundles live in the [build-binaries workflow artifacts](https://github.com/TimmyOVO/deepseek-ocr.rs/actions/workflows/build-binaries.yml). Grab them from the newest green run.\n\n## Choosing a Model 🔬\n\n| Model | Memory footprint* | Best on | When to pick it |\n| --- | --- | --- | --- |\n| **DeepSeek‑OCR** | **≈6.3 GB** FP16 weights, **≈13 GB** RAM/VRAM with cache & activations (512-token budget) | Apple Silicon + Metal (FP16), high-VRAM NVIDIA GPUs, 32 GB+ RAM desktops | Highest accuracy, SAM+CLIP global/local context, MoE DeepSeek‑V2 decoder (3 B params, ~570 M active per token). Use when latency is secondary to quality. |\n| **PaddleOCR‑VL** | **≈4.7 GB** FP16 weights, **≈9 GB** RAM/VRAM with cache & activations | 16 GB laptops, CPU-only boxes, mid-range GPUs | Dense 0.9 B Ernie decoder with SigLIP vision tower. Faster startup, lower memory, great for batch jobs or lightweight deployments. |\n\n\\*Measured from the default FP16 safetensors. Runtime footprint varies with sequence length.\n\nGuidance:\n\n- **Need maximum fidelity, multi-region reasoning, or already have 16–24 GB VRAM?** Use **DeepSeek‑OCR**. The hybrid SAM+CLIP tower plus DeepSeek‑V2 MoE decoder handles complex layouts best, but expect higher memory/latency.\n- **Deploying to CPU-only nodes, 16 GB laptops, or latency-sensitive services?** Choose **PaddleOCR‑VL**. Its dense Ernie decoder (18 layers, hidden 1024) activates fewer parameters per token and keeps memory under 10 GB while staying close in quality on most docs.\n\n## Why Rust? 💡\n\nThe original DeepSeek-OCR ships as a Python + Transformers stack—powerful, but hefty to deploy and awkward to embed. Rewriting the pipeline in Rust gives us:\n\n- Smaller deployable artifacts with zero Python runtime or conda baggage.\n- Memory-safe, thread-friendly infrastructure that blends into native Rust backends.\n- Unified tooling (CLI + server) running on Candle + Rocket without the Python GIL overhead.\n- Drop-in compatibility with OpenAI-style clients while tuned for single-turn OCR prompts.\n\n## Technical Stack ⚙️\n\n- **Candle** for tensor compute, with Metal and CUDA backends and FlashAttention support.\n- **Rocket** + async streaming for OpenAI-compatible `/v1/responses` and `/v1/chat/completions`.\n- **tokenizers** (upstream DeepSeek release) wrapped by `crates/assets` for deterministic caching via Hugging Face and ModelScope mirrors.\n- **Pure Rust vision/prompt pipeline** shared by CLI and server to avoid duplicated logic.\n\n## Advantages over the Python Release 🥷\n\n- Faster cold-start on Apple Silicon, lower RSS, and native binary distribution.\n- Deterministic dual-source (Hugging Face + ModelScope) asset download + verification built into the workspace.\n- Automatic single-turn chat compaction so OCR outputs stay stable even when clients send history.\n- Ready-to-use OpenAI compatibility for tools like Open WebUI without adapters.\n\n## Highlights ✨\n\n- **One repo, two entrypoints** – a batteries-included CLI for batch jobs and a Rocket-based server that speaks `/v1/responses` and `/v1/chat/completions`.\n- **Works out of the box** – pulls model weights, configs, and tokenizer from whichever of Hugging Face or ModelScope responds fastest on first run.\n- **Optimised for Apple Silicon** – optional Metal backend with FP16 execution for real-time OCR on laptops.\n- **CUDA (alpha)** – experimental support via `--features cuda` + `--device cuda --dtype f16`; expect rough edges while we finish kernel coverage.\n- **Intel MKL (preview)** – faster BLAS on x86 via `--features mkl` (install Intel oneMKL beforehand).\n- **OpenAI client compatibility** – drop-in replacement for popular SDKs; the server automatically collapses chat history to the latest user turn for OCR-friendly prompts.\n\n## Quick Start 🏁\n\n### Prerequisites\n\n- Rust 1.78+ (edition 2024 support)\n- Git\n- Optional: Apple Silicon running macOS 13+ for Metal acceleration\n- Optional: CUDA 12.2+ toolkit + driver for experimental NVIDIA GPU acceleration on Linux/Windows\n- Optional: Intel oneAPI MKL for preview x86 acceleration (see below)\n- (Recommended) Hugging Face account with `HF_TOKEN` when pulling from the `deepseek-ai/DeepSeek-OCR` repo (ModelScope is used automatically when it’s faster/reachable).\n\n### Clone the Workspace\n\n```bash\ngit clone https://github.com/TimmyOVO/deepseek-ocr.rs.git\ncd deepseek-ocr.rs\ncargo fetch\n```\n\n### Model Assets\n\nThe first invocation of the CLI or server downloads the config, tokenizer, and `model-00001-of-000001.safetensors` (~6.3GB) into `DeepSeek-OCR/`. To prefetch manually:\n\n```bash\ncargo run -p deepseek-o",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-11-14T02:28:35.481102"
+  },
+  {
+    "basic_info": {
+      "name": "fnox",
+      "full_name": "jdx/fnox",
+      "owner": "jdx",
+      "description": "encrypted/remote secret manager",
+      "url": "https://github.com/jdx/fnox",
+      "clone_url": "https://github.com/jdx/fnox.git",
+      "ssh_url": "git@github.com:jdx/fnox.git",
+      "homepage": "https://fnox.jdx.dev",
+      "created_at": "2025-10-18T11:19:04Z",
+      "updated_at": "2025-11-13T15:32:30Z",
+      "pushed_at": "2025-11-13T14:49:52Z"
+    },
+    "stats": {
+      "stars": 647,
+      "forks": 16,
+      "watchers": 647,
+      "open_issues": 1,
+      "size": 666
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 351043,
+        "Shell": 280654,
+        "Pkl": 1246
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 🔐 fnox\n\n**Fort Knox for your secrets.**\n\n[![CI](https://github.com/jdx/fnox/actions/workflows/ci.yml/badge.svg)](https://github.com/jdx/fnox/actions/workflows/ci.yml)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n\nManage secrets with encryption or cloud providers—or both! fnox gives you a unified interface to work with secrets across development, CI, and production.\n\n## Quick Start\n\n```bash\n# Install via mise (recommended)\nmise use -g fnox\n\n# Initialize in your project\nfnox init\n\n# Set a secret (encrypted by default)\nfnox set DATABASE_URL \"postgresql://localhost/mydb\"\n\n# Get a secret\nfnox get DATABASE_URL\n\n# Run commands with secrets loaded\nfnox exec -- npm start\n\n# Enable shell integration (auto-load on cd)\neval \"$(fnox activate bash)\"  # or zsh, fish\n```\n\n## What is fnox?\n\nfnox lets you store secrets in two ways:\n\n1. **Encrypted in git** - Using age, AWS KMS, Azure KMS, or GCP KMS\n2. **Remote in cloud** - Using AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, 1Password, Bitwarden, Infisical, or HashiCorp Vault\n\nYour `fnox.toml` config file either contains encrypted secrets or references to remote secrets. Use `fnox exec` to run commands with secrets loaded, or enable shell integration to auto-load secrets when you `cd` into a directory.\n\n## Supported Providers\n\n### 🔐 Encryption (secrets in git, encrypted)\n\n- **age** - Modern encryption (works with SSH keys!)\n- **aws-kms** - AWS Key Management Service\n- **azure-kms** - Azure Key Vault encryption\n- **gcp-kms** - Google Cloud KMS\n\n### ☁️ Cloud Secret Storage (remote, centralized)\n\n- **aws-sm** - AWS Secrets Manager\n- **azure-sm** - Azure Key Vault Secrets\n- **gcp-sm** - Google Cloud Secret Manager\n- **vault** - HashiCorp Vault\n\n### 🔑 Password Managers & Secret Services\n\n- **1password** - 1Password CLI\n- **bitwarden** - Bitwarden/Vaultwarden\n- **infisical** - Infisical secrets management\n\n### 💻 Local Storage\n\n- **keychain** - OS Keychain (macOS/Windows/Linux)\n- **plain** - Plain text (for defaults only!)\n\n## Documentation\n\n**📚 [Complete Documentation](https://fnox.jdx.dev/)**\n\n### Quick Links\n\n- [Installation](https://fnox.jdx.dev/guide/installation)\n- [Quick Start Guide](https://fnox.jdx.dev/guide/quick-start)\n- [How It Works](https://fnox.jdx.dev/guide/how-it-works)\n- [Shell Integration](https://fnox.jdx.dev/guide/shell-integration)\n- [Providers Overview](https://fnox.jdx.dev/providers/overview)\n- [Real-World Example](https://fnox.jdx.dev/guide/real-world-example)\n\n### Provider Guides\n\n- [Age Encryption](https://fnox.jdx.dev/providers/age) - Simple, free, works with SSH keys\n- [AWS Secrets Manager](https://fnox.jdx.dev/providers/aws-sm) - Centralized AWS secret management\n- [1Password](https://fnox.jdx.dev/providers/1password) - Integrate with 1Password CLI\n- [Bitwarden](https://fnox.jdx.dev/providers/bitwarden) - Open source password manager\n\n[**View all providers →**](https://fnox.jdx.dev/providers/overview)\n\n### Reference\n\n- [CLI Reference](https://fnox.jdx.dev/cli/)\n- [Environment Variables](https://fnox.jdx.dev/reference/environment)\n- [Configuration File](https://fnox.jdx.dev/reference/configuration)\n\n## Example\n\n```toml\n# fnox.toml\n\n[providers]\nage = { type = \"age\", recipients = [\"age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\"] }\n\n[secrets]\n# Development secrets (encrypted in git)\nDATABASE_URL = { provider = \"age\", value = \"YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNjcnlwdC...\" }  # ← encrypted, safe to commit\nAPI_KEY = { default = \"dev-key-12345\" }  # ← plain default for local dev\n\n[profiles.production.providers]\naws = { type = \"aws-sm\", region = \"us-east-1\", prefix = \"myapp/\" }\n\n[profiles.production.secrets]\nDATABASE_URL = { provider = \"aws\", value = \"database-url\" }  # ← reference to AWS secret\n```\n\n```bash\n# Development (uses encrypted secrets)\nfnox exec -- npm start\n\n# Production (uses AWS Secrets Manager)\nfnox exec --profile production -- ./deploy.sh\n```\n\n## Why fnox?\n\n- **Flexible** - Mix and match encryption and cloud providers\n- **Team-friendly** - Encrypted secrets in git, everyone can decrypt\n- **Multi-environment** - Different providers for dev, staging, prod\n- **Shell integration** - Auto-load secrets on directory change\n- **Developer-focused** - Simple config, powerful features\n- **No vendor lock-in** - Switch providers anytime\n\n## Installation\n\n### Using mise (recommended)\n\n```bash\nmise use -g fnox\n```\n\n### Using Cargo\n\n```bash\ncargo install fnox\n```\n\n### From Source\n\n```bash\ngit clone https://github.com/jdx/fnox\ncd fnox\ncargo install --path .\n```\n\n## Development\n\nSee [CLAUDE.md](./CLAUDE.md) for development guidelines.\n\n```bash\n# Build\nmise run build\n\n# Run tests\nmise run test\n\n# Run specific tests\nmise run test:cargo\nmise run test:bats\n\n# Lint\nmise run lint\n\n# Full CI check\nmise run ci\n```\n\n## License\n\nMIT License - see [LICENSE](LICENSE) for details.\n\n## Links\n\n- [Documentation](https://fnox.jdx.dev/)\n- [GitHub Repository](https://github.com/jdx/fnox)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:36.600432"
+  },
+  {
+    "basic_info": {
+      "name": "otterlang",
+      "full_name": "jonathanmagambo/otterlang",
+      "owner": "jonathanmagambo",
+      "description": "Otterlang programming language 🦦",
+      "url": "https://github.com/jonathanmagambo/otterlang",
+      "clone_url": "https://github.com/jonathanmagambo/otterlang.git",
+      "ssh_url": "git@github.com:jonathanmagambo/otterlang.git",
+      "homepage": "",
+      "created_at": "2025-10-27T02:11:00Z",
+      "updated_at": "2025-11-14T02:23:56Z",
+      "pushed_at": "2025-11-13T00:50:20Z"
+    },
+    "stats": {
+      "stars": 576,
+      "forks": 10,
+      "watchers": 576,
+      "open_issues": 6,
+      "size": 58355
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1106363,
+        "TypeScript": 5382,
+        "Nix": 2095,
+        "Shell": 11
+      },
+      "license": "BSD 3-Clause \"New\" or \"Revised\" License",
+      "topics": [
+        "compiler",
+        "ffi",
+        "language",
+        "llvm",
+        "otter",
+        "otterlang",
+        "programming-language",
+        "pythonic",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "# OtterLang\n\n<div align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://github.com/jonathanmagambo/otterlang/blob/main/image.png?raw=true\" width=\"400\">\n    <img src=\"https://github.com/jonathanmagambo/otterlang/blob/main/image.png?raw=true\" width=\"400\" alt=\"OtterLang Logo\" />\n  </picture>\n  <br>\n  <strong>Simple syntax, native performance, transparent Rust FFI.</strong>\n  <br><br>\n  \n  [![Build Status](https://github.com/jonathanmagambo/otterlang/workflows/CI/badge.svg)](https://github.com/jonathanmagambo/otterlang/actions)\n  [![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/y3b4QuvyFk)\n  \n  <br><br>\n  An indentation-sensitive programming language with an LLVM backend. OtterLang compiles to native binaries with a focus on simplicity and performance.\n</div>\n\n<h3 align=\"center\">\n  <a href=\"docs/LANGUAGE_SPEC.md\"><b>Docs</b></a>\n  &nbsp;&#183;&nbsp;\n  <a href=\"docs/EXAMPLES.md\"><b>Examples</b></a>\n  &nbsp;&#183;&nbsp;\n  <a href=\"docs/INSTALLATION.md\"><b>Installation</b></a>\n  &nbsp;&#183;&nbsp;\n  <a href=\"https://discord.gg/y3b4QuvyFk\" target=\"_blank\">Discord</a>\n  &nbsp;&#183;&nbsp;\n  <a href=\"docs/FFI_TRANSPARENT.md\"><b>FFI Guide</b></a>\n  &nbsp;&#183;&nbsp;\n  <a href=\"CONTRIBUTING.md\"><b>Contributing</b></a>\n</h3>\n\n## Quick Start\n\n```bash\ngit clone https://github.com/jonathanmagambo/otterlang.git\ncd otterlang\n\n# Using Nix (recommended)\nnix develop\ncargo +nightly build --release\n\n# Create and run your first program\ncat > hello.ot << 'EOF'\ndef main():\n    print(\"Hello from OtterLang!\")\nEOF\n\notter run hello.ot\n```\n\n## Installation\n\nSee [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions for all platforms.\n\n**Quick install with Nix:**\n```bash\nnix develop\ncargo +nightly build --release\n```\n\n## Language Features\n\nOtterLang features a clean, indentation-based syntax with modern language features:\n\n- **Pythonic syntax** - `def` for functions, `class` for structs, `print()` for output\n- **Type system** - Static typing with type inference\n- **Enums and pattern matching** - Tagged unions with `match` expressions\n- **Exception handling** - `try/except/finally` blocks with zero-cost abstractions\n- **Concurrency** - `spawn` and `await` for async operations\n- **Transparent Rust FFI** - Use any Rust crate without manual bindings\n\nFor complete syntax and language details, see the [Language Specification](docs/LANGUAGE_SPEC.md).\n\n### Transparent Rust FFI\n\nAutomatically use any Rust crate without manual configuration. No manual bindings needed - just `use rust:crate_name` and start using it. See [docs/FFI_TRANSPARENT.md](docs/FFI_TRANSPARENT.md) for details.\n\n### Standard Library\n\nBuilt-in modules include `core` (Option, Result), `math`, `io`, `time`, and more. See the [API Reference](docs/API_REFERENCE.md) for complete documentation.\n\n\n## CLI Commands\n\nSee [CLI Reference](docs/CLI.md) for all available commands.\n\n```bash\notterlang run program.ot          # Run program\notterlang build program.ot -o out # Build executable\notterlang fmt                      # Format code\notterlang repl                     # Start REPL\n```\n\nOtterLang supports WebAssembly compilation. See [WebAssembly Support](docs/WEBASSEMBLY.md) for details.\n\n## Examples\n\nSee [Examples](docs/EXAMPLES.md) for a complete list of example programs.\n\n## VSCode Extension\n\nOtterLang includes a full-featured VSCode extension with syntax highlighting, LSP support, and IDE features. See [vscode-extension/README.md](vscode-extension/README.md) for installation and usage.\n\n## Documentation\n\n- **[Installation Guide](docs/INSTALLATION.md)** - Setup instructions for all platforms\n- **[Language Specification](docs/LANGUAGE_SPEC.md)** - Complete language reference\n- **[CLI Reference](docs/CLI.md)** - Command-line interface documentation\n- **[WebAssembly Support](docs/WEBASSEMBLY.md)** - Compiling to WebAssembly\n- **[Examples](docs/EXAMPLES.md)** - Example programs\n- **[Tutorials](docs/TUTORIALS.md)** - Step-by-step guides\n- **[API Reference](docs/API_REFERENCE.md)** - Standard library documentation\n- **[FFI Guide](docs/FFI_TRANSPARENT.md)** - Using Rust crates from OtterLang\n\n## Status\n\n**Early Access (v0.1.0)** - Experimental, not production-ready.\n\n### Known Limitations\n\n- Type inference is limited (explicit types recommended)\n- Module system has some limitations\n- Requires LLVM 18 and Rust nightly (for FFI features)\n\n## Contributing\n\nContributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).\n\n## License\n\nMIT License - see [LICENSE](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:37.710679"
+  },
+  {
+    "basic_info": {
+      "name": "Gausian_native_editor",
+      "full_name": "gausian-AI/Gausian_native_editor",
+      "owner": "gausian-AI",
+      "description": null,
+      "url": "https://github.com/gausian-AI/Gausian_native_editor",
+      "clone_url": "https://github.com/gausian-AI/Gausian_native_editor.git",
+      "ssh_url": "git@github.com:gausian-AI/Gausian_native_editor.git",
+      "homepage": null,
+      "created_at": "2025-11-04T14:18:16Z",
+      "updated_at": "2025-11-14T02:18:24Z",
+      "pushed_at": "2025-11-11T14:39:56Z"
+    },
+    "stats": {
+      "stars": 515,
+      "forks": 9,
+      "watchers": 515,
+      "open_issues": 0,
+      "size": 24772
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1561015,
+        "Objective-C": 22506,
+        "Python": 14141,
+        "WGSL": 9641,
+        "C": 3350,
+        "Dockerfile": 265
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"apps/desktop/resources/logo_whitebg.png\" width=\"96\" alt=\"Gausian logo\">\n  <h1>Gausian Native Editor</h1>\n  <p><b>Fast, native video editor and preview tool</b> built in Rust with GPU rendering, timeline editing, and local ComfyUI integration.</p>\n\n  <p>\n    <a href=\"#-getting-started\"><b>Get Started</b></a> •\n    <a href=\"#-features\"><b>Features</b></a> •\n    <a href=\"#-architecture\"><b>Architecture</b></a> •\n    <a href=\"#-desktop-app\"><b>Desktop</b></a> •\n    <a href=\"#-cli\"><b>CLI</b></a> •\n    <a href=\"#-decoder--gstreamer-notes\"><b>Decoders</b></a>\n  </p>\n\n  <p>\n    <a href=\"https://gausian.xyz\" target=\"_blank\" rel=\"noopener noreferrer\"><b>Visit gausian.xyz ↗</b></a>\n    &nbsp;•&nbsp;\n    <a href=\"https://discord.gg/JfsKWDBXHT\" target=\"_blank\" rel=\"noopener noreferrer\"><b>Join our Discord ↗</b></a>\n  </p>\n\n  <p>\n    <img alt=\"Rust\" src=\"https://img.shields.io/badge/Rust-stable-orange\">\n    <img alt=\"UI\" src=\"https://img.shields.io/badge/UI-egui%20%2B%20wgpu-8A2BE2\">\n    <img alt=\"Decoders\" src=\"https://img.shields.io/badge/Decode-VideoToolbox%2FGStreamer-2CA5E0\">\n    <img alt=\"Platforms\" src=\"https://img.shields.io/badge/Platforms-macOS%20%7C%20Windows%20%7C%20Linux-4CAF50\">\n    <a href=\"https://discord.gg/JfsKWDBXHT\" target=\"_blank\" rel=\"noopener noreferrer\">\n      <img alt=\"Discord\" src=\"https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white\">\n    </a>\n    <a href=\"https://x.com/maeng313\" target=\"_blank\" rel=\"noopener noreferrer\">\n      <img alt=\"Follow on X\" src=\"https://img.shields.io/badge/X-@maeng313-272a2d?logo=x&logoColor=white\">\n    </a>\n  </p>\n</div>\n\n<hr/>\n\nGausian is a native editor focused on snappy preview, practical timeline tools, and smooth ingest/export. It supports hardware decoding (VideoToolbox on macOS, GStreamer pipelines cross‑platform), a WGPU preview pipeline, and integrates with a local ComfyUI for prompt‑based generation via an embedded WebView and auto‑import of outputs. A CLI is included for headless operations.\n\n## ✨ Features\n\n- GPU-accelerated preview (WGPU) with YUV→RGB shaders and readback\n- Timeline editing, assets panel, project persistence (SQLite)\n- Local ingest: FFmpeg/ffprobe probing, image/video/audio\n- Exporters: FCPXML (1.9/1.10), FCP7 XML, EDL, JSON\n- Proxy generation via GStreamer (ProRes/NVENC/VAAPI/software)\n- Local ComfyUI: optional embedded WebView and auto‑import from a local ComfyUI output folder\n- Screenplay/Storyboard helpers with LLM providers (OpenAI, etc.)\n- Cross-platform desktop (macOS/Windows/Linux)\n\n## 🚀 Getting Started\n\nPrerequisites\n- Rust (stable)\n- FFmpeg/ffprobe on PATH\n- GStreamer for proxy/advanced decode paths (recommended on all platforms; required for some proxies)\n  - macOS (Homebrew): `brew install ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-libav`\n  - Ubuntu/Debian: `sudo apt-get install -y ffmpeg gstreamer1.0-libav gstreamer1.0-plugins-{base,good,bad} gstreamer1.0-tools`\n  - Windows: install a recent GStreamer build (system PATH), FFmpeg\n - ComfyUI (local, optional): required if you want to open the embedded WebView or auto‑import its outputs. Install and run ComfyUI locally (default at http://127.0.0.1:8188). See https://github.com/comfyanonymous/ComfyUI\n\nDesktop app\n```bash\ncargo run --bin desktop\n```\n\nCLI (headless)\n```bash\n# Show commands\ncargo run -p cli -- --help\n```\n\n<!-- Relay section removed: cloud connections not available yet. -->\n\n## 🧩 Architecture\n\n- apps/desktop (egui + wgpu)\n  - Timeline, assets, GPU preview, audio engine, export\n  - ComfyUI integration (local only): optional embedded WebView and auto‑import\n- apps/comfywebview\n  - Minimal native WebView window for ComfyUI\n- crates/*\n  - timeline — graph, tracks, commands\n  - project — SQLite DB, migrations, asset/proxy/job tables\n  - media-io — probe/export helpers, waveforms, encoders\n  - renderer — WGPU renderer and WGSL shaders\n  - exporters — FCPXML/FCP7/EDL/JSON\n  - plugin-host — WASM/Python stubs\n  - native-decoder — VideoToolbox (macOS) + optional GStreamer backend\n  - cli — import/export/convert/analyze/new/encoders\n\n<details>\n  <summary>Project Structure (click to expand)</summary>\n\n<pre><code>apps/\n  desktop/          # egui UI, preview, decode, export\n  comfywebview/     # lightweight native WebView for ComfyUI\n\ncrates/\n  timeline/         # timeline data structures and commands\n  project/          # SQLite DB + migrations\n  media-io/         # probe, waveforms, proxy helpers\n  renderer/         # WGPU renderer & shaders (WGSL)\n  exporters/        # FCPXML/FCP7/EDL/JSON exporters\n  plugin-host/      # plugin runtime stubs (WASM/Python)\n  native-decoder/   # VideoToolbox & GStreamer backend\n  cli/              # headless commands\n\nformats/            # JSON specs (screenplay/storyboard)\n</code></pre>\n</details>\n\n## 🖥 Desktop App\n\nBuild & run\n```bash\ncargo run --bin desktop\n```\n\nOptional features\n- Embedded WebView (macOS only): `cargo run --bin desktop --features embed-web",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:38.834356"
+  },
+  {
+    "basic_info": {
+      "name": "agentfs",
+      "full_name": "tursodatabase/agentfs",
+      "owner": "tursodatabase",
+      "description": "The filesystem for agents.",
+      "url": "https://github.com/tursodatabase/agentfs",
+      "clone_url": "https://github.com/tursodatabase/agentfs.git",
+      "ssh_url": "git@github.com:tursodatabase/agentfs.git",
+      "homepage": "",
+      "created_at": "2025-10-24T17:05:06Z",
+      "updated_at": "2025-11-14T01:41:46Z",
+      "pushed_at": "2025-11-13T15:27:08Z"
+    },
+    "stats": {
+      "stars": 508,
+      "forks": 28,
+      "watchers": 508,
+      "open_issues": 13,
+      "size": 422
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 222528,
+        "TypeScript": 62535,
+        "C": 19986,
+        "Python": 10209,
+        "Shell": 9029,
+        "Makefile": 639
+      },
+      "license": null,
+      "topics": [
+        "agents",
+        "filesystem",
+        "sqlite",
+        "turso"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <h1 align=\"center\">AgentFS</h1>\n</p>\n\n<p align=\"center\">\n  The filesystem for agents.\n</p>\n\n<p align=\"center\">\n  <a title=\"Build Status\" target=\"_blank\" href=\"https://github.com/tursodatabase/agentfs/actions/workflows/rust.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/tursodatabase/agentfs/rust.yml?style=flat-square\"></a>\n  <a title=\"Rust\" target=\"_blank\" href=\"https://crates.io/crates/agentfs-sdk\"><img alt=\"Crate\" src=\"https://img.shields.io/crates/v/agentfs-sdk\"></a>\n  <a title=\"JavaScript\" target=\"_blank\" href=\"https://www.npmjs.com/package/@tursodatabase/agentfs-sdk\"><img alt=\"NPM\" src=\"https://img.shields.io/npm/v/agentfs-sdk\"></a>\n  <a title=\"MIT\" target=\"_blank\" href=\"https://github.com/tursodatabase/agentfs/blob/main/LICENSE.md\"><img src=\"http://img.shields.io/badge/license-MIT-orange.svg?style=flat-square\"></a>\n</p>\n<p align=\"center\">\n  <a title=\"Users's Discord\" target=\"_blank\" href=\"https://tur.so/discord\"><img alt=\"Chat with other users of Turso (and Turso Cloud) on Discord\" src=\"https://img.shields.io/discord/933071162680958986?label=Discord&logo=Discord&style=social&label=Users\"></a>\n</p>\n\n---\n\n> **⚠️ Warning:** This software is ALPHA; use only for development, testing, and experimentation. We are working to make it production-ready, but do not use it for critical data until it is ready.\n\n## 🎯 What is AgentFS?\n\nAgentFS is a filesystem explicitly designed for AI agents. Just as traditional filesystems provide file and directory abstractions for applications, AgentFS provides the storage abstractions that AI agents need.\n\nAgentFS provides four components:\n\n* **SDK** - [TypeScript](sdk/typescript) and [Rust](sdk/rust) libraries for programmatic filesystem access\n* **[CLI](MANUAL.md)** - Command-line interface for managing agent filesystems\n* **[Specification](SPEC.md)** - SQLite-based agent filesystem specification\n* **Sandbox** - Linux-compatible execution environment with agent filesystem support (_experimental_)\n\nRead more about the motivation for AgentFS in the announcement [blog post](https://turso.tech/blog/agentfs).\n## 🧑‍💻 Getting Started\n\n### Using the CLI\n\nInitialize an agent filesystem:\n\n```bash\n$ agentfs init\nCreated agent filesystem: agent.db\n```\n\nInspect the agent filesystem from outside:\n\n```bash\n$ agentfs fs ls\nf hello.txt\n\n$ agentfs fs cat hello.txt\nhello from agent\n```\n\nYou can also run a program in an experimental sandbox with the agent filesystem mounted at `/agent`:\n\n```bash\n$ agentfs run /bin/bash\nWelcome to AgentFS!\n\n$ echo \"hello from agent\" > /agent/hello.txt\n$ cat /agent/hello.txt\nhello from agent\n$ exit\n```\n\nRead the **[User Manual](MANUAL.md)** for complete documentation.\n\n### Using the SDK\n\nInstall the SDK in your project:\n\n```bash\nnpm install agentfs-sdk\n```\n\nUse it in your agent code:\n\n```typescript\nimport { AgentFS } from 'agentfs-sdk';\n\nconst agent = await AgentFS.open('./agent.db');\n\n// Key-value operations\nawait agent.kv.set('user:preferences', { theme: 'dark' });\nconst prefs = await agent.kv.get('user:preferences');\n\n// Filesystem operations\nawait agent.fs.writeFile('/output/report.pdf', pdfBuffer);\nconst files = await agent.fs.readdir('/output');\n\n// Tool call tracking\nawait agent.tools.record(\n  'web_search',\n  Date.now() / 1000,\n  Date.now() / 1000 + 1.5,\n  { query: 'AI' },\n  { results: [...] }\n);\n```\n\nSee the **[examples](examples)** directory for more comprehensive examples.\n\n## 💡 Why AgentFS?\n\n**Auditability**: Every file operation, tool call, and state change is recorded in SQLite. Query your agent's complete history with SQL to debug issues, analyze behavior, or meet compliance requirements.\n\n**Reproducibility**: Snapshot an agent's state at any point with `cp agent.db snapshot.db`. Restore it later to reproduce exact execution states, test what-if scenarios, or roll back mistakes.\n\n**Portability**: The entire agent runtime—files, state, history —is stored in a single SQLite file. Move it between machines, check it into version control, or deploy it to any system where Turso runs.\n\n**Simplicity**: No configuration files, no database servers, no distributed systems. Just a single file and a simple API.\n\n**Sandboxing**: Run agents in an isolated Linux environment where filesystem access is controlled and monitored. Perfect for testing untrusted code or enforcing security policies.\n\n## 🔧 How AgentFS Works?\n\n<img align=\"right\" width=\"40%\" src=\".github/assets/agentfs-arch.svg\">\n\nAgentFS is an agent filesystem accessible through an SDK that provides three essential interfaces for agent state management:\n\n* **Filesystem:** A POSIX-like filesystem for files and directories\n* **Key-Value:** A key-value store for agent state and context\n* **Toolcall:** A toolcall audit trail for debugging and analysis\n\nAt the heart of AgentFS is the [agent filesystem](SPEC.md), a complete SQLite-based storage system for agents implemented using [Turso](https://github.com/tursodatabase/turso). Everything an agent does—every file it create",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:39.942307"
+  },
+  {
+    "basic_info": {
+      "name": "pipedash",
+      "full_name": "hcavarsan/pipedash",
+      "owner": "hcavarsan",
+      "description": "A desktop app for managing CI/CD pipelines from multiple providers",
+      "url": "https://github.com/hcavarsan/pipedash",
+      "clone_url": "https://github.com/hcavarsan/pipedash.git",
+      "ssh_url": "git@github.com:hcavarsan/pipedash.git",
+      "homepage": "",
+      "created_at": "2025-10-31T00:02:21Z",
+      "updated_at": "2025-11-13T13:07:15Z",
+      "pushed_at": "2025-11-08T23:23:50Z"
+    },
+    "stats": {
+      "stars": 504,
+      "forks": 36,
+      "watchers": 504,
+      "open_issues": 8,
+      "size": 4788
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 515779,
+        "TypeScript": 331243,
+        "JavaScript": 5450,
+        "Python": 3709,
+        "CSS": 3117,
+        "HTML": 582
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "buildkite",
+        "cicd",
+        "devops",
+        "devtools",
+        "gitlab",
+        "jenkins",
+        "sre",
+        "tekton"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <br>\n  <img src=\"./app-icon.png\" width=\"102px\" alt=\"Pipedash Logo\" />\n  <h1>Pipedash</h1>\n  <p>A desktop app for managing CI/CD pipelines from multiple providers </p>\n\n</div>\n\n<p align=\"center\">\n<div align=\"center\">\n<img src=\"./public/pipedashbg.png\" alt=\"Pipedash Screenshot\" style=\"box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); border-radius: 8px;\"/>\n</div>\n</p>\n\n> **[WIP]** This is an work-in-progress project. It works for basic use cases but hasn't been thoroughly tested. Things might break, APIs might change, and there are probably bugs. Tested primarily on macOS – not sure if it works properly on Linux and Windows due to webview differences.\n\n## About\n\nPipedash aggregates CI/CD pipelines from multiple providers into a single desktop interface. Instead of switching between GitHub Actions, GitLab CI, Buildkite, Jenkins, and Tekton dashboards, view everything in one place.\n\nBuilt with Tauri, Rust, React, and TypeScript.\n\n## Why\n\nMost development teams use multiple CI/CD platforms over time. Open source projects often use GitHub Actions, internal services might run on GitLab CI or Buildkite, Kubernetes-native workloads use Tekton, and there's usually some Jenkins instance handling legacy systems. Checking everything means opening multiple tabs and manually refreshing.\n\nThis tool pulls pipeline data from different providers and shows it together.\n\n## Supported Providers\n\n- GitHub Actions\n- GitLab CI\n- Buildkite\n- Jenkins\n- Tekton CD\n- ArgoCD\n\nThe plugin architecture allows adding more providers.\n\n## What It Does\n\nThe app polls configured providers and displays pipelines organized by repository and workflow. Background refresh runs every X seconds (configurable per provider). When pipeline status changes, the UI updates automatically.\n\nMain capabilities:\n- View pipeline status across multiple providers\n- Browse run history with commit info and execution times\n- Trigger workflows with parameters dynamically loaded from each provider\n- Re-run previous executions with the same parameters\n- Cancel running builds\n- Multiple instances of the same provider type\n\nWhen triggering or re-running a workflow, the app fetches available parameters directly from the provider plugin (workflow inputs for GitHub Actions, pipeline variables for GitLab CI, build parameters for Jenkins and Buildkite, etc.) and displays them in a form.\n\n**Privacy First**\n\nEverything runs locally on the machine. The app only connects to configured CI/CD providers – no analytics, telemetry, or third-party services. Pipeline data is stored in a local SQLite database and API tokens are encrypted in the system keyring.\n\n## Installation\n\nDownload the latest release for your platform from the [releases page](https://github.com/hcavarsan/pipedash/releases).\n\nAvailable for macOS, Windows, and Linux.\n\n## Setup\n\nLaunch the app and add a provider via the sidebar. Each provider needs an API token:\n\n**GitHub Actions**: Personal Access Token with `repo` and `workflow` scopes. Optionally set a custom base URL for GitHub Enterprise.\n\n**GitLab CI**: Personal Access Token with `api` scope. Supports both GitLab.com and self-hosted instances.\n\n**Buildkite**: API Access Token with read permissions and the organization slug.\n\n**Jenkins**: API token, username, and server URL.\n\n**Tekton CD**: Kubernetes config file path and context. Automatically detects namespaces with Tekton pipelines.\n\n**ArgoCD**: Server URL and authentication token. Optionally filter by Git organizations. Monitors application sync status, health, and deployment history.\n\nAfter adding a provider, the app validates credentials and fetches available repositories. Select which ones to monitor and save. Pipelines will appear in the main view and refresh automatically.\n\n## How It Works\n\n**Store**\n\nProvider configurations are stored in a local SQLite database. Tokens are kept separate in the system keyring.\n\nEach provider has its own refresh interval (default: 30 seconds), adjustable based on API rate limits.\n\n\n\n**Plugin System**\n\nEach CI/CD provider is implemented as a plugin that exposes a common interface. The core application doesn't know the specifics of how GitHub Actions, GitLab CI, Buildkite, Jenkins, Tekton, or ArgoCD work—it just calls standard methods like `fetch_pipelines()` or `trigger_pipeline()` and the plugin handles the details.\n\nPlugins are compiled into the application at build time, not loaded dynamically at runtime. This keeps things simpler and avoids the security concerns of runtime plugin loading.\n\nWhen the app starts, it loads cached pipeline data from SQLite immediately. In the background, a refresh loop polls each provider's API and updates the cache when changes are detected. The frontend listens for events and re-renders when new data arrives.\n\n## Adding Providers\n\nTo add support for a new CI/CD platform, create a new crate in `crates/pipedash-plugin-{name}/` and implement the `Plugin` trait from `pipedash-plugin-api`. The trait defines methods for fetching pi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:41.100873"
+  },
+  {
+    "basic_info": {
+      "name": "percolator",
+      "full_name": "aeyakovenko/percolator",
+      "owner": "aeyakovenko",
+      "description": null,
+      "url": "https://github.com/aeyakovenko/percolator",
+      "clone_url": "https://github.com/aeyakovenko/percolator.git",
+      "ssh_url": "git@github.com:aeyakovenko/percolator.git",
+      "homepage": null,
+      "created_at": "2025-10-19T18:16:33Z",
+      "updated_at": "2025-11-10T13:21:50Z",
+      "pushed_at": "2025-11-05T03:23:14Z"
+    },
+    "stats": {
+      "stars": 437,
+      "forks": 99,
+      "watchers": 437,
+      "open_issues": 6,
+      "size": 159928
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1674423,
+        "Shell": 178047,
+        "Makefile": 1098
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Percolator\n\nA formally-verified perpetual futures exchange protocol for Solana with three-tier bad debt defense, constant product AMM, and rigorous security guarantees.\n\n> **⚠️ EDUCATIONAL USE ONLY**\n>\n> This code is provided for educational and research purposes only. It has not been independently audited for production use and should not be deployed to handle real funds. Use at your own risk.\n\n## Overview\n\nPercolator is a high-assurance decentralized exchange (DEX) protocol built on Solana that combines:\n\n- **Formal Verification**: 70+ Kani proofs covering safety-critical invariants\n- **Three-Tier Bad Debt Defense**: Insurance fund → Warmup burn → Equity haircut\n- **O(1) Crisis Resolution**: Constant-time loss socialization via global scale factors\n- **Insurance Fund**: Separate vault with configurable authority, fee accrual, and payout caps\n- **Constant Product AMM**: Verified x·y=k invariant with fee accrual\n- **Cross-Margin Portfolio**: Net exposure calculation for capital efficiency\n- **Adaptive PnL Vesting**: Taylor series approximation for withdrawal throttling\n- **Zero Allocations**: Pure `no_std` Rust optimized for Solana BPF\n\n**Verification Coverage**: 85% of production operations use formally verified functions\n\n## Quick Start\n\n```bash\n# Build all programs and CLI\ncargo build-sbf\ncargo build --release --bin percolator\n\n# Run unit tests (257 passing)\ncargo test --lib\n\n# Run formal verification proofs\ncargo kani -p proofs-kani --harness i2_conservation_2users_3steps\ncargo kani -p model_safety --harness proof_c3_no_overburn\n\n# Deploy to localnet\nsolana-test-validator &\n./target/release/percolator -n localnet deploy --all\n\n# Initialize exchange and run integration tests\n./target/release/percolator -n localnet test --all\n```\n\n## Architecture\n\n### Two-Program Design\n\n#### Router Program\n**Global coordinator managing collateral, portfolio margin, and cross-slab routing**\n\nResponsibilities:\n- Maintain user portfolios with equity and net exposure tracking\n- Manage central collateral vaults (SPL tokens, currently SOL only)\n- Registry of whitelisted matcher programs\n- Execute trades via CPI to matchers\n- Handle liquidations when equity < maintenance margin\n- Apply adaptive PnL vesting (warmup period throttling)\n\n#### Slab (Matcher) Program\n**LP-owned order book maintaining its own state and matching logic**\n\nResponsibilities:\n- Maintain local order book with price-time priority\n- Update quote cache for router exposure calculations\n- Verify router authority and sequence numbers (TOCTOU protection)\n- Execute fills at captured maker prices\n- Never holds or moves funds (router-only)\n\n### Safety Architecture\n\n```\n┌──────────────────┐\n│  User Wallets    │\n└────────┬─────────┘\n         │ SOL deposits/withdrawals\n         ▼\n┌──────────────────┐     CPI      ┌──────────────────┐\n│  Router Program  │─────────────▶│  Slab Programs   │\n│  (Authority)     │◀─────────────│  (Matchers)      │\n│                  │   read-only  │                  │\n│ • Collateral     │              │ • Order books    │\n│ • Portfolios     │              │ • Quote cache    │\n│ • Liquidations   │              │ • Matching       │\n│ • Vesting        │              │                  │\n└──────────────────┘              └──────────────────┘\n         │\n         ▼\n  Formally Verified\n  Model Safety Layer\n```\n\n**Security Rules**:\n- All funds stay in router vaults\n- Router → Matcher is one-way CPI (no callbacks)\n- Whitelist controls which matchers can be invoked\n- Sequence numbers prevent TOCTOU attacks\n- Atomicity: any CPI failure aborts entire transaction\n\n## Core Features\n\n### 1. Three-Tier Bad Debt Defense (O(1))\n\nWhen liquidations create bad debt, the protocol uses a three-tier defense mechanism to socialize losses across winners without iterating over users.\n\n**Loss Waterfall**:\n1. **Insurance Fund** (first line of defense)\n   - Separate vault PDA controlled by insurance authority\n   - Accrues fees from trades\n   - Pays out during liquidations with bad debt\n   - Configurable authority for topup/withdrawal\n   - Hard caps: per-event payout (0.5% of OI) and daily limit (3% of vault)\n\n2. **Warming PnL** (second line of defense)\n   - Burns unvested profits from users\n   - Only after insurance exhausted\n\n3. **Equity Haircut** (final resort)\n   - Global scale factor applied to all users\n   - Only after insurance AND warmup exhausted\n   - Haircut = (deficit - insurance - warmup) / total_equity\n\n```rust\nuse model_safety::crisis::*;\n\n// Example: 150 SOL bad debt, 50 SOL insurance, 800 SOL equity\nlet mut accums = Accums::new();\naccums.sigma_principal = 800_000_000_000;        // 800 SOL\naccums.sigma_collateral = 650_000_000_000;      // 650 SOL (150 SOL deficit)\naccums.sigma_insurance = 50_000_000_000;        // 50 SOL\n\nlet outcome = crisis_apply_haircuts(&mut accums);\n\n// Result:\n// - Insurance drawn: 50 SOL (exhausted completely)\n// - Remaining deficit: 100 SOL\n// - Haircut ratio: 100 / 800 = 12.5%\n// - User with 300 SOL → keeps 262.5 SOL (loses 37.5",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-11-14T02:28:42.220372"
+  },
+  {
+    "basic_info": {
+      "name": "xleak",
+      "full_name": "bgreenwell/xleak",
+      "owner": "bgreenwell",
+      "description": "A fast terminal Excel viewer with an interactive TUI. Features full-text search, formula display, lazy loading for large files, clipboard support, and export to CSV/JSON. Built with Rust and ratatui.",
+      "url": "https://github.com/bgreenwell/xleak",
+      "clone_url": "https://github.com/bgreenwell/xleak.git",
+      "ssh_url": "git@github.com:bgreenwell/xleak.git",
+      "homepage": "",
+      "created_at": "2025-11-06T12:51:31Z",
+      "updated_at": "2025-11-14T02:16:09Z",
+      "pushed_at": "2025-11-13T16:11:36Z"
+    },
+    "stats": {
+      "stars": 312,
+      "forks": 10,
+      "watchers": 312,
+      "open_issues": 1,
+      "size": 1308
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 123693,
+        "Nix": 4379
+      },
+      "license": "MIT License",
+      "topics": [
+        "cli",
+        "excel",
+        "ratatui",
+        "rust",
+        "rust-lang",
+        "spreadsheet",
+        "spreadsheets",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# xleak <img src=\"assets/logo.jpg\" align=\"right\" width=\"120\" />\n\n[![CI](https://img.shields.io/github/actions/workflow/status/bgreenwell/xleak/ci.yml?style=for-the-badge)](https://github.com/bgreenwell/xleak/actions/workflows/ci.yml)\n[![Crates.io](https://img.shields.io/crates/v/xleak.svg?style=for-the-badge&color=%23107C41)](https://crates.io/crates/xleak)\n[![License: MIT](https://img.shields.io/badge/License-MIT-%232196F3.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)\n[![Rust](https://img.shields.io/badge/rust-1.70%2B-%23D34516.svg?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)\n\n> Expose Excel files in your terminal - no Microsoft Excel required!\n\nInspired by [doxx](https://github.com/bgreenwell/doxx), `xleak` brings Excel spreadsheets to your command line with beautiful rendering, powerful export capabilities, and a feature-rich interactive TUI.\n\n![xleak demo](assets/demo.gif)\n\n## Features\n\n### Core Functionality\n- **Beautiful terminal rendering** with formatted tables\n- **Interactive TUI mode** - full keyboard navigation with ratatui\n- **Smart data type handling** - numbers right-aligned, text left-aligned, booleans centered\n- **Multi-sheet support** - seamlessly navigate between sheets (Tab/Shift+Tab)\n- **Multiple export formats** - CSV, JSON, plain text\n- **Blazing fast** - powered by `calamine`, the fastest Excel parser in Rust\n- **Multiple file formats** - supports `.xlsx`, `.xls`, `.xlsm`, `.xlsb`, `.ods`\n\n### Interactive TUI Features\n- **Full-text search** - search across all cells with `/`, navigate with `n`/`N`\n- **Clipboard support** - copy cells (`c`) or entire rows (`C`) to clipboard\n- **Formula display** - view Excel formulas in cell detail view (Enter key)\n- **Jump to row/column** - press `Ctrl+G` to jump to any cell (e.g., `A100`, `500`, `10,5`)\n- **Large file optimization** - lazy loading for files with 1000+ rows\n- **Progress indicators** - real-time feedback for long operations\n- **Visual cell highlighting** - current row, column, and cell clearly marked\n\n## Installation\n\n### Via Homebrew (macOS/Linux)\n```bash\nbrew tap bgreenwell/xleak\nbrew install xleak\n```\n\n### Via Cargo\n```bash\ncargo install xleak\n```\n\n### Via Nix\n```bash\n# Run directly\nnix run github:bgreenwell/xleak -- file.xlsx\n\n# Install with flakes\nnix profile install github:bgreenwell/xleak\n\n# Or enter dev shell\nnix develop github:bgreenwell/xleak\n```\n\n### Pre-built Binaries\nDownload pre-built binaries for Windows, Linux, and macOS from the [latest release](https://github.com/bgreenwell/xleak/releases/latest).\n\n### Build from Source\n```bash\ngit clone https://github.com/bgreenwell/xleak.git\ncd xleak\ncargo install --path .\n```\n\n## Usage\n\n### Interactive TUI Mode (Recommended)\n```bash\n# Launch interactive viewer\nxleak quarterly-report.xlsx -i\n\n# Start on a specific sheet\nxleak report.xlsx --sheet \"Q3 Results\" -i\n\n# View formulas by default\nxleak data.xlsx -i --formulas\n```\n\n**TUI Keyboard Shortcuts:**\n- `↑ ↓ ← →` - Navigate cells\n- `Enter` - View cell details (including formulas)\n- `/` - Search across all cells\n- `n` / `N` - Jump to next/previous search result\n- `Ctrl+G` - Jump to specific row/cell (e.g., `100`, `A50`, `10,5`)\n- `c` - Copy current cell to clipboard\n- `C` - Copy entire row to clipboard\n- `Tab` / `Shift+Tab` - Switch between sheets\n- `?` - Show help\n- `q` - Quit\n\n### Non-Interactive Mode\n\n#### View a spreadsheet\n```bash\nxleak quarterly-report.xlsx\n```\n\n#### View a specific sheet\n```bash\n# By name\nxleak report.xlsx --sheet \"Q3 Results\"\n\n# By index (1-based)\nxleak report.xlsx --sheet 2\n```\n\n#### Limit displayed rows\n```bash\n# Show only first 20 rows\nxleak large-file.xlsx -n 20\n\n# Show all rows\nxleak file.xlsx -n 0\n```\n\n#### Export data\n```bash\n# Export to CSV\nxleak data.xlsx --export csv > output.csv\n\n# Export to JSON\nxleak data.xlsx --export json > output.json\n\n# Export as plain text (tab-separated)\nxleak data.xlsx --export text > output.txt\n```\n\n#### Combine options\n```bash\n# Export specific sheet as CSV\nxleak workbook.xlsx --sheet \"Sales\" --export csv > sales.csv\n```\n\n## Examples\n\n```bash\n# Launch interactive viewer\nxleak quarterly-report.xlsx -i\n\n# Quick preview in non-interactive mode\nxleak quarterly-report.xlsx\n\n# See specific sheet with limited rows\nxleak financial-data.xlsx --sheet \"Summary\" -n 10\n\n# Interactive mode with formulas visible\nxleak data.xlsx -i --formulas\n\n# Export all data from a sheet\nxleak survey-results.xlsx --sheet \"Responses\" --export csv -n 0\n```\n\n## Configuration\n\nxleak supports configuration via a TOML file for persistent settings like default theme and keybindings.\n\n### Config File Location\n\n**Default:** `~/.config/xleak/config.toml` (or `$XDG_CONFIG_HOME/xleak/config.toml`)\n\n**Platform-specific fallback locations:**\n- **macOS:** `~/Library/Application Support/xleak/config.toml`\n- **Linux:** `~/.config/xleak/config.toml` (same as XDG)\n- **Windows:** `%APPDATA%\\xleak\\config.toml`\n\n**Custom:** Use `--config` flag to specify a different location:",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:43.329218"
+  },
+  {
+    "basic_info": {
+      "name": "channels-console",
+      "full_name": "pawurb/channels-console",
+      "owner": "pawurb",
+      "description": "Real-time monitoring, metrics and logs for Rust channels",
+      "url": "https://github.com/pawurb/channels-console",
+      "clone_url": "https://github.com/pawurb/channels-console.git",
+      "ssh_url": "git@github.com:pawurb/channels-console.git",
+      "homepage": "",
+      "created_at": "2025-10-28T20:52:16Z",
+      "updated_at": "2025-11-14T02:22:41Z",
+      "pushed_at": "2025-11-11T17:31:27Z"
+    },
+    "stats": {
+      "stars": 252,
+      "forks": 4,
+      "watchers": 252,
+      "open_issues": 1,
+      "size": 49811
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 230501,
+        "Shell": 998
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# channels-console \n[![Latest Version](https://img.shields.io/crates/v/channels-console.svg)](https://crates.io/crates/channels-console) [![GH Actions](https://github.com/pawurb/channels-console/actions/workflows/ci.yml/badge.svg)](https://github.com/pawurb/channels-console/actions)\n\n![Console TUI Example](channels-console-tui5.gif)\n\nA lightweight, easy-to-use tool for real-time visibility into your Rust channels. Inspect live message contents and observe how channels interact to better understand data flow. Track queue depth, delay, throughput, and memory usage to spot channel-related issues.\n\nSupports [std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html), [Tokio](https://github.com/tokio-rs/tokio), [futures-rs](https://github.com/rust-lang/futures-rs), and [crossbeam](https://github.com/crossbeam-rs/crossbeam) channels - with more on the way.\n\n## Features\n\n- **Zero-cost when disabled** — fully gated by a feature flag\n- **Minimal configuration** - just one `instrument!` macro to start collecting metrics\n- **Detailed stats** - per channel status, sent/received messages, queue capacity, and memory usage \n- **Background processing** - minimal profiling impact\n- **Live monitoring** - view metrics in a clear, real-time TUI dashboard (built with [ratatui.rs](https://ratatui.rs/))\n\n## Getting started\n\n`Cargo.toml`\n\n```toml\nchannels-console = { version = \"0.3\", optional = true, features=['tokio', 'futures', 'crossbeam'] }\n\n[features]\nchannels-console = [\"dep:channels-console\"]\n```\n\nThis config ensures that the lib has **zero** overhead unless explicitly enabled via a `channels-console` feature.\n\n[std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html) channels can be instrumented by default. Enable `tokio`, `futures`, or `crossbeam` features for [Tokio](https://github.com/tokio-rs/tokio), [futures-rs](https://github.com/rust-lang/futures-rs), and [crossbeam](https://github.com/crossbeam-rs/crossbeam) channels, respectively.\n\nNext use `instrument!` macro to monitor selected channels:\n\n```rust\nlet (tx1, rx1) = tokio::sync::mpsc::channel::<i32>(10);\n#[cfg(feature = \"channels-console\")]\nlet (tx1, rx1) = channels_console::instrument!((tx1, rx1));\n\nlet (mut txb, mut rxb) = futures_channel::mpsc::channel::<i32>(10);\n#[cfg(feature = \"channels-console\")]\nlet (mut txb, mut rxb) = channels_console::instrument!((txb, rxb), capacity = 10);\n```\n\nFutures and `std::sync` bounded channels don't provide an API exposing their size, so you have to provide `capacity` to the `instrument!` macro.\n\nThis is the only change you have to do in your codebase. `instrument!` macro returns exactly the same channel types so it remains 100% compatible.\n\nNow, install `channels-console` TUI:\n\n```bash\ncargo install channels-console --features=tui\n```\n\nExecute your program with `--features=channels-console`:\n\n```bash\ncargo run --features=channels-console\n```\n\nIn a different terminal run `channels-console` CLI to start the TUI and see live usage metrics:\n\n```bash\nchannels-console\n```\n\n![Console Dashboard](console-dashboard5.png)\n\n### Quickstart demo guide\n\n1. Install CLI:\n\n```bash\ncargo install channels-console --features=tui\n```\n\n2. Clone this repo:\n\n```bash\ngit clone git@github.com:pawurb/channels-console.git\n```\n\n3. Run `console_feed` example:\n\n```bash\ncd channels-console\ncargo run --example console_feed_tokio --features=channels-console\n```\n\n4. Run TUI (in a different terminal):\n\n```bash\nchannels-console\n```\n\n## How it works?\n\n`instrument!` wraps Tokio channels with lightweight proxies that transparently forward all messages while collecting real-time statistics. Each `send` and `recv` operation passes through a monitored proxy channel that emits updates to a background metrics system.\n\nIn the background a HTTP server process exposes gathered metrics in a JSON format, allowing TUI process to display them in the interface.\n\n### A note on accuracy\n\n`channels-console` instruments proxy channels that wrap your actual channel instances. It observes messages as they pass through these proxies rather than when they are finally consumed. As a result, the displayed metrics are an approximation of real channel activity - useful for debugging and diagnosing flow issues, but not a 100% accurate source of truth for production monitoring.\n\nBecause of this proxy design, each bounded channel is effectively represented by three layers - the outer proxy, the original channel, and the inner proxy. In practice, this triples the total buffering capacity. For the same reason, it's currently not possible to measure the queue size of unbounded channels. Even with a slow consumer, the intermediate proxies will immediately absorb all incoming messages, masking true backlog behavior.\n\nThat said, since the proxy layer introduces virtually no overhead compared to direct channel usage, timing and delay metrics should remain accurate. Logged messages contents and ordering is also 100% accurate. \n\nCurrent design intentionally sacrifices accuracy for",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:44.476630"
+  },
+  {
+    "basic_info": {
+      "name": "adabraka-ui",
+      "full_name": "Augani/adabraka-ui",
+      "owner": "Augani",
+      "description": "A ui component library for building desktop applications in rust",
+      "url": "https://github.com/Augani/adabraka-ui",
+      "clone_url": "https://github.com/Augani/adabraka-ui.git",
+      "ssh_url": "git@github.com:Augani/adabraka-ui.git",
+      "homepage": null,
+      "created_at": "2025-10-21T19:25:32Z",
+      "updated_at": "2025-11-13T13:12:51Z",
+      "pushed_at": "2025-11-13T13:12:46Z"
+    },
+    "stats": {
+      "stars": 251,
+      "forks": 5,
+      "watchers": 251,
+      "open_issues": 1,
+      "size": 6767
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 929561
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# adabraka-ui\n\n[![Crates.io](https://img.shields.io/crates/v/adabraka-ui.svg)](https://crates.io/crates/adabraka-ui)\n[![Downloads](https://img.shields.io/crates/d/adabraka-ui.svg)](https://crates.io/crates/adabraka-ui)\n[![Documentation](https://docs.rs/adabraka-ui/badge.svg)](https://docs.rs/adabraka-ui)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n[![Rust](https://img.shields.io/badge/rust-nightly-orange.svg)](https://www.rust-lang.org/)\n[![GitHub Stars](https://img.shields.io/github/stars/Augani/adabraka-ui?style=social)](https://github.com/Augani/adabraka-ui)\n\nA comprehensive, professional UI component library for [GPUI](https://github.com/zed-industries/zed), the GPU-accelerated UI framework powering the Zed editor. Inspired by [shadcn/ui](https://ui.shadcn.com/), adabraka-ui provides 73+ polished, accessible components for building beautiful desktop applications in Rust.\n\n**[📖 Documentation](https://augani.github.io/adabraka-ui/)** · **[🚀 Getting Started](#installation)** · **[📦 Components](#components)** · **[💡 Examples](#examples)**\n\n## ✨ Features\n\n- 🎨 **Complete Theme System** - Built-in light/dark themes with semantic color tokens\n- 🧩 **73+ Components** - Comprehensive library covering all UI needs from buttons to data tables\n- 📱 **Responsive Layout** - Flexible layout utilities (VStack, HStack, Grid)\n- 🎭 **Professional Animations** - Smooth transitions with cubic-bezier easing and spring physics\n- ✍️ **Typography System** - Built-in Text component with semantic variants\n- 💻 **Code Editor** - Multi-line editor with syntax highlighting and full keyboard support\n- ♿ **Accessibility** - Full keyboard navigation, ARIA labels, and screen reader support\n- 🎯 **Type-Safe** - Leverages Rust's type system for compile-time guarantees\n- 🚀 **High Performance** - Optimized for GPUI's retained-mode rendering with virtual scrolling\n- 📚 **Well Documented** - Extensive examples and comprehensive API documentation\n\n## 🎬 Showcase\n\nSee adabraka-ui in action in real applications:\n\n### Desktop Music Player\n![Music Player App](docs/assets/images/music-player.png)\n\nA beautiful desktop music player with offline playing capabilities. Features smooth animations, responsive UI, and a polished user experience built entirely with adabraka-ui components.\n\n### Project Task Manager\n![Task Manager App](docs/assets/images/task-manager.png)\n\nA powerful task management application used to track the development of this UI library. Features drag-and-drop task organization with smooth animations, showcasing the library's advanced capabilities.\n\n## 🚀 Installation\n\n> **Note:** Currently requires Rust nightly due to GPUI dependencies. Install with: `rustup toolchain install nightly`\n\nAdd adabraka-ui to your `Cargo.toml`:\n\n```toml\n[dependencies]\nadabraka-ui = \"0.2.3\"\ngpui = \"0.2.0\"\n```\n\nBuild your project with nightly:\n```bash\ncargo +nightly build\n```\n\n## ✨ What's New in v0.2.3\n\n**Latest Release (November 13, 2025)** - Enhanced slider component with vertical orientation support!\n\n### 📊 Vertical Slider Support\nThe Slider component now supports both horizontal and vertical orientations. Perfect for volume controls, brightness adjustments, and other vertical UI patterns.\n\n```rust\n// Horizontal slider (default)\nSlider::new(slider_state.clone())\n    .show_value(true)\n\n// Vertical slider\nSlider::new(slider_state.clone())\n    .vertical()\n    .size(SliderSize::Lg)\n    .show_value(true)\n    .on_change(|value, _, _| {\n        println!(\"Value: {}\", value);\n    })\n```\n\n### 🐛 Slider Thumb Centering Fixed\nThe slider thumb is now perfectly centered on the track line, providing a more polished and professional appearance across all size variants (Sm, Md, Lg).\n\n### 🎨 Improved Component Architecture\n- Separate `render_horizontal()` and `render_vertical()` methods for cleaner code\n- Adaptive thumb shape: horizontal oval for horizontal sliders, vertical oval for vertical sliders\n- Better positioning logic using container dimensions matching thumb dimensions\n\n### 📚 Enhanced Examples\nUpdated `slider_styled_demo.rs` with 10 comprehensive examples showcasing horizontal and vertical sliders with various styling options.\n\n---\n\n## Quick Start\n\n```rust\nuse adabraka_ui::prelude::*;\nuse gpui::*;\n\nfn main() {\n    Application::new().run(|cx| {\n        // Initialize the UI library\n        adabraka_ui::init(cx);\n\n        // Install a theme\n        install_theme(cx, Theme::dark());\n\n        cx.open_window(\n            WindowOptions {\n                titlebar: Some(TitlebarOptions {\n                    title: Some(\"My App\".into()),\n                    ..Default::default()\n                }),\n                ..Default::default()\n            },\n            |_, cx| cx.new(|_| MyApp::new()),\n        ).unwrap();\n    });\n}\n\nstruct MyApp;\n\nimpl MyApp {\n    fn new() -> Self {\n        Self\n    }\n}\n\nimpl Render for MyApp {\n    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {\n        VSt",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:45.621956"
+  },
+  {
+    "basic_info": {
+      "name": "superseedr",
+      "full_name": "Jagalite/superseedr",
+      "owner": "Jagalite",
+      "description": "A BitTorrent Client in your Terminal",
+      "url": "https://github.com/Jagalite/superseedr",
+      "clone_url": "https://github.com/Jagalite/superseedr.git",
+      "ssh_url": "git@github.com:Jagalite/superseedr.git",
+      "homepage": "",
+      "created_at": "2025-10-18T22:09:46Z",
+      "updated_at": "2025-11-13T11:48:29Z",
+      "pushed_at": "2025-11-13T01:50:33Z"
+    },
+    "stats": {
+      "stars": 235,
+      "forks": 8,
+      "watchers": 235,
+      "open_issues": 2,
+      "size": 1703
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 554041,
+        "Shell": 16522
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# superseedr - A BitTorrent Client in your Terminal\n\nA **standalone** BitTorrent client created with **[Ratatui](https://ratatui.rs/)**.\n\nIt features a custom-built BitTorrent protocol implementation in Rust focused on observability.\n\n![Feature Demo](https://github.com/Jagalite/superseedr-assets/blob/main/superseedr_landing.webp)\n\n## Installation\n\nFind releases for all platforms on the [releases page](https://github.com/Jagalite/superseedr/releases)\n\nMagnet links and torrent files are fully supported with installation.\n\n> [!NOTE]  \n> Some terminals start with very low ulimits (256). superseedr can still operate, but consider increasing for maximum performance and stability: `ulimit -n 65536`.\n\n> [!NOTE]  \n> macOS's default terminal application does not support truecolor just yet (soon!), try using kitty or Ghostty.\n\n### Private Tracker Builds\nThis installation is intended for private trackers, as it disables peer-discovery features (DHT & PEX).\nThese features will not be included in the final build of the private versions of superseedr.\n\n### Installing from source\nYou can also install from source using `cargo`.\n```bash\n# Standard Build\ncargo install superseedr\n\n# Private Tracker Build\ncargo install superseedr --no-default-features\n```\n\n## Usage\nOpen up a terminal and run:\n```bash\nsuperseedr\n```\n\n> [!NOTE]  \n> Add torrents by clicking on magnet links from the browser and or opening torrent files. \n> A download directory needs to be set first. Configure this inside the application with `c`.\n\nWhile in the app, add torrents by pasting (`ctrl+v` or `v`) a magnet link or path to a `.torrent` file. \nYou can also add torrents or magnet links via another terminal command line while the TUI is running (make sure to set a download path first):\n```bash\n# Magnet links or torrent paths can be pasted when the TUI is running.\ncrtl+v \"magnet:?xt=urn:btih:...\"\ncrtl+v \"/absolute/path/to/my.torrent\"\n\n# CLI - Run in another terminal\nsuperseedr \"magnet:?xt=urn:btih:...\"\nsuperseedr \"/absolute/path/to/my.torrent\"\nsuperseedr stop-client\n```\n\nConfiguration files are located in the user's Application Support folder:\n`Press [m] in the tui to see log and config path`\n\n## Current Status & Features\n\nThe client is in a late-alpha stage, with most core BitTorrent features implemented and functional.\nTesting and refining for V1.0 release.\n\n### Core Protocol & Peer Discovery\n- **Real Time Performance Tuning:** Periodic resource optimizations (file handles) to maximize speeds and disk stability.\n- **Peer Discovery:** Full support for Trackers, DHT, PEX, and Magnet Links (including metadata download).\n- **Piece Selection:** Utilizes a Rarest-First strategy for optimal swarm health, switching to Endgame Mode for the final pieces.\n- **Choking Algorithm:** Employs a tit-for-tat based choking algorithm with optimistic unchoking for efficient upload slot management.\n\n### User Interface (TUI)\n- **Real-time Dashboard:** A `ratatui`-based terminal UI displaying overall status, individual torrent progress, peer lists, and network graphs.\n- **High Performance TUI:** FPS selector that allows 1-60fps.\n- **Network Graph:** Historic time periods selector on network activity for network speed and disk failures.\n\n### Configuration & Management\n- **Persistent State:** Saves the torrent list, progress, and lifetime stats to a configuration file.\n- **Speed Limits:** Allows setting global upload and download speed limits.\n\n## Roadmap to V1.0\n- **Testing:** Ongoing testing across various platforms and terminals.\n- **Unit Testing:** Expansion of unit test coverage.\n- **Bugs Startup and Shutdown** Fixing of serveral edge cases when users quit during certain critical phases.\n\n## Roadmap to V1.5\n- Fix and refactor synchronous startup and validation\n- **Docker:** Docker setup with VPN container networking passthrough.\n\n## Future (V2.0 and Beyond)\n\n### Refactors \n- **Codebase:** Reduce dependencies by implementing some of these features in the codebase.\n\n### Networking & Protocol\n- **Full IPv6 Support:** Allow connecting to IPv6 peers and announcing to IPv6 trackers, including parsing compact peers6 responses.\n- **UPnP / NAT-PMP:** Automatically configure port forwarding on compatible routers to improve connectability.\n- **Tracker Scraping:** Implement the ability to query trackers for seeder/leecher counts without doing a full announce (useful for displaying stats).\n- **Network History:** Persisting network history to disk.\n\n### Torrent & File Management\n- **Selective File Downloading:** Allow users to choose which specific files inside a multi-file torrent they want to download.\n- **Sequential Downloading:** Download pieces in order, primarily useful for streaming media files while they're downloading.\n- **Torrent Prioritization / Queueing:** Allow users to set priorities for torrents and configure limits on the number of active downloading or seeding torrents.\n- **Per-Torrent Settings:** Allow setting individual speed limits, ratio goals, or connection limits for spe",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:46.724014"
+  },
+  {
+    "basic_info": {
+      "name": "work-tuimer",
+      "full_name": "Kamyil/work-tuimer",
+      "owner": "Kamyil",
+      "description": "Simple, keyboard-driven TUI for time-tracking that allows you to quickly add time blocks and automatically group time if same task was done in different sessions",
+      "url": "https://github.com/Kamyil/work-tuimer",
+      "clone_url": "https://github.com/Kamyil/work-tuimer.git",
+      "ssh_url": "git@github.com:Kamyil/work-tuimer.git",
+      "homepage": "",
+      "created_at": "2025-10-31T13:26:31Z",
+      "updated_at": "2025-11-13T19:39:57Z",
+      "pushed_at": "2025-11-13T13:27:45Z"
+    },
+    "stats": {
+      "stars": 198,
+      "forks": 5,
+      "watchers": 198,
+      "open_issues": 7,
+      "size": 1404
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 268748,
+        "Just": 1382,
+        "Shell": 1125,
+        "Ruby": 693,
+        "Nix": 123
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# WorkTUImer\n![work-tuimer](https://github.com/user-attachments/assets/207f9b66-0b08-4e97-a471-a9f413a7369c)\n\nLive demo: https://x.com/KsenKamil/status/1985423210859368716\n\nSimple, keyboard-driven TUI for time-tracking that allows you to quickly add time blocks and automatically group time if same task was done in different sessions\nBuilt with Rust and ratatui for efficient time management.\n\n## Features\n\n- **Fully keyboard-driven**: No mouse required - everything accessible via keybinds\n- **Active timer tracking**: Start/stop/pause timers that automatically update work records with actual time spent\n- **Time as PIN-Inputs**: Easly type time with 4 clicks, since all time inputs are PIN-input alike\n- **Log tasks and breaks, get totals automatically**: Add work entries with start/end times - durations are calculated and summed\n- **Task picker with history**: Quickly select from previously used task names or create new ones\n- **Calendar navigation**: Jump between days, weeks, and months\n- **Arrow keys or Vim motions**: Navigate with arrow keys + Enter, or use h/j/k/l + i for Vim-style workflow\n- **Inline editing with undo/redo**: Fix mistakes in place, up to 50 levels of history\n- **Auto-saves locally per day**: Data stored as JSON files, for each day, on your machine (`~/.local/share/work-tuimer/`)\n- **Optional ticket integration**: Detect and link to JIRA, Linear, GitHub issues from task names - open ticket URLs directly in your browser from the app\n\n## Installation\n\n### Package Managers\n\n#### Cargo (Rust)\n\n```sh\ncargo install work-tuimer\n```\n\n#### (!!! NOT READY YET !!!) Homebrew (macOS/Linux)\n\n```sh\nbrew install work-tuimer\n```\n\n#### (!!! NOT READY YET !!!) Arch Linux (AUR)\n\n```sh\n# Using yay\nyay -S work-tuimer\n\n# Or manually\ngit clone https://aur.archlinux.org/work-tuimer.git\ncd work-tuimer\nmakepkg -si\n```\n\n#### FreeBSD\n\n```sh\npkg install work-tuimer\n```\n\n### Pre-built Binaries\n\nDownload the latest pre-built binary for your platform from [GitHub Releases](https://github.com/Kamyil/work-tuimer/releases):\n\n- **Linux (x86_64)**: `work-tuimer-linux-x86_64`\n- **macOS (Intel)**: `work-tuimer-macos-x86_64`\n- **macOS (Apple Silicon)**: `work-tuimer-macos-aarch64`\n- **Windows**: `work-tuimer-windows-x86_64.exe`\n\nAfter downloading, make the binary executable and run it:\n\n```bash\n# Linux / macOS\nchmod +x work-tuimer-linux-x86_64\n./work-tuimer-linux-x86_64\n\n# Windows\nwork-tuimer-windows-x86_64.exe\n```\n\n### Build from Source\n\nIf you prefer to build from source or don't see a binary for your platform:\n\n```bash\ncargo build --release\n./target/release/work-tuimer\n```\n\n## Usage\n\n### Browse Mode\n\n| Key | Action |\n|-----|--------|\n| `↑/k` | Move selection up |\n| `↓/j` | Move selection down |\n| `←/h` | Move field left (Name → Start → End) |\n| `→/l` | Move field right (Name → Start → End) |\n| `[` | Navigate to previous day (auto-saves) |\n| `]` | Navigate to next day (auto-saves) |\n| `C` | Open calendar view for date navigation |\n| `Enter/i` | Enter edit mode on selected field |\n| `c` | Change task name (opens picker to select/filter/create) |\n| `n` | Add new work record |\n| `b` | Add break (uses selected record's end time as start) |\n| `d` | Delete selected record |\n| `v` | Enter visual mode (multi-select) |\n| `S` | Start/Stop timer for selected record |\n| `P` | Pause/Resume active timer |\n| `t` | Set current time on selected field |\n| `T` | Open ticket in browser (only visible if config exists) |\n| `L` | Open worklog URL in browser (only visible if config exists) |\n| `u` | Undo last change |\n| `r` | Redo undone change |\n| `s` | Save to file |\n| `q` | Quit (auto-saves) |\n\n### Edit Mode\n\n| Key | Action |\n|-----|--------|\n| `Tab` | Next field (Name → Start → End → Description → Name) |\n| `Enter` | Save changes and exit edit mode |\n| `Esc` | Cancel and exit edit mode |\n| `Backspace` | Delete character |\n| Any char | Insert character |\n\n### Task Picker (accessed via `c` in Browse mode)\n\nPress `c` on the Name field to open the task picker:\n- Shows all unique task names from the current day\n- Type to filter the list\n- Press Enter to select a task or create a new one\n\n| Key | Action |\n|-----|--------|\n| Any char | Type to filter tasks or create new name (including h/j/k/l) |\n| `↑` | Move selection up in filtered list |\n| `↓` | Move selection down in filtered list |\n| `Enter` | Select highlighted task or create typed name |\n| `Backspace` | Delete character from filter |\n| `Esc` | Cancel and return to browse mode |\n\n### Visual Mode\n\n| Key | Action |\n|-----|--------|\n| `↑/k` | Extend selection up |\n| `↓/j` | Extend selection down |\n| `d` | Delete selected records |\n| `Esc` | Exit visual mode |\n\n### Calendar View\n\n| Key | Action |\n|-----|--------|\n| `↑/k` | Move selection up (1 week) |\n| `↓/j` | Move selection down (1 week) |\n| `←/h` | Move selection left (1 day) |\n| `→/l` | Move selection right (1 day) |\n| `[/</,` | Previous month |\n| `]/>/.` | Next month |\n| `Enter` | Jump to selected date |\n| `Esc` | Close calendar view |\n\n## Timer Ses",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:47.848244"
+  },
+  {
+    "basic_info": {
+      "name": "pplx-garden",
+      "full_name": "perplexityai/pplx-garden",
+      "owner": "perplexityai",
+      "description": "Perplexity open source garden for inference technology",
+      "url": "https://github.com/perplexityai/pplx-garden",
+      "clone_url": "https://github.com/perplexityai/pplx-garden.git",
+      "ssh_url": "git@github.com:perplexityai/pplx-garden.git",
+      "homepage": null,
+      "created_at": "2025-11-04T17:35:34Z",
+      "updated_at": "2025-11-14T01:56:18Z",
+      "pushed_at": "2025-11-07T03:26:55Z"
+    },
+    "stats": {
+      "stars": 168,
+      "forks": 16,
+      "watchers": 168,
+      "open_issues": 0,
+      "size": 176
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 430598,
+        "Python": 139522,
+        "Cuda": 81745,
+        "C++": 10733,
+        "Dockerfile": 2142,
+        "C": 543,
+        "Shell": 529
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "pplx-garden\n===========\n\nPerplexity AI open source garden for inference technology\n\n## Research Paper\n\n[RDMA Point-to-Point Communication for LLM Systems](https://arxiv.org/abs/2510.27656)\n\n## P2P MoE dispatch/combine kernel\n\n* Support both NVIDIA ConnectX-7 and AWS EFA (potentially other RDMA NICs as wel)\n* Use NVLink for intra-node data transfer and RDMA for inter-node\n* Optimize for decode, while also support prefill\n* Split send and recv stages for both dispatch and combine, allow micro-batching\n* SM-free while RDMA transfer\n* Support CUDA Graph\n\n## RDMA TransferEngine library\n\n* Support both NVIDIA ConnectX-7 and AWS EFA (potentially other RDMA NICs as well)\n* Support aggregation of multiple NICs per GPU\n* Support reliable unordered transport protocol\n\n# System requirements\n\n* Linux Kernel 5.15 or higher\n* (Recommended) Linux Kernel 6.1 or higher (for DMA-BUF support)\n* CUDA 12.8 or higher\n* libfabric\n* libibverbs\n* GDRCopy\n* `SYS_PTRACE` and `SYS_ADMIN` Linux capabilities for `pidfd_getfd`. You can obtain these by running as root, with sudo, or inside docker with `--cap-add=SYS_PTRACE --cap-add=SYS_ADMIN`.\n* RDMA network with GPUDirect RDMA support\n\n# Docker dev image\n\nWe provide a docker image for the convenience of development. You can build it with the following command:\n\n```bash\ndocker build -t pplx-garden-dev - < docker/dev.Dockerfile\n```\n\nRun the container with the following command:\n\n```bash\n./scripts/run-docker.sh\n```\n\n# Run fabric-debug\n\nThis is the benchmark for our network library.\n\nBuild the benchmark binary:\n\n```bash\ncd /app\ncargo build --release --bin fabric-debug\n```\n\nUsage:\n\n* Server: `fabric-debug [GPUs separated by comma] [NICs per GPU]`\n* Client: `fabric-debug [GPUs separated by comma] [NICs per GPU] [server address]` where the server address is the one printed by the server.\n\n\nExample:\n\n```\nserver$ /app/target/release/fabric-debug 0,1,2,3,4,5,6,7 2\nclient$ /app/target/release/fabric-debug 0,1,2,3,4,5,6,7 2 fe80xxxx\n```\n\n# Build and Install Python Wheel\n\n```bash\ncd /app\nexport TORCH_CMAKE_PREFIX_PATH=$(python3 -c \"import torch; print(torch.utils.cmake_prefix_path)\")\npython3 -m build --wheel\npython3 -m pip install /app/dist/*.whl\n```\n\n# Run All-to-All Benchmark\n\n```bash\n# Environment variables\nNUM_NODES=...\nNODE_RANK=...  # [0, NUM_NODES)\nMASTER_IP=...\n\n# Run on all nodes\ncd /app\npython3 -m benchmarks.bench_all_to_all \\\n    --world-size $((NUM_NODES * 8)) --nets-per-gpu 2 --init-method=tcp://$MASTER_IP:29500 \\\n    --node-rank=$NODE_RANK --nvlink=8\n```\n\nNote:\n\n* Remove `--nvlink` flag if you want to use RDMA only.\n* Set `--nets-per-gpu` accordingly based on the VM instance type.\n\n# All-to-All Performance Results\n\nDecode (128 tokens) Dispatch and Combine:\n\n|      | pplx-EFA | pplx-CX7 | DeepEP-CX7 | x | pplx-EFA | pplx-CX7 | DeepEP-CX7 |\n|------|---------:|---------:|-----------:|---|---------:|---------:|-----------:|\n| EP64 | 266.7 μs | 187.5 μs |   177.9 μs | x | 391.2 μs | 309.1 μs |   325.0 μs |\n| EP32 | 229.1 μs | 153.9 μs |   159.1 μs | x | 335.0 μs | 266.3 μs |   285.0 μs |\n| EP16 | 214.8 μs | 110.2 μs |   123.9 μs | x | 241.5 μs | 185.5 μs |   203.0 μs |\n| EP8  |  49.7 μs |  50.5 μs |    42.6 μs | x |  64.2 μs |  65.3 μs |    72.0 μs |\n\n\nPrefill (4096 tokens) Dispatch and Combine:\n\n| x    |  pplx-EFA |  pplx-CX7 | DeepEP-CX7 | x |  pplx-EFA |  pplx-CX7 | DeepEP-CX7 |\n|------|----------:|----------:|-----------:|---|----------:|----------:|-----------:|\n| EP64 | 5334.3 μs | 4665.2 μs |  5071.6 μs | x | 9779.3 μs | 8771.1 μs |  5922.7 μs |\n| EP32 | 4619.0 μs | 4011.8 μs |  3680.2 μs | x | 8271.5 μs | 7526.8 μs |  3565.4 μs |\n| EP16 | 3196.7 μs | 2734.8 μs |  2481.9 μs | x | 5379.1 μs | 1062.2 μs |  1863.9 μs |\n| EP8  | 1052.4 μs | 5071.1 μs |  1810.3 μs | x | 1396.7 μs | 1405.1 μs |   962.9 μs |\n\n\n# Directory Structure\n\n* `fabric-lib/`: RDMA TransferEngine library\n* `p2p-all-to-all/`: P2P MoE All-to-All implementation\n* `python-ext/`: Python extension module from Rust code\n* `python/pplx_garden/`: Python code for the `pplx_garden` package\n* `rust/`: Rust utility libraries\n\n# Acknowledgments\n\nOur RDMA library is inspired by [MoonCake](https://www.usenix.org/conference/fast25/presentation/qin).\nOur MoE kernel is inspired by [DeepEP](https://github.com/deepseek-ai/DeepEP).\n\n# Citation\n\nIf you find this work useful, please cite:\n\n```\n@misc{pplx-rdma-p2p,\n      title={RDMA Point-to-Point Communication for LLM Systems}, \n      author={Nandor Licker and Kevin Hu and Vladimir Zaytsev and Lequn Chen},\n      year={2025},\n      eprint={2510.27656},\n      archivePrefix={arXiv},\n      primaryClass={cs.DC},\n      url={https://arxiv.org/abs/2510.27656}, \n}\n```\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:48.966503"
+  },
+  {
+    "basic_info": {
+      "name": "rusub",
+      "full_name": "adysec/rusub",
+      "owner": "adysec",
+      "description": "rusub 是一款高速、智能的跨平台子域枚举工具，支持启发式扫描、内置 10 万+ 词表、异步高并发、多格式输出及自动断点续传。",
+      "url": "https://github.com/adysec/rusub",
+      "clone_url": "https://github.com/adysec/rusub.git",
+      "ssh_url": "git@github.com:adysec/rusub.git",
+      "homepage": "https://github.com/adysec/rusub",
+      "created_at": "2025-11-06T06:59:21Z",
+      "updated_at": "2025-11-14T00:33:23Z",
+      "pushed_at": "2025-11-10T09:40:57Z"
+    },
+    "stats": {
+      "stars": 157,
+      "forks": 144,
+      "watchers": 157,
+      "open_issues": 0,
+      "size": 552
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 106010
+      },
+      "license": "MIT License",
+      "topics": [
+        "dns",
+        "dns-server",
+        "dnsmasq",
+        "dnssec",
+        "domain",
+        "subdomain",
+        "subdomain-finder",
+        "subdomain-scanner",
+        "subdomains",
+        "subdomains-scanner"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# rusub\n\n🚀 高速、智能的子域枚举工具 (Rust)\n\n[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)\n[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n\n</div>\n\n## 📋 目录\n1. [快速开始](#1-快速开始)\n2. [配置参数](#2-配置参数)\n3. [实用示例](#3-实用示例)\n4. [输出格式](#4-输出格式)\n5. [技术原理](#5-技术原理)\n6. [作为库使用](#6-作为库使用)\n7. [许可与免责声明](#7-许可与免责声明)\n\n## 1. 快速开始\n\n### 核心特性\n\n- **🧠 启发式扫描**：默认智能生成 512 个候选子域，无需字典\n- **📚 字典扫描**：10 万+ 词表已内置，支持自定义字典\n- **💾 断点续传**：自动保存进度，中断后可继续\n- **⚡ 高性能**：异步并发（默认 500），支持速率控制\n- **📊 多格式输出**：JSONL / TXT / JSON / CSV，可选 gzip 压缩\n- **🛡️ 泛解析过滤**：自动检测并过滤泛解析记录\n- **🌐 跨平台 DNS**：自动读取系统 DNS 配置（Windows/Linux/macOS）\n\n### 安装\n\n```bash\ngit clone https://github.com/adysec/rusub.git\ncd rusub\ncargo build --release\n\n# 可选：安装到系统\ncargo install --path .\n```\n\n**编译后的二进制文件（约 4.7 MB）：**\n- ✅ 10 万+ 子域词表已内置\n- ✅ 无外部依赖\n- ✅ 可在任意目录运行\n\n### 基本用法\n\n```bash\n# 默认扫描（启发式 512 候选，JSONL 输出）\nrusub enum example.com\n\n# 深度扫描（1024 候选）\nrusub enum example.com --heuristic-max 1024\n\n# 使用自定义字典\nrusub enum example.com -f wordlist.txt\n\n# 多域名扫描\nrusub enum -d target.com -d example.com\n```\n\n## 2. 配置参数\n\n### 🎯 基础参数\n\n| 参数 | 说明 | 默认值 | 示例 |\n|------|------|--------|------|\n| `-d, --domain` | 目标域名（可重复） | - | `-d example.com -d test.com` |\n| `--stdin` | 从标准输入读取域名 | - | `cat domains.txt \\| rusub enum --stdin` |\n| `-f, --filename` | 字典文件路径 | 内置 | `-f wordlist.txt` |\n| `--domain-list` | 域名列表文件 | - | `--domain-list domains.txt` |\n\n### 📊 输出参数\n\n| 参数 | 说明 | 默认值 | 示例 |\n|------|------|--------|------|\n| `-o, --output` | 输出文件路径 | stdout | `-o results.jsonl` |\n| `--output-type` | 输出格式 | jsonl | `txt / json / jsonl / csv` |\n| `--gzip` | 启用 gzip 压缩 | auto¹ | `--gzip` |\n| `--not-print` | 不打印到终端 | false | `--not-print` |\n| `--pure-output` | 纯净输出（仅结果）| auto² | `--pure-output` |\n| `--only-alive` | 仅输出存活域名 | auto² | `--only-alive` |\n\n> ¹ 输出文件以 `.gz` 结尾时自动启用  \n> ² json/jsonl 格式自动启用\n\n### ⚡ 性能参数\n\n| 参数 | 说明 | 默认值 | 示例 |\n|------|------|--------|------|\n| `-b, --band` | 速率限制 | 3m | `-b 10M` 或 `-b 5000` |\n| `-c, --concurrency` | 并发数 | 500 | `-c 1000` |\n| `--timeout` | 查询超时（秒） | 6 | `--timeout 10` |\n| `--retry` | 失败重试次数 | 3 | `--retry 5` |\n| `-r, --resolvers` | DNS 解析器（可重复） | 系统³ | `-r 8.8.8.8 -r 1.1.1.1` |\n\n> ³ **DNS 自动配置（跨平台）：**\n> - 🔧 自动读取系统配置（Windows/Linux/macOS）\n> - 🛡️ 过滤本地回环（127.*）和 IPv6 地址\n> - 🌐 无系统配置时回退到 1.1.1.1 / 8.8.8.8\n> - ✏️ 使用 `-r` 可覆盖默认配置\n\n### 🧠 启发式参数\n\n| 参数 | 说明 | 默认值 | 推荐值 |\n|------|------|--------|--------|\n| `--heuristic-max` | 候选子域数量 | 512 | 256 / 512 / 1024 / 2048 |\n\n**扫描方案：**\n- 🚀 **轻量**（256）：快速验证\n- ⚖️ **标准**（512）：日常使用，默认\n- 🔍 **深度**（1024）：更全面\n- 💎 **全面**（2048）：最大覆盖\n\n### 🔧 其他参数\n\n| 参数 | 说明 | 默认值 | 可选值 |\n|------|------|--------|--------|\n| `--log-level` | 日志级别 | info | error / warn / info / debug / silent |\n\n## 3. 实用示例\n\n### 📌 基础扫描\n\n```bash\n# 启发式扫描 - 标准（512 候选，默认）\nrusub enum target.com\n\n# 启发式扫描 - 深度（1024 候选）\nrusub enum target.com --heuristic-max 1024\n\n# 启发式扫描 - 全面（2048 候选）\nrusub enum target.com --heuristic-max 2048\n\n# 启发式扫描 - 轻量（256 候选）\nrusub enum target.com --heuristic-max 256\n\n# 使用自定义字典\nrusub enum target.com -f custom.txt\n\n# 多域名扫描\nrusub enum -d target.com -d example.com -d test.com\n\n# 从文件读取域名列表\nrusub enum --domain-list domains.txt\n\n# 从标准输入读取\ncat domains.txt | rusub enum --stdin\n```\n\n### 📊 输出控制\n\n```bash\n# JSONL 格式（默认）\nrusub enum target.com -o results.jsonl\n\n# JSON 格式\nrusub enum target.com --output-type json -o results.json\n\n# CSV 格式\nrusub enum target.com --output-type csv -o results.csv\n\n# TXT 格式\nrusub enum target.com --output-type txt -o results.txt\n\n# 自动压缩\nrusub enum target.com -o results.jsonl.gz\n\n# 提取子域名\nrusub enum target.com | jq -r '.subdomain'\n\n# 提取 IP 地址\nrusub enum target.com | jq -r '.answers[]'\n\n# 过滤特定子域\nrusub enum target.com | grep -E \"admin|api|dev\"\n```\n\n### 🎯 DNS 配置\n\n```bash\n# 使用系统 DNS（默认）\nrusub enum target.com\n\n# 指定单个 DNS\nrusub enum target.com -r 8.8.8.8\n\n# 指定多个 DNS\nrusub enum target.com -r 8.8.8.8 -r 1.1.1.1 -r 1.0.0.1\n\n# 使用国内 DNS\nrusub enum target.com -r 114.114.114.114 -r 223.5.5.5\n```\n\n### ⚡ 性能调优\n\n```bash\n# 快速扫描（低并发）\nrusub enum target.com -c 200 --timeout 3\n\n# 标准扫描（默认）\nrusub enum target.com -c 500 --timeout 6\n\n# 高速扫描（高并发）\nrusub enum target.com -c 2000 -b 50M --timeout 3\n\n# 极速扫描（适合内网）\nrusub enum target.com -c 5000 -b 100M --timeout 2 --retry 1\n```\n\n### 🔄 实用技巧\n\n```bash\n# 实时监控 + 保存结果\nrusub enum target.com | tee results.jsonl\n\n# 静默模式（无日志）\nrusub enum target.com --log-level silent\n\n# 断点续传（自动）\nrusub enum target.com -f big-wordlist.txt -o results.jsonl\n# 中断后重新运行相同命令即可继续\n\n# 批量处理\nfor domain in $(cat targets.txt); do\n    rusub enum $domain -o ${domain}.jsonl\ndone\n\n# 工具链结合\nrusub enum target.com | jq -r '.subdomain' | httpx -silent | grep \"200\"\n\n# 过滤并提取活跃子域\nrusub enum target.com | jq -r 'select(.answers != null) | .subdomain'\n```\n\n## 4. 输出格式\n\n### 📊 JSONL（默认）\n\n流式 JSON，每行一个记录：\n\n```json\n{\"subdomain\":\"www.example.com\",\"answers\":[\"93.184.216.34\"],\"records\":[{\"rtype\":\"A\",\"data\":\"93.184.216.34\"}]}\n{\"subdomain\":\"api.example.com\",\"answers\":[\"10.0.0.1\",\"10.0.0.2\"],\"records\":[{\"rtype\":\"A\",\"data\":\"10.0.0.1\"},{\"rtype\":\"A\",\"data\":\"10.0.0.2\"}]}\n```\n\n*",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:50.085992"
+  },
+  {
+    "basic_info": {
+      "name": "TinyETL",
+      "full_name": "alrpal/TinyETL",
+      "owner": "alrpal",
+      "description": "Fast, zero-config ETL in a single binary",
+      "url": "https://github.com/alrpal/TinyETL",
+      "clone_url": "https://github.com/alrpal/TinyETL.git",
+      "ssh_url": "git@github.com:alrpal/TinyETL.git",
+      "homepage": "",
+      "created_at": "2025-11-07T22:32:29Z",
+      "updated_at": "2025-11-13T22:36:53Z",
+      "pushed_at": "2025-11-13T19:47:06Z"
+    },
+    "stats": {
+      "stars": 157,
+      "forks": 2,
+      "watchers": 157,
+      "open_issues": 4,
+      "size": 8634
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 508243,
+        "Shell": 3867,
+        "Python": 3233,
+        "JavaScript": 1521,
+        "TSQL": 711
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# TinyETL\n**Fast, zero-config ETL in a single binary**\n\n[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/alrpal/tinyetl/actions)\n[![Coverage](https://img.shields.io/badge/coverage-60%25-brightgreen)](https://github.com/alrpal/tinyetl/actions)\n[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/alrpal/tinyetl/releases)\n[![Rust Edition](https://img.shields.io/badge/rust-2021-orange)](https://doc.rust-lang.org/edition-guide/rust-2021/index.html)\n[![Binary Size](https://img.shields.io/badge/binary-15MB-green)](https://github.com/alrpal/tinyetl/releases)\n\n![TinyETL Demo](examples/tinyetl_preview2-normal-framerate.gif)\n\nTransform and move data between any format or database **instantly**. No dependencies, no config files, just one command.\n\n```bash\n# MySQL → Parquet with inline transformation \ntinyetl \"mysql://user:@host/db#orders\" orders.parquet \\\n  --transform \"total_usd=row.amount * row.exchange_rate\"\n\n# Stream 100k+ rows/sec from CSV → SQLite\ntinyetl large_dataset.csv results.db --batch-size 50000\n\n# Download & convert web data\ntinyetl \"https://api.data.gov/export.json\" analysis.parquet\n```\n\n## Why TinyETL?\n\n✅ **Single 12.5MB binary** — no dependencies, no installation headaches  \n✅ **180k+ rows/sec streaming** — handles massive datasets efficiently  \n✅ **Zero configuration** — automatic schema detection and table creation (override with schema and config files in yaml)  \n   *Note: Auto-inferred schemas default all columns to nullable for safety*\n\n✅ **Lua transformations** — powerful data transformations  \n✅ **Universal connectivity** — CSV, JSON, Parquet, Avro, MySQL, PostgreSQL, SQLite, DuckDB, native MSSQL (currently slow). Coming soon: ODBC, Snowflake, Databricks, OneLake\n\n✅ **Cross-platform** — Linux, macOS, Windows ready\n\n## Quick Install\n\n**Download the binary** (recommended):\n\nVisit the [releases page](https://github.com/alrpal/tinyetl/releases/latest) and download the appropriate binary for your platform:\n- Linux x64, Linux ARM64\n- macOS Intel, macOS Apple Silicon  \n- Windows x64, Windows ARM64\n\n<!--\n**Linux x64:**\n```bash\ncurl -L https://github.com/alrpal/tinyetl/releases/latest/download/tinyetl-linux-x64.tar.gz | tar xz\nchmod +x tinyetl\nsudo mv tinyetl /usr/local/bin/  # Optional: add to PATH\n```\n\n**Linux ARM64:**\n```bash\ncurl -L https://github.com/alrpal/tinyetl/releases/latest/download/tinyetl-linux-arm64.tar.gz | tar xz\nchmod +x tinyetl\nsudo mv tinyetl /usr/local/bin/  # Optional: add to PATH\n```\n\n**macOS Intel:**\n```bash\ncurl -L https://github.com/alrpal/tinyetl/releases/latest/download/tinyetl-macos-intel.tar.gz | tar xz\nchmod +x tinyetl\nsudo mv tinyetl /usr/local/bin/  # Optional: add to PATH\n```\n\n**macOS Apple Silicon:**\n```bash\ncurl -L https://github.com/alrpal/tinyetl/releases/latest/download/tinyetl-macos-apple-silicon.tar.gz | tar xz\nchmod +x tinyetl\nsudo mv tinyetl /usr/local/bin/  # Optional: add to PATH\n```\n\n**Windows x64:**\n```powershell\n# Download and extract using PowerShell\nInvoke-WebRequest -Uri \"https://github.com/alrpal/tinyetl/releases/latest/download/tinyetl-windows-x64.zip\" -OutFile \"tinyetl.zip\"\nExpand-Archive -Path \"tinyetl.zip\" -DestinationPath \".\"\n# Move tinyetl.exe to a directory in your PATH\n```\n\n**Windows ARM64:**\n```powershell\n# Download and extract using PowerShell  \nInvoke-WebRequest -Uri \"https://github.com/alrpal/tinyetl/releases/latest/download/tinyetl-windows-arm64.zip\" -OutFile \"tinyetl.zip\"\nExpand-Archive -Path \"tinyetl.zip\" -DestinationPath \".\"\n# Move tinyetl.exe to a directory in your PATH\n```\n-->\n\n**Or install with Cargo** (builds from source):\n```bash\ncargo install tinyetl\n```\n\n**Verify installation**:\n```bash\ntinyetl --version\n```\n\n## Get Started in 30 Seconds\n\n```bash\n# File format conversion (auto-detects schemas)\ntinyetl data.csv output.parquet\ntinyetl data.json analysis.db\n\n# Database to database \ntinyetl \"postgresql://user:@host/db#users\" \"mysql://user:@host/db#users\"\n\n# Transform while transferring\ntinyetl sales.csv results.db --transform \"profit=row.revenue - row.costs; margin=profit/revenue\"\n\n# Process large datasets efficiently  \ntinyetl huge_dataset.csv output.parquet --batch-size 100000\n\n# Download and convert web data\ntinyetl \"https://example.com/api/export\" local_data.json --source-type=csv\n\n# Run complex ETL jobs from configuration files\ntinyetl run my_etl_job.yaml\n```\n\n## Usage\n<div style=\"overflow-x: auto;\">\n\n```\nUsage: tinyetl [OPTIONS] <SOURCE> <TARGET>\n       tinyetl run <CONFIG_FILE>\n\nDirect Transfer:\n  <SOURCE>  Source connection string (file path or connection string)\n  <TARGET>  Target connection string (file path or connection string)\n\nConfig File Mode:\n  run <CONFIG_FILE>  Run ETL job from YAML configuration file\n\nOptions:\n      --infer-schema             Auto-detect columns and types\n      --schema-file <FILE>       Path to schema file (YAML) to override auto-detection\n      --batch-size <BATCH_SIZE>  Number of rows per batch [default: 10000]\n      --previe",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-11-14T02:28:51.195161"
+  },
+  {
+    "basic_info": {
+      "name": "bookokrat",
+      "full_name": "bugzmanov/bookokrat",
+      "owner": "bugzmanov",
+      "description": "A terminal EPUB Book Reader",
+      "url": "https://github.com/bugzmanov/bookokrat",
+      "clone_url": "https://github.com/bugzmanov/bookokrat.git",
+      "ssh_url": "git@github.com:bugzmanov/bookokrat.git",
+      "homepage": "https://bugzmanov.github.io/bookokrat/index.html",
+      "created_at": "2025-10-28T20:09:03Z",
+      "updated_at": "2025-11-13T22:54:49Z",
+      "pushed_at": "2025-11-08T22:35:46Z"
+    },
+    "stats": {
+      "stars": 153,
+      "forks": 2,
+      "watchers": 153,
+      "open_issues": 3,
+      "size": 7865
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1216170,
+        "Python": 59698
+      },
+      "license": "MIT License",
+      "topics": [
+        "epub-reader",
+        "rust",
+        "tui",
+        "tui-rs"
+      ]
+    },
+    "content": {
+      "readme": "# Bookokrat\n\nBookokrat is a terminal-based EPUB reader with a split-view library and reader, full MathML and image rendering, automatic bookmarks, and inline annotations.\n\n## Demo\n\n![CleanShot 2025-10-28 at 16 28 21](https://github.com/user-attachments/assets/a45d2e6a-4d2b-4f70-a77f-ed2f7cabc8d8)\n\n\n## What You Can Do\n- Browse every EPUB in the current directory, drill into the table of contents, and resume exactly where you left off.\n- Search inside the current chapter or across the whole book, jump through a per-book history, and inspect reading statistics.\n- Highlight text, attach comments, copy snippets or entire chapters, and toggle the raw HTML source for debugging.\n- Open images in-place, follow internal anchors, launch external links in your browser, and hand off the book to your system viewer.\n\n## Keyboard Reference\n\nBookokrat follows Vim-style keybindings throughout the interface for consistent, efficient navigation.\n\n### Global Commands\n- `q` - Quit application\n- `Tab` - Switch focus between library/TOC and content panels\n- `Esc` - Clear selection/search or dismiss popups\n\n### Navigation (Vim-style)\n- `j/k` - Move down/up (works in all lists and reader)\n- `h/l` - Collapse/expand in TOC; previous/next chapter in reader\n- `Ctrl+d` / `Ctrl+u` - Scroll half-page down/up\n- `gg` - Jump to top\n- `G` - Jump to bottom\n- `Ctrl+o` / `Ctrl+i` - Jump backward/forward in history\n\n### Search\n- `/` - Start search (filter in library/TOC; search in reader)\n- `n` / `N` - Jump to next/previous match\n- `Space+f` - Reopen last book-wide search\n- `Space+F` - Start fresh book-wide search\n\n### Library & TOC Panel\n- `Enter` - Open highlighted book or heading\n- `h` / `l` - Collapse/expand entry\n- `H` / `L` - Collapse/expand all\n\n### Reader Panel\n- `h` / `l` - Previous/next chapter\n- `Space+s` - Toggle raw HTML view\n- `Space+c` - Copy entire chapter\n- `Space+z` - Copy debug transcript\n- `c` or `Ctrl+C` - Copy selection\n- `p` - Toggle profiler overlay\n\n### Comments & Annotations\n- `a` - Create or edit comment on selection\n- `d` - Delete comment under cursor\n\n### Popups & External Actions\n- `Space+h` - Toggle reading history popup\n- `Space+d` - Show book statistics popup\n- `Space+o` - Open current book in OS viewer\n- `Enter` - Open image popup (when on image) or activate popup selection\n\n### Popup Navigation\nAll popups (search results, reading history, book stats) support:\n- `j/k` - Move up/down\n- `Ctrl+d` / `Ctrl+u` - Half-page scroll\n- `gg` / `G` - Jump to top/bottom\n- `Enter` - Activate selection\n- `Esc` - Close popup\n\n## Mouse Support\n- Scroll with the wheel over either pane; Bookokrat batches rapid wheel events for smooth scrolling.\n- Single-click focuses a pane; double-click in the library opens the selection; double-click in the reader selects a word; triple-click selects the paragraph.\n- Click-and-drag to highlight text; release on a hyperlink to open it; drag past the viewport edges to auto-scroll.\n- Click images to open the zoom popup; click again or press any key to close; clicking history or stats entries activates them immediately.\n\n## Installation\n\n### Prerequisites\nBookokrat requires a C compiler/linker to be installed on your system for building dependencies.\n\n**Linux (Ubuntu/Debian):**\n```bash\nsudo apt update\nsudo apt install build-essential\n```\n\n**Linux (Fedora/RHEL):**\n```bash\nsudo dnf install gcc make\n```\n\n**macOS:**\n```bash\nxcode-select --install\n```\n\n**Windows:**\nInstall [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) with the \"Desktop development with C++\" workload.\n\n### Install Bookokrat\n\n1. Install Rust via https://rustup.rs if needed.\n2. Install bookokrat using Cargo:\n\n```bash\ncargo install bookokrat\n```\n\n3. Place EPUB files alongside the binary (or run within your library directory) and navigate with the shortcuts above.\n\n### Troubleshooting\n\n**Error: \"linker 'cc' not found\"**\n\nThis means you don't have a C compiler installed. Install the build tools for your platform (see Prerequisites above), then try again.\n\n## Attribution\n\nThis project is based on [bookrat](https://github.com/dmitrysobolev/bookrat) by Dmitry Sobolev, licensed under the MIT License.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:52.311421"
+  },
+  {
+    "basic_info": {
+      "name": "docx_compressor",
+      "full_name": "adysec/docx_compressor",
+      "owner": "adysec",
+      "description": "一个轻量级的跨平台工具，用于压缩 Word (.docx) 文件中的图片，显著减小文档体积。支持 Windows 与 Linux，拥有简洁的图形化界面。",
+      "url": "https://github.com/adysec/docx_compressor",
+      "clone_url": "https://github.com/adysec/docx_compressor.git",
+      "ssh_url": "git@github.com:adysec/docx_compressor.git",
+      "homepage": "https://github.com/adysec/docx_compressor",
+      "created_at": "2025-11-05T03:51:40Z",
+      "updated_at": "2025-11-14T00:49:30Z",
+      "pushed_at": "2025-11-07T02:02:39Z"
+    },
+    "stats": {
+      "stars": 150,
+      "forks": 145,
+      "watchers": 150,
+      "open_issues": 0,
+      "size": 58
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 10071
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "docs",
+        "docx"
+      ]
+    },
+    "content": {
+      "readme": "# 📘 DOCX 图片压缩器\n\n**DOCX Compressor** 是一个轻量级、跨平台的图形化工具，用于压缩 Word (`.docx`) 文档中的图片，以减小文件体积。  \n适合用于编写标书、报告、论文等需要减小上传大小的文档场景。\n\n---\n\n## ✨ 功能特点\n\n- 🖼️ **智能图片压缩**：自动检测 DOCX 内的所有图片并按指定质量与尺寸进行压缩。  \n- ⚙️ **可调参数**：自定义图片压缩质量（1-100）与最大分辨率（宽度）。  \n- 💾 **保持文档结构**：仅压缩图片，不影响文字、格式或样式。  \n- 💻 **跨平台支持**：基于egui提供图形化界面\n  - ✅ Windows（自动隐藏控制台窗口）\n  - ✅ Linux（同时支持 Wayland 与 X11 桌面环境）\n- 🌐 **中文界面**：内置 Noto Sans CJK 字体，完美显示中文。\n\n---\n\n<img width=\"1402\" height=\"1068\" alt=\"图片\" src=\"https://github.com/user-attachments/assets/fbee7718-5f4d-4cdf-8ff2-c634a49839e7\" />\n\n## 🖥️ 使用方法\n\n1. **运行程序**\n   - Windows 用户：直接双击 `docx_compressor.exe`\n   - Linux 用户：执行 `./docx_compressor`\n\n2. **选择输入文件**\n   - 点击「📂 输入文件」选择 `.docx` 文档。\n\n3. **设置参数**\n   - 压缩质量（1–100，默认 70）\n   - 最大宽度（默认 1280px）\n\n4. **选择输出文件路径**\n   - 默认输出到同目录下，文件名为 `原文件名_压缩后.docx`\n\n5. **点击「🚀 开始压缩」**\n   - 进度条与耗时将实时显示。\n\n---\n\n## 🧩 构建说明\n\n### 依赖项\n\n请确保系统已安装以下依赖：\n\n- Rust 1.75 或更高版本  \n- `libfontconfig`（Linux）  \n- C 编译工具链（如 `mingw`）\n\n### 构建命令\n\n```bash\n# 克隆仓库\ngit clone https://github.com/AdySec/docx-compressor.git\ncd docx-compressor\n\n# 构建可执行文件\ncargo build --release\ncargo build --release --target x86_64-unknown-linux-gnu\ncargo build --release --target x86_64-pc-windows-gnu\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:53.452815"
+  },
+  {
+    "basic_info": {
+      "name": "dht-spider",
+      "full_name": "adysec/dht-spider",
+      "owner": "adysec",
+      "description": "Rust 实现的 BitTorrent DHT（BEP‑5）与爬虫，并内置元数据下载（BEP‑9/10）与 PeX（BEP‑11/ut_pex）。",
+      "url": "https://github.com/adysec/dht-spider",
+      "clone_url": "https://github.com/adysec/dht-spider.git",
+      "ssh_url": "git@github.com:adysec/dht-spider.git",
+      "homepage": null,
+      "created_at": "2025-11-13T03:25:51Z",
+      "updated_at": "2025-11-14T00:17:07Z",
+      "pushed_at": "2025-11-13T03:29:12Z"
+    },
+    "stats": {
+      "stars": 142,
+      "forks": 142,
+      "watchers": 142,
+      "open_issues": 0,
+      "size": 30
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 78483
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# dht-spider\n\nRust 实现的 BitTorrent DHT（BEP‑5）与爬虫，并内置元数据下载（BEP‑9/10）与 PeX（BEP‑11/ut_pex）。\n\n现在只支持一种用法：cargo run。所有能力均已整合进主程序并以 JSONL 输出。\n\n## 特性概览\n\n- 模式：\n  - Standard：严格遵循 DHT 协议\n  - Crawl：偏向嗅探 infohash（促使对端 announce_peer）\n- KRPC：ping / find_node / get_peers / announce_peer（入站与递归）\n- 路由：K‑Bucket 分裂/候选、XOR 距离邻居选择、ping‑then‑replace 维护\n- 事务：超时指数退避重试、黑名单；token 校验\n- 元数据：集成 Wire（BEP‑9/10）下载 .torrent metadata\n- PeX：对等交换（BEP‑11/ut_pex）发现更多 peers\n  - 扩展握手声明 ut_pex\n  - 解析 `added`（紧凑 IPv4）中的 peers，并：\n    1) 统一输出为 `type=peer` 的 JSON 行\n    2) 自动加入抓取队列尝试下载对应 infohash 的 metadata\n\n## 快速开始\n\n构建与运行：\n\n```zsh\ncargo build --release\ncargo run\n```\n\n运行时行为：\n\n- 默认模式：Crawl\n- 默认监听：UDP 0.0.0.0:6881\n- 输出格式：JSONL（每行一个事件）\n\n示例输出（部分）：\n\n```json\n{\"type\":\"peer\",\"ip\":\"203.0.113.7\",\"port\":51413,\"info_hash\":\"a1b2...c3d4\"}\n{\"type\":\"metadata\",\"infohash\":\"a1b2...c3d4\",\"name\":\"SomePack\",\"files\":[{\"path\":[\"dir\",\"file1.mkv\"],\"length\":12345}]}\n{\"type\":\"node\",\"id\":\"a1b2c3...\",\"ip\":\"162.83.157.130\",\"port\":6881}\n```\n\n提示：若端口被占用，启动会输出错误并退出，例如：\n\n```json\n{\"level\":\"error\",\"event\":\"startup\",\"error\":\"IO error: Address already in use (os error 98)\"}\n```\n\n## 配置与默认值\n\n本项目遵循“零参数可运行”，开箱即用。默认参数（可能随版本调整）包括：\n\n- 路由与桶：k=8，kbucket_size=8\n- 监听：UDP 0.0.0.0:6881\n- 引导节点（prime_nodes）：包含多组官方/社区节点（示例见下），例如：\n  - router.bittorrent.com:6881、dht.transmissionbt.com:6881、router.utorrent.com:6881、router.bitcomet.com:6881\n  - dht.aelitis.com:6881、dht.libtorrent.org:25401、router.bittorrentcloud.com:6881、dht.anaconda.com:6881\n  - dht.vuze.com:6881、dht.transmissionbt.net:6881、router.silotis.us:6881、router.ktorrent.com:6881、router.tribler.org:6881\n  - router.bittorrent.jp:6881、router.cn.utorrent.com:6881、router.bittorrent.ru:6881、router.bittorrent.kr:6881\n  - 实际列表可能随版本更新进行调整\n- 周期与过期：kbucket_expired_after≈15 分钟、node_expired_after≈15 分钟、check_kbucket_period≈30 秒\n- token 过期：≈600 秒\n- 最大节点：≈5000；黑名单最大：≈65536\n- 运行模式：默认 Crawl（偏向触发对端 announce）\n- 刷新与重试：refresh_node_num≈8、try_times≈2\n\n维护语义：\n\n- 对过期/失活节点：先 ping，超时才替换；无全局“定期裁剪”。\n- Crawl 模式：入站 get_peers 返回空 nodes + token，促使对端 announce_peer。\n\n## 行为说明\n\n- KRPC 处理、递归查找与 announce 流程遵循 BEP 规范；announce_peer 会复用 get_peers 获取的 token。\n- 路由表与邻居选择（XOR 距离）；节点按 last_active 排序。\n- 默认 prime 节点、compact IPv4 地址编码。\n\n## 输出格式（统一 JSON 行）\n\n- Peer（来自 announce_peer / get_peers 的 values / PeX）：\n  {\"type\":\"peer\",\"ip\":\"<ip>\",\"port\":<port>,\"info_hash\":\"<hex>\"}\n- Metadata（torrent 信息，单/多文件统一）：\n  - 始终输出 files 数组；单文件时 files=[{\"path\":[name],\"length\":...}]\n  - 示例： {\"type\":\"metadata\",\"infohash\":\"<hex>\",\"name\":\"...\",\"files\":[{\"path\":[...],\"length\":...},...]}\n- DHT 节点（解析自 nodes）：\n  {\"type\":\"node\",\"id\":\"<20字节hex>\",\"ip\":\"<ip>\",\"port\":<port>}\n\n说明：\n- 当前实现已支持 PeX 的 IPv4 `added` 列表；如需 IPv6，可后续扩展 `added6` 的解析。\n- 私有种通常禁用 PeX；程序会自然尊重对端能力。",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:54.558240"
+  },
+  {
+    "basic_info": {
+      "name": "envoluntary",
+      "full_name": "dfrankland/envoluntary",
+      "owner": "dfrankland",
+      "description": "Automatic Nix development environments for your shell.",
+      "url": "https://github.com/dfrankland/envoluntary",
+      "clone_url": "https://github.com/dfrankland/envoluntary.git",
+      "ssh_url": "git@github.com:dfrankland/envoluntary.git",
+      "homepage": "",
+      "created_at": "2025-10-15T05:45:53Z",
+      "updated_at": "2025-11-12T23:14:31Z",
+      "pushed_at": "2025-11-06T22:50:42Z"
+    },
+    "stats": {
+      "stars": 117,
+      "forks": 1,
+      "watchers": 117,
+      "open_issues": 3,
+      "size": 124
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 119134,
+        "Nix": 11067,
+        "Shell": 12
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# envoluntary\n\n**Automatic Nix development environments for your shell.**\n\nEnvoluntary seamlessly loads and unloads Nix development environments based on\ndirectory patterns, eliminating the need for per-project `.envrc` / `flake.nix`\nfiles while giving you centralized control over your development tooling.\n\nThis bridges the gap between installing packages declaratively via NixOS /\nhome-manager and defining them for each project being worked in via `flake.nix`\n/ direnv / nix-direnv. Especially useful when projects don't use Nix!\n\n```mermaid\ngraph TD\n    A[\"🌍 System-Wide Approach<br/>(NixOS/home-manager)\"] -->|Pro: Centralized<br/>Con: Loses project specificity| B[\"Management Challenge\"]\n    C[\"📁 Per-Project Approach<br/>(flake.nix/direnv)\"] -->|Pro: Project-specific<br/>Con: Setup burden| B\n    B -->|Envoluntary Solution| D[\"✨ Pattern-Based Centralized<br/>(Best of both worlds)\"]\n    D --> E[\"✅ Centralized config<br/>✅ Project-aware<br/>✅ No per-project setup<br/>✅ Works for non-Nix projects\"]\n```\n\n## Features\n\n- **Pattern-based matching**: Define directory patterns once in your config, get\n  automatic environment loading everywhere\n- **Flake-native**: Built for Nix flakes from the ground up\n- **Shell agnostic**: Works with bash, zsh, and fish\n- **Fast caching**: Profiles are cached and only rebuilt when needed\n- **Zero per-project setup**: No `.envrc` files to commit or maintain\n\n## Quick Start\n\n1. **Install**:\n\n   ```bash\n   cargo install envoluntary\n   ```\n\n   Or use via Nix shell\n\n   ```bash\n   nix shell github:dfrankland/envoluntary -c envoluntary --help\n   ```\n\n2. **Add the shell hook** to your `.bashrc`, `.zshrc`, or `config.fish`:\n\n   ```bash\n   # Bash/Zsh\n   eval \"$(envoluntary shell hook bash)\"  # or zsh\n\n   # Fish\n   envoluntary shell hook fish | source\n   ```\n\n   Or use via Nix shell\n\n   ```bash\n   # Bash/Zsh\n   eval \"$(nix shell github:dfrankland/envoluntary -c envoluntary shell hook bash)\"  # or zsh\n\n   # Fish\n   nix shell github:dfrankland/envoluntary -c envoluntary shell hook fish | source\n   ```\n\n3. **Configure your environments** in `~/.config/envoluntary/config.toml`:\n\n   ```toml\n   [[entries]]\n   pattern = \".*/projects/my-website(/.*)?\"\n   flake_reference = \"~/nix-dev-shells/nodejs\"\n   # Set whether the flake is impure\n   impure = true\n\n   [[entries]]\n   # Patterns can match on tilde too\n   pattern = \"~/projects/rust-.*\"\n   flake_reference = \"github:NixOS/templates/30a6f18?dir=rust\"\n\n   # Adjacent files or directories can be used to narrow pattern matches\n   [[entries]]\n   pattern = \".*\"\n   pattern_adjacent = \".*/Cargo\\\\.toml\"\n   flake_reference = \"github:NixOS/templates/30a6f18?dir=rust\"\n   ```\n\n4. **Navigate** to a matching directory and your environment loads automatically!\n\n## Installing with Nix\n\nThe `envoluntary` flake exports a Nix overlay, making it easy to integrate into\nyour own Nix flake.\n\n### About the Flake\n\nThe `flake.nix` in this repository is a [flake-parts](https://flake.parts/)\nmodule that:\n\n- Exports the `envoluntary` package as its `defaultPackage`\n- Provides an overlay that makes `envoluntary` available in your own flakes\n\n<details>\n<summary><strong>Using the Overlay</strong></summary>\n\nTo use `envoluntary` in your own `flake.nix`, follow these steps:\n\n#### 1. Add the input\n\nAdd `envoluntary` to your flake inputs:\n\n```nix\n{\n  description = \"Your flake description\";\n\n  inputs = {\n    nixpkgs.url = \"github:NixOS/nixpkgs/nixpkgs-unstable\";\n    envoluntary = {\n      url = \"github:dfrankland/envoluntary\";\n      inputs.nixpkgs.follows = \"nixpkgs\";\n    };\n  };\n\n  outputs = { self, nixpkgs, envoluntary }:\n    # ... rest of your flake\n}\n```\n\n#### 2. Apply the overlay\n\nApply the overlay to your `pkgs`:\n\n```nix\noutputs = { self, nixpkgs, envoluntary }:\n  let\n    system = \"x86_64-linux\"; # or your system\n    pkgs = import nixpkgs {\n      inherit system;\n      overlays = [ envoluntary.overlays.default ];\n    };\n  in {\n    # Now pkgs.envoluntary is available\n  }\n```\n\n#### 3. Use in your environment\n\nYou can now use `envoluntary` in your development shell or system configuration:\n\n```nix\ndevShells.default = pkgs.mkShell {\n  buildInputs = [ pkgs.envoluntary ];\n};\n```\n\n</details>\n\n<details>\n<summary><strong>Using the home-manager Module</strong></summary>\n\nThe `envoluntary` flake exports a home-manager module for seamless integration\nwith your home configuration.\n\n> **Note:** The overlay must be applied to your `pkgs` for this module to work.\n> See the \"Using the Overlay\" section above.\n\n#### 1. Add the input\n\nAdd `envoluntary` to your flake inputs (if not already added):\n\n```nix\n{\n  description = \"Your flake description\";\n\n  inputs = {\n    nixpkgs.url = \"github:NixOS/nixpkgs/nixpkgs-unstable\";\n    home-manager = {\n      url = \"github:nix-community/home-manager\";\n      inputs.nixpkgs.follows = \"nixpkgs\";\n    };\n    envoluntary = {\n      url = \"github:dfrankland/envoluntary\";\n      inputs.nixpkgs.follows = \"nixpkgs\";\n      inputs.home-manager.follows = \"home-manager\";\n    };\n  };\n\n  ou",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:55.685938"
+  },
+  {
+    "basic_info": {
+      "name": "hist-rs",
+      "full_name": "noamteyssier/hist-rs",
+      "owner": "noamteyssier",
+      "description": "An efficient unique-line counter (25x over `sort | uniq -c`)",
+      "url": "https://github.com/noamteyssier/hist-rs",
+      "clone_url": "https://github.com/noamteyssier/hist-rs.git",
+      "ssh_url": "git@github.com:noamteyssier/hist-rs.git",
+      "homepage": "",
+      "created_at": "2025-10-22T20:10:22Z",
+      "updated_at": "2025-11-13T00:31:22Z",
+      "pushed_at": "2025-11-04T17:26:29Z"
+    },
+    "stats": {
+      "stars": 114,
+      "forks": 1,
+      "watchers": 114,
+      "open_issues": 2,
+      "size": 40
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 10670,
+        "Just": 1817
+      },
+      "license": null,
+      "topics": [
+        "command-line-interface",
+        "counting"
+      ]
+    },
+    "content": {
+      "readme": "# hist\n\n[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.md)\n[![Crates.io](https://img.shields.io/crates/d/hist-rs?color=orange&label=crates.io)](https://crates.io/crates/hist-rs)\n\nA high-throughput CLI to count unique lines.\n\nThis is a standalone tool with equivalent functionality to `sort | uniq -c | sort -n`.\n\nThere is also support for deduplicating an input stream (i.e. only printing unique lines).\n\n## Installation\n\n```bash\ncargo install hist-rs\n```\n\n## Usage\n\n```bash\n# count unique lines in a file\nhist <file>\n\n# count unique lines from stdin\n/bin/cat <file> | hist\n\n# skip counting and just write unique lines (in the same order as they appear)\nhist <file> -u\n\n# exclude lines matching a pattern while counting\nhist <file> -e <pattern>\n\n# include lines matching a pattern while counting\nhist <file> -i <pattern>\n\n# only output lines with abundance greater than or equal to a threshold\nhist <file> -m <threshold>\n\n# only output lines with abundance less than or equal to a threshold\nhist <file> -M <threshold>\n\n# sort output by the key (default: by abundance)\nhist <file> -n\n\n# sort output in descending order (default: ascending)\nhist <file> -d\n\n# show the last-k entries and a count of the other entries (lines + number of elements)\nhist <file> -k <k>\n\n# create histogram but skip sorting by value\nhist <file> -S\n\n# perform pattern substitution on incoming lines (regex compatible pattern matching)\nhist <file> -s <pattern> <replacement>\n\n# perform multiple pattern substitutions on incoming lines (can be used multiple times)\nhist <file> -s <pattern> <replacement> -s <pattern> <replacement>\n```\n\n## Benchmarks\n\n### Benchmarks `(sort | uniq -c | sort -n)`\n\nI use [`nucgen`](https://crates.io/crates/nucgen) to generate a random 1M line [FASTQ file](https://en.wikipedia.org/wiki/FASTQ_format) and pipe it into different tools to compare their throughput with [`hyperfine`](https://lib.rs/crates/hyperfine).\n\nI am measuring the performance of equivalent `sort <file | uniq -c | sort -n` functionality.\n\nTools compared:\n- [`hist`](https://lib.rs/crates/hist-rs)\n- [`cuniq`](https://lib.rs/crates/cuniq)\n- [`huniq`](https://lib.rs/crates/huniq)\n- [`sortuniq`](https://lib.rs/crates/sortuniq)\n- [`awk`](https://www.gnu.org/software/gawk/manual/gawk.html)\n- Naive Implementation (coreutils `sort <file | uniq -c | sort -n`)\n- Naive implementation ([rust-coreutils](https://github.com/uutils/coreutils) `sort <file | uniq -c | sort -n`)\n- Naive no cache (LC_ALL=C)\n- Naive no cache size hints (LC_ALL=C; size hints for `sort`)\n\nFor the specific commands used please check the [`justfile`](./justfile).\n\n#### Benchmark Table `(sort | uniq -c | sort -n)`\n\n> Measured on MacBook M3 Pro\n\n| Command | Mean [ms] | Min [ms] | Max [ms] | Relative |\n|:---|---:|---:|---:|---:|\n| `hist` | 231.5 ± 4.6 | 226.4 | 243.8 | 1.00 |\n| `cuniq` | 561.9 ± 12.4 | 538.2 | 576.9 | 2.43 ± 0.07 |\n| `naive-rust` | 890.1 ± 4.5 | 883.6 | 897.5 | 3.84 ± 0.08 |\n| `naive-no-locale-size-hints` | 1179.2 ± 40.2 | 1132.8 | 1241.6 | 5.09 ± 0.20 |\n| `naive-no-locale` | 1219.5 ± 28.7 | 1188.2 | 1276.6 | 5.27 ± 0.16 |\n| `awk` | 1265.4 ± 7.1 | 1254.5 | 1278.5 | 5.47 ± 0.11 |\n| `huniq` | 2814.8 ± 67.8 | 2735.9 | 2951.7 | 12.16 ± 0.38 |\n| `sortuniq` | 3166.9 ± 71.3 | 3121.1 | 3351.3 | 13.68 ± 0.41 |\n| `naive-size-hints` | 5610.1 ± 53.8 | 5542.2 | 5691.7 | 24.23 ± 0.53 |\n| `naive` | 5637.6 ± 67.2 | 5527.9 | 5781.1 | 24.35 ± 0.56 |\n\n### Benchmarks (deduplicate stream)\n\nI use [`nucgen`](https://crates.io/crates/nucgen) to generate a random 1M line [FASTQ file](https://en.wikipedia.org/wiki/FASTQ_format) and pipe it into different tools to compare their throughput with [`hyperfine`](https://lib.rs/crates/hyperfine).\n\nI am measuring the performance of deduplicating an input stream (i.e. only printing unique lines).\n\nTools compared:\n- [`hist`](https://lib.rs/crates/hist-rs)\n- [`huniq`](https://lib.rs/crates/huniq)\n- [`runiq`](https://lib.rs/crates/runiq)\n- [`uq`](https://lib.rs/crates/uq)\n- [`ripuniq`](https://lib.rs/crates/ripuniq)\n- [`unic`](https://github.com/donatj/unic)\n- [`awk`](https://www.gnu.org/software/gawk/manual/gawk.html)\n\nFor the specific commands used please check the [`justfile`](./justfile).\n\n#### Benchmark Table (deduplicate stream)\n\n> Measured on MacBook M3 Pro\n\n| Command | Mean [ms] | Min [ms] | Max [ms] | Relative |\n|:---|---:|---:|---:|---:|\n| `hist` | 180.6 ± 5.8 | 167.2 | 188.9 | 1.00 |\n| `ripuniq` | 215.5 ± 4.7 | 210.4 | 226.2 | 1.19 ± 0.05 |\n| `awk` | 1307.1 ± 20.0 | 1289.3 | 1357.0 | 7.24 ± 0.26 |\n| `huniq` | 2338.3 ± 52.8 | 2257.4 | 2402.7 | 12.95 ± 0.51 |\n| `runiq` | 2413.4 ± 49.0 | 2358.7 | 2535.4 | 13.36 ± 0.51 |\n| `uq` | 2942.1 ± 56.0 | 2892.1 | 3068.6 | 16.29 ± 0.61 |\n| `unic` | 7915.2 ± 87.0 | 7807.9 | 8034.2 | 43.83 ± 1.49 |\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-11-14T02:28:56.806257"
+  }
+]

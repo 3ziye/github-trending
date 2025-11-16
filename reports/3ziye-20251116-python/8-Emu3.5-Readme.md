@@ -1,0 +1,99 @@
+<div align='center'>
+<h1>Emu3.5: Native Multimodal Models are World Learners</h1>
+
+Emu3.5 Team, BAAI
+
+[Project Page](https://emu.world/) | [🤗HF Models](https://huggingface.co/collections/BAAI/emu35) | [Paper](https://arxiv.org/pdf/2510.26583)
+</div>
+
+
+<div align='center'>
+<img src="./assets/arch.png" class="interpolation-image" alt="arch." height="100%" width="100%" />
+</div>
+
+
+<div align='center'>
+<img src="./assets/co.png" class="interpolation-image" alt="arch." height="90%" width="90%" />
+</div>
+
+
+|  🔹 | **Core Concept**                         | **Description**                                                                                                                            |
+| :-: | :--------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+|  🧠 | **Unified World Modeling**               | Predicts the **next state jointly across vision and language**, enabling coherent **world modeling** and **generation**.              |
+|  🧩 | **End-to-End Pretraining**               | Trained with a **unified next-token prediction** objective over **interleaved vision–language sequences**.                                 |
+|  📚 | **Over 10T+ Multimodal Tokens**               | Pre-trained on **over 10 trillion interleaved tokens** from **video frames** and **transcripts**, capturing **spatiotemporal structure**.       |
+|  🔄 | **Native Multimodal I/O**                | Processes and generates **interleaved visual–text sequences** without **modality adapters** or **task-specific heads**.                    |
+|  🎯 | **RL Post-Training**                     | Large-scale **reinforcement learning** enhances **reasoning**, **compositionality**, and **generation quality**.                           |
+|  ⚡  | **Discrete Diffusion Adaptation (DiDA)** | Converts **sequential decoding → bidirectional parallel prediction**, achieving **≈20× faster inference without performance loss**.      |
+| 🖼️ | **Versatile Generation**                 | Excels in **long-horizon vision–language generation**, **any-to-image (X2I)** synthesis, and **text-rich image creation**.                 |
+|  🌐 | **Generalizable World Modeling**         | Enables **spatiotemporally consistent world exploration**, and **open-world embodied manipulation** across diverse scenarios.          |
+|  🏆 | **Performance Benchmark**                | Matches **Gemini 2.5 Flash Image (Nano Banana)** on **image generation/editing**, and **outperforms** on **interleaved generation tasks**. |
+
+
+
+## Table of Contents
+
+1. [Model & Weights](#1-model--weights)
+2. [Quick Start](#2-quick-start)
+3. [Schedule](#3-schedule)
+4. [Citation](#4-citation)
+
+## 1. Model & Weights
+
+| Model name               | HF Weight |
+| ------------------------ | --------- |
+| Emu3.5               | [🤗 HF link](https://huggingface.co/BAAI/Emu3.5/tree/main) |
+| Emu3.5-Image                | [🤗 HF link](https://huggingface.co/BAAI/Emu3.5-Image/tree/main) |
+| Emu3.5-VisionTokenizer     | [🤗 HF link](https://huggingface.co/BAAI/Emu3.5-VisionTokenizer/tree/main) |
+
+
+*Note:*  
+- **Emu3.5** supports general-purpose multimodal predictions, including interleaved image-text generation and single-image generation (T2I/X2I) tasks.
+- **Emu3.5-Image** is a model focused on T2I/X2I tasks for best performance on these scenarios.
+- Both models are pure next-token predictors without DiDA acceleration (each image may take several minutes to generate).  
+- ⚡ **Stay tuned for DiDA-accelerated weights.**
+
+> 💡 **Usage tip:**  
+> For **interleaved image-text generation**, use **Emu3.5**.  
+> For **single-image generation** (T2I and X2I), use **Emu3.5-Image** for the best quality.
+
+
+
+## 2. Quick Start
+
+### Environment Setup
+
+```bash
+# Python 3.10 or higher is required.
+git clone https://github.com/baaivision/Emu3.5
+cd Emu3.5
+pip install -r requirements.txt
+pip install flash_attn==2.8.3 --no-build-isolation
+```
+### Configuration
+
+Edit `configs/config.py` to set:
+
+- Paths: `model_path`, `vq_path`
+- Task template: `task_type in {t2i, x2i, howto, story, explore, vla}`
+- Input image: `use_image` (True to provide reference images, controls <|IMAGE|> token); set `reference_image` in each prompt to specify the image path. For x2i task, we recommand using `reference_image` as a list containing single/multiple image paths to be compatible with multi-image input.
+- Sampling: `sampling_params` (classifier_free_guidance, temperature, top_k/top_p, etc.)
+- Aspect Ratio (for t2i task): `aspect_ratio` ("4:3", "21:9", "1:1", "auto" etc..)
+
+### Run Inference
+
+```bash
+python inference.py --cfg configs/config.py
+```
+
+
+#### Example Configurations by Task
+Below are example commands for different tasks.
+Make sure to set CUDA_VISIBLE_DEVICES according to your available GPUs.
+
+
+```bash
+# 🖼️ Text-to-Image (T2I) task
+CUDA_VISIBLE_DEVICES=0 python inference.py --cfg configs/example_config_t2i.py
+
+# 🔄 Any-to-Image (X2I) t

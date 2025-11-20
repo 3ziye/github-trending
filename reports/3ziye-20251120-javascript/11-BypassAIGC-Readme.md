@@ -1,0 +1,297 @@
+## AI 学术写作助手
+
+专业论文润色与语言优化系统
+<img width="2178" height="1346" alt="图片" src="https://github.com/user-attachments/assets/98bd2aa2-93b7-405e-8edc-aaec76a19b1e" />
+<img width="2353" height="1230" alt="图片" src="https://github.com/user-attachments/assets/d9adc168-0cc4-4a8c-b958-3479d881dd4f" />
+
+
+ ## 效果
+ 
+示例一
+<img width="1785" height="654" alt="图片" src="https://github.com/user-attachments/assets/4c96dc66-aa43-432e-90a0-57f7d89dd0f2" />
+修改优化后
+ <img width="1946" height="672" alt="图片" src="https://github.com/user-attachments/assets/a46f5d62-30ec-4930-b558-18bd24d0e86f" />
+例二
+<img width="1958" height="662" alt="图片" src="https://github.com/user-attachments/assets/de871360-c045-46ec-8e96-7b3c100af147" />
+修改优化后
+<img width="1772" height="665" alt="图片" src="https://github.com/user-attachments/assets/3fd2d052-d62e-41fd-8215-fbc375e0d0e5" />
+gptzero
+<img width="2224" height="547" alt="图片" src="https://github.com/user-attachments/assets/b5daf3cb-6e3f-401c-bdc2-a9a88dcbdb35" />
+
+## 快速开始
+
+### 1. 使用统一启动脚本
+
+所有系统现已整合为统一的交互式脚本，通过菜单选择所需功能：
+
+**macOS 系统:**
+```bash
+# 添加执行权限
+chmod +x start-macos.sh
+
+# 运行统一脚本
+./start-macos.sh
+```
+
+**Windows 系统:**
+```powershell
+# 运行统一脚本（自动检测 PowerShell 7+ 以避免兼容性问题）
+.\start.ps1
+```
+
+**Ubuntu/Linux 系统:**
+```bash
+# 添加执行权限
+chmod +x start.sh
+
+# 运行统一脚本
+./start.sh
+```
+
+**菜单功能包括:**
+- 1. 环境安装配置
+- 2. 启动所有服务
+- 3. 仅启动后端服务
+- 4. 仅启动前端服务
+- 5. 停止所有服务
+- 6. 验证安装
+- 7. 验证数据库
+- 8. 故障排查（Linux/macOS）
+- 9. 清理环境（Linux/macOS）
+
+### 2. 配置文件
+
+首次运行统一脚本并选择"环境安装配置"后，会自动生成 `backend/.env` 配置文件模板。
+
+编辑 `backend/.env` 填入你的配置信息:
+```properties
+# 数据库配置
+DATABASE_URL=sqlite:///./ai_polish.db
+# 或使用 PostgreSQL: postgresql://user:password@IP/ai_polish
+
+# Redis 配置 (用于并发控制和队列)
+REDIS_URL=redis://IP:6379/0
+
+# OpenAI API 配置
+OPENAI_API_KEY=KEY
+OPENAI_BASE_URL=http://IP:PORT/v1
+
+# 第一阶段模型配置 (论文润色) - 推荐使用 gemini-2.5-pro
+POLISH_MODEL=gemini-2.5-pro
+POLISH_API_KEY=KEY
+POLISH_BASE_URL=http://IP:PORT/v1
+
+# 第二阶段模型配置 (原创性增强) - 推荐使用 gemini-2.5-pro
+ENHANCE_MODEL=gemini-2.5-pro
+ENHANCE_API_KEY=KEY
+ENHANCE_BASE_URL=http://IP:PORT/v1
+
+# 感情文章润色模型配置 - 推荐使用 gemini-2.5-pro
+EMOTION_MODEL=gemini-2.5-pro
+EMOTION_API_KEY=KEY
+EMOTION_BASE_URL=http://IP:PORT/v1
+
+# 并发配置
+MAX_CONCURRENT_USERS=7
+
+# 会话压缩配置
+HISTORY_COMPRESSION_THRESHOLD=2000
+COMPRESSION_MODEL=gemini-2.5-pro
+COMPRESSION_API_KEY=KEY
+COMPRESSION_BASE_URL=http://IP:PORT/v1
+
+# JWT 密钥
+SECRET_KEY=JWT-key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+# 管理员账户
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+DEFAULT_USAGE_LIMIT=1
+SEGMENT_SKIP_THRESHOLD=15
+
+```
+
+**注意:** 
+- 推荐使用 Google Gemini 2.5 Pro 模型以获得更好的性能和成本效益
+- BASE_URL 使用 OpenAI 兼容格式，需要配置支持 OpenAI API 格式的代理服务
+
+### 3. 使用命令行安装和部署（不使用启动脚本）
+
+如果你不想使用统一启动脚本，也可以直接使用命令行进行安装和部署：
+
+#### Linux/Ubuntu 系统
+
+**步骤 1: 安装后端依赖**
+```bash
+# 进入后端目录
+cd backend
+
+# 创建 Python 虚拟环境
+python3 -m venv venv
+
+# 激活虚拟环境
+source venv/bin/activate
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 返回项目根目录
+cd ..
+```
+
+**步骤 2: 安装前端依赖**
+```bash
+# 进入前端目录
+cd frontend
+
+# 安装 Node.js 依赖
+npm install
+
+# 返回项目根目录
+cd ..
+```
+
+**步骤 3: 配置环境变量**
+```bash
+# 创建并编辑 backend/.env 文件
+nano backend/.env
+# 或使用你喜欢的编辑器（vim, gedit 等）
+```
+
+配置文件内容参考"配置文件"部分。
+
+**步骤 4: 启动服务**
+
+启动后端（在一个终端）：
+```bash
+cd backend
+source venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+启动前端（在另一个终端）：
+```bash
+cd frontend
+npm run dev
+```
+
+#### macOS 系统
+
+**步骤 1: 安装后端依赖**
+```bash
+# 进入后端目录
+cd backend
+
+# 创建 Python 虚拟环境
+python3 -m venv venv
+
+# 激活虚拟环境
+source venv/bin/activate
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 返回项目根目录
+cd ..
+```
+
+**步骤 2: 安装前端依赖**
+```bash
+# 进入前端目录
+cd frontend
+
+# 安装 Node.js 依赖
+npm install
+
+# 返回项目根目录
+cd ..
+```
+
+**步骤 3: 配置环境变量**
+```bash
+# 创建并编辑 backend/.env 文件
+nano backend/.env
+# 或使用其他编辑器
+```
+
+配置文件内容参考"配置文件"部分。
+
+**步骤 4: 启动服务**
+
+启动后端（在一个终端）：
+```bash
+cd backend
+source venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+启动前端（在另一个终端）：
+```bash
+cd frontend
+npm run dev
+```
+
+#### Windows 系统
+
+**步骤 1: 安装后端依赖**
+```powershell
+# 进入后端目录
+cd backend
+
+# 创建 Python 虚拟环境
+python -m venv venv
+
+# 激活虚拟环境
+.\venv\Scripts\Activate.ps1
+# 如果遇到执行策略问题，运行: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 返回项目根目录
+cd ..
+```
+
+**步骤 2: 安装前端依赖**
+```powershell
+# 进入前端目录
+cd frontend
+
+# 安装 Node.js 依赖
+npm install
+
+# 返回项目根目录
+cd ..
+```
+
+**步骤 3: 配置环境变量**
+```powershell
+# 创建并编辑 backend\.env 文件
+notepad backend\.env
+# 或使用其他编辑器
+```
+
+配置文件内容参考"配置文件"部分。
+
+**步骤 4: 启动服务**
+
+启动后端（在一个 PowerShell 窗口）：
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+启动前端（在另一个 PowerShell 窗口）：
+```powershell
+cd frontend
+npm run dev
+```
+
+**访问地址:**
+- 前端: http://localhost:3000
+- 后端 API: http://localhost:8000
+- API 文档: http://localhost:8000/docs
+- 管理后台: http://local

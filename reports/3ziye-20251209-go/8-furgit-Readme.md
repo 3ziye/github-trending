@@ -1,0 +1,149 @@
+# Furgit
+
+[![builds.sr.ht status](https://builds.sr.ht/~runxiyu/furgit.svg)](https://builds.sr.ht/~runxiyu/furgit?)
+[![Go Reference](https://pkg.go.dev/badge/git.sr.ht/~runxiyu/furgit.svg)](https://pkg.go.dev/git.sr.ht/~runxiyu/furgit)
+
+Furgit is a fast Git library in pure Go
+(and a little bit of optional Go Assembly).
+
+## Project status
+
+* Initial development
+* No tagged releases
+* API *will* break frequently
+* Do not use in production
+* Will likely follow [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) in the future
+
+## Current features
+
+* SHA-256 and SHA-1
+* Reading loose objects
+* Writing loose objects
+* Reading packfiles
+* General support for blobs, trees, commits, and tags
+
+## Future features
+
+* Multi pack indexes
+* Repack
+* [commit-graph](https://git-scm.com/docs/commit-graph)
+* Network protocols
+* And much more
+
+## General goals
+
+Furgit intends to be a general-purpose Git library.
+
+For now, Furgit primarily prioritize APIs and optimizations that are
+likely to be used by software development forges and other
+server-side usages; in particular, Furgit follows the needs of
+[Villosa](https://villosa.lindenii.org/villosa//repos/villosa/) and
+to some extent [tangled](https://tangled.org/@tangled.org/core).
+
+## Performance optimizations
+
+* Aggressive pooling of byte buffers
+* Aggressive pooling of custom zlib readers
+* Minor SIMD optimizations for Adler-32
+* Memory-mapping packfiles and their indexes
+
+## Performance
+
+See [gitbench](https://git.sr.ht/~runxiyu/gitbench) for details on methods.
+
+All tests below were run on `linux.git` with `HEAD` at `6da43bbeb6918164`
+on a `Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz`.
+
+**Note:** go-git is expected to perform much better after
+[storage: filesystem/mmap, Add PackScanner to handle large repos](https://github.com/go-git/go-git/pull/1776).
+
+### Traversing all trees
+
+* Git: 0.1 seconds
+* Furgit: 9 seconds
+* libgit2: 19 seconds
+* go-git: 122 seconds
+
+### Traversing the root tree only
+
+
+* Furgit: 1ms
+* Git: 4ms
+* libgit2: 11ms
+* go-git: 1800ms
+
+## Dependencies
+
+* The standard library
+* Some things from `golang.org/x`
+
+* It is unlikely that other dependencies will be introduced.
+* In some cases, external code is introduced but maintained in-tree.
+
+## Environment requirements
+
+We currently do not intend to support flexible storage backends such as
+[storers in go-git](https://pkg.go.dev/github.com/go-git/go-git/v5/plumbing/storer);
+a standard UNIX-like filesystem with
+[syscall.Mmap](https://pkg.go.dev/syscall#Mmap) is expected.
+
+## Repos and community resources
+
+* [Codeberg](https://codeberg.org/lindenii/furgit)
+* [SourceHut mirror](https://git.sr.ht/~runxiyu/furgit)
+* [tangled mirror](https://tangled.org/@runxiyu.tngl.sh/furgit)
+* [GitHub mirror](https://github.com/runxiyu/furgit)
+
+We discuss in `#chat` on [irc.runxiyu.org](https://irc.runxiyu.org)
+([web chat](https://webirc.runxiyu.org/kiwiirc/#chat))
+
+The maintainer is working through college applications and IBDP coursework and
+may not necessarily respond in time.
+
+## History and lineage
+
+* I wrote [Lindenii Forge](https://forge.lindenii.org/forge/-/repos/server/)
+* I wrote [hare-git](https://forge.lindenii.org/hare/-/repos/hare-git/)
+* I wanted a faster Git library for
+  [Lindenii Villosa](https://villosa.lindenii.org/villosa//repos/villosa/),
+  the next generation of Lindenii Forge
+* I translated hare-git and put it into `internal/common/git` in Villosa
+* I extracted it out into a general-purpose library, which is what we
+  have now
+* I was thinking of names and I accidentally typed "git" as "fur" (i.e., left
+  shifted one key on my QWERTY keyboard), so, "Furgit"
+
+## License
+
+This project is licensed under the GNU Affero General Public License,
+Version 3.0 only.
+
+Pursuant to Section 14 of the GNU Affero General Public License, Version 3.0,
+[Runxi Yu](https://runxiyu.org) is hereby designated as the proxy who is
+authorized to issue a public statement accepting any future version of the
+GNU Affero General Public License for use with this Program.
+
+Therefore, notwithstanding the specification that this Program is licensed
+under the GNU Affero General Public License, Version 3.0 only, a public
+acceptance by the Designated Proxy of any subsequent version of the GNU Affero
+General Public License shall permanently authorize the use of that accepted
+version for this Program.
+
+For the purposes of the Developer Certificate of Origin, the "open source
+license" refers to the GNU Affero General Public License, Version 3.0, with the
+above proxy designation pursuant to Section 14.
+
+All contributors are required to "sign-off" their commits (using `git commit
+-s`) to indicate that they have agreed to the [Developer Certificate of
+Origin](https://developercertificate.org), reproduced below.
+
+```
+Developer Certificate of Origin
+Version 1.1
+
+Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+1 Letterman Drive
+Suite D4700
+San Francisco, CA, 94129
+
+Everyone is permitted to copy and distribute verbatim co

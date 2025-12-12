@@ -1,0 +1,808 @@
+[
+  {
+    "basic_info": {
+      "name": "moss-kernel",
+      "full_name": "hexagonal-sun/moss-kernel",
+      "owner": "hexagonal-sun",
+      "description": "Rust Linux-compatible kernel",
+      "url": "https://github.com/hexagonal-sun/moss-kernel",
+      "clone_url": "https://github.com/hexagonal-sun/moss-kernel.git",
+      "ssh_url": "git@github.com:hexagonal-sun/moss-kernel.git",
+      "homepage": null,
+      "created_at": "2025-11-20T14:54:10Z",
+      "updated_at": "2025-12-12T01:10:52Z",
+      "pushed_at": "2025-12-11T22:33:04Z"
+    },
+    "stats": {
+      "stars": 1592,
+      "forks": 61,
+      "watchers": 1592,
+      "open_issues": 12,
+      "size": 1137
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 857201,
+        "Assembly": 7733,
+        "Shell": 5644,
+        "Linker Script": 1161,
+        "RenderScript": 1
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# moss\n\n![Architecture](https://img.shields.io/badge/arch-aarch64-blue)\n![Language](https://img.shields.io/badge/language-Rust-orange)\n![License](https://img.shields.io/badge/license-MIT-yellow)\n\n![Moss Boot Demo](etc/moss_demo.gif)\n\n**moss** is a Unix-like, Linux-compatible kernel written in Rust and Aarch64\nassembly.\n\nIt features a modern, asynchronous core, a modular architecture abstraction\nlayer, and binary compatibility with Linux userspace applications (currently\ncapable of running most BusyBox commands).\n\n## Features\n\n### Architecture & Memory\n* Full support for aarch64.\n* A well-defined HAL allowing for easy porting to other architectures (e.g.,\n  x86_64, RISC-V).\n* Memory Management:\n    * Full MMU enablement and page table management.\n    * Copy-on-Write (CoW) pages.\n    * Safe copy to/from userspace async functions.\n    * Kernel and userspace page fault management.\n    * Buddy allocator for physical addresses and `smalloc` for boot allocations\n      and tracking memory reservations.\n\n### Async Core\nOne of the defining features of `moss` is its usage of Rust's `async/await`\nmodel within the kernel context:\n* All non-trivial system calls are written as `async` functions, sleep-able\n  functions are prefixed with `.await`.\n* The compiler enforces that spinlocks cannot be held over sleep points,\n  eliminating a common class of kernel deadlocks.\n\n###  Process Management\n* Full task management including scheduling and task migration via IPIs.\n* Currently implements [51 Linux syscalls](./etc/syscalls_linux_aarch64.md); sufficient to execute most BusyBox\n  commands.\n* Advanced forking capabilities via `clone()`.\n* Process and thread signal delivery and raising support.\n\n### VFS & Filesystems\n* Virtual File System with full async abstractions.\n* Drivers:\n    * Ramdisk block device implementation.\n    * FAT32 filesystem driver (ro).\n    * `devtmpfs` driver for kernel character device access.\n\n## `libkernel` & Testing\n`moss` is built on top of `libkernel`, a utility library designed to be\narchitecture-agnostic. This allows logic to be tested on a host machine (e.g.,\nx86) before running on bare metal.\n\n* Address Types: Strong typing for `VA` (Virtual), `PA` (Physical), and `UA`\n  (User) addresses.\n* Containers: `VMA` management, generic page-based ring buffer (`kbuf`), and\n  waker sets.\n* Sync Primitives: `spinlock`, `mutex`, `condvar`, `per_cpu`.\n* Test Suite: A comprehensive suite of 230+ tests ensuring functionality across\n  architectures (e.g., validating Aarch64 page table parsing logic on an x86\n  host).\n\n## Building and Running\n\n### Prerequisites\nYou will need QEMU for aarch64 emulation, dosfstools and mtools to create the\nvirtual file system.\n\n```bash\nsudo apt install qemu-system-aarch64 dosfstools mtools\n```\n\nAdditionally you will need a version of the [aarch64-none-elf](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) toolchain installed.\n\n#### Any X86-64 Linux OS\nTo install aarch64-none-elf on any os, download the correct release of `aarch64-none-elf` onto your computer, unpack it, then export the `bin` folder to path (Can be done via running\n\n`export PATH=\"~/Downloads/arm-gnu-toolchain-X.X.relX-x86_64-aarch64-none-elf/bin:$PATH\"`, X is the version number you downloaded onto your machine.\n\nin your terminal.)\n\n#### macOS\nThere is experimental support for macOS in the scripts/mac-experimental folder. The scripts in there are not guaranteed to work for all macOS users and has only been tested on an M4 Apple Silicon MacBook Air.\n\n#### NixOS\n\nRun the following command\n\n```bash\nnix shell nixpkgs#pkgsCross.aarch64-embedded.stdenv.cc nixpkgs#pkgsCross.aarch64-embedded.stdenv.cc.bintools\n```\n\n### Preparing the image\n\nFirst, run the following script to prepare the binaries for the image:\n```bash\n./scripts/build-deps.sh\n```\n\nThis will download and build the necessary dependencies for the kernel and put them\ninto the `build` directory.\n\nOnce that is done, you can create the image using the following command:\n```bash\n./scripts/create-image.sh\n```\n\nThis will create an image file named `moss.img` in the root directory of the\nproject, format it as VFAT 32 and create the necessary files and directories for\nthe kernel.\n\n### Running via QEMU\n\nTo build the kernel and launch it in QEMU:\n\n``` bash\ncargo run --release\n```\n\n\n### Running the Test Suite\nBecause `libkernel` is architecturally decoupled, you can run the logic tests on\nyour host machine:\n\n``` bash\ncargo test -p libkernel --target x86_64-unknown-linux-gnu\n```\n\n\n### Roadmap & Status\n\nmoss is under active development. Current focus areas include:\n\n* Basic Linux Syscall Compatibility (Testing through BusyBox).\n* Networking Stack: TCP/IP implementation.\n* Scheduler Improvements: Task load balancing.\n* A fully read/write capable filesystem driver (e.g., ext2/4).\n* Expanding coverage beyond the current 49 calls.\n\n## Contributing\n\nContributions are welcome! Whether you are interested in writing a driver,\nporting to x86, or adding syscalls.\n\n## Licens",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-12T02:48:29.114782"
+  },
+  {
+    "basic_info": {
+      "name": "install-nothing",
+      "full_name": "buyukakyuz/install-nothing",
+      "owner": "buyukakyuz",
+      "description": "A terminal application that simulates installing things but doesn't actually install anything",
+      "url": "https://github.com/buyukakyuz/install-nothing",
+      "clone_url": "https://github.com/buyukakyuz/install-nothing.git",
+      "ssh_url": "git@github.com:buyukakyuz/install-nothing.git",
+      "homepage": "",
+      "created_at": "2025-11-17T22:03:19Z",
+      "updated_at": "2025-12-11T23:20:09Z",
+      "pushed_at": "2025-12-05T18:32:31Z"
+    },
+    "stats": {
+      "stars": 1051,
+      "forks": 27,
+      "watchers": 1051,
+      "open_issues": 10,
+      "size": 3063
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 138898,
+        "Dockerfile": 461
+      },
+      "license": "MIT License",
+      "topics": [
+        "cli",
+        "rust",
+        "simulation",
+        "terminal"
+      ]
+    },
+    "content": {
+      "readme": "# install-nothing\n\nA terminal application that simulates installing things. It doesn't actually install anything.\n\n[![asciicast](https://asciinema.org/a/757039.svg)](https://asciinema.org/a/757039)\n\n## Usage\nClone the repository\n```bash\ngit clone https://github.com/buyukakyuz/install-nothing\n```\nGo to the repository\n```bash\ncd install-nothing\n```\nAnd run\n```bash\ncargo run --release\n```\n\nPress Ctrl+C to stop.\n\n### Pick what to install\n\nBy default we install everything. But you can change this behavior.\n```bash\n# Install specific stages\ncargo run --release -- kernel\n```\n\nOr pick what not to install.\n```bash\n# Exclude specific stages from installation\ncargo run --release -- --exclude cloud xorg\n```\n\nSee available stages:\n```bash\ncargo run --release -- --help\n```\n\n\n## Docker\n\nBuild and run:\n\n```bash\ndocker build -t install-nothing .\ndocker run -it --rm --init install-nothing\n```\n\n## License\n\nDo whatever you want with it. Well, except for movies. If you use this in a movie, credit me or something.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:30.441082"
+  },
+  {
+    "basic_info": {
+      "name": "spritefusion-pixel-snapper",
+      "full_name": "Hugo-Dz/spritefusion-pixel-snapper",
+      "owner": "Hugo-Dz",
+      "description": "A tool to snap pixels to a perfect grid. Designed to fix messy and inconsistent pixel art generated by AI.",
+      "url": "https://github.com/Hugo-Dz/spritefusion-pixel-snapper",
+      "clone_url": "https://github.com/Hugo-Dz/spritefusion-pixel-snapper.git",
+      "ssh_url": "git@github.com:Hugo-Dz/spritefusion-pixel-snapper.git",
+      "homepage": "https://www.spritefusion.com/pixel-snapper",
+      "created_at": "2025-11-24T13:56:05Z",
+      "updated_at": "2025-12-12T02:14:08Z",
+      "pushed_at": "2025-12-07T18:45:49Z"
+    },
+    "stats": {
+      "stars": 874,
+      "forks": 22,
+      "watchers": 874,
+      "open_issues": 0,
+      "size": 947
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 24007
+      },
+      "license": "MIT License",
+      "topics": [
+        "game-development",
+        "gamedev",
+        "image-processing",
+        "pixel-art"
+      ]
+    },
+    "content": {
+      "readme": "# Sprite Fusion Pixel Snapper\n\n**Online version**: https://spritefusion.com/pixel-snapper\n\nA tool to snap pixels to a perfect grid. Designed to fix messy and inconsistent pixel art generated by AI.\n\n<img src=\"./static/hero.png\" alt=\"Pixel Snapper\" style=\"width: 100%; image-rendering: pixelated;\">\n\n## Why ?\n\n**Current AI image models can't understand grid-based pixel art.**\n\n- Pixel are inconsistent in size and position.\n- The grid resolution can drift over time.\n- Colors are not tied to a strict palette.\n\n**With Pixel Snapper:**\n\n- ✅ Pixel are snapped to a perfect grid.\n- ✅ The grid resolution is consistent and can be scaled to pixel resolution.\n- ✅ Colors are tied to a strict, quantized palette.\n\n## Perfect for\n\n- **AI generated pixel art** that needs to be snapped to a grid.\n- **Procedural 2D art that doesn't fit a grid** like tilemaps or isometric maps.\n- **2D game assets and 3D textures** that need to be perfectly scalable.\n\n<img src=\"./static/details.png\" alt=\"Details\" style=\"width: 100%; image-rendering: pixelated;\">\n\n<p align=\"center\"><em>Pixel Snapper preserves as much details as possible like dithering.</em></p>\n\n<br>\n\n## Pixel Snapper comes in two flavors\n\nRequires [Rust](https://www.rust-lang.org/) installed on your machine.\n\n### 💻 CLI\n\n```bash\ngit clone https://github.com/Hugo-Dz/spritefusion-pixel-snapper.git\ncd spritefusion-pixel-snapper\n```\n\n```bash\ncargo run input.png output.png\n```\n\nThe command accepts an optional k-colors argument:\n\n```bash\ncargo run input.png output.png 16\n```\n\n### 🌐 Web (WASM)\n\n```bash\ngit clone https://github.com/Hugo-Dz/spritefusion-pixel-snapper.git\ncd spritefusion-pixel-snapper\n```\n\nBuild the WASM module:\n\n```bash\nwasm-pack build --target web --out-dir pkg --release\n```\n\nThen use the WASM module in your project.\n\n## Acknowledgments\n\nPixel Snapper is a [Sprite Fusion](https://spritefusion.com) project. Sprite Fusion is a free, web-based tilemap editor for game developers supporting a wide range of engines including Unity, Godot, Defold, and GB Studio.\n\n<img src=\"./static/spritefusion.webp\" alt=\"Sprite Fusion\" style=\"width: 100%;\">\n\n## License\n\nMIT License [Hugo Duprez](https://www.hugoduprez.com/)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:31.767944"
+  },
+  {
+    "basic_info": {
+      "name": "FreeMDU",
+      "full_name": "medusalix/FreeMDU",
+      "owner": "medusalix",
+      "description": "Open hardware and software tools for communicating with Miele appliances via their optical diagnostic interface",
+      "url": "https://github.com/medusalix/FreeMDU",
+      "clone_url": "https://github.com/medusalix/FreeMDU.git",
+      "ssh_url": "git@github.com:medusalix/FreeMDU.git",
+      "homepage": null,
+      "created_at": "2025-11-15T18:09:24Z",
+      "updated_at": "2025-12-10T17:16:14Z",
+      "pushed_at": "2025-11-20T12:14:20Z"
+    },
+    "stats": {
+      "stars": 471,
+      "forks": 15,
+      "watchers": 471,
+      "open_issues": 2,
+      "size": 360
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 201484
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# FreeMDU [![Build Status](https://img.shields.io/github/actions/workflow/status/medusalix/FreeMDU/ci.yml)](https://github.com/medusalix/FreeMDU/actions/workflows/ci.yml)\n\n<p align=\"center\">\n  <img src=\"demo.gif\" alt=\"Demo\">\n</p>\n\nThe FreeMDU project provides open hardware and software tools for communicating with Miele appliances via their optical diagnostic interface. It serves as a free and open alternative to the proprietary **Miele Diagnostic Utility (MDU)** software, which is only available to registered service technicians.\n\nMost Miele devices manufactured after 1996 include an optical infrared-based diagnostic interface, hidden behind one of the indicator lights on the front panel. On older appliances, this interface is marked by a **Program Correction (PC)** label.\n\nUntil now, communication with this interface required an expensive infrared adapter sold exclusively by Miele, along with their closed-source software. The goal of FreeMDU is to make this interface accessible to everyone for diagnostic and home automation purposes.\n\nThe project is split into three main components:\n\n- [**Protocol**](protocol): core protocol library and device implementations\n- [**TUI**](tui): terminal-based device diagnostic and testing tool\n- [**Home**](home): communication adapter firmware with MQTT integration for Home Assistant\n\nMore details about the proprietary diagnostic interface and the reverse-engineering process behind this project can be found in this [**blog post**](https://medusalix.github.io/posts/miele-interface).\n\n> [!CAUTION]\n> This project is highly experimental and can cause permanent damage to your Miele devices if not used responsibly. Proceed at your own risk.\n\n## Supported devices\n\nWhen a connection is established via the diagnostic interface, the appliance responds with its **software ID**, a 16-bit number that uniquely identifies the firmware version running on the device's microcontroller. However, this ID does not directly correspond to a specific model or board type, so it's impossible to provide a comprehensive list of supported models.\n\nThe following table lists the software IDs and device/board combinations that have been confirmed to work with FreeMDU:\n\n| Software ID | Device         | Board      | Microcontroller           | Optical interface location   | Status             |\n|-------------|----------------|------------|---------------------------|------------------------------|--------------------|\n| 360         | Bare board     | EDPW 223-A | Mitsubishi M38078MC-065FP | *Check inlet (PC)* indicator | 🟢 Fully supported |\n| 419         | Bare board     | EDPW 206   | Mitsubishi M37451MC-804FP | *Check inlet (PC)* indicator | 🟢 Fully supported |\n| 605         | G 651 I PLUS-3 | EGPL 542-C | Mitsubishi M38027M8       | *Salt (PC)* indicator        | 🟢 Fully supported |\n| 629         | W 2446         | EDPL 126-B | Mitsubishi M38079MF-308FP | *Check inlet (PC)* indicator | 🟢 Fully supported |\n\nIf your appliance is not listed here but has a model number similar to one of the above, it might already be compatible. In all other cases, determining the **software ID** is the first step toward adding support for new devices.\n\nDetails for adding support for new devices will be provided soon.\n\n## Getting started\n\nBefore using any FreeMDU components, make sure you have the [Rust toolchain](https://rust-lang.org/tools/install) installed on your system.\n\nNext, you'll need to build a [communication adapter](home/README.md#getting-started) to interface with your Miele device. Once the adapter is ready, choose the appropriate use case from the options below:\n\n### Device diagnostics and testing\n\nIf you want to repair or test your appliance:\n\n1. Flash the [home](home) firmware in **bridge mode** onto your communication adapter and attach it to your device.\n\n2. Run the [TUI](tui) application on your desktop computer.\n\n### Integration into home automation systems\n\nIf you want to integrate your appliance into **Home Assistant** or another home automation system:\n\n1. Flash the [home](home) firmware in **standalone mode** onto your communication adapter and attach it to your device.\n\n### Building custom tools\n\nIf you want to develop your own software to communicate with Miele devices:\n\n1. Flash the [home](home) firmware in **bridge mode** onto your communication adapter and attach it to your device.\n\n2. Use the [protocol](protocol) crate to implement your custom software.\n\n## Disclaimer\n\nThis is an independent, open-source project and is **not affiliated with, endorsed by, or sponsored by Miele & Cie. KG** or its affiliates. All product names and trademarks are the property of their respective owners. References to Miele appliances are for descriptive purposes only and do not imply any association with Miele.\n\n## License\n\nLicensed under either of\n\n- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)\n- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-12T02:48:33.105217"
+  },
+  {
+    "basic_info": {
+      "name": "claude-code-mux",
+      "full_name": "9j/claude-code-mux",
+      "owner": "9j",
+      "description": "High-performance AI routing proxy built in Rust with automatic failover, priority-based routing, and    support for 15+ providers (Anthropic, OpenAI, Cerebras, Minimax, Kimi, etc.)",
+      "url": "https://github.com/9j/claude-code-mux",
+      "clone_url": "https://github.com/9j/claude-code-mux.git",
+      "ssh_url": "git@github.com:9j/claude-code-mux.git",
+      "homepage": "",
+      "created_at": "2025-11-16T17:19:45Z",
+      "updated_at": "2025-12-12T00:44:46Z",
+      "pushed_at": "2025-11-19T19:37:08Z"
+    },
+    "stats": {
+      "stars": 406,
+      "forks": 40,
+      "watchers": 406,
+      "open_issues": 7,
+      "size": 801
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 251634,
+        "HTML": 211986,
+        "Shell": 3401
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "anthropic",
+        "claude-code",
+        "claude-code-router",
+        "openai"
+      ]
+    },
+    "content": {
+      "readme": "# Claude Code Mux\n\n[![CI](https://github.com/9j/claude-code-mux/workflows/CI/badge.svg)](https://github.com/9j/claude-code-mux/actions)\n[![Latest Release](https://img.shields.io/github/v/release/9j/claude-code-mux)](https://github.com/9j/claude-code-mux/releases/latest)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)\n[![GitHub Stars](https://img.shields.io/github/stars/9j/claude-code-mux?style=social)](https://github.com/9j/claude-code-mux)\n[![GitHub Forks](https://img.shields.io/github/forks/9j/claude-code-mux?style=social)](https://github.com/9j/claude-code-mux/fork)\n\nOpenRouter met Claude Code Router. They had a baby.\n\n---\n\nNow your coding assistant can use GLM 4.6 for one task, Kimi K2 Thinking for another, and Minimax M2 for a third. All in the same session. When your primary provider goes down, it falls back to your backup automatically.\n\n⚡️ **Multi-model intelligence with provider resilience**\n\nA lightweight, Rust-powered proxy that provides intelligent model routing, provider failover, streaming support, and full Anthropic API compatibility for Claude Code.\n\n```\nClaude Code → Claude Code Mux → Multiple AI Providers\n              (Anthropic API)    (OpenAI/Anthropic APIs + Streaming)\n```\n\n## Table of Contents\n\n- [Key Features](#key-features)\n- [Installation](#installation)\n- [Quick Start](#quick-start)\n- [Screenshots](#screenshots)\n- [Usage Guide](#usage-guide)\n- [Routing Logic](#routing-logic)\n- [Configuration Examples](#configuration-examples)\n- [Supported Providers](#supported-providers)\n- [Advanced Features](#advanced-features)\n- [CLI Usage](#cli-usage)\n- [Troubleshooting](#troubleshooting)\n- [FAQ](#faq)\n- [Performance](#performance)\n- [Why Choose Claude Code Mux?](#why-choose-claude-code-mux)\n- [Documentation](#documentation)\n- [Changelog](#changelog)\n- [Contributing](#contributing)\n- [License](#license)\n\n## Key Features\n\n### 🎯 Core Features\n- ✨ **Modern Admin UI** - Beautiful web interface with auto-save and URL-based navigation\n- 🔐 **OAuth 2.0 Support** - FREE access for Claude Pro/Max, ChatGPT Plus/Pro, and Google AI Pro/Ultra\n- 🧠 **Intelligent Routing** - Auto-route by task type (websearch, reasoning, background, default)\n- 🔄 **Provider Failover** - Automatic fallback to backup providers with priority-based routing\n- 🌊 **Streaming Support** - Full Server-Sent Events (SSE) streaming for real-time responses\n- 🌐 **Multi-Provider Support** - 18+ providers including OpenAI, Anthropic, Google Gemini/Vertex AI, Groq, ZenMux, etc.\n- ⚡️ **High Performance** - ~5MB RAM, <1ms routing overhead (Rust powered)\n- 🎯 **Unified API** - Full Anthropic Messages API compatibility\n\n### 🚀 Advanced Features\n- 🔀 **Auto-mapping** - Regex-based model name transformation before routing (e.g., transform all `claude-*` to default model)\n- 🎯 **Background Detection** - Configurable regex patterns for background task detection\n- 🤖 **Multi-Agent Support** - Dynamic model switching via `CCM-SUBAGENT-MODEL` tags\n- 📊 **Live Testing** - Built-in test interface to verify routing and responses\n- ⚙️ **Centralized Settings** - Dedicated Settings tab for regex pattern management\n\n## Screenshots\n\n<details>\n<summary>📸 Click to view screenshots (5 images)</summary>\n\n### Overview Dashboard\n![Dashboard showing router configuration, providers, and models summary](docs/images/dashboard.png)\n*Main dashboard with router configuration and provider management*\n\n### Provider Management\n![Provider management interface with add/edit capabilities](docs/images/providers.png)\n*Add and manage multiple AI providers with automatic format translation*\n\n### Model Mappings with Fallback\n![Model configuration with priority-based fallback routing](docs/images/models.png)\n*Configure models with priority-based fallback routing*\n\n### Router Configuration\n![Router configuration interface for intelligent routing rules](docs/images/routing.png)\n*Set up intelligent routing rules for different task types*\n\n### Live Testing Interface\n![Testing interface for verifying configuration with real API calls](docs/images/testing.png)\n*Test your configuration with live API requests and responses*\n\n</details>\n\n## Supported Providers\n\n**18+ AI providers with automatic format translation, streaming, and failover:**\n\n- **Anthropic-compatible**: Anthropic (API Key/OAuth), ZenMux, z.ai, Minimax, Kimi\n- **OpenAI-compatible**: OpenAI, OpenRouter, Groq, Together, Fireworks, Deepinfra, Cerebras, Moonshot, Nebius, NovitaAI, Baseten\n- **Google AI**: Gemini (OAuth/API Key), Vertex AI (GCP ADC)\n\n<details>\n<summary>📋 View full provider details</summary>\n\n### Anthropic-Compatible (Native Format)\n- **Anthropic** - Official Claude API provider (supports both API Key and OAuth)\n- **Anthropic (OAuth)** - 🆓 **FREE for Claude Pro/Max subscribers** via OAuth 2.0\n- **ZenMux** - Unified API gateway (Sunnyvale, CA)\n- **z.ai** - China-based, GLM models\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:34.455866"
+  },
+  {
+    "basic_info": {
+      "name": "network-monitor",
+      "full_name": "grigio/network-monitor",
+      "owner": "grigio",
+      "description": "A real-time network connection monitoring tool built with Rust and GTK4, displaying active connections with live I/O statistics in a modern graphical interface.",
+      "url": "https://github.com/grigio/network-monitor",
+      "clone_url": "https://github.com/grigio/network-monitor.git",
+      "ssh_url": "git@github.com:grigio/network-monitor.git",
+      "homepage": "",
+      "created_at": "2025-11-24T08:36:01Z",
+      "updated_at": "2025-12-11T13:58:43Z",
+      "pushed_at": "2025-12-09T20:22:17Z"
+    },
+    "stats": {
+      "stars": 261,
+      "forks": 4,
+      "watchers": 261,
+      "open_issues": 0,
+      "size": 920
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 151817,
+        "CSS": 10546,
+        "Shell": 9360
+      },
+      "license": "Other",
+      "topics": [
+        "bandwidth-monitor",
+        "gnome",
+        "linux",
+        "monitoring-tool",
+        "network-monitor",
+        "network-monitoring",
+        "privacy",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "# Network Monitor\n\n![Network Monitor demo on GNOME Desktop on Linux](screenshot.gif)\n\nA real-time network connection monitoring tool built with Rust and GTK4, displaying active connections with live I/O statistics in a modern graphical interface.\n\n[![rust](https://github.com/grigio/network-monitor/actions/workflows/rust.yml/badge.svg)](https://github.com/grigio/network-monitor/actions/workflows/rust.yml)\n[![dependency status](https://deps.rs/repo/github/grigio/network-monitor/status.svg)](https://deps.rs/repo/github/grigio/network-monitor)\n\n\n## Features\n\n- **Real-time monitoring**: Continuously monitors active network connections\n- **I/O statistics**: Shows live upload/download rates for each connection\n- **Process identification**: Displays the program and PID associated with each connection\n- **Modern GTK4 UI**: Clean, responsive graphical interface with Libadwaita styling\n- **Terminal UI (TUI)**: Interactive terminal interface with the same monitoring capabilities\n- **Address resolution**: Simplifies common addresses (localhost, any, mDNS)\n- **Connection filtering**: Filters out localhost connections for cleaner output\n- **GNOME integration**: Proper WM class support for dock pinning and desktop integration\n- **Dual installation**: Supports both user-local and system-wide installation\n- **Robust error handling**: Graceful degradation with comprehensive error recovery\n- **Performance optimized**: Process caching and layout caching for improved responsiveness\n\n## Requirements\n\n- Rust 1.70+ (2021 edition)\n- GTK4 development libraries\n- Libadwaita development libraries\n- Linux system with `/proc` filesystem\n\n### Installation on Ubuntu/Debian:\n```bash\nsudo apt update\nsudo apt install libgtk-4-dev libadwaita-1-dev\n```\n\n### Installation on Fedora:\n```bash\nsudo dnf install gtk4-devel libadwaita-devel\n```\n\n## Installation\n\n### Method 1: Install from source with desktop integration\n\n1. Clone the repository:\n```bash\ngit clone <repository-url>\ncd network-monitor\n```\n\n2. Install locally (no sudo required):\n```bash\n./scripts/install.sh\n```\n\n3. Or install system-wide (requires sudo):\n```bash\nsudo ./scripts/install.sh\n```\n\nThe installation script will:\n- Build both GTK4 and TUI binaries (debug for local, release for system-wide)\n- Install binaries to `~/.local/bin/` (local) or `/usr/local/bin/` (system-wide)\n- Install desktop file with proper WM class for GNOME dock pinning\n- Install icons to appropriate icon directories\n- Update icon cache and desktop database\n- Ensure the application can be pinned to GNOME dock/dashboard\n\n### Method 2: Build and run directly\n\n1. Clone the repository:\n```bash\ngit clone <repository-url>\ncd network-monitor\n```\n\n2. Build and run:\n```bash\ncargo run\n```\n\nOr build in release mode:\n```bash\ncargo build --release\n./target/release/network-monitor\n```\n\n### Method 3: Build and run the TUI version\n\n1. Clone the repository:\n```bash\ngit clone <repository-url>\ncd network-monitor\n```\n\n2. Build and run the TUI:\n```bash\ncargo build --bin nmt\n./target/debug/nmt\n```\n\nOr build in release mode:\n```bash\ncargo build --release --bin nmt\n./target/release/nmt\n```\n\n## Uninstallation\n\n### Remove installed version\n\nLocal installation removal:\n```bash\n./scripts/uninstall.sh\n```\n\nSystem-wide removal (requires sudo):\n```bash\nsudo ./scripts/uninstall.sh\n```\n\nThe uninstallation script will remove the binary, desktop file, and icons from the appropriate locations and update all relevant caches.\n\n## Usage\n\n### GTK4 Graphical Interface\n\nLaunch the network monitor application:\n```bash\ncargo run\n```\n\nThe application will open a GTK4 window displaying:\n- **Process(ID)**: Process name and PID with accurate socket-to-process mapping\n- **Protocol**: TCP/UDP protocol\n- **Source**: Local endpoint (resolved to readable format)\n- **Destination**: Remote endpoint (resolved to readable format)\n- **Status**: Connection state (ESTABLISHED, LISTEN, etc.)\n- **TX**: Upload rate calculated from process I/O statistics\n- **RX**: Download rate calculated from process I/O statistics\n- **Path**: Full command path and arguments from `/proc/[pid]/cmdline`\n\n### Terminal Interface (TUI)\n\n![nmt tui of network-monitor](./nmt.png)\n\nLaunch the terminal interface:\n```bash\ncargo run --bin nmt\n```\n\nThe TUI provides the same monitoring capabilities in an interactive terminal interface:\n\n**Key Controls:**\n- `q` - Quit the application\n- `r` - Manually refresh connections\n- `a` - Toggle auto-refresh (2-second intervals)\n- `↑/↓` - Navigate through connections\n- `←/→` - Scroll table horizontally\n- `1-8` - Sort by columns (Process(ID), Protocol, Source, Destination, Status, TX, RX, Path)\n\n**Features:**\n- Real-time connection monitoring with auto-refresh\n- Sortable columns with visual indicators\n- Horizontal scrolling for wide tables\n- Smart column sizing - last column gets full remaining width\n- Color-coded protocols (TCP/TCP6 in green, UDP/UDP6 in yellow)\n- Active connection highlighting\n- Process and PID information\n- Live I/O rate display\n- Same column order as",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-12T02:48:35.848174"
+  },
+  {
+    "basic_info": {
+      "name": "cc-switch-cli",
+      "full_name": "SaladDay/cc-switch-cli",
+      "owner": "SaladDay",
+      "description": "⭐️ A cross-platform CLI All-in-One assistant tool for Claude Code, Codex & Gemini CLI.",
+      "url": "https://github.com/SaladDay/cc-switch-cli",
+      "clone_url": "https://github.com/SaladDay/cc-switch-cli.git",
+      "ssh_url": "git@github.com:SaladDay/cc-switch-cli.git",
+      "homepage": null,
+      "created_at": "2025-11-23T11:15:12Z",
+      "updated_at": "2025-12-12T02:20:50Z",
+      "pushed_at": "2025-12-08T15:22:41Z"
+    },
+    "stats": {
+      "stars": 212,
+      "forks": 9,
+      "watchers": 212,
+      "open_issues": 6,
+      "size": 23194
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 594846,
+        "JavaScript": 18565,
+        "Shell": 8381
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# CC-Switch CLI\n\n[![Version](https://img.shields.io/badge/version-4.1.2-blue.svg)](https://github.com/saladday/cc-switch-cli/releases)\n[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/saladday/cc-switch-cli/releases)\n[![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)\n[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)\n\n**Command-Line Management Tool for Claude Code, Codex & Gemini CLI**\n\nUnified management for Claude Code, Codex & Gemini CLI provider configurations, MCP servers, Skills extensions, and system prompts.\n\n[English](README.md) | [中文](README_ZH.md)\n\n</div>\n\n---\n\n## 📖 About\n\nThis project is a **CLI fork** of [CC-Switch](https://github.com/farion1231/cc-switch).\n\n\n**Credits:** Original architecture and core functionality from [farion1231/cc-switch](https://github.com/farion1231/cc-switch)\n\n---\n\n## 📸 Screenshots\n\n<table>\n  <tr>\n    <th>Interactive Main Menu</th>\n    <th>Provider Management</th>\n  </tr>\n  <tr>\n    <td><img src=\"assets/screenshots/main-en.png\" alt=\"Main Menu\" width=\"100%\"/></td>\n    <td><img src=\"assets/screenshots/add-en.png\" alt=\"Provider Management\" width=\"100%\"/></td>\n  </tr>\n</table>\n\n---\n\n## 🚀 Quick Start\n\n**Interactive Mode (Recommended)**\n```bash\ncc-switch\n```\n🤩 Follow on-screen menus to explore features.\n\n**Command-Line Mode**\n```bash\ncc-switch provider list              # List providers\ncc-switch provider switch <id>       # Switch provider\ncc-switch mcp sync                   # Sync MCP servers\n\n# Use the global `--app` flag to target specific applications:\ncc-switch --app claude provider list    # Manage Claude providers\ncc-switch --app codex mcp sync          # Sync Codex MCP servers\ncc-switch --app gemini prompts list     # List Gemini prompts\n\n# Supported apps: `claude` (default), `codex`, `gemini`\n```\n\nSee the \"Features\" section below for full command list.\n\n---\n\n## ✨ Features\n\n### 🔌 Provider Management\n\nManage API configurations for **Claude Code**, **Codex**, and **Gemini**.\n\n**Features:** One-click switching, multi-endpoint support, API key management, speed testing, provider duplication.\n\n```bash\ncc-switch provider list              # List all providers\ncc-switch provider current           # Show current provider\ncc-switch provider switch <id>       # Switch provider\ncc-switch provider add               # Add new provider\ncc-switch provider edit <id>         # Edit existing provider\ncc-switch provider duplicate <id>    # Duplicate a provider\ncc-switch provider delete <id>       # Delete provider\ncc-switch provider speedtest <id>    # Test API latency\n```\n\n### 🛠️ MCP Server Management\n\nManage Model Context Protocol servers across Claude/Codex/Gemini.\n\n**Features:** Unified management, multi-app support, three transport types (stdio/http/sse), automatic sync, smart TOML parser.\n\n```bash\ncc-switch mcp list                   # List all MCP servers\ncc-switch mcp add                    # Add new MCP server (interactive)\ncc-switch mcp edit <id>              # Edit MCP server\ncc-switch mcp delete <id>            # Delete MCP server\ncc-switch mcp enable <id> --app claude   # Enable for specific app\ncc-switch mcp disable <id> --app claude  # Disable for specific app\ncc-switch mcp validate <command>     # Validate command in PATH\ncc-switch mcp sync                   # Sync to live files\ncc-switch mcp import --app claude    # Import from live config\n```\n\n### 💬 Prompts Management\n\nManage system prompt presets for AI coding assistants.\n\n**Cross-app support:** Claude (`CLAUDE.md`), Codex (`AGENTS.md`), Gemini (`GEMINI.md`).\n\n```bash\ncc-switch prompts list               # List prompt presets\ncc-switch prompts current            # Show current active prompt\ncc-switch prompts activate <id>      # Activate prompt\ncc-switch prompts deactivate         # Deactivate current active prompt\ncc-switch prompts create             # Create new prompt preset\ncc-switch prompts edit <id>          # Edit prompt preset\ncc-switch prompts show <id>          # Display full content\ncc-switch prompts delete <id>        # Delete prompt\n```\n\n### 🎯 Skills Management\n\n⚠️ **Note: Not yet implemented in v4.1.x** - This feature is planned for future releases.\n\nManage and extend Claude Code/Codex/Gemini capabilities with community skills.\n\n**Features:** Search skill marketplace, install/uninstall, repository management, skill information.\n\n```bash\ncc-switch skills list                # List installed skills\ncc-switch skills search <query>      # Search available skills\ncc-switch skills install <name>      # Install a skill\ncc-switch skills uninstall <name>    # Uninstall a skill\ncc-switch skills info <name>         # Show skill information\ncc-switch skills repos               # Manage skill repositories\n```\n\n### ⚙️ Configuration Management\n\nManage configuration backups, imports, and exports.\n\n**Features:** Custom backup naming, interactive b",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:37.171732"
+  },
+  {
+    "basic_info": {
+      "name": "meta-overlayfs",
+      "full_name": "KernelSU-Modules-Repo/meta-overlayfs",
+      "owner": "KernelSU-Modules-Repo",
+      "description": "OverlayFS MetaModule",
+      "url": "https://github.com/KernelSU-Modules-Repo/meta-overlayfs",
+      "clone_url": "https://github.com/KernelSU-Modules-Repo/meta-overlayfs.git",
+      "ssh_url": "git@github.com:KernelSU-Modules-Repo/meta-overlayfs.git",
+      "homepage": "https://github.com/KernelSU-Modules-Repo/meta-overlayfs",
+      "created_at": "2025-11-21T04:35:16Z",
+      "updated_at": "2025-12-11T16:39:46Z",
+      "pushed_at": "2025-12-02T12:55:36Z"
+    },
+    "stats": {
+      "stars": 175,
+      "forks": 8,
+      "watchers": 175,
+      "open_issues": 1,
+      "size": 42
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 14913,
+        "Shell": 12335
+      },
+      "license": null,
+      "topics": [
+        "kernelsu"
+      ]
+    },
+    "content": {
+      "readme": "# meta-overlayfs\n\nA reference implementation of the overlayfs mount handler for KernelSU metamodules. This is not intended to be a state-of-the-art implementation, but rather a starting point for developers to understand and build upon.\n\n## Installation\n\n```bash\nadb push meta-overlayfs-v1.0.0.zip /sdcard/\nadb shell su -c 'ksud module install /sdcard/meta-overlayfs-v1.0.0.zip'\nadb reboot\n```\n\nOr install via KernelSU Manager → Modules.\n\n**Note**: The metamodule is now installed as a regular module to `/data/adb/modules/meta-overlay/`, with a symlink created at `/data/adb/metamodule` pointing to it.\n\n## How It Works\n\nUses dual-directory architecture for ext4 image support:\n\n- **Metadata**: `/data/adb/modules/` - Contains `module.prop`, `disable`, `skip_mount` markers\n- **Content**: `/data/adb/metamodule/mnt/` - Contains `system/`, `vendor/` etc. directories from ext4 images\n\nScans metadata directory for enabled modules, then mounts their content directories as overlayfs layers.\n\n### Supported Partitions\n\nsystem, vendor, product, system_ext, odm, oem\n\n### Read-Write Layer\n\nOptional upperdir/workdir support via `/data/adb/modules/.rw/`:\n\n```bash\nmkdir -p /data/adb/modules/.rw/system/{upperdir,workdir}\n```\n\n## Environment Variables\n\n- `MODULE_METADATA_DIR` - Metadata location (default: `/data/adb/modules/`)\n- `MODULE_CONTENT_DIR` - Content location (default: `/data/adb/metamodule/mnt/`)\n- `RUST_LOG` - Log level (debug, info, warn, error)\n\n## Architecture\n\nAutomatically selects aarch64 or x86_64 binary during installation (~500KB).\n\n## Building\n\n```bash\n./build.sh\n```\n\nOutput: `target/meta-overlayfs-v1.0.0.zip`\n\n## License\n\nGPL-3.0\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:38.483613"
+  },
+  {
+    "basic_info": {
+      "name": "numr",
+      "full_name": "nasedkinpv/numr",
+      "owner": "nasedkinpv",
+      "description": "Text calculator inspired by Numi - natural language expressions, variables, unit conversions",
+      "url": "https://github.com/nasedkinpv/numr",
+      "clone_url": "https://github.com/nasedkinpv/numr.git",
+      "ssh_url": "git@github.com:nasedkinpv/numr.git",
+      "homepage": null,
+      "created_at": "2025-11-23T18:12:57Z",
+      "updated_at": "2025-12-11T23:35:05Z",
+      "pushed_at": "2025-12-10T13:25:28Z"
+    },
+    "stats": {
+      "stars": 172,
+      "forks": 3,
+      "watchers": 172,
+      "open_issues": 2,
+      "size": 2085
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 295553,
+        "Shell": 1288,
+        "Nix": 1072,
+        "Ruby": 585
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n<pre>\n███    ██ ██    ██ ███    ███ ██████\n████   ██ ██    ██ ████  ████ ██   ██\n██ ██  ██ ██    ██ ██ ████ ██ ██████\n██  ██ ██ ██    ██ ██  ██  ██ ██   ██\n██   ████  ██████  ██      ██ ██   ██\n</pre>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/nasedkinpv/numr/actions/workflows/ci.yml\"><img src=\"https://github.com/nasedkinpv/numr/actions/workflows/ci.yml/badge.svg\" alt=\"CI\"></a>\n</p>\n\nA text calculator for natural language expressions with a vim-style TUI.\n\n<p align=\"center\">\n  <img src=\"screenshots/numr_demo.gif\" width=\"700\" alt=\"numr TUI demo - calculations with variables, units, currencies, and continuation\">\n</p>\n\n## Features\n\n- **Natural language expressions**: `20% of 150`, `$100 in euros`, `2 hours + 30 min`\n- **Variables**: `tax = 15%` then `100 + tax`\n- **Unit conversions**: Length, weight, time, temperature, data sizes\n- **Compound units**: `5 m * 10 m = 50 m²`, `100 km / 2 h = 50 km/h`\n- **Currency conversions**: USD, EUR, GBP, JPY, CHF, CNY, CAD, AUD, INR, KRW, RUB, ILS, PLN, UAH + crypto (BTC, ETH, SOL, and more)\n- **Live exchange rates**: Fetched automatically on startup\n- **Vim-style editing**: Normal and Insert modes with familiar keybindings\n- **Mouse support**: Scroll with mouse wheel or trackpad\n- **File persistence**: Auto-saves to config directory, supports custom files\n- **Syntax highlighting**: Numbers, operators, variables, units, and currencies\n- **Comments**: Lines starting with `#` or `//` are treated as comments\n- **Continuation**: Start a line with an operator (`+ 10`, `* 2`) to continue from the previous result\n- **Wrap mode**: Toggle text wrapping with bottom-aligned results\n- **Grouped totals**: Currencies and units summed separately in footer (respects exchange rates)\n\n## Installation\n\n### macOS (Homebrew)\n\n```bash\nbrew tap nasedkinpv/tap\nbrew install numr\n```\n\n### Arch Linux (AUR)\n\n```bash\n# Using yay\nyay -S numr\n\n# Using paru\nparu -S numr\n```\n\n### From source\n\n```bash\n# Install from source\ncargo install --path crates/numr-tui\n\n# Or build from source\ncargo build --release\n\n# Binary will be available at target/release/numr\n```\n\n## Usage\n\n### TUI Mode\n\n```bash\n# Open default file (~/.config/numr/default.numr)\nnumr\n\n# Open specific file\nnumr example.numr\n```\n\n### CLI Mode\n\n```bash\n# Single expression\nnumr-cli \"20% of 150\"\n\n# Evaluate file\nnumr-cli -f example.numr\n\n# Interactive REPL\nnumr-cli -i\n\n# Pipe mode\necho \"100 + 200\" | numr-cli\n```\n\n### JSON-RPC Server Mode\n\nRun numr as a backend for other tools (editors, launchers, scripts):\n\n```bash\nnumr-cli --server\n```\n\nSend JSON-RPC 2.0 requests via stdin, receive responses via stdout:\n\n```bash\necho '{\"jsonrpc\":\"2.0\",\"method\":\"eval\",\"params\":{\"expr\":\"20% of 150\"},\"id\":1}' | numr-cli --server\n# {\"jsonrpc\":\"2.0\",\"result\":{\"type\":\"number\",\"value\":30.0,\"display\":\"30\"},\"id\":1}\n```\n\n**Available methods:**\n\n| Method | Params | Description |\n|--------|--------|-------------|\n| `eval` | `{\"expr\": \"...\"}` | Evaluate expression |\n| `eval_lines` | `{\"lines\": [...]}` | Evaluate multiple lines |\n| `clear` | none | Clear state |\n| `get_totals` | none | Get grouped totals |\n| `get_variables` | none | List variables |\n| `reload_rates` | none | Refresh exchange rates |\n\n## Keybindings (TUI)\n\n### Normal Mode\n\n| Key | Action |\n|-----|--------|\n| `i` | Enter Insert mode |\n| `a` | Enter Insert mode after cursor |\n| `A` | Enter Insert mode at end of line |\n| `o` | New line below and enter Insert mode |\n| `h` / `←` | Move left |\n| `j` / `↓` | Move down |\n| `k` / `↑` | Move up |\n| `l` / `→` | Move right |\n| `PageUp` | Scroll page up |\n| `PageDown` | Scroll page down |\n| `0` / `Home` | Move to start of line |\n| `$` / `End` | Move to end of line |\n| `x` | Delete character under cursor |\n| `dd` | Delete current line |\n| `W` | Toggle wrap mode |\n| `N` | Toggle line numbers |\n| `H` | Toggle header (hidden by default) |\n| `?` / `F1` | Toggle help popup |\n| `q` | Quit |\n| `Ctrl+s` | Save file |\n| `Ctrl+r` | Refresh exchange rates |\n| `F12` | Toggle debug mode |\n\n### Insert Mode\n\n| Key | Action |\n|-----|--------|\n| `Esc` | Return to Normal mode |\n| `Enter` | New line |\n| `Backspace` | Delete character before cursor |\n| `Delete` | Delete character after cursor |\n| `Arrows` | Move cursor |\n| `PageUp/Down` | Scroll page |\n| `Home/End` | Move to start/end of line |\n| `Ctrl+s` | Save file |\n| `F12` | Toggle debug mode |\n\n## Supported Operations\n\n### Arithmetic\n```\n10 + 20           → 30\n100 - 25          → 75\n6 * 7             → 42\n100 / 4           → 25\n2 ^ 8             → 256\n```\n\n### Percentages\n```\n20% of 150        → 30\n100 + 15%         → 115\n$50 - 10%         → $45\n```\n\n### Variables\n```\nprice = $100\ntax = 8%\nprice + tax       → $108\n```\n\n### Comments\n```\n# This is a comment\n// This is also a comment\nGroceries         $45.00\n# Comments are dimmed and ignored in calculations\n```\n\n### Continuation\n```\n$100              → $100\n+ $50             → $150 (continues from previous)\n* 2               → $300\n- 10%             → $270\ntotal = _",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-12T02:48:39.813807"
+  },
+  {
+    "basic_info": {
+      "name": "meta-hybrid_mount",
+      "full_name": "YuzakiKokuban/meta-hybrid_mount",
+      "owner": "YuzakiKokuban",
+      "description": "Hybrid Mount Metamodule",
+      "url": "https://github.com/YuzakiKokuban/meta-hybrid_mount",
+      "clone_url": "https://github.com/YuzakiKokuban/meta-hybrid_mount.git",
+      "ssh_url": "git@github.com:YuzakiKokuban/meta-hybrid_mount.git",
+      "homepage": null,
+      "created_at": "2025-11-24T10:42:17Z",
+      "updated_at": "2025-12-11T23:39:47Z",
+      "pushed_at": "2025-12-11T23:39:43Z"
+    },
+    "stats": {
+      "stars": 171,
+      "forks": 10,
+      "watchers": 171,
+      "open_issues": 1,
+      "size": 23849
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 112223,
+        "Svelte": 51360,
+        "CSS": 36178,
+        "TypeScript": 31230,
+        "Shell": 2667,
+        "HTML": 364,
+        "JavaScript": 320
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Meta-Hybrid Mount\n\n![Language](https://img.shields.io/badge/Language-Rust-orange?style=flat-square&logo=rust)\n![Platform](https://img.shields.io/badge/Platform-Android-green?style=flat-square&logo=android)\n![License](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square)\n\n**Meta-Hybrid Mount** is a next-generation hybrid mount metamodule designed for KernelSU. Written in native Rust, it intelligently combines **OverlayFS** and **Magic Mount** technologies to provide a more efficient, stable, and stealthy module management experience compared to traditional mounting solutions.\n\nThis project includes a modern WebUI management interface built with Svelte, allowing users to monitor status, manage module modes, and view logs in real-time.\n\n**[ 🇨🇳 中文 (Chinese) ](README_ZH.md)**\n\n---\n\n## ✨ Core Features\n\n### 🚀 True Hybrid Engine\n* **Smart Strategy**: Prioritizes **OverlayFS** to achieve optimal I/O performance and filesystem merging capabilities.\n* **Automatic Fallback**: Automatically and seamlessly falls back to the **Magic Mount** mechanism when OverlayFS mounting fails, the target is unsupported, or when forcibly specified by the user.\n* **Rust Native**: The core daemon is written in Rust, utilizing `rustix` for direct system calls, ensuring safety and high efficiency.\n\n### 🔄 Smart Sync\n* **Fast Boot**: Abandons the inefficient pattern of full copying on every boot. The daemon compares `module.prop` checksums and only synchronizes new or modified modules.\n* **I/O Optimization**: Drastically reduces disk I/O usage during boot, significantly improving system startup speed.\n\n### 💾 Smart Storage\n* **Tmpfs Priority**: Defaults to attempting to use **Tmpfs** (memory-based filesystem) as the storage backend. It offers extremely fast read/write speeds and is cleared on reboot, providing high stealth.\n* **Automatic Image Fallback**: Automatically detects if the environment supports XATTR (required for SELinux). If Tmpfs does not support it, the system automatically creates and mounts a 2GB `ext4` loop image (`modules.img`) and includes capability for automatic image repair.\n\n### 🐾 Stealth Mode (Paw Pad / Nuke)\n* **Sysfs Cleanup**: Supports removing KernelSU traces in Sysfs via `ioctl` operations to enhance the stealth of the Root environment.\n\n### 📱 Modern WebUI\n* Built-in management panel based on Svelte + Vite.\n* Supports Dark/Light theme switching and multiple languages (Chinese, English, Japanese, Russian, Spanish).\n* Real-time monitoring of storage usage, mount status, and system logs.\n\n---\n\n## 🛠️ Architecture\n\nThe workflow of Meta-Hybrid Mount is as follows:\n\n1.  **Environment Init**: Initialize logging and camouflage the process name as `kworker`.\n2.  **Storage Prep**: Attempt to mount Tmpfs; if it fails or lacks extended attribute support, mount/repair `modules.img`.\n3.  **Inventory Scan**: Scan the module directory and read module configurations and modes (Auto/Magic).\n4.  **Incremental Sync**: Synchronize changed module files to the runtime storage directory.\n5.  **Mount Planning**:\n    * Generate the OverlayFS hierarchy (Lowerdirs).\n    * Identify paths requiring Magic Mount.\n6.  **Execution**: Execute mount operations according to the plan. If an Overlay fails, the module is automatically added to the Magic Mount queue for retry.\n7.  **State Save**: Save runtime state for the WebUI to read.\n\n---\n\n## ⚙️ Configuration\n\nThe configuration file is located at `/data/adb/meta-hybrid/config.toml`. You can also modify it visually via the WebUI.\n\n| Option | Type | Default | Description |\n| :--- | :--- | :--- | :--- |\n| `moduledir` | String | `/data/adb/modules/` | Path to the module source directory. |\n| `tempdir` | String | (Auto) | Temporary working directory. Automatically selected if left empty. |\n| `mountsource` | String | `KSU` | Mount source name, used for the `source` parameter in OverlayFS. |\n| `verbose` | Bool | `false` | Whether to enable detailed debug logging. |\n| `partitions` | Array | `[]` | List of extra partitions to mount (besides built-in ones like system/vendor). |\n| `force_ext4` | Bool | `false` | Force usage of `modules.img` without attempting Tmpfs. |\n| `enable_nuke` | Bool | `false` | Enable \"Paw Pad\" mode (Clean up Sysfs traces). |\n| `disable_umount` | Bool | `false` | Disable add_try_umount |\n\n---\n\n## 🖥️ WebUI Features\n\nAfter installing the module, you can access the WebUI via the KernelSU manager (or by opening the corresponding address in a browser).\n\n* **Status**:\n    * View storage usage of `modules.img` or Tmpfs.\n    * View Kernel version, SELinux status, and active mount partitions.\n    * Statistics for OverlayFS vs Magic Mount modules.\n* **Config**:\n    * Visual editor for `config.toml`.\n    * One-click configuration reload.\n* **Modules**:\n    * Search and filter installed modules.\n    * **Mode Switching**: Forcibly specify \"OverlayFS\" or \"Magic Mount\" mode for specific modules (useful for resolving bootloops caused by specific modules).\n* **Logs**:\n    * Real-time vi",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-12T02:48:41.158520"
+  },
+  {
+    "basic_info": {
+      "name": "prediction-market",
+      "full_name": "CryptomSol/prediction-market",
+      "owner": "CryptomSol",
+      "description": "polymarket style prediction market platform built on solana with microservices architecture. This platform enables users to create, trade, and settle prediction markets with real-time order matching, price updates, and comprehensive market analytics.",
+      "url": "https://github.com/CryptomSol/prediction-market",
+      "clone_url": "https://github.com/CryptomSol/prediction-market.git",
+      "ssh_url": "git@github.com:CryptomSol/prediction-market.git",
+      "homepage": "",
+      "created_at": "2025-12-04T06:39:15Z",
+      "updated_at": "2025-12-12T01:49:36Z",
+      "pushed_at": "2025-12-04T07:03:36Z"
+    },
+    "stats": {
+      "stars": 161,
+      "forks": 162,
+      "watchers": 161,
+      "open_issues": 0,
+      "size": 1709
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 458466,
+        "TypeScript": 307092,
+        "Makefile": 11267,
+        "PLpgSQL": 4712,
+        "Dockerfile": 2448,
+        "Shell": 1940,
+        "JavaScript": 558,
+        "CSS": 75
+      },
+      "license": null,
+      "topics": [
+        "market",
+        "polymarket",
+        "polymarket-clone",
+        "polymarket-fork",
+        "prediction",
+        "predicton-market",
+        "rust",
+        "solana"
+      ]
+    },
+    "content": {
+      "readme": "# Prediction Market Platform\n\nA high-performance, distributed prediction market platform built with microservices architecture. This platform enables users to create, trade, and settle prediction markets with real-time order matching, price updates, and comprehensive market analytics.\n\n![Architecture Overview](./assets/architecture_v4.png)\n\n## Features\n\n- **Real-time Order Matching**: Fast order book management with automatic matching engine\n- **Live Price Updates**: Real-time price feeds via WebSocket connections\n- **Market Management**: Create, manage, and settle prediction markets\n- **User Portfolio**: Track holdings, trades, and transaction history\n- **High Performance**: Built with Rust for optimal performance and reliability\n- **Scalable Architecture**: Microservices design with message queue-based communication\n\n## Architecture\n\n### System Architecture\n\n![System Architecture](./assets/architecture_v4.png)\n\n### Subsystem Diagrams\n\n#### Order Book Reading Flow\n![Order Book Reading](./assets/order-book-reading-arch-1.png)\n\n#### Order Operations Flow\n![Order Operations](./assets/order-ops-arch-1.png)\n\n## Technology Stack\n\n### Backend Services (Rust)\n- **Service API**: RESTful API service with authentication and authorization\n- **gRPC Service**: High-performance gRPC service for market and price data\n- **Order Service**: Order matching engine with real-time order book management\n- **WebSocket Service**: Real-time bidirectional communication\n- **Database Service**: PostgreSQL database abstraction layer\n- **Auth Service**: JWT-based authentication service\n\n### Infrastructure\n- **PostgreSQL**: Primary relational database for transactional data\n- **ClickHouse**: OLAP database for analytics and time-series data\n- **Redis**: Caching and session management\n- **NATS**: High-performance message queue system\n- **Redpanda**: Streaming platform for event-driven architecture\n\n### Frontend\n- **Next.js 15**: React framework with server-side rendering\n- **TypeScript**: Type-safe development\n- **Chakra UI**: Component library\n- **gRPC-Web**: Client-server communication\n\n### Key Technologies\n- **Bloom Filters**: Space-efficient probabilistic data structures for membership testing\n- **Protocol Buffers**: Efficient serialization for inter-service communication\n- **Docker**: Containerization for development and deployment\n\n## Project Structure\n\n```\n├── app/                    # Next.js frontend application\n├── auth-service/          # Authentication service\n├── db-service/            # Database service layer\n├── grpc-service/          # gRPC service for market data\n├── order-service/         # Order matching engine\n├── service-api/           # REST API service\n├── websocket-service/     # WebSocket service\n├── proto-defs/            # Protocol buffer definitions\n├── utility-helpers/       # Shared utilities\n└── docker-compose.yaml    # Development environment setup\n```\n\n## Getting Started\n\n### Prerequisites\n\n- Docker and Docker Compose\n- Rust (latest stable version)\n- Node.js 20+ and npm/yarn/bun\n- PostgreSQL client tools (optional)\n\n### Development Setup\n\n1. **Clone the repository**\n   ```bash\n   git clone <repository-url>\n   cd polyMarketClone\n   ```\n\n2. **Start infrastructure services**\n   ```bash\n   docker-compose up -d\n   ```\n   This starts PostgreSQL, Redis, NATS, ClickHouse, and Redpanda.\n\n3. **Run database migrations**\n   ```bash\n   cd db-service\n   sqlx migrate run\n   ```\n\n4. **Start backend services**\n   ```bash\n   # Build all services\n   cargo build\n\n   # Start services in order (see Service Dependencies below)\n   ```\n\n5. **Start frontend application**\n   ```bash\n   cd app\n   npm install\n   npm run dev\n   ```\n\n### Production Setup\n\nUse the production Docker Compose configuration:\n\n```bash\ndocker-compose -f docker-compose-prod.yaml up -d\n```\n\n## Service Dependencies\n\nServices must be started in the following order due to dependency chains:\n\n```\norder-service → websocket-service → grpc-service → service-api\n```\n\nEach service depends on the next in the chain, ensuring proper initialization and connection establishment.\n\n## Development Notes\n\n### Message Queue Architecture\n\nNATS supports multiple streams, where each stream acts as a separate queue. Different services use different streams to ensure proper message routing and isolation.\n\n### Frontend Development\n\nThe frontend codebase is functional and designed primarily for testing backend services. While not the primary focus of this project, it provides a complete user interface for market interaction.\n\n### Redpanda Commands\n\nUseful commands for working with Redpanda:\n\n- **Consume messages**: `rpk topic consume price-updates -n 10` - Consume the last 10 messages from the `price-updates` topic\n- **Seek consumer group**: `rpk group seek consumer-group-price-updates --topics price-updates --to=start --allow-new-topics` - Reset consumer group position to the start of the topic\n\n## API Documentation\n\n### REST API\n\nThe service API provides RESTful endpoints for:\n- User aut",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:42.496320"
+  },
+  {
+    "basic_info": {
+      "name": "magnolia",
+      "full_name": "tuist/magnolia",
+      "owner": "tuist",
+      "description": "Run your CI pipelines locally",
+      "url": "https://github.com/tuist/magnolia",
+      "clone_url": "https://github.com/tuist/magnolia.git",
+      "ssh_url": "git@github.com:tuist/magnolia.git",
+      "homepage": null,
+      "created_at": "2025-11-13T15:42:56Z",
+      "updated_at": "2025-12-05T16:52:53Z",
+      "pushed_at": "2025-12-11T02:59:14Z"
+    },
+    "stats": {
+      "stars": 153,
+      "forks": 6,
+      "watchers": 153,
+      "open_issues": 4,
+      "size": 208
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 113855
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 🌸 Magnolia\n<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->\n[![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors-)\n<!-- ALL-CONTRIBUTORS-BADGE:END -->\n\nRun GitLab CI, GitHub Actions, and Forgejo pipelines locally.\n\n> [!IMPORTANT]\n> This project is in the ideation phase. We may open PRs and address issues, but we're not actively monitoring repository activity.\n\n## 🌸 The Magnolia Manifesto\n\n**[Verse 1]**<br>\nThey say that if you were to see<br>\nYour CI running locally<br>\nIn that terminal window, free<br>\nIt brings you good luck<br>\nAll of you have come<br>\nEven the vendors who dismissed us<br>\nToday, they watch\n\n**[Chorus]**<br>\nThrow magnolias at me<br>\nRun your pipelines locally<br>\nThrow magnolias at me<br>\nOwn your CI destiny\n\n**[Verse 2]**<br>\nOver their platforms, open forges burning bright<br>\nTears and FUD melt into the code<br>\nGitLab and GitHub, Forgejo's might<br>\nDancing with freedom on top of vendor lock<br>\nToday it's all sovereignty mocking fate<br>\nAnd what you couldn't test locally, you test before you commit\n\n## 📦 Installation\n\n```bash\nmise use -g ubi:tuist/magnolia\n```\n\nOr download from [releases](https://github.com/tuist/magnolia/releases).\n\n## 🚀 Usage\n\n### Running Pipelines Locally\n\nTest your CI/CD pipelines before pushing to your Git forge:\n\n```bash\n# Interactive mode - discover and select pipeline\nmagnolia\n\n# Run a specific workflow\nmagnolia .github/workflows/test.yml\n\n# Run a specific job from a workflow\nmagnolia .github/workflows/test.yml\n# Then select the job interactively\n\n# Run non-interactively (useful for scripts)\nmagnolia .github/workflows/test.yml --job test --non-interactive\n```\n\n**Example workflow:**\n```bash\n$ magnolia .github/workflows/ci.yml\nDiscovering pipelines...\nSelect a pipeline: GitHub Actions: ci.yml\n\nSelect a job to run:\n  > build\n    test\n    deploy\n\nRunning job build from .github/workflows/ci.yml\n✓ Step: Checkout code\n✓ Step: Install dependencies\n✓ Step: Build application\n```\n\n### Migrating from External CI Providers\n\nSeamlessly migrate from external CI providers to your Git forge's native CI using AI-powered translation:\n\n```bash\n# Auto-detect source and target CI systems\nmagnolia migrate\n\n# Preview migration without writing files\nmagnolia migrate --dry-run\n\n# Override target CI system\nmagnolia migrate --to github\n\n# Migrate specific source when multiple configs found\nmagnolia migrate bitrise\n\n# Automated migration (non-interactive)\nmagnolia migrate bitrise --non-interactive\n```\n\n**Example migration:**\n```bash\n$ magnolia migrate bitrise --dry-run --to github\nDetecting CI configurations...\nSource: Bitrise (bitrise.yml)\nTarget: GitHub Actions\n\nInitializing AI agent for migration...\n\n📋 Step 1/3: Analyzing source configuration...\n  → Reading Bitrise pipeline from bitrise.yml\n\n🔍 Step 2/3: Researching CI system documentation and generating configuration...\n  → Consulting Bitrise and GitHub Actions documentation\n  → This may take 30-60 seconds...\n\n✅ Step 3/3: Migration complete!\n\nDry run - migration preview:\n\nGenerated configuration:\n================================================================================\nname: CI/CD Pipeline\n\non:\n  push:\n    branches: ['**']\n\njobs:\n  primary:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Install dependencies\n        run: npm install\n      - name: Run tests\n        run: npm test\n      - name: Build\n        run: npm run build\n================================================================================\n\nWould be written to: .github/workflows/migrated-workflow.yml\n```\n\n**Common migration scenarios:**\n```bash\n# CircleCI → GitHub Actions\nmagnolia migrate circleci --to github\n\n# Buildkite → GitLab CI\nmagnolia migrate buildkite --to gitlab\n\n# Mobile app (AppCircle) → GitHub Actions\nmagnolia migrate appcircle --to github\n```\n\n**Supported Migration Sources:**\n- Bitrise (`bitrise.yml` or `.bitrise/bitrise.yml`)\n- Codemagic (`codemagic.yaml` or `.codemagic/codemagic.yaml`)\n- CircleCI (`.circleci/config.yml`)\n- AppCircle (`appcircle.yaml`, `configuration.yaml`, or `.appcircle/config.yaml`)\n- Buildkite (`.buildkite/pipeline.yml` or `.buildkite/pipeline.yaml`)\n\n**Migration Targets (auto-detected from git remote):**\n- GitHub Actions (`.github/workflows/*.yml`)\n- GitLab CI (`.gitlab-ci.yml`)\n- Forgejo Actions (`.forgejo/workflows/*.yml`)\n\n**Requirements:**\n- Install either `claude` or `codex` CLI for AI-powered migration\n- The migration feature uses the agentic client protocol to delegate complex translation tasks\n\n### ⚡ Execution\n\n- **GitLab CI**: Executes jobs in containers (Podman/Docker) when `image:` is specified, or on host otherwise.\n- **GitHub Actions / Forgejo Actions**:\n  - Executes `run:` steps in containers based on `runs-on:` runner\n  - Executes marketplace actions (`uses:`) - composite, Docker, and Node.js actions supported\n  - Actions are downloaded once and cached locally in `~/.magnolia/actions",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:43.879936"
+  },
+  {
+    "basic_info": {
+      "name": "FuckACE",
+      "full_name": "adysec/FuckACE",
+      "owner": "adysec",
+      "description": null,
+      "url": "https://github.com/adysec/FuckACE",
+      "clone_url": "https://github.com/adysec/FuckACE.git",
+      "ssh_url": "git@github.com:adysec/FuckACE.git",
+      "homepage": null,
+      "created_at": "2025-11-27T10:06:29Z",
+      "updated_at": "2025-12-05T13:18:10Z",
+      "pushed_at": "2025-11-27T10:44:37Z"
+    },
+    "stats": {
+      "stars": 144,
+      "forks": 138,
+      "watchers": 144,
+      "open_issues": 0,
+      "size": 9719
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 13597
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# FuckACE\n\n磁盘优化工具：将指定进程的优先级设置为最低（IDLE）并可绑定到单个 CPU 核心，用于在需要时降低后台服务对系统资源的占用。\n\n默认使用图形界面（GUI）：运行仓库内的程序将启动基于 egui 的桌面界面，提供一键应用、守护模式开关、轮询间隔及日志查看。\n如果你想在无头环境（例如 CI 或脚本）只运行一次，可以使用 `--once` 参数（示例：`cargo run --release -- --once`）。\n\n> 仅在 Windows 上运行；在 Linux 与 macOS 上该工具不会对进程做任何修改（会打印提示）。\n\n## 功能\n\n- 一次性模式：检测并将 `SGuard64.exe` 和 `SGuardSvc64.exe`（或自定义目标）优先级设置为 `IDLE`，随后退出。\n- 守护模式：以指定轮询间隔持续检测并修正新启动的目标进程。\n- 可通过 `--targets` 添加额外目标进程名（支持带或不带 `.exe`，大小写不敏感）。\n\n\n## 在 Linux 上交叉编译（GNU / MinGW）\n\n运行：\n\n```bash\n# 开发运行\ncargo run\n\n# 或构建并运行发布版本\ncargo build --release --target x86_64-pc-windows-gnu\n```\n\n注意事项：\n- 仅在 Windows 环境下修改进程优先级与亲和性有效（Linux/macOS 下为安全提示或无修改）。\n- 修改系统 / 服务 进程可能需要管理员权限，请以提升权限运行以确保成功。\n- 内嵌字体使得可执行文件体积较大，但运行时无需外部字体文件。",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:45.246172"
+  },
+  {
+    "basic_info": {
+      "name": "proxychains-rs",
+      "full_name": "adysec/proxychains-rs",
+      "owner": "adysec",
+      "description": "Rust implementation of proxychains — injectable library for chaining TCP/UDP connections via multiple proxies.",
+      "url": "https://github.com/adysec/proxychains-rs",
+      "clone_url": "https://github.com/adysec/proxychains-rs.git",
+      "ssh_url": "git@github.com:adysec/proxychains-rs.git",
+      "homepage": "",
+      "created_at": "2025-11-27T07:26:30Z",
+      "updated_at": "2025-12-08T17:00:00Z",
+      "pushed_at": "2025-11-27T09:14:04Z"
+    },
+    "stats": {
+      "stars": 142,
+      "forks": 138,
+      "watchers": 142,
+      "open_issues": 0,
+      "size": 51
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 345556
+      },
+      "license": "GNU General Public License v2.0",
+      "topics": [
+        "proxies",
+        "proxychains",
+        "proxychains-features",
+        "proxychains-ng",
+        "proxychains-review",
+        "proxychains-rs",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "# proxychains-rs (v5.0.0)\n\nThis document is a concise usage and build guide for the proxychains-rs repository (version 5.0.0). It focuses on building, running and debugging the Rust implementation that provides proxychains-compatible behavior, and also covers common issues.\n\n---\n\n## Overview\n\nproxychains-rs (v5.0.0) is a Rust implementation that aims to be compatible with existing proxychains behavior. Its goal is to produce a shared library that can be injected into target programs using LD_PRELOAD and that behaves (including textual output) consistently with prior implementations. The runtime artifact produced by this project is `libproxychains_rs.so`.\n\nMain runtime artifact (release):\n\n- `target/release/libproxychains_rs.so` — the shared object produced by Rust (cdylib).\n\nNote: The supported runtime artifact is `target/release/libproxychains_rs.so`. The project does not rely on producing a compatibility copy named `libproxychains4.so` by default anymore.\n\nTip: this repository contains a `rust-toolchain` pin (nightly). Cargo will automatically use the pinned nightly toolchain when building the project.\n\nImportant: the repository uses some Rust nightly-only features in parts of the codebase (for example `c_variadic` / `extern_types`). Because of this, a nightly toolchain is required to build.\n\n---\n\n## Local build (recommended)\n\n1. Ensure you have rustup installed and enable the nightly toolchain:\n\n```bash\nrustup toolchain install nightly\n```\n\n2. Build the project using cargo from the `proxychains-rs` directory:\n\n```bash\n# Build the Rust portion using the nightly toolchain\nrustup run nightly cargo build -p proxychains_rs --release\n```\n\nThis will produce the shared object under `target/release/libproxychains_rs.so`.\n\n---\n\n## Using with a target program (example)\n\nTo use proxychains-rs with any dynamically linked program that supports LD_PRELOAD, set the configuration file path and LD_PRELOAD the built shared object:\n\n```bash\nPROXYCHAINS_CONF_FILE=/etc/proxychains.conf LD_PRELOAD=target/release/libproxychains_rs.so curl -I https://www.baidu.com\n```\n\nIf you are replacing an existing `proxychains4` script or binary (the C-based tool), the Rust version aims to be consistent in behavior and log text. Using `target/release/libproxychains_rs.so` as LD_PRELOAD should act as a drop-in replacement for the C artifact.\n\nAn example wrapper similar to `/usr/bin/proxychains`:\n\n```sh\n#!/bin/sh\necho \"ProxyChains-5.0\"\nif [ $# = 0 ]; then\n    echo \"\\tusage:\"\n    echo \"\\t\\tproxychains <prog> [args]\"\n    exit\nfi\nexport LD_PRELOAD=libproxychains_rs.so\nexec \"$@\"\n```\n\n---\n\n## Configuration and debugging options\n\n- Configuration file search order (priority):\n  1. `PROXYCHAINS_CONF_FILE` environment variable (or `-f` argument)\n  2. `./proxychains.conf` in the current directory\n  3. `$(HOME)/.proxychains/proxychains.conf`\n  4. System config `/etc/proxychains.conf` (sysconfdir)\n\n- Settings in the configuration file:\n  - `quiet_mode` — suppresses the per-connection log lines (same as the C implementation).\n  - `proxy_dns`, `proxy_dns_daemon`, `proxy_dns_old` — control remote-DNS (RDNS) behavior/modes.\n\n- Environment variables:\n  - `PROXYCHAINS_VERBOSE_DEBUG=1` — enable extra internal debug traces for development and troubleshooting.\n\n---\n\n## Frequently Asked Questions\n\n- Q: Why is a nightly toolchain required to build?\n  - A: The port uses Rust features that are currently only available on the nightly channel (for example `c_variadic` / `extern_types`). That's why the nightly toolchain is required.\n\n---\n\n## Future improvements (suggestions)\n\n- Reduce or remove `unsafe` and `static mut` usage where practical and refactor key paths to be more idiomatic Rust (long-term goal).\n- Improve cross-platform support.\n\n---\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:46.573003"
+  },
+  {
+    "basic_info": {
+      "name": "dht-spider",
+      "full_name": "adysec/dht-spider",
+      "owner": "adysec",
+      "description": "Rust 实现的 BitTorrent DHT（BEP‑5）与爬虫，并内置元数据下载（BEP‑9/10）与 PeX（BEP‑11/ut_pex）。",
+      "url": "https://github.com/adysec/dht-spider",
+      "clone_url": "https://github.com/adysec/dht-spider.git",
+      "ssh_url": "git@github.com:adysec/dht-spider.git",
+      "homepage": null,
+      "created_at": "2025-11-13T03:25:51Z",
+      "updated_at": "2025-11-26T08:02:33Z",
+      "pushed_at": "2025-11-13T03:29:12Z"
+    },
+    "stats": {
+      "stars": 141,
+      "forks": 141,
+      "watchers": 141,
+      "open_issues": 0,
+      "size": 30
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 78483
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# dht-spider\n\nRust 实现的 BitTorrent DHT（BEP‑5）与爬虫，并内置元数据下载（BEP‑9/10）与 PeX（BEP‑11/ut_pex）。\n\n现在只支持一种用法：cargo run。所有能力均已整合进主程序并以 JSONL 输出。\n\n## 特性概览\n\n- 模式：\n  - Standard：严格遵循 DHT 协议\n  - Crawl：偏向嗅探 infohash（促使对端 announce_peer）\n- KRPC：ping / find_node / get_peers / announce_peer（入站与递归）\n- 路由：K‑Bucket 分裂/候选、XOR 距离邻居选择、ping‑then‑replace 维护\n- 事务：超时指数退避重试、黑名单；token 校验\n- 元数据：集成 Wire（BEP‑9/10）下载 .torrent metadata\n- PeX：对等交换（BEP‑11/ut_pex）发现更多 peers\n  - 扩展握手声明 ut_pex\n  - 解析 `added`（紧凑 IPv4）中的 peers，并：\n    1) 统一输出为 `type=peer` 的 JSON 行\n    2) 自动加入抓取队列尝试下载对应 infohash 的 metadata\n\n## 快速开始\n\n构建与运行：\n\n```zsh\ncargo build --release\ncargo run\n```\n\n运行时行为：\n\n- 默认模式：Crawl\n- 默认监听：UDP 0.0.0.0:6881\n- 输出格式：JSONL（每行一个事件）\n\n示例输出（部分）：\n\n```json\n{\"type\":\"peer\",\"ip\":\"203.0.113.7\",\"port\":51413,\"info_hash\":\"a1b2...c3d4\"}\n{\"type\":\"metadata\",\"infohash\":\"a1b2...c3d4\",\"name\":\"SomePack\",\"files\":[{\"path\":[\"dir\",\"file1.mkv\"],\"length\":12345}]}\n{\"type\":\"node\",\"id\":\"a1b2c3...\",\"ip\":\"162.83.157.130\",\"port\":6881}\n```\n\n提示：若端口被占用，启动会输出错误并退出，例如：\n\n```json\n{\"level\":\"error\",\"event\":\"startup\",\"error\":\"IO error: Address already in use (os error 98)\"}\n```\n\n## 配置与默认值\n\n本项目遵循“零参数可运行”，开箱即用。默认参数（可能随版本调整）包括：\n\n- 路由与桶：k=8，kbucket_size=8\n- 监听：UDP 0.0.0.0:6881\n- 引导节点（prime_nodes）：包含多组官方/社区节点（示例见下），例如：\n  - router.bittorrent.com:6881、dht.transmissionbt.com:6881、router.utorrent.com:6881、router.bitcomet.com:6881\n  - dht.aelitis.com:6881、dht.libtorrent.org:25401、router.bittorrentcloud.com:6881、dht.anaconda.com:6881\n  - dht.vuze.com:6881、dht.transmissionbt.net:6881、router.silotis.us:6881、router.ktorrent.com:6881、router.tribler.org:6881\n  - router.bittorrent.jp:6881、router.cn.utorrent.com:6881、router.bittorrent.ru:6881、router.bittorrent.kr:6881\n  - 实际列表可能随版本更新进行调整\n- 周期与过期：kbucket_expired_after≈15 分钟、node_expired_after≈15 分钟、check_kbucket_period≈30 秒\n- token 过期：≈600 秒\n- 最大节点：≈5000；黑名单最大：≈65536\n- 运行模式：默认 Crawl（偏向触发对端 announce）\n- 刷新与重试：refresh_node_num≈8、try_times≈2\n\n维护语义：\n\n- 对过期/失活节点：先 ping，超时才替换；无全局“定期裁剪”。\n- Crawl 模式：入站 get_peers 返回空 nodes + token，促使对端 announce_peer。\n\n## 行为说明\n\n- KRPC 处理、递归查找与 announce 流程遵循 BEP 规范；announce_peer 会复用 get_peers 获取的 token。\n- 路由表与邻居选择（XOR 距离）；节点按 last_active 排序。\n- 默认 prime 节点、compact IPv4 地址编码。\n\n## 输出格式（统一 JSON 行）\n\n- Peer（来自 announce_peer / get_peers 的 values / PeX）：\n  {\"type\":\"peer\",\"ip\":\"<ip>\",\"port\":<port>,\"info_hash\":\"<hex>\"}\n- Metadata（torrent 信息，单/多文件统一）：\n  - 始终输出 files 数组；单文件时 files=[{\"path\":[name],\"length\":...}]\n  - 示例： {\"type\":\"metadata\",\"infohash\":\"<hex>\",\"name\":\"...\",\"files\":[{\"path\":[...],\"length\":...},...]}\n- DHT 节点（解析自 nodes）：\n  {\"type\":\"node\",\"id\":\"<20字节hex>\",\"ip\":\"<ip>\",\"port\":<port>}\n\n说明：\n- 当前实现已支持 PeX 的 IPv4 `added` 列表；如需 IPv6，可后续扩展 `added6` 的解析。\n- 私有种通常禁用 PeX；程序会自然尊重对端能力。",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:47.932156"
+  },
+  {
+    "basic_info": {
+      "name": "GraphLite",
+      "full_name": "GraphLite-AI/GraphLite",
+      "owner": "GraphLite-AI",
+      "description": "An Embeddable Graph Database with ISO Graph Query Language Support.",
+      "url": "https://github.com/GraphLite-AI/GraphLite",
+      "clone_url": "https://github.com/GraphLite-AI/GraphLite.git",
+      "ssh_url": "git@github.com:GraphLite-AI/GraphLite.git",
+      "homepage": null,
+      "created_at": "2025-11-15T02:18:24Z",
+      "updated_at": "2025-12-11T03:17:43Z",
+      "pushed_at": "2025-12-11T23:53:55Z"
+    },
+    "stats": {
+      "stars": 132,
+      "forks": 4,
+      "watchers": 132,
+      "open_issues": 16,
+      "size": 1657
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3397594,
+        "Shell": 80936,
+        "Python": 48426,
+        "Java": 17185,
+        "C": 5199,
+        "Dockerfile": 3670
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# GraphLite\n\n**A graph database as simple as SQLite for embedded processes**\n\nGraphLite is a fast, light-weight and portable embedded graph database that brings the power of the new **ISO GQL (Graph Query Language)** standard to the simplicity of SQLite.<p> \nGraphLite uses a single binary and is an ideal solution for applications requiring graph database capabilities without the complexity of client-server architectures.\n\n## Features\n\n- **ISO GQL Standard** - Full implementation of ISO GQL query language based on grammar optimized from [OpenGQL](https://github.com/opengql/grammar/tree/main) project\n- **Pattern Matching** - Powerful MATCH clauses for graph traversal\n- **ACID Transactions** - Full transaction support with isolation levels\n- **Embedded Storage** - Sled-based embedded database (no server needed)\n- **Type System** - Strong typing with validation and inference\n- **Query Optimization** - Cost-based query optimization\n- **Pure Rust** - Memory-safe implementation in Rust\n\n## Prerequisites\n\nBefore building GraphLite, you need to install Rust and a C compiler/linker.\n\n<details>\n<summary><b>macOS</b></summary>\n\n```bash\n# Install Xcode Command Line Tools (C compiler, linker)\nxcode-select --install\n\n# Install Rust via rustup\ncurl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh\n\n# Restart terminal or run:\nsource $HOME/.cargo/env\n\n# Verify installation\nrustc --version\ncargo --version\n```\n</details>\n\n<details>\n<summary><b>Linux (Ubuntu/Debian)</b></summary>\n\n```bash\n# Install build essentials\nsudo apt-get update\nsudo apt-get install build-essential\n\n# Install Rust via rustup\ncurl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh\n\n# Restart terminal or run:\nsource $HOME/.cargo/env\n\n# Verify installation\nrustc --version\ncargo --version\n```\n</details>\n\n<details>\n<summary><b>Linux (Fedora/RHEL)</b></summary>\n\n```bash\n# Install development tools\nsudo dnf groupinstall \"Development Tools\"\n\n# Install Rust via rustup\ncurl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh\n\n# Restart terminal or run:\nsource $HOME/.cargo/env\n\n# Verify installation\nrustc --version\ncargo --version\n```\n</details>\n\n## Getting Started\n\nGet up and running with GraphLite in 3 simple steps:\n\n### Step 1: Installation\n\n**Choose your installation method:**\n\n#### Option A: Use as a Crate (Recommended for Rust Applications)\n\nAdd GraphLite to your Rust project - no cloning or building required:\n\n```bash\n# For application development (SDK - recommended)\ncargo add graphlite-rust-sdk\n\n# For advanced/low-level usage\ncargo add graphlite\n```\n\n**See:** **[Using GraphLite as a Crate](docs/Using%20GraphLite%20as%20a%20Crate.md)** for complete integration guide.\n\n#### Option B: Use Docker (Easiest for Quick Start)\n\nRun GraphLite instantly with Docker - no installation required:\n\n```bash\n# Initialize database\ndocker run -it -v $(pwd)/mydb:/data ghcr.io/graphlite-ai/graphlite:latest \\\n  graphlite install --path /data/mydb --admin-user admin --admin-password secret\n\n# Start interactive GQL shell\ndocker run -it -v $(pwd)/mydb:/data \\\n  -e GRAPHLITE_DB_PATH=/data/mydb \\\n  -e GRAPHLITE_USER=admin \\\n  -e GRAPHLITE_PASSWORD=secret \\\n  ghcr.io/graphlite-ai/graphlite:latest\n```\n\n**See:** **[Docker Guide](docs/Docker.md)** for complete Docker setup including multi-architecture builds and Docker Compose.\n\n#### Option C: Install CLI from crates.io\n\nInstall the GraphLite CLI tool directly from crates.io:\n\n```bash\ncargo install gql-cli\n```\n\nAfter installation, the `graphlite` binary will be available in your PATH.\n\n#### Option D: Clone and Build (For Development/Contributing)\n\n```bash\n# Clone the repository\ngit clone https://github.com/GraphLite-AI/GraphLite.git\ncd GraphLite\n\n# Build the project\n./scripts/build_all.sh --release\n```\n\nAfter building, the binary will be available at `target/release/graphlite`.\n\n<details>\n<summary><b>Custom Build Options</b></summary>\n\n```bash\n# Development build (faster compilation, slower runtime)\n./scripts/build_all.sh\n\n# Build and run tests\n./scripts/build_all.sh --release --test\n\n# Clean build (useful when dependencies change)\n./scripts/build_all.sh --clean --release\n\n# View all options\n./scripts/build_all.sh --help\n```\n</details>\n\n<details>\n<summary><b>Advanced: Manual Build with Cargo</b></summary>\n\nIf you prefer to build manually without the script:\n\n1. Build in `release` mode for production-use:\n    ```bash\n    cargo build --release\n    ```\n\n2. Build in `debug` mode for development:\n\n    ```bash\n    cargo build\n    ```\n</details>\n\n### Step 2: Initialize Database (For CLI Usage)\n\n**Note:** If you're using GraphLite as a crate in your application, skip to **[Using GraphLite as a Crate](docs/Using%20GraphLite%20as%20a%20Crate.md)** instead.\n\n```bash\n# If you installed via 'cargo install gql-cli' (Option B)\ngraphlite install --path ./my_db --admin-user admin --admin-password secret\n\n# If you built from source (Option C)\n./target/release/graphlite install --path ./my_db --admin-user admin --admin-password secret\n``",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:49.250210"
+  },
+  {
+    "basic_info": {
+      "name": "coding_agent_session_search",
+      "full_name": "Dicklesworthstone/coding_agent_session_search",
+      "owner": "Dicklesworthstone",
+      "description": null,
+      "url": "https://github.com/Dicklesworthstone/coding_agent_session_search",
+      "clone_url": "https://github.com/Dicklesworthstone/coding_agent_session_search.git",
+      "ssh_url": "git@github.com:Dicklesworthstone/coding_agent_session_search.git",
+      "homepage": null,
+      "created_at": "2025-11-21T01:22:15Z",
+      "updated_at": "2025-12-12T01:13:13Z",
+      "pushed_at": "2025-12-02T20:57:01Z"
+    },
+    "stats": {
+      "stars": 126,
+      "forks": 15,
+      "watchers": 126,
+      "open_issues": 5,
+      "size": 3162
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1699606,
+        "Shell": 7732,
+        "PowerShell": 2626,
+        "Ruby": 1001
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# 🔎 coding-agent-search (cass)\n\n![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)\n![Rust](https://img.shields.io/badge/Rust-nightly-orange.svg)\n![Status](https://img.shields.io/badge/status-alpha-purple.svg)\n![License](https://img.shields.io/badge/license-MIT-green.svg)\n\n**Unified, high-performance TUI to index and search your local coding agent history.**\nAggregates sessions from Codex, Claude Code, Gemini CLI, Cline, OpenCode, Amp, Cursor, ChatGPT, Aider, and Pi-Agent into a single, searchable timeline.\n\n<div align=\"center\">\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/coding_agent_session_search/main/install.sh \\\n  | bash -s -- --easy-mode --verify\n```\n\n```powershell\n# Windows (PowerShell)\nirm https://raw.githubusercontent.com/Dicklesworthstone/coding_agent_session_search/main/install.ps1 | iex\ninstall.ps1 -EasyMode -Verify\n```\n\n</div>\n\n---\n\n## 📸 Screenshots\n\n<div align=\"center\">\n\n### Search Results Across All Your Agents\n*Three-pane layout: filter bar, results list with color-coded agents (Claude, Codex, Gemini, Pi-Agent, etc.), and syntax-highlighted detail preview*\n\n<img src=\"screenshots/screenshot_01.webp\" alt=\"Main TUI showing search results across multiple coding agents\" width=\"800\">\n\n---\n\n### Rich Conversation Detail View\n*Full conversation rendering with markdown formatting, code blocks, headers, and structured content*\n\n<img src=\"screenshots/screenshot_02.webp\" alt=\"Detail view showing formatted conversation content\" width=\"800\">\n\n---\n\n### Quick Start & Keyboard Reference\n*Built-in help screen (press `F1` or `?`) with all shortcuts, filters, modes, and navigation tips*\n\n<img src=\"screenshots/screenshot_03.webp\" alt=\"Help screen showing keyboard shortcuts and features\" width=\"500\">\n\n</div>\n\n---\n\n## 💡 Why This Exists\n\n### The Problem\n\nAI coding agents are transforming how we write software. Claude Code, Codex, Cursor, Copilot, Aider, Pi-Agent; each creates a trail of conversations, debugging sessions, and problem-solving attempts. But this wealth of knowledge is **scattered and unsearchable**:\n\n- **Fragmented storage**: Each agent stores data differently—JSONL files, SQLite databases, markdown logs, proprietary JSON formats\n- **No cross-agent visibility**: Solutions discovered in Cursor are invisible when you're using Claude Code\n- **Lost context**: That brilliant debugging session from two weeks ago? Good luck finding it by scrolling through files\n- **No semantic search**: File-based grep doesn't understand code structure or natural language queries\n\n### The Solution\n\n`cass` treats your coding agent history as a **unified knowledge base**. It:\n\n1. **Normalizes** disparate formats into a common schema\n2. **Indexes** everything with a purpose-built full-text search engine\n3. **Surfaces** relevant past conversations in milliseconds\n4. **Respects** your privacy—everything stays local, nothing phones home\n\n### Who Benefits\n\n- **Individual developers**: Find that solution you know you've seen before\n- **Teams**: Share institutional knowledge across different tool preferences\n- **AI agents themselves**: Let your current agent learn from all your past agents (via robot mode)\n- **Power users**: Build workflows that leverage your complete coding history\n\n---\n\n## ✨ Key Features\n\n### ⚡ Instant Search (Sub-60ms Latency)\n- **\"Search-as-you-type\"**: Results update instantly with every keystroke.\n- **Edge N-Gram Indexing**: We frontload the work by pre-computing prefix matches (e.g., \"cal\" -> \"calculate\") during indexing, trading disk space for O(1) lookup speed at query time.\n- **Smart Tokenization**: Handles `snake_case` (\"my_var\" matches \"my\" and \"var\"), hyphenated terms, and code symbols (`c++`, `foo.bar`) correctly.\n- **Zero-Stall Updates**: The background indexer commits changes atomically; `reader.reload()` ensures new messages appear in the search bar immediately without restarting.\n\n### 🎯 Advanced Search Features\n- **Wildcard Patterns**: Full glob-style pattern support:\n  - `foo*` - Prefix match (finds \"foobar\", \"foo123\")\n  - `*foo` - Suffix match (finds \"barfoo\", \"configfoo\")\n  - `*foo*` - Substring match (finds \"afoob\", \"configuration\")\n- **Auto-Fuzzy Fallback**: When exact searches return sparse results, automatically retries with `*term*` wildcards to broaden matches. Visual indicator shows when fallback is active.\n- **Query History Deduplication**: Recent searches deduplicated to show unique queries; navigate with `Up`/`Down` arrows.\n- **Match Quality Ranking**: New ranking mode (cycle with `F12`) that prioritizes exact matches over wildcard/fuzzy results.\n- **Match Highlighting**: Use `--highlight` in robot mode to wrap matching terms with markers (`**bold**` for text, `<mark>` for HTML output).\n\n### 🖥️ Rich Terminal UI (TUI)\n- **Three-Pane Layout**: Filter bar (top), scrollable results (left), and syntax-highlighted details (right).\n- **Multi-Line Result Display**: Each result shows location and up to 3 lines of context; alt",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:50.604335"
+  },
+  {
+    "basic_info": {
+      "name": "hpcrypt",
+      "full_name": "seceq/hpcrypt",
+      "owner": "seceq",
+      "description": "High-performance cryptography library in 100% safe Rust",
+      "url": "https://github.com/seceq/hpcrypt",
+      "clone_url": "https://github.com/seceq/hpcrypt.git",
+      "ssh_url": "git@github.com:seceq/hpcrypt.git",
+      "homepage": null,
+      "created_at": "2025-11-13T20:48:46Z",
+      "updated_at": "2025-12-11T21:44:44Z",
+      "pushed_at": "2025-12-04T16:04:58Z"
+    },
+    "stats": {
+      "stars": 119,
+      "forks": 5,
+      "watchers": 119,
+      "open_issues": 0,
+      "size": 6246
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 6139124
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# HPCrypt\n\n[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)\n[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)\n[![no_std compatible](https://img.shields.io/badge/no__std-compatible-success)](https://docs.rust-embedded.org/book/intro/no-std.html)\n\nA comprehensive, high-performance cryptography library written in pure Rust, providing production-ready implementations of modern cryptographic primitives with a focus on security, performance, and usability.\n\n## Features\n\n- **100% Safe Rust** - Zero unsafe code, memory-safe by design\n- **no_std Compatible** - Runs in embedded and constrained environments\n- **Standards Compliant** - Full RFC and NIST FIPS compliance\n- **Post-Quantum Ready** - ML-DSA, ML-KEM, SLH-DSA implementations\n- **Comprehensive Testing** - Validated against official test vectors including Wycheproof\n- **Constant-Time Operations** - Protection against timing side-channel attacks\n- **Modular Design** - Use only what you need\n\n## Crates Overview\n\nThe library is organized into focused, composable crates:\n\n### Core Primitives\n\n| Crate | Description | Standards |\n|-------|-------------|-----------|\n| **hpcrypt-core** | Core utilities, error types, traits | - |\n| **hpcrypt-hash** | Hash functions (SHA-2, SHA-3, BLAKE2/3) | FIPS 180-4, FIPS 202, RFC 7693 |\n| **hpcrypt-cipher** | Block ciphers (AES, ChaCha20) and modes (CBC, CTR, XTS) | NIST SP 800-38A/E |\n| **hpcrypt-mac** | MACs (HMAC, CMAC, KMAC, GMAC, Poly1305) and universal hashes (GHASH, Polyval) | FIPS 198-1, RFC 2104, RFC 4493 |\n| **hpcrypt-aead** | Authenticated encryption (AES-GCM, ChaCha20-Poly1305, Ascon) | RFC 5116, RFC 7539, RFC 5297 |\n| **hpcrypt-kdf** | Key derivation (HKDF, PBKDF2, Argon2, scrypt, TLS/QUIC KDF) | RFC 5869, RFC 2898, RFC 9106 |\n| **hpcrypt-rng** | Cryptographically secure random generation | - |\n\n### Elliptic Curve Cryptography\n\n| Crate | Description | Standards |\n|-------|-------------|-----------|\n| **hpcrypt-curves** | Elliptic curves (Curve25519, P-256, P-384, P-521, secp256k1) | RFC 7748, RFC 8032, FIPS 186-4, SEC 2 |\n| **hpcrypt-signatures** | Digital signatures (Ed25519, Ed448, ECDSA, Schnorr) | RFC 8032, FIPS 186-4, BIP-340 |\n| **hpcrypt-ecies** | Hybrid encryption scheme | ISO/IEC 18033-2 |\n\n### Post-Quantum Cryptography\n\n| Crate | Description | Standards |\n|-------|-------------|-----------|\n| **hpcrypt-mlkem** | ML-KEM (Kyber) key encapsulation | FIPS 203 |\n| **hpcrypt-mldsa** | ML-DSA (Dilithium) signatures | FIPS 204 |\n| **hpcrypt-slhdsa** | SLH-DSA (SPHINCS+) signatures | FIPS 205 |\n\n### High-Level Protocols\n\n| Crate | Description | Standards |\n|-------|-------------|-----------|\n| **hpcrypt-rsa** | RSA encryption and signatures (OAEP, PSS, PKCS#1) | RFC 8017 |\n| **hpcrypt-hpke** | Hybrid Public Key Encryption | RFC 9180 |\n| **hpcrypt-pake** | Password-authenticated key exchange (OPAQUE) | RFC 9497 |\n| **hpcrypt-srp** | Secure Remote Password protocol | RFC 2945, RFC 5054 |\n| **hpcrypt-fpe** | Format-preserving encryption (FF1) | NIST SP 800-38G |\n| **hpcrypt-threshold** | Threshold cryptography (Shamir secret sharing) | - |\n\n## Quick Start\n\nAdd to your `Cargo.toml`:\n\n```toml\n[dependencies]\nhpcrypt = { version = \"0.1\", features = [\"curves\", \"aead\", \"hash\"] }\n```\n\n### AES-GCM Authenticated Encryption\n\n```rust\nuse hpcrypt::aead::{Aes256Gcm, Aead};\nuse hpcrypt::rng::OsRng;\n\n// Generate random key and nonce\nlet key = OsRng::generate_bytes::<32>();\nlet nonce = OsRng::generate_bytes::<12>();\n\n// Encrypt\nlet cipher = Aes256Gcm::new(&key);\nlet plaintext = b\"Secret message\";\nlet ciphertext = cipher.encrypt(&nonce, plaintext, &[])?;\n\n// Decrypt\nlet recovered = cipher.decrypt(&nonce, &ciphertext, &[])?;\nassert_eq!(recovered, plaintext);\n```\n\n### Ed25519 Digital Signatures\n\n```rust\nuse hpcrypt::curves::Ed25519;\nuse hpcrypt::rng::OsRng;\n\n// Generate keypair\nlet private_key = OsRng::generate_bytes::<32>();\nlet public_key = Ed25519::public_key(&private_key);\n\n// Sign message\nlet message = b\"Important message\";\nlet signature = Ed25519::sign(&private_key, message);\n\n// Verify signature\nassert!(Ed25519::verify(&public_key, message, &signature));\n```\n\n### ML-DSA Post-Quantum Signatures\n\n```rust\nuse hpcrypt_mldsa::{MlDsa65, keygen::keygen};\n\n// Generate post-quantum keypair\nlet (pk, sk) = keygen::<MlDsa65>();\n\n// Sign message\nlet message = b\"Future-proof signature\";\nlet signature = sk.sign(message)?;\n\n// Verify signature\nassert!(pk.verify(message, &signature));\n```\n\n### Password Hashing with Argon2\n\n```rust\nuse hpcrypt::kdf::Argon2id;\n\nlet password = b\"user_password\";\nlet salt = b\"unique_salt_16bt\";\n\n// Hash password\nlet params = Argon2id::default_params();\nlet mut output = [0u8; 32];\nArgon2id::hash(password, salt, &params, &mut output)?;\n\n// Verify password\nlet mut verify = [0u8; 32];\nArgon2id::hash(password, salt, &params, &mut verify)?;\nassert_eq!(output, verify);\n```\n\n## Supported Algorithms\n\n### Hash Functions\n\n- **SHA-2 Fam",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-12T02:48:51.998467"
+  },
+  {
+    "basic_info": {
+      "name": "ruvector",
+      "full_name": "ruvnet/ruvector",
+      "owner": "ruvnet",
+      "description": "A distributed vector database that learns. Store embeddings, query with Cypher, scale horizontally with Raft consensus, and let the index improve itself through Graph Neural Networks.",
+      "url": "https://github.com/ruvnet/ruvector",
+      "clone_url": "https://github.com/ruvnet/ruvector.git",
+      "ssh_url": "git@github.com:ruvnet/ruvector.git",
+      "homepage": "https://ruv.io",
+      "created_at": "2025-11-19T06:10:23Z",
+      "updated_at": "2025-12-11T18:58:26Z",
+      "pushed_at": "2025-12-11T19:14:07Z"
+    },
+    "stats": {
+      "stars": 112,
+      "forks": 46,
+      "watchers": 112,
+      "open_issues": 22,
+      "size": 142842
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4950080,
+        "TypeScript": 2985404,
+        "JavaScript": 821982,
+        "Shell": 242561,
+        "PLpgSQL": 79878,
+        "HTML": 70317,
+        "HCL": 24911,
+        "Verilog": 17963,
+        "C++": 17558,
+        "Dockerfile": 14210,
+        "CSS": 10591,
+        "Makefile": 6382,
+        "Python": 779
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "ai-ocr",
+        "gnn",
+        "graph",
+        "llm-inference",
+        "low-latency",
+        "neo4j",
+        "ocr",
+        "onnx",
+        "rust",
+        "vector",
+        "wasm"
+      ]
+    },
+    "content": {
+      "readme": "# RuVector\n\n[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\n[![Crates.io](https://img.shields.io/crates/v/ruvector-core.svg)](https://crates.io/crates/ruvector-core)\n[![postgres](https://img.shields.io/crates/v/ruvector-postgres.svg?label=postgres)](https://crates.io/crates/ruvector-postgres)\n[![SONA](https://img.shields.io/crates/v/ruvector-sona.svg?label=sona)](https://crates.io/crates/ruvector-sona)\n[![npm](https://img.shields.io/npm/v/ruvector.svg)](https://www.npmjs.com/package/ruvector)\n[![@ruvector/sona](https://img.shields.io/npm/v/@ruvector/sona.svg?label=%40ruvector%2Fsona)](https://www.npmjs.com/package/@ruvector/sona)\n[![Rust](https://img.shields.io/badge/rust-1.77%2B-orange.svg)](https://www.rust-lang.org)\n[![Build](https://img.shields.io/github/actions/workflow/status/ruvnet/ruvector/ci.yml?branch=main)](https://github.com/ruvnet/ruvector/actions)\n[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg)](./docs/)\n\n**A distributed vector database that learns.** Store embeddings, query with Cypher, scale horizontally with Raft consensus, and let the index improve itself through Graph Neural Networks.\n\n```bash\nnpx ruvector\n```\n\n> **All-in-One Package**: The core `ruvector` package includes everything — vector search, graph queries, GNN layers, distributed clustering, AI routing, and WASM support. No additional packages needed.\n\n## What Problem Does RuVector Solve?\n\nTraditional vector databases just store and search. When you ask \"find similar items,\" they return results but never get smarter. They don't scale horizontally. They can't route AI requests intelligently.\n\n**RuVector is different:**\n\n1. **Store vectors** like any vector DB (embeddings from OpenAI, Cohere, etc.)\n2. **Query with Cypher** like Neo4j (`MATCH (a)-[:SIMILAR]->(b) RETURN b`)\n3. **The index learns** — GNN layers make search results improve over time\n4. **Scale horizontally** — Raft consensus, multi-master replication, auto-sharding\n5. **Route AI requests** — Semantic routing and FastGRNN neural inference for LLM optimization\n6. **Compress automatically** — 2-32x memory reduction with adaptive tiered compression\n7. **39 attention mechanisms** — Flash, linear, graph, hyperbolic for custom models\n8. **Drop into Postgres** — pgvector-compatible extension with SIMD acceleration\n9. **Run anywhere** — Node.js, browser (WASM), HTTP server, or native Rust\n10. **Continuous learning** — SONA enables runtime adaptation with LoRA, EWC++, and ReasoningBank\n\nThink of it as: **Pinecone + Neo4j + PyTorch + postgres + etcd** in one Rust package.\n\n\n\n## How the GNN Works\n\nTraditional vector search:\n```\nQuery → HNSW Index → Top K Results\n```\n\nRuVector with GNN:\n```\nQuery → HNSW Index → GNN Layer → Enhanced Results\n                ↑                      │\n                └──── learns from ─────┘\n```\n\nThe GNN layer:\n1. Takes your query and its nearest neighborsa\n2. Applies multi-head attention to weigh which neighbors matter\n3. Updates representations based on graph structure\n4. Returns better-ranked results\n\nOver time, frequently-accessed paths get reinforced, making common queries faster and more accurate.\n\n\n## Quick Start\n\n### One-Line Install\n \n\n### Node.js / Browser\n\n```bash\n# Install\nnpm install ruvector\n\n# Or try instantly\nnpx ruvector\n```\n\n\n## Comparison\n\n| Feature | RuVector | Pinecone | Qdrant | Milvus | ChromaDB |\n|---------|----------|----------|--------|--------|----------|\n| **Latency (p50)** | **61µs** | ~2ms | ~1ms | ~5ms | ~50ms |\n| **Memory (1M vec)** | 200MB* | 2GB | 1.5GB | 1GB | 3GB |\n| **Graph Queries** | ✅ Cypher | ❌ | ❌ | ❌ | ❌ |\n| **Hyperedges** | ✅ | ❌ | ❌ | ❌ | ❌ |\n| **Self-Learning (GNN)** | ✅ | ❌ | ❌ | ❌ | ❌ |\n| **Runtime Adaptation (SONA)** | ✅ LoRA+EWC++ | ❌ | ❌ | ❌ | ❌ |\n| **AI Agent Routing** | ✅ Tiny Dancer | ❌ | ❌ | ❌ | ❌ |\n| **Attention Mechanisms** | ✅ 39 types | ❌ | ❌ | ❌ | ❌ |\n| **Hyperbolic Embeddings** | ✅ Poincaré | ❌ | ❌ | ❌ | ❌ |\n| **PostgreSQL Extension** | ✅ pgvector drop-in | ❌ | ❌ | ❌ | ❌ |\n| **SIMD Optimization** | ✅ AVX-512/NEON | Partial | ✅ | ✅ | ❌ |\n| **Metadata Filtering** | ✅ | ✅ | ✅ | ✅ | ✅ |\n| **Sparse Vectors** | ✅ BM25/TF-IDF | ✅ | ✅ | ✅ | ❌ |\n| **Raft Consensus** | ✅ | ❌ | ✅ | ❌ | ❌ |\n| **Multi-Master Replication** | ✅ | ❌ | ❌ | ✅ | ❌ |\n| **Auto-Sharding** | ✅ | ✅ | ✅ | ✅ | ❌ |\n| **Auto-Compression** | ✅ 2-32x | ❌ | ❌ | ✅ | ❌ |\n| **Snapshots/Backups** | ✅ | ✅ | ✅ | ✅ | ❌ |\n| **Browser/WASM** | ✅ | ❌ | ❌ | ❌ | ❌ |\n| **Differentiable** | ✅ | ❌ | ❌ | ❌ | ❌ |\n| **Multi-Tenancy** | ✅ Collections | ✅ | ✅ | ✅ | ✅ |\n| **Open Source** | ✅ MIT | ❌ | ✅ | ✅ | ✅ |\n\n*With PQ8 compression. Benchmarks on Apple M2 / Intel i7.\n\n\n\n## Features\n\n### Core Capabilities\n\n| Feature | What It Does | Why It Matters |\n|---------|--------------|----------------|\n| **Vector Search** | HNSW index, <0.5ms latency, SIMD acceleration | Fast enough for real-time apps |\n| **Cypher Queries** | `MATCH`, `WHERE`, `CREATE`, `RETURN` | Familiar Neo4j syntax |\n| **G",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-12T02:48:53.348629"
+  },
+  {
+    "basic_info": {
+      "name": "hptls",
+      "full_name": "seceq/hptls",
+      "owner": "seceq",
+      "description": "High-performance TLS/DTLS/QUIC library in 100% safe Rust",
+      "url": "https://github.com/seceq/hptls",
+      "clone_url": "https://github.com/seceq/hptls.git",
+      "ssh_url": "git@github.com:seceq/hptls.git",
+      "homepage": null,
+      "created_at": "2025-11-17T13:38:35Z",
+      "updated_at": "2025-12-11T08:23:22Z",
+      "pushed_at": "2025-11-19T18:03:50Z"
+    },
+    "stats": {
+      "stars": 107,
+      "forks": 6,
+      "watchers": 107,
+      "open_issues": 0,
+      "size": 619
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1714522,
+        "Shell": 2569
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# HPTLS - High-Performance TLS Library\n\n[![CI](https://github.com/seceq/hptls/workflows/CI/badge.svg)](https://github.com/seceq/hptls/actions/workflows/ci.yml)\n[![Security Audit](https://github.com/seceq/hptls/workflows/Security%20Audit/badge.svg)](https://github.com/seceq/hptls/actions/workflows/security.yml)\n[![codecov](https://codecov.io/gh/seceq/hptls/branch/master/graph/badge.svg)](https://codecov.io/gh/seceq/hptls)\n[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)\n[![Rust Version](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)\n\nA modern, high-performance TLS 1.3 library written in Rust with post-quantum cryptography support and FIPS-validated implementations.\n\n## Overview\n\nHPTLS is a production-ready TLS library designed for security, performance, and modern cryptographic standards. It provides complete TLS 1.3 client and server implementations with optional TLS 1.2 backward compatibility, post-quantum cryptography (PQC), and hardware acceleration support.\n\n### Key Features\n\n- **TLS 1.3** - Full RFC 8446 implementation with all cipher suites\n- **TLS 1.2** - Backward compatibility for legacy systems\n- **Post-Quantum Cryptography** - ML-KEM, ML-DSA, SLH-DSA (FIPS 203-205)\n- **Hybrid KEX** - X25519+ML-KEM-768 for quantum-resistant security\n- **FIPS 140-3** - FIPS-validated cryptographic implementations\n- **Zero-Copy I/O** - Optimized for high-throughput applications\n- **Memory Safe** - Written in pure Rust with no unsafe code in core logic\n- **Pluggable Crypto** - Abstract crypto provider interface\n\n## Architecture\n\n### Layered Design\n\n```\n┌─────────────────────────────────────────────────────────┐\n│                        hptls                            │\n│         (High-level API - Client/Server builders)       │\n└─────────────────────────────────────────────────────────┘\n                            ↓\n┌─────────────────────────────────────────────────────────┐\n│                     hptls-core                          │\n│    (Protocol implementation - State machines, I/O)      │\n└─────────────────────────────────────────────────────────┘\n                            ↓\n┌─────────────────────────────────────────────────────────┐\n│                    hptls-crypto                         │\n│          (Abstract crypto trait definitions)            │\n└─────────────────────────────────────────────────────────┘\n                            ↓\n┌─────────────────────────────────────────────────────────┐\n│               hptls-crypto-hpcrypt                      │\n│     (FIPS-validated crypto using HPCrypt)                │\n└─────────────────────────────────────────────────────────┘\n```\n\n### Crypto Abstraction\n\nHPTLS uses a pluggable crypto provider architecture:\n\n- **hptls-crypto** - Defines traits for all cryptographic operations\n- **hptls-crypto-hpcrypt** - Production implementation using HPCrypt (FIPS 140-3 validated)\n- Custom providers can be implemented by third parties\n\n## Supported Features\n\n### TLS Protocol Support\n\n| Feature | Status | RFC |\n|---------|--------|-----|\n| TLS 1.3 | Complete | RFC 8446 |\n| TLS 1.2 | Complete | RFC 5246 |\n| DTLS 1.3 | Complete | RFC 9147 |\n| QUIC Integration | Complete | RFC 9001 |\n\n### Cipher Suites\n\n**TLS 1.3:**\n- TLS_AES_128_GCM_SHA256\n- TLS_AES_256_GCM_SHA384\n- TLS_CHACHA20_POLY1305_SHA256\n\n**TLS 1.2:**\n- TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256\n- TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384\n- TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256\n- TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384\n- TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256\n- TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256\n\n### Key Exchange\n\n**Classical:**\n- X25519 (Curve25519)\n- secp256r1 (P-256)\n- secp384r1 (P-384)\n\n**Post-Quantum:**\n- ML-KEM-768 (FIPS 203)\n- ML-KEM-1024 (FIPS 203)\n\n**Hybrid:**\n- X25519+ML-KEM-768 (Recommended)\n- P-256+ML-KEM-768\n\n### Signature Algorithms\n\n**Classical:**\n- ECDSA (P-256, P-384, P-521)\n- Ed25519 (EdDSA)\n- RSA-PSS (2048, 3072, 4096 bits)\n\n**Post-Quantum:**\n- ML-DSA-65 (FIPS 204)\n- ML-DSA-87 (FIPS 204)\n- SLH-DSA (FIPS 205)\n\n### Extensions\n\n- Server Name Indication (SNI)\n- Application-Layer Protocol Negotiation (ALPN)\n- Supported Groups\n- Signature Algorithms\n- Key Share\n- Pre-Shared Key (PSK)\n- Early Data (0-RTT)\n- Session Tickets\n- Encrypted Client Hello (ECH) - Core cryptography complete\n- GREASE (RFC 8701)\n\n## Quick Start\n\n### Client Example\n\n```rust\nuse hptls::{ClientConfig, TlsConnector};\nuse std::net::TcpStream;\nuse std::io::{Read, Write};\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {\n    // Create client configuration\n    let config = ClientConfig::builder()\n        .with_cipher_suites(vec![\n            CipherSuite::Aes128GcmSha256,\n            CipherSuite::ChaCha20Poly1305Sha256,\n        ])\n        .with_key_exchange(vec![\n            KeyExchange::X25519,\n            KeyExchange::Secp256r1,\n        ])\n        .build()?;\n\n    // Connect to server\n    let stream = TcpStream::connect(\"example.com:443\"",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-12T02:48:54.731142"
+  }
+]

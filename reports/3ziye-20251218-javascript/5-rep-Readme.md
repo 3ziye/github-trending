@@ -1,0 +1,99 @@
+<p align="center">
+  <!-- Chrome Supported -->
+  <img src="https://img.shields.io/badge/Chrome-Supported-4285F4?logo=googlechrome&logoColor=white" alt="Chrome Supported">
+
+  <!-- AppSec Tool -->
+  <img src="https://img.shields.io/badge/AppSec-Tool-blueviolet" alt="AppSec Tool">
+
+  <!-- Bug Bounty Friendly -->
+  <img src="https://img.shields.io/badge/Bug%20Bounty-Friendly-orange" alt="Bug Bounty Friendly">
+
+  <!-- Stars -->
+  <a href="https://github.com/bscript/rep/stargazers">
+    <img src="https://img.shields.io/github/stars/bscript/rep?style=social" alt="GitHub Stars">
+  </a>
+
+   <!-- Discord -->
+  <a href="https://github.com/repplus">
+        <img src="https://img.shields.io/discord/1442955541293961429.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2" alt="Discord">
+  </a>
+
+  <!-- Sponsor -->
+  <a href="https://github.com/sponsors/bscript">
+    <img src="https://img.shields.io/badge/Sponsor-%F0%9F%92%96-ea4aaa?style=flat-square" alt="Sponsor">
+  </a>
+</p>
+
+# rep+
+
+rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeater, now supercharged with AI. I often need to poke at a few requests without spinning up the full Burp stack, so I built this extension to keep my workflow fast, focused, and intelligent with integrated LLM support.
+
+<img width="1661" height="985" alt="Screenshot 2025-11-27 at 18 07 32" src="https://github.com/user-attachments/assets/3e529124-ab0c-4f8f-9e70-d10b2ce29c9e" />
+
+
+[![Watch Demo](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://video.twimg.com/amplify_video/1992382891196571648/pl/zE5-oOXgVua1ZBQn.m3u8?tag=14)
+
+## 🚀 Install rep+ Chrome Extension  
+[![rep+](https://img.shields.io/badge/rep%2B%20Chrome%20Extension-Install%20Now-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/rep+/dhildnnjbegaggknfkagdpnballiepfm)
+
+
+## Table of Contents
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Permissions & Privacy](#permissions--privacy)
+- [Limitations](#-limitations)
+- [Star History](#star-history)
+- [Found a Bug or Issue?](#found-a-bug-or-issue)
+- [❤️ Support the Project](#️-support-the-project)
+
+## Features
+
+### Capture & Replay
+- No proxy setup; works directly in Chrome (no CA certs needed).
+- Capture every HTTP request and replay with modified method, headers, or body.
+- Multi-tab capture (optional permission) with visual indicators 🌍 and deduplication.
+- Clear workspace quickly; export/import requests as JSON for sharing or later reuse.
+
+### Organization & Filtering
+- Hierarchical grouping by page and domain (first-party prioritized).
+- Third-party detection and collapsible groups; domain badges for quick context.
+- Starring for requests, pages, and domains (auto-star for new matches).
+- Timeline view (flat, chronological) to see what loaded before a request.
+- Filters: method, domain, color tags, text search, regex mode.
+
+### Views & Editing
+- Pretty / Raw / Hex views; layout toggle (horizontal/vertical).
+- Converters: Base64, URL encode/decode, JWT decode, Hex/UTF-8.
+- History, undo/redo, and syntax highlighting for requests/responses.
+- Context menu helpers on the request editor:
+  - Convert selected text (Base64, URL encode/decode, JWT decode).
+  - **Copy as** full HTTP request in multiple languages: `curl`, PowerShell (`Invoke-WebRequest`), Python (`requests`), and JavaScript `fetch`.
+- Screenshot editor for request/response pairs: full-content capture, side‑by‑side or stacked layout, zoom, highlight and black-box redaction, resizable/movable annotations, keyboard delete, and undo/redo for all edits.
+
+### Bulk & Automation
+- Bulk replay with 4 attack modes: Sniper, Battering Ram, Pitchfork, Cluster Bomb.
+- Mark positions with `§`, configure payloads, pause/resume long runs.
+- Response diff view to spot changes between baseline and attempts.
+
+### Extractors & Search
+- Unified Extractor: secrets and endpoints from captured JS.
+- Secret Scanner: entropy + patterns with confidence scores; pagination and domain filter.
+- Endpoint Extractor: full URLs, relative paths, GraphQL; method detection; one-click copy (rebuilds base URL).
+- Response Search: regex support, match preview, pagination, domain filter.
+
+### AI Assistance
+- Explain Request (Claude/Gemini) with streaming responses.
+- Suggest Attack Vectors: request + response analysis; auto-send if no response; payload suggestions; reflections/errors/multi-step chains; fallback to request-only with warning.
+- Context menu “Explain with AI” for selected text.
+- Attack Surface Analysis per domain: categorization (Auth/Payments/Admin/etc.), color-coded icons, toggle between list and attack-surface view.
+- Multi-provider support (Claude/Gemini).
+- Export AI outputs as Markdown or PDF to save RPD/TPM.
+
+### Productivity & Theming
+- Light/dark theme with smooth transitions.
+- Request color tags and filters.
+- Syntax highlighting for JSON/XML/HTML.
+
+## Quick Start
+1)

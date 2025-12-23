@@ -1,0 +1,134 @@
+# RSA Backdoor Generator
+
+This repo contains code to reproduce the Secretly Embedded Trapdoor with Universal Protection (SETUP) attack on RSA key generation proposed by Young & Yung, 1996. 
+Considering the potential of this attack, never trust black box key generation systems. 
+
+References: 
+    - [Presentation of the algorithm](https://scl.engr.uconn.edu/courses/ece4451/yung.pdf) 
+    - [Original full paper](https://www.researchgate.net/profile/Moti-Yung/publication/221348188_Kleptography_Using_Cryptography_Against_Cryptography/links/00b7d53b88cb0ca63f000000/Kleptography-Using-Cryptography-Against-Cryptography.pdf)
+
+## Usage
+
+Start by generating your attacker keys and then generate the backdoored keys. 
+
+```
+# build
+go build generator.go
+go build decryptor.go
+
+# (option) generate your (legit) RSA keys
+openssl genrsa -out attacker_priv.pem 2048
+openssl rsa -in attacker_priv.pem -pubout -out attacker_pub.pem
+
+# generate backdoored keys
+./generator -pk attacker_pub.pem
+
+# output
+------
+[*] Generating 4096-bits SETUP...
+    > This may take a while...
+------
+
+------
+[*] Found parameters:
+    > p bit length: 256
+    > q bit length: 3840
+    > n bit length: 4096 // final key length
+    > Attempts needed: 542692
+------
+
+------
+[*] Backdoored keys saved to:
+    > Private key: out/victim_priv.pem
+    > Public key:  out/victim_pub.pem
+------
+
+------
+[*] Test with:
+    > echo -n "hello world" | openssl pkeyutl -encrypt -inkey out/victim_pub.pem -pubin -out out/cipher.bin // encrypt with SETUP PK
+    > ./decryptor -pk out/victim_pub.pem -sk <attacker_priv.pem> -c out/cipher.bin // decrypt with SK
+------
+```
+
+If the victim trusts the keys received (which look perfectly normal and function as expected) they will use it to encrypt some data, e.g.: 
+
+```
+# encrypt
+echo -n "SuperSecretSh1tttttt" | openssl pkeyutl -encrypt -inkey out/victim_pub.pem -pubin -out out/cipher.bin
+
+# verify
+echo out/cipher.bin | base64
+```
+
+The twist is that the attacker can decrypt the message using the victim's public key and is own private key. E.g., 
+
+```
+# decrypt
+./decryptor -pk out/victim_pub.pem -sk attacker_priv.pem -c out/cipher.bin
+
+# output
+------
+[*] Loading keys and ciphertext...
+    > Loaded victim public key
+    > Loaded attacker private key
+    > Loaded ciphertext
+------
+
+------
+[*] Deriving private key from SETUP...
+    > PK bitsize: 2048
+    > Found valid factorization using s1
+    > Recovered p (bit length: 256)
+    > Recovered q (bit length: 3840)
+    > Recovered d (bit length: 4092)
+------
+
+--- DECRYPTED MESSAGE ---
+ ��ϓ�f�~~P�k(���t%Tp��i/3qHvr��s        �x��f����){���\c�f�
+�.���n�=y���
+�R}��r_2���q�H>u�K��%EB�,�yNZ���5�1��:�>��%O�Y/�,��J$a���`��
+                                      �ì�|��k&r��1�5H˚�+����U�/4p� ���֒9���#Gmծ����=�gfq��Pg,w�g)�E^���ͻ����-2�t�2-v
+        �y�.�Ȟ�<0S�i8�w�+�\���D/��/���e���sf?18��l�����Э�Y�
+�uk��D҃C�P�leS�<���Cy�oI�I�˴�O�B'
+g;L9{b�o.���y.���+J���
+2А�$�޶��WƇ�B���υk�D�SuperSecretSh1tttttt
+-------------------------
+```
+
+## How does it work ?
+
+If you want the full details of this attack check the two links in the preamble. High-level overview of this attack is the following : 
+
+#### **Normal RSA Key Generation (Baseline)**
+
+* Generate two large random primes **p** and **q** (≈1024 bits each for a 2048‑bit key).
+* Compute **n = p · q**.
+* Choose public exponent **e** (typically 2¹⁶+1).
+* Compute **d** such that **e · d ≡ 1 mod φ(n)** with **φ(n) = (p–1)(q–1)**.
+* Public key: **(n, e)**; Private key: **d**.
+* Encryption: **c = mᵉ mod n**; Decryption: **m = cᵈ mod n**.
+
+#### **Kleptographic (SETUP) RSA Key Generation**
+
+* Choose a 1024‑bit prime **s** and compute **p = H(s)** (repeat until p is prime).
+* Encrypt **s** with attacker’s key: **c = sᴱ mod N**.
+* Pick random **z**.
+* Construct **q** so that **c || z = p · q + r** for some arbitrary remainder **r**; retry if q is not prime.
+* Compute **n = p · q**, set e normally, and compute **d** as in standard RSA.
+* Output normal‑looking public key **(n, e)** and private key **d** — but with a hidden trapdoor.
+
+#### **Attacker’s Recovery of the Victim’s Private Key**
+
+* Take the top **n/2 bits** of **n** as **u** (≈1024 bits).
+* Define **c₁ = u** and **c₂ = u + 1** (to handle possible bit loss in c||z embedding).
+* Decrypt with attacker’s private key **D**:
+  * **s₁ = c₁ᴰ mod N**, **s₂ = c₂ᴰ mod N**.
+* Compute candidate primes:
+  * **p₁ = H(s₁)**, **p₂ = H(s₂)**.
+* Compute **q₁ = n / p₁** and **q₂ = n / p₂**; the division that yields an integer reveals the true **p** and **q**.
+* Recompute **d** from (p, q, e).
+* Attacker now fully recovers the victim’s RSA private key.
+
+## Improvements
+
+Currently the program uses ProbablyPrime() to check if a given n is prime. ProbablyPrime performs n Miller-Rabin tests to check whether x is prime. If it returns true, x is prime with probability 1 - 1/4^n. If it returns false, x is not prime. As such, there's a non-zero probability that the backdoor generation fails (Q can't be solved). Just rerun the tool if that's the

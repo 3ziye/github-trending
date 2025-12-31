@@ -1,0 +1,789 @@
+[
+  {
+    "basic_info": {
+      "name": "etl-engine-project",
+      "full_name": "add2ws/etl-engine-project",
+      "owner": "add2ws",
+      "description": "A fast & stable & flexible ETL tool.",
+      "url": "https://github.com/add2ws/etl-engine-project",
+      "clone_url": "https://github.com/add2ws/etl-engine-project.git",
+      "ssh_url": "git@github.com:add2ws/etl-engine-project.git",
+      "homepage": null,
+      "created_at": "2025-12-05T15:27:07Z",
+      "updated_at": "2025-12-31T01:05:30Z",
+      "pushed_at": "2025-12-26T09:41:46Z"
+    },
+    "stats": {
+      "stars": 217,
+      "forks": 40,
+      "watchers": 217,
+      "open_issues": 0,
+      "size": 233
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 77610
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Etl-engine\n [中文](README.md) | **English**\n\n## 🚀 Introduction: High-Performance ETL Engine\n\n**`Etl-engine`** is a lightweight, robust, and easily extensible ETL (Extract, Transform, Load) library for developers, designed to be **a high-performance alternative to Kettle (PDI)**.\n\n-----\n\n## 🔥 Core Advantages\n\n**`Etl-engine`** provides the following three core features:\n\n### 1\\. Extreme Speed ⚡️\n\nSignificant improvement in data processing and database I/O speeds through **batch operations** and a **non-blocking, cached pipeline design**.\n\n📊 **Real-World Test:** For an insert/update task involving $200,000$ records, the speed of `etl-engine` is **$\\mathbf{2}$ times faster than Kettle**.\n\n**Kettle:**\n![1765353174408](image/README.cn/1765353174408.png)\n\n**Etl-engine:**\n![1765353763090](image/README.cn/1765353763090.png)\n\n### 2\\. Robust and Stable Operation 🛡️\n\nDuring the data flow transfer process, encountering an exception will not cause an immediate stop; it will **automatically attempt to re-read or re-write the data**.\n\n### 3\\. Easy to Extend and Customize 🧩\n\nThe core consists of only three main components: **Node**, **Pipe**, and **Dataflow** . All data loading logic is abstracted into extensible **Nodes**. In addition to the built-in JDBC data source Node, users can easily inherit the base class to quickly develop new data sources (such as Http, Redis) or custom transformation logic to meet specific business requirements.\n\n-----\n\n## 🛠️ Usage Example\n\nThe following code demonstrates how to quickly build an ETL task that **extracts data from Oracle** and **synchronizes (Upsert) it to PostgreSQL (Load)**.\n\n### 1. A sql input to a table output\n\n```mermaid\nflowchart LR\n  sqlInputNode --pipe--> upsertOutputNode\n```\n\n```java\n\n//Create Oracle data source\nDataSource dataSourceOracle = DataSourceUtil.getOracleDataSource();\n//Create talbe output node\nSqlInputNode sqlInputNode = new SqlInputNode(dataSourceOracle, \"select * from t_resident_info\");\n\n//Create Postgres data source\nDataSource dataSourcePG = DataSourceUtil.getPostgresDataSource();\n//Create upsert output node\nUpsertOutputNode upsertOutputNode = new UpsertOutputNode(dataSourcePG, \"t_resident_info\", 1000);\n//Set the unique identifier (primary key) mapping, used to determine Insert or Update.\nupsertOutputNode.setIdentityMapping(Arrays.asList(new Tuple2<>(\"ID\", \"ID\")));\n\n//Create a pipe and set the buffer size to 1,000 data rows.\nPipe pipe = new Pipe(1000);\n//Connect the sql input node and table upsert node.\npipe.connect(sqlInputNode, upsertOutputNode);\n\n//Create dataflow instance\nDataflow dataflow = new Dataflow(sqlInputNode);\n//Start the data flow and set the timeout after 5 minutes.\ndataflow.syncStart(5, TimeUnit.MINUTES);\n```\n\n### 2. A sql input passes through a field value transformation to a table output\n\n```mermaid\nflowchart LR\n  sqlInputNode --pipe-->valueConverter --pipe--> upsertOutputNode\n```\n\n```java\n//todo\n```\n\n### 3. A sql input to multiple output\n\n```mermaid\nflowchart LR\n  sqlInputNode --pipe--> upsertOutputNode\n  sqlInputNode --pipe--> csvOutputNode\n```\n\n```java\n//Create Oracle data source\nDataSource oracleDataSource = DataSourceUtil.getOracleDataSource();\nSqlInputNode sqlInputNode = new SqlInputNode(oracleDataSource, \"select * from etl_base.t_resident_info where rownum<=50000 order by id\");\n\n//Create Postgres target data source\nDataSource postgresDataSource = DataSourceUtil.getPostgresDataSource();\nUpsertOutputNode upsertOutputNode = new UpsertOutputNode(postgresDataSource, \"public.t_resident_info\", 1000);\n//Set the unique identifier (primary key) mapping, used to determine Insert or Update.\nupsertOutputNode.setIdentityMapping(Arrays.asList(new Tuple2<>(\"ID\",\"ID\")));\n\n//Create csv target file\nFileOutputNode fileOutputNode = new FileOutputNode(\"E:/output_\" + System.currentTimeMillis() + \".csv\", FileOutputNode.Format.CSV);\n\n//Create pipe and connect the Oracle data source and Postgres data source.\nPipe pipe = new Pipe(1000);\npipe.connect(sqlInputNode,upsertOutputNode);\n\n//Create pipe and connect the Oracle data source and csv target file.\nPipe pipe_2 = new Pipe(1000);\npipe_2.connect(sqlInputNode,fileOutputNode);\n\n//Create dataflow and startup.\nDataflow dataflow = new Dataflow(sqlInputNode);\ndataflow.syncStart();\n```\n\n-----\n\n## 🏗️ Architecture Overview\n\nThe core of **`Etl-engine`** consists of only the following three main components :\n\n* **Node** The starting point, ending point, and carrier for data transformation logic.\n* **Pipe** A non-blocking, cached queue responsible for transferring data between Nodes.\n* **Dataflow** The orchestrator and execution entry point for the task.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:12.249529"
+  },
+  {
+    "basic_info": {
+      "name": "LingFrame",
+      "full_name": "LingFrame/LingFrame",
+      "owner": "LingFrame",
+      "description": "灵珑（LingFrame）是一个为Spring Boot应用设计的插件安全治理框架。它通过权限控制与调用链审计两大核心能力，确保第三方或自定义插件的所有操作都经过授权且全程可追溯，从而构建安全、可控的插件化架构。",
+      "url": "https://github.com/LingFrame/LingFrame",
+      "clone_url": "https://github.com/LingFrame/LingFrame.git",
+      "ssh_url": "git@github.com:LingFrame/LingFrame.git",
+      "homepage": "",
+      "created_at": "2025-12-02T14:01:38Z",
+      "updated_at": "2025-12-30T19:22:32Z",
+      "pushed_at": "2025-12-30T19:22:29Z"
+    },
+    "stats": {
+      "stars": 162,
+      "forks": 23,
+      "watchers": 162,
+      "open_issues": 0,
+      "size": 357
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 257176,
+        "HTML": 5460
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "framework",
+        "java",
+        "jvm",
+        "ling",
+        "lingframe",
+        "linglong",
+        "plugin",
+        "spring",
+        "springboot"
+      ]
+    },
+    "content": {
+      "readme": "# 灵珑 (LingFrame)\n\n![Status](https://img.shields.io/badge/Status-Core_Implemented-green)\n![License](https://img.shields.io/badge/License-Apache_2.0-blue)\n![Java](https://img.shields.io/badge/Java-21-orange)\n![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.6-brightgreen)\n[![Help Wanted](https://img.shields.io/badge/PRs-welcome-brightgreen)](../../pulls)\n\n> 🟢 **项目状态：核心框架已实现**\n>\n> 插件管理、热重载、权限治理、Spring Boot 3 集成等核心功能已可用。\n> 部分基础设施插件和单元测试仍在完善中。\n\n---\n\n## 📖 愿景\n\n**LingFrame** 是一个基于 JVM 的新一代微内核插件化框架。\n我们致力于为现代 Java 应用构建一个**可控、可扩展、可演进**的运行时体系。\n\n> **一句话愿景**：让 JVM 应用具备如同操作系统般的插件模型和可控能力。\n\n---\n\n## ✅ 已实现的核心能力\n\n| 能力                  | 说明                                      | 核心类                        |\n| --------------------- | ----------------------------------------- | ----------------------------- |\n| **插件生命周期**      | 安装、卸载、热重载，支持蓝绿部署          | `PluginManager`, `PluginSlot` |\n| **类隔离**            | Child-First 类加载器 + 白名单委派         | `PluginClassLoader`           |\n| **Spring 上下文隔离** | 每个插件独立的父子 ApplicationContext     | `SpringPluginContainer`       |\n| **服务扩展**          | `@LingService` 注解实现 FQSID 路由        | `SmartServiceProxy`           |\n| **权限治理**          | 智能推导 + `@RequiresPermission` 显式声明 | `GovernanceStrategy`          |\n| **审计追踪**          | `@Auditable` 注解 + 异步审计日志          | `AuditManager`                |\n| **开发模式**          | 文件监听 + 防抖热重载                     | `HotSwapWatcher`              |\n\n---\n\n## 🎯 我们要解决什么问题\n\n| 痛点                 | 现状困境                    | LingFrame 方案         |\n| :------------------- | :-------------------------- | :--------------------- |\n| **扩展能力缺乏边界** | 扩展逻辑与内核高度耦合      | 三层架构 + 上下文隔离  |\n| **缺乏安全仲裁**     | 业务模块可直接操作 DB/Redis | 零信任 + Core 代理鉴权 |\n| **动态加载能力不足** | 只能启动时加载              | 蓝绿部署 + 热重载      |\n\n---\n\n## 👤 目标用户\n\n| 场景                   | 典型需求                                        |\n| ---------------------- | ----------------------------------------------- |\n| **可扩展产品**         | 核心产品 + 功能插件模式（IDE、CMS、低代码平台） |\n| **二次开发平台**       | 提供标准内核，允许第三方开发者扩展功能          |\n| **SaaS 多租户定制**    | 不同租户启用不同功能模块，按需加载              |\n| **插件市场**           | 用户可自行安装、卸载、升级功能模块              |\n| **大型系统模块化改造** | 将单体应用拆分为可独立演进的插件                |\n\n---\n\n## 💡 核心理念：三层架构\n\n```text\n┌─────────────────────────────────────────────────────────┐\n│                    Core（仲裁核心）                      │\n│         生命周期管理 · 权限治理 · 能力调度 · 上下文隔离    │\n└────────────────────────────┬────────────────────────────┘\n                             ▼\n┌─────────────────────────────────────────────────────────┐\n│           Infrastructure Plugins（基础设施层）           │\n│              存储 · 缓存 · 消息 · 搜索                   │\n└────────────────────────────┬────────────────────────────┘\n                             ▼\n┌─────────────────────────────────────────────────────────┐\n│             Business Plugins（业务层）                   │\n│              用户中心 · 订单服务 · 支付模块               │\n└─────────────────────────────────────────────────────────┘\n```\n\n**关键设计原则**：\n\n1. **Core 是唯一仲裁者**：不提供业务能力，只负责调度、隔离与权限控制\n2. **业务插件\"零信任\"**：所有能力调用必须经过 Core 代理与鉴权\n3. **Spring 上下文隔离**：基于父子上下文实现插件隔离，确保卸载后无残留\n\n---\n\n## 🚀 快速开始\n\n### 环境要求\n\n- Java 21+\n- Maven 3.8+\n\n### 构建项目\n\n```bash\n# 克隆仓库\ngit clone https://github.com/lingframe/lingframe.git\ncd lingframe\n\n# 编译安装\nmvn clean install -DskipTests\n\n# 运行示例宿主应用\ncd lingframe-samples/lingframe-sample-host-app\nmvn spring-boot:run\n```\n\n### 创建插件\n\n1. 创建 Maven 模块，依赖 `lingframe-api`\n2. 实现 `LingPlugin` 接口\n3. 使用 `@LingService` 暴露服务\n\n```java\n// 插件入口\n@SpringBootApplication\npublic class MyPlugin implements LingPlugin {\n    @Override\n    public void onStart(PluginContext context) {\n        System.out.println(\"Plugin started: \" + context.getPluginId());\n    }\n}\n\n// 暴露服务\n@Component\npublic class UserService {\n    @LingService(id = \"query_user\", desc = \"查询用户\")\n    public User queryUser(String userId) {\n        return userRepository.findById(userId);\n    }\n}\n```\n\n### 调用其他插件服务\n\n```java\n// 通过 FQSID 调用\nOptional<User> user = context.invoke(\"user-plugin:query_user\", userId);\n\n// 通过接口类型获取\nOptional<UserService> service = context.getService(UserService.class);\n```\n\n---\n\n## 📦 模块结构\n\n```\nlingframe/\n├── lingframe-api/          # 核心契约层（接口、注解）\n├── lingframe-core/         # 框架实现（插件管理、权限、代理）\n├── lingframe-bom/          # 依赖版本清单\n├── lingframe-dependencies/ # 版本管理父 POM\n├── lingframe-runtime/\n│   └── lingframe-spring-boot3-starter/  # Spring Boot 3 集成\n├── lingframe-plugins-infra/             # 基础设施插件（三层架构中间层）\n│   ├── lingframe-plugin-storage/  # 存储插件：SQL 级权限控制\n│   └── lingframe-plugin-cache/    # 缓存插件（待实现）\n└── lingframe-samples/\n    ├── lingframe-sample-host-app/    # 宿主应用示例\n    └── lingframe-sample-plugin-user/ # 示例业务插件\n```\n\n### 三层架构对应\n\n| 层级               | 模块                        | 职责                             |\n| ------------------ | --------------------------- | -------------------------------- |\n| **Core**           | `lingframe-core`            | 仲裁核心：生命周期、权限、调度   |\n| **Infrastructure** | `lingframe-plugins-infra/*` | 基础设施：存储、缓存、消息       |\n| **Business**  ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:13.585990"
+  },
+  {
+    "basic_info": {
+      "name": "DouSql",
+      "full_name": "darkfiv/DouSql",
+      "owner": "darkfiv",
+      "description": null,
+      "url": "https://github.com/darkfiv/DouSql",
+      "clone_url": "https://github.com/darkfiv/DouSql.git",
+      "ssh_url": "git@github.com:darkfiv/DouSql.git",
+      "homepage": null,
+      "created_at": "2025-12-25T14:01:11Z",
+      "updated_at": "2025-12-31T02:28:19Z",
+      "pushed_at": "2025-12-30T06:18:05Z"
+    },
+    "stats": {
+      "stars": 140,
+      "forks": 8,
+      "watchers": 140,
+      "open_issues": 3,
+      "size": 218
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 635577
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# DouSql V3.0.4 - Burp Suite SQL注入检测插件\n\n[![GitHub release (latest by date)](https://img.shields.io/github/v/release/darkfiv/DouSql?style=flat-square&logo=github)](https://github.com/darkfiv/DouSql/releases/latest)\n[![GitHub stars](https://img.shields.io/github/stars/darkfiv/DouSql?style=flat-square&logo=github)](https://github.com/darkfiv/DouSql/stargazers)\n[![GitHub downloads](https://img.shields.io/github/downloads/darkfiv/DouSql/total?style=flat-square&logo=github)](https://github.com/darkfiv/DouSql/releases)\n[![Burp Suite](https://img.shields.io/badge/Burp%20Suite-2024.6+-orange?style=flat-square&logo=portswigger)](https://portswigger.net/burp)\n\n## 插件简介\n\n基于Xia Sql 二次开发，感谢前辈铺路。\n修复多个不足/bug，满足安全仔的日常渗透神器。\n\n## 主要功能\n\n### 核心检测功能\n- **多种SQL注入检测**：支持报错注入、时间盲注、布尔盲注等多种检测方式\n- **智能payload管理**：内置多种payload组，支持自定义payload配置\n- **丰富的默认字典**：包含17种常用SQL注入payload，涵盖时间盲注、布尔盲注、报错注入等\n- **实时响应分析**：自动分析响应长度、时间、状态码等关键指标\n- **全面的报错信息识别**：内置33种数据库和框架的错误信息模式，支持MySQL、Oracle、PostgreSQL、SQL Server、SQLite等\n- **增强JSON处理**：使用Burp Suite内置API处理复杂嵌套JSON结构，支持任意深度的对象、数组和混合数据类型\n\n### 高级配置选项\n- **参数过滤系统**：支持白名单/黑名单模式，精确控制测试范围\n- **URL黑名单过滤**：可配置黑名单URL，跳过不需要测试的路径\n- **静态文件过滤**：自动跳过图片、样式、脚本等静态资源文件（支持30+种文件类型）\n- **响应时间阈值**：可自定义时间盲注检测阈值\n- **长度差异阈值**：可配置响应长度差异检测敏感度\n- **HTTP方法过滤**：仅对GET/POST请求进行检测，提高效率\n- **自定义延时发包**：支持固定延时和随机延时，可配置延时区间（默认1-5秒）\n- **自定义追加参数**：支持为请求自动追加指定参数，兼容URL、POST、JSON等格式\n- **智能参数测试控制**：追加参数可选择是否参与payload测试，提供灵活的测试策略\n\n### V3.0.4 新增亮点\n- **JSON参数追加增强**：改进JSON格式检测逻辑，使用双重检测机制确保参数正确添加到请求体\n- **自定义延时发包**：支持三种延时模式，可配置固定或随机延时，避免WAF检测\n- **智能追加参数**：支持URL、POST、JSON三种格式的参数自动追加，可选择是否参与payload测试\n\n### 用户界面特性\n- **双面板设计**：左侧显示扫描结果，右侧显示参数测试详情\n- **实时状态更新**：支持报错标记(err)、时间超时标记(time)等状态显示\n- **配置持久化**：所有配置自动保存，重启后自动恢复\n- **Windows系统优化**：针对Windows系统进行UI布局优化，确保所有按钮和组件完整显示\n\n### 工具集成\n- **右键菜单集成**：可通过右键菜单快速发送请求到插件\n- **选择性监控**：默认只监控Proxy和Repeater的流量，需要手动启用对应的监控选项\n- **自动检测**：通过右键菜单发送的请求会自动进行检测\n- **多格式参数支持**：支持URL参数、POST参数、JSON参数、XML参数、Cookie参数等\n\n### 监控模式说明\n- **Proxy监控**：启用后自动检测通过Proxy的所有HTTP流量\n- **Repeater监控**：启用后自动检测Repeater发送的请求\n- **Scanner/Intruder**：默认不自动监控，可通过右键菜单手动发送到插件\n- **右键发送**：所有工具都支持通过右键菜单发送请求到插件进行检测\n\n### 配置目录位置\n\n**默认配置目录（推荐）：**\n```bash\n# Windows\nC:\\Users\\[用户名]\\dousql\\\n\n# macOS\n/Users/[用户名]/dousql/\n\n# Linux  \n/home/[用户名]/dousql/\n```\n\n**配置文件结构：**\n```\n~/dousql/\n├── xia_SQL_diy_payload.ini           # 默认payload配置\n├── xia_SQL_payload_timebased.ini     # 时间盲注payload组\n├── xia_SQL_payload_orderby.ini       # 报错注入payload组\n├── xia_SQL_diy_error.ini             # 自定义报错关键字\n├── xia_SQL_response_time_threshold.ini # 响应时间阈值配置\n├── xia_SQL_length_diff_threshold.ini  # 长度差异阈值配置\n├── xia_SQL_blacklist_urls.ini        # 黑名单URL配置\n├── xia_SQL_whitelist.ini             # 白名单参数配置\n├── xia_SQL_blacklist.ini             # 黑名单参数配置\n└── xia_SQL_param_filter_mode.ini     # 参数过滤模式配置\n```\n\n**特殊情况（jar包同级）：**\n```\n/path/to/extensions/\n├── DouSql-3.0.4.jar          # 插件jar包\n└── dousql/                   # 配置文件目录\n    ├── xia_SQL_diy_payload.ini\n    ├── xia_SQL_payload_timebased.ini\n    └── ...\n```\n\n**配置目录检测日志示例：**\n```\nProtectionDomain路径: /var/folders/.../tmp/burp.../20\n使用用户主目录: /Users/username\nhello DouSQL!\n你好 欢迎使用 DouSQL!\nversion:3.0.4 (Montoya API)\njar包目录: /Users/username\n配置文件目录: /Users/username/dousql\n```\n\n## 快速开始\n\n### 方式一：直接下载\n从 [Releases](https://github.com/darkfiv/DouSql/releases) 页面下载最新版本的jar文件\n\n### 方式二：从源码编译\n```bash\ngit clone https://github.com/darkfiv/DouSql.git\ncd DouSql\nmvn clean package\n```\n\n### 加载到Burp Suite\n1. 打开Burp Suite\n2. 进入 Extensions → Installed\n3. 点击 Add 按钮\n4. 选择编译生成的jar文件\n5. 插件加载成功后，会在标签页看到\"DouSQL\"\n\n## 使用方法\n\n### 编译插件\n\n**环境要求：**\n- Java 11+\n- Maven 3.x\n\n**编译步骤：**\n```bash\n# 克隆项目\ngit clone https://github.com/darkfiv/DouSql.git\ncd DouSql\n\n# 编译打包\nmvn clean package\n\n# 编译完成后，jar文件位于：\n# target/DouSql-3.0.4.jar\n```\n\n### 安装使用\n\n1. 将编译生成的jar文件加载到Burp Suite\n2. 在Extensions标签页中找到\"DouSQL\"插件\n3. 配置相关检测参数和阈值\n4. 通过右键菜单或监控模式发送请求进行检测\n5. 查看扫描结果和参数测试详情\n\n## 结果标记说明\n\n### 检测结果标记\n- **ERR!** - 响应中匹配到报错信息，表示疑似存在SQL注入漏洞\n- **time > N** - 响应时间大于配置的时间阈值（N秒），表示疑似存在时间盲注\n- **diff: ±N** - 响应长度与原始响应差异超过阈值，可能存在布尔盲注\n- **✔ ==> ?** - 特殊payload响应长度变化，可能存在逻辑漏洞\n\n### 状态标记\n- **start** - 正在测试中\n- **end!** - 测试完成\n- **end! [err]** - 测试完成且发现报错信息\n- **end! [time]** - 测试完成且发现时间异常\n\n## 使用技巧\n\n### 1. 根据应用场景配置payload组\n- **时间盲注场景**：使用`timebased`组，包含各种延时payload\n- **报错注入场景**：使用`orderby`组，包含报错类payload\n- **自定义场景**：创建专门的payload组，针对特定应用优化\n\n### 2. 合理配置参数过滤\n- **白名单模式**：只测试关键参数（如id、username、password等）\n- **黑名单模式**：排除无关参数（如token、timestamp等）\n- **提高效率**：避免测试大量无意义参数\n\n### 3. 设置黑名单URL\n- 排除静态资源路径（如`/static/*`、`*.css`、`*.js`、`*.jpg`、`*.png`等）\n- 排除管理后台路径（如`/admin/*`）\n- 排除API文档路径（如`/swagger/*`、`/api-docs/*`）\n\n### 4. 静态文件自动过滤\n插件会自动跳过以下类型的静态文件：\n- **图片文件**：jpg, jpeg, png, gif, bmp, tiff, tif, webp, svg, ico\n- **样式和脚本**：css, js\n- **字体文件**：woff, woff2, ttf, eot, otf\n- **媒体文件**：mp3, mp4, avi, mov, wmv, flv, mkv\n- **压缩文件**：zip, rar, 7z, tar, gz\n- **文档文件**：pdf\n\n### 5. 调整检测阈值\n- **响应时间阈值**：根据目标服务器性能调整（建议2-5秒）\n- **长度差异阈值**：根据应用响应特点调整（建议50-200字节）\n\n## 重要提示\n\n⚠️ **关于默认Payload**：\n- 默认payload为作者日常SRC、渗透测试所用的通用payload\n- 师傅们需要根据自己的实际场景去优化、添加POC\n- 建议针对不同目标创建专门的payload组\n- 可以根据目标技术栈",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:14.913313"
+  },
+  {
+    "basic_info": {
+      "name": "HugoSMP-Client",
+      "full_name": "HugoSMPnet/HugoSMP-Client",
+      "owner": "HugoSMPnet",
+      "description": "Lade dir jetzt den HugoSMP Client herunter und erhalte ein gratis Netherite Starterkit",
+      "url": "https://github.com/HugoSMPnet/HugoSMP-Client",
+      "clone_url": "https://github.com/HugoSMPnet/HugoSMP-Client.git",
+      "ssh_url": "git@github.com:HugoSMPnet/HugoSMP-Client.git",
+      "homepage": "https://hugosmp.net",
+      "created_at": "2025-12-27T00:21:56Z",
+      "updated_at": "2025-12-27T01:02:03Z",
+      "pushed_at": "2025-12-27T00:41:16Z"
+    },
+    "stats": {
+      "stars": 140,
+      "forks": 99,
+      "watchers": 140,
+      "open_issues": 0,
+      "size": 56
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 2044
+      },
+      "license": "Creative Commons Zero v1.0 Universal",
+      "topics": [
+        "hugo-smp",
+        "hugo-smp-client",
+        "hugo-smp-mod",
+        "hugosmp",
+        "minecraft",
+        "minecraft-mod",
+        "mod"
+      ]
+    },
+    "content": {
+      "readme": "# HugoSMP Client\n\n<div align=\"center\">\n\n![Minecraft](https://img.shields.io/badge/Minecraft-1.21-62B47A?style=for-the-badge&logo=minecraft&logoColor=white)\n![Fabric](https://img.shields.io/badge/Fabric-Mod-DBB88D?style=for-the-badge)\n![Java](https://img.shields.io/badge/Java-21+-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)\n![License](https://img.shields.io/badge/License-CC0--1.0-blue?style=for-the-badge)\n\n**Der offizielle Client-Mod für HugoSMP.net**\n\n[![Download](https://img.shields.io/badge/Download-Latest%20Release-brightgreen?style=for-the-badge&logo=github)](https://github.com/HugoSMPnet/HugoSMP-Client/releases/latest)\n\n[Installation](#installation) •\n[Features](#features) •\n[Discord](https://discord.gg/hugosmp)\n\n---\n\n### Server-IP: `hugosmp.net`\n\n*LetsHugos offizieller SMP - Java & Bedrock*\n\n</div>\n\n---\n\n## Über HugoSMP\n\nHugoSMP ist ein einzigartiger Minecraft-Server, der klassisches Survival-Gameplay mit modernen Systemen verbindet. Eine langlebige Welt, in der deine Entscheidungen zählen und wirtschaftlicher Fortschritt sichtbar wird.\n\n### Server-Features\n\n| Feature | Beschreibung |\n|---------|-------------|\n| Auktionshaus | Sicheres Handelssystem ohne Scam-Risiko |\n| Auftragssystem | Erstelle und erfülle spezialisierte Aufgaben |\n| 1vs1 Duelle | PvP-Wettkämpfe mit Skill-basiertem Ranking |\n| Voice Chat | Integriertes Sprach-Kommunikationssystem |\n| Events | Regelmäßige Community-Events |\n| Wirtschaft | Jedes Item hat einen definierten Wert |\n| Ranglisten | Sichtbare Statistiken und Fortschritt |\n\n## Mod Features\n\nDieser Client-Mod erweitert dein HugoSMP-Erlebnis mit:\n\n- Optimierte Client-Performance für HugoSMP\n- Nahtlose Integration mit Fabric API\n- Leichtgewichtig und performant\n- Kompatibel mit Minecraft 1.21\n\n## Voraussetzungen\n\n| Komponente | Version |\n|------------|---------|\n| Minecraft | 1.21.x |\n| Fabric Loader | >= 0.18.2 |\n| Fabric API | Aktuellste Version |\n| Java | 21 oder höher |\n\n## Installation\n\n### 1. Fabric Loader installieren\n- Lade den [Fabric Installer](https://fabricmc.net/use/installer/) herunter\n- Führe den Installer aus und wähle Minecraft Version 1.21\n\n### 2. Fabric API herunterladen\n- Lade die [Fabric API](https://modrinth.com/mod/fabric-api) für 1.21 herunter\n\n### 3. HugoSMP Client installieren\n- [**Download: Neueste Version herunterladen**](https://github.com/HugoSMPnet/HugoSMP-Client/releases/latest)\n- Verschiebe die `.jar`-Datei in deinen `mods`-Ordner:\n\n| Betriebssystem | Pfad |\n|----------------|------|\n| Windows | `%appdata%\\.minecraft\\mods` |\n| macOS | `~/Library/Application Support/minecraft/mods` |\n| Linux | `~/.minecraft/mods` |\n\n### 4. Spielen!\nStarte Minecraft mit dem Fabric-Profil und verbinde dich mit `hugosmp.net`\n\n## Links\n\n- **Server-IP:** `hugosmp.net`\n- **Discord:** [discord.gg/hugosmp](https://discord.gg/hugosmp)\n- **Serverinfo:** [minecraft-server.eu](https://minecraft-server.eu/server/index/236C5/)\n\n## Lizenz\n\nDieses Projekt steht unter der [CC0-1.0 Lizenz](LICENSE) - du kannst es frei verwenden, modifizieren und verbreiten.\n\n---\n\n<div align=\"center\">\n\n**Wir sehen uns auf HugoSMP!**\n\n*Made with :heart: for the HugoSMP Community*\n\n---\n\n### Tags\n\n`minecraft` `minecraft-mod` `fabric` `fabric-mod` `hugosmp` `letshugo` `smp` `survival` `minecraft-1.21` `java` `client-mod` `minecraft-client` `fabric-api` `modding` `minecraft-server`\n\n</div>\n\n<!-- SEO Keywords -->\n<!--\nHugoSMP Client Mod, HugoSMP Minecraft Mod, LetsHugo SMP, Fabric Mod 1.21,\nMinecraft Fabric Mod, HugoSMP.net Client, Minecraft SMP Mod, Survival Multiplayer Mod,\nMinecraft 1.21 Mod, Fabric API Mod, Java Minecraft Mod, Client-Side Mod,\nHugoSMP Download, Minecraft Modding, Fabric Loader Mod, German Minecraft Server,\nDeutscher Minecraft Server, SMP Client, Minecraft Performance Mod\n-->\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:16.235629"
+  },
+  {
+    "basic_info": {
+      "name": "eCaptureBurp",
+      "full_name": "zitoxxx/eCaptureBurp",
+      "owner": "zitoxxx",
+      "description": "Burp Suite extension for receiving TLS/HTTP traffic captured by eCapture (eBPF)",
+      "url": "https://github.com/zitoxxx/eCaptureBurp",
+      "clone_url": "https://github.com/zitoxxx/eCaptureBurp.git",
+      "ssh_url": "git@github.com:zitoxxx/eCaptureBurp.git",
+      "homepage": null,
+      "created_at": "2025-12-08T11:57:01Z",
+      "updated_at": "2025-12-29T14:56:03Z",
+      "pushed_at": "2025-12-08T12:00:05Z"
+    },
+    "stats": {
+      "stars": 128,
+      "forks": 24,
+      "watchers": 128,
+      "open_issues": 3,
+      "size": 461
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 78014
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# eCapture Burp Suite Extension\n\nEnglish | [中文](README_CN.md)\n\nA Burp Suite extension for receiving TLS/HTTP traffic data captured by [eCapture](https://github.com/gojue/ecapture).\n\n![Screenshot](images/demo.png)\n\n## Build\n\n```bash\ncd eCaptureBurp\n./gradlew jar\n```\n\n## Usage\n\n### 1. Start eCapture\n\n```bash\nsudo ./ecapture tls --ecaptureq=ws://127.0.0.1:28257/\n```\n\n### 2. Connect in Burp Suite\n\n1. Enter WebSocket URL (default `ws://127.0.0.1:28257/`)\n2. Click **Connect** button\n3. Green status indicator means connected\n\n## Configuration\n\n| Parameter | Default | Description |\n|-----------|---------|-------------|\n| WebSocket URL | `ws://127.0.0.1:28257/` | eCapture eCaptureQ service address |\n\n## Architecture\n\n```\n┌─────────────────┐     WebSocket + Protobuf     ┌──────────────────┐\n│    eCapture     │ ───────────────────────────> │  Burp Extension  │\n│  (eBPF capture) │                              │                  │\n└─────────────────┘                              │  ┌────────────┐  │\n                                                 │  │ Event Mgr  │  │\n                                                 │  │  (pairing) │  │\n                                                 │  └─────┬──────┘  │\n                                                 │        │         │\n                                                 │  ┌─────▼──────┐  │\n                                                 │  │ Site Map   │  │\n                                                 │  │ + Tab UI   │  │\n                                                 │  └────────────┘  │\n                                                 └──────────────────┘\n```\n\n## License\n\nApache License 2.0\n\n## Links\n\n- [eCapture Project](https://github.com/gojue/ecapture)\n- [eCapture Event Forward API](https://github.com/gojue/ecapture/blob/master/docs/event-forward-api.md)\n- [Burp Suite Montoya API](https://portswigger.github.io/burp-extensions-montoya-api/)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:17.587533"
+  },
+  {
+    "basic_info": {
+      "name": "HotArmor",
+      "full_name": "bafuka/HotArmor",
+      "owner": "bafuka",
+      "description": "Intelligent Hotspot Data Protection Framework · Solving High-Concurrency Cache Penetration  One annotation, automatic promotion of hotspot data to local cache",
+      "url": "https://github.com/bafuka/HotArmor",
+      "clone_url": "https://github.com/bafuka/HotArmor.git",
+      "ssh_url": "git@github.com:bafuka/HotArmor.git",
+      "homepage": "",
+      "created_at": "2025-12-15T16:17:08Z",
+      "updated_at": "2025-12-27T10:01:42Z",
+      "pushed_at": "2025-12-27T10:04:51Z"
+    },
+    "stats": {
+      "stars": 104,
+      "forks": 21,
+      "watchers": 104,
+      "open_issues": 0,
+      "size": 105
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 219248,
+        "Shell": 26709
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n[English](README.md) | [简体中文](README-ZH.md)\n\n</div>\n\n---\n\n<div align=\"center\">\n\n# HotArmor 🛡️\n\n**Intelligent Hotspot Data Protection Framework · Solving High-Concurrency Cache Penetration**\n\n*One annotation, automatic promotion of hotspot data to local cache*\n\n[![Java](https://img.shields.io/badge/Java-1.8+-orange.svg)](https://www.oracle.com/java/technologies/javase-downloads.html)\n[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-2.3.12-brightgreen.svg)](https://spring.io/projects/spring-boot)\n[![Sentinel](https://img.shields.io/badge/Sentinel-1.8.6-blue.svg)](https://sentinelguard.io/)\n[![License](https://img.shields.io/badge/license-Apache%202-blue.svg)](LICENSE)\n\n</div>\n\n---\n\n## 💡 What Problem Does It Solve?\n\n**HotArmor** is a hotspot data protection middleware designed for high-concurrency scenarios. In flash sales, trending events, and similar scenarios, a small number of hotspot data (such as popular products or trending topics) can cause serious performance issues:\n\n| Problem | Typical Scenario | Technical Impact | HotArmor Solution |\n|---------|-----------------|------------------|-------------------|\n| ⚡ **Cache Breakdown** | Moment when hot key expires | Thousands of requests simultaneously bypass cache and hit database, overwhelming DB | L4 distributed lock + Double-Check ensures single-point source loading |\n| 🔥 **Hotspot Overload** | Celebrity products frequently accessed | Redis connection pool exhausted, bandwidth saturated, slow response | L1-L3 intelligently identifies hotspots and promotes to local cache (microsecond level) |\n| 🔄 **Distributed Cache Consistency** | Multi-node cluster deployment | Node A updates data, nodes B/C/D have stale local cache causing dirty reads | Pub/Sub invalidation broadcast + hotspot promotion broadcast, full-node synchronization |\n| 🗑️ **DB-Cache Consistency** | High-concurrency read-write race conditions | After updating DB and deleting cache, concurrent queries write old data back to Redis | Delayed double-delete strategy eliminates write-after-read race window |\n\n## 🚀 Core Features\n\n```java\n// Just one annotation, framework handles hotspot protection automatically\n@HotArmorCache(resource = \"product:detail\", key = \"#id\")\npublic Product getProduct(Long id) {\n    return productMapper.selectById(id);  // Hotspot data automatically promoted to local cache\n}\n```\n\n- ✨ **Out-of-the-Box** - Declarative annotation usage, zero-intrusion integration\n- 🧠 **Intelligent Recognition** - Based on Sentinel's hotspot parameter flow control, precise hotspot identification\n- 🔄 **Four-Level Protection** - L1 Local Cache → L2 Noise Filter → L3 Hotspot Detection → L4 Safe Source Loading\n- 📡 **Eventual Consistency** - Delayed double-delete + Redis Pub/Sub broadcast ensures cluster cache synchronization\n- ⚡ **Ultimate Performance** - Hotspot data from Redis millisecond-level → Caffeine microsecond-level response\n\n---\n\n## 🏗️ Architecture Design\n\n### System Architecture\n\n```\n┌─────────────────────────────────────────────────────────────────────┐\n│                        Application Layer                            │\n│                                                                     │\n│    @HotArmorCache(resource=\"...\", key=\"...\")  ← Query cache         │\n│    @HotArmorEvict(resource=\"...\", key=\"...\")  ← Invalidate cache    │\n└──────────────────────────┬──────────────────────────────────────────┘\n                           │\n                           │ AOP Interception\n                           ↓\n┌─────────────────────────────────────────────────────────────────────┐\n│                      HotArmor Core Engine                            │\n│                                                                     │\n│  ┌───────────────────────────────────────────────────────────────┐ │\n│  │                    Aspect Layer                                │ │\n│  │  • HotArmorAspect - AOP interceptor                            │ │\n│  │  • SpEL expression parser - Parse key/condition                │ │\n│  │  • HotArmorContext - Request context object                    │ │\n│  └─────────────────────────┬─────────────────────────────────────┘ │\n│                            ↓                                        │\n│  ┌───────────────────────────────────────────────────────────────┐ │\n│  │                 Handler Layer                                  │ │\n│  │  • DefaultHotArmorAspectHandler                                │ │\n│  │    - handleCache() : Read flow four-level funnel               │ │\n│  │    - handleEvict() : Write flow cache invalidation             │ │\n│  └─────────────────────────┬─────────────────────────────────────┘ │\n│                            ↓                                        │\n│  ┌───────────────────────────────────────────────────────────────┐ │\n│  │                  Data Plane                                    │ │\n│  │                                                               │ │\n│  │  ┌─────────────────────────────────────",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:18.971182"
+  },
+  {
+    "basic_info": {
+      "name": "ruoqus",
+      "full_name": "zhu8915985/ruoqus",
+      "owner": "zhu8915985",
+      "description": "基于 Quarkus 的 RuoYi 权限管理系统，更贴合云原生的 RuoYi 系统。帮助开发者快速构建，基于native image的后台系统。",
+      "url": "https://github.com/zhu8915985/ruoqus",
+      "clone_url": "https://github.com/zhu8915985/ruoqus.git",
+      "ssh_url": "git@github.com:zhu8915985/ruoqus.git",
+      "homepage": null,
+      "created_at": "2025-12-04T08:11:36Z",
+      "updated_at": "2025-12-18T08:37:27Z",
+      "pushed_at": "2025-12-08T08:10:22Z"
+    },
+    "stats": {
+      "stars": 103,
+      "forks": 10,
+      "watchers": 103,
+      "open_issues": 0,
+      "size": 94690
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 64555
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# RuoQus\n\n<div align=\"center\">\n\n[![Contributors][contributors-shield]][contributors-url]\n[![Forks][forks-shield]][forks-url]\n[![Stargazers][stars-shield]][stars-url]\n[![Issues][issues-shield]][issues-url]\n[![MIT License][license-shield]][license-url]\n\n\n[//]: # (<p align=\"center\">)\n\n[//]: # (  <a href=\"https://trendshift.io/repositories/13209\">)\n\n[//]: # (    <img src=\"https://trendshift.io/api/badge/repositories/13209\" alt=\"GitHub Trending\">)\n\n[//]: # (  </a>)\n\n[//]: # (</p>)\n\n\n<img src=\"image/favicon.ico\" alt=\"Hongdux Logo\" width=\"120\" height=\"120\">\n\n\n### 基于 Quarkus 的 RuoYi 权限管理系统，更贴合云原生的 RuoYi 系统\n\n*采用 Quarkus 框架构建的 RuoYi 权限管理系统，提供用户认证、权限管理等核心功能。支持 Java Native，具备极致的启动速度和更低的资源消耗（更小的内存占用），是更贴合云原生的 RuoYi 系统*\n\n**[🇺🇸 English](README_EN.md)**  | **[🚀 在线体验](https://ruoqus.hongdux.com)** | **[🐛 问题反馈](https://github.com/zhu8915985/ruoqus/issues)** | **[💡 功能建议](https://github.com/zhu8915985/ruoqus/issues)**\n\n</div>\n\n## ✨ 核心亮点\n\n### 高性能框架\n- **Quarkus 架构**：基于 Quarkus 框架，提供超快的启动速度和极低的内存占用\n- **现代化技术栈**：采用 Jakarta EE、MicroProfile 等现代 Java 标准\n- **原生编译支持**：支持 GraalVM 原生镜像编译，启动时间仅需几毫秒\n\n### 完善的安全体系\n- **JWT 认证机制**：基于 JWT 的用户身份认证和授权\n- **权限控制**：支持基于角色的访问控制（RBAC）\n- **安全防护**：集成 Quarkus 安全框架，提供多层次安全防护\n\n### 灵活的系统设计\n- **模块化架构**：清晰的代码结构，便于扩展和维护\n- **RESTful API**：提供标准的 RESTful 接口\n- **注解式权限**：通过注解方式实现接口权限控制\n\n### 易用的开发体验\n- **快速开发**：提供完整的用户管理、权限控制等基础功能\n- **配置简单**：通过 application.properties 简单配置即可运行\n- **跨域支持**：内置 CORS 配置，方便前后端分离开发\n\n### 核心框架\n本项目为前后端分离架构，支持前后端独立部署，同时也支持前后端混合部署。\n- **前端架构**：前端采用Vue3、Element UI。\n- **后端架构**：quarkus 3.28 + quarkus-rest + smallrye-jwt\n- **数据存储**：MySQL 8.0 + Redis \n\n## 🚀 版本说明\n\n### 社区版（当前版本）\n本项目为基础版本，提供了核心的权限认证功能，包括：\n- 用户登录/登出\n- JWT Token 认证机制\n- 基于角色的权限控制\n- RESTful API 接口\n\n### Pro版\n### 在线演示\n针对企业级应用需求，我们还提供了功能更全面的 Pro 版本\n\n- **使用serverless 无服务器部署，快速冷启动，空闲时不占用资源**\n- [ruoqus.hongdux.com](https://ruoqus.hongdux.com) (账号：admin 密码：admin123)\n\n功能：\n- RuoYi 系统的完整功能模块\n1. 用户管理：系统用户的配置与管理\n2. 部门管理：组织架构配置，支持树形结构展示与数据权限控制\n3. 岗位管理：用户职务配置\n4. 菜单管理：系统菜单、操作权限、按钮权限标识配置\n5. 角色管理：角色菜单权限分配，支持按部门划分数据范围权限\n6. 字典管理：固定数据维护功能\n7. 参数管理：系统运行参数动态配置\n8. 通知公告：系统消息发布与维护\n9. 操作日志：用户操作记录查询，包括异常日志追踪\n10. 登录日志：用户登录记录与异常监控\n11. 在线用户：当前在线用户状态监控\n12. 系统接口：基于业务代码自动生成API文档\n13. 服务监控：系统CPU、内存、磁盘等资源实时监控\n14. 缓存监控：Redis缓存信息查询与命令统计\n\n\n## 🚀 快速开始\n\n## 📦 服务启动\n\n### 社区版\n```bash\n# 开发模式运行\nmvn quarkus:dev\n# jar包构建\nmvn clean package\n# 原生镜像编译\nmvn package -Pnative\n```\n在runner/community目录下,已编译好原生镜像,解压ruoyi-quarkus-runner.zip\n```bash\n#在linux环境下直接运行\nchmod 755 ruoyi-quarkus-runner\n./ruoyi-quarkus-runner\n```\n\n### Pro版\n在runner/pro目录下,已编译好原生镜像,解压runner.zip\n```bash\n#在linux环境下直接运行\n执行ruoqus.sql创建数据库\n修改custom.properties配置信息\nchmod 755 runner\n./runner\n```\n\n如需获取 Pro 版本源码，请联系我们。\n\n### 联系我们\n\n📧 邮箱：[zhujunjie@hongdux.com](mailto:service@hongdux.com)  \n🌐 官网：[www.hongdux.com](http://www.hongdux.com)  \n📱 微信：hongdux\n\n\n## 🤝 参与贡献\n\n我们欢迎任何形式的贡献，包括但不限于：\n\n1. 提交 Issue 报告 Bug 或建议新功能\n2. Fork 项目并提交 Pull Request\n3. 改进文档和示例代码\n4. 参与讨论和问题解答\n\n### 开发流程\n1. Fork 本仓库\n2. 创建功能分支 (`git checkout -b feature/新功能`)\n3. 提交更改 (`git commit -am '添加新功能'`)\n4. 推送到分支 (`git push origin feature/新功能`)\n5. 创建 Pull Request\n\n## 📄 开源协议\n\n本项目采用 MIT 协议，详细信息请查看 [LICENSE](LICENSE) 文件。\n\n## 🙏 致谢\n\n感谢以下开源项目：\n\n- [Ruoyi](https://ruoyi.vip) - 基于SpringBoot的权限管理系统\n- [Quarkus](https://quarkus.io) - 为云原生时代而生的 Java 框架\n- [SmallRye JWT](https://github.com/smallrye/smallrye-jwt) - JWT 处理库\n- [Apache Commons](https://commons.apache.org/) - Apache 软件基金会的工具库集合\n- [JBCrypt](https://github.com/jeremyh/jBCrypt) - Java 版本的 BCrypt 实现\n\n---\n<div align=\"center\">\n\n*用 ❤️ 构建，为现代化 Java 应用开发而生*\n\n</div>\n\n<!-- Badge Links -->\n[contributors-shield]: https://img.shields.io/github/contributors/zhu8915985/ruoqus.svg?style=flat-square\n[contributors-url]: https://github.com/zhu8915985/ruoqus/graphs/contributors\n[forks-shield]: https://img.shields.io/github/forks/zhu8915985/ruoqus.svg?style=flat-square\n[forks-url]: https://github.com/zhu8915985/ruoqus/network/members\n[stars-shield]: https://img.shields.io/github/stars/zhu8915985/ruoqus.svg?style=flat-square\n[stars-url]: https://github.com/zhu8915985/ruoqus/stargazers\n[issues-shield]: https://img.shields.io/github/issues/zhu8915985/ruoqus.svg?style=flat-square\n[issues-url]: https://github.com/zhu8915985/ruoqus/issues\n[license-shield]: https://img.shields.io/github/license/zhu8915985/ruoqus.svg?style=flat-square\n[license-url]: https://github.com/zhu8915985/ruoqus/blob/main/LICENSE",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-31T02:51:20.373138"
+  },
+  {
+    "basic_info": {
+      "name": "veadk-java",
+      "full_name": "volcengine/veadk-java",
+      "owner": "volcengine",
+      "description": null,
+      "url": "https://github.com/volcengine/veadk-java",
+      "clone_url": "https://github.com/volcengine/veadk-java.git",
+      "ssh_url": "git@github.com:volcengine/veadk-java.git",
+      "homepage": null,
+      "created_at": "2025-12-16T13:57:59Z",
+      "updated_at": "2025-12-26T03:48:46Z",
+      "pushed_at": "2025-12-17T15:53:10Z"
+    },
+    "stats": {
+      "stars": 103,
+      "forks": 4,
+      "watchers": 103,
+      "open_issues": 0,
+      "size": 64
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 182611
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# veadk-java\n\nAn open-source Agent development toolkit that integrates the powerful capabilities of Volcengine.\n\n## Quick Start\n\n### Requirements\n- JDK `17` or above\n\n```xml\n<dependency>\n    <groupId>com.volcengine.veadk</groupId>\n    <artifactId>veadk-java</artifactId>\n    <version>0.0.1</version>\n</dependency>\n```\n```java\npublic class QuickstartAgentExample {\n    public static void main(String[] args) {\n        // Use an Ark model (replace with a model name available in your Ark Console)\n        BaseAgent agent = LlmAgent.builder()\n            .name(\"quickstart-agent\")\n            .instruction(\"You are a helpful assistant.\")\n            .model(new ArkLlm(\"doubao-seed-1-8-preview-251115\"))\n            .build();\n\n        Runner runner = new Runner(agent);\n\n        Session session = runner.sessionService()\n            .createSession(runner.appName(), \"userId\", null, \"sessionId\")\n            .blockingGet();\n\n        // Build a simple conversation\n        Content userMsg = Content.fromParts(Part.fromText(\"hello!\"));\n        RunConfig runConfig = RunConfig.builder().setStreamingMode(RunConfig.StreamingMode.NONE).build();\n        Flowable<Event> events = runner.runAsync(session.userId(), session.id(), userMsg, runConfig);\n\n        // Print the final reply\n        events.blockingForEach(e -> {\n            if (e.finalResponse()) System.out.println(e.stringifyContent());\n        });\n    }\n}\n```\n\n### Required Environment Variables\nThe example project requires the following environment variables before running (an explicit error is thrown if missing):\n\n  - `MODEL_AGENT_API_KEY`: API Key for Volcengine Ark service (used by `ArkLlm`)\n \nExample setup (macOS / Linux):\n\n```bash\nexport MODEL_AGENT_API_KEY=\"<your-ark-api-key>\"\n```\n\n## Run the Project Examples\n\n### Build the Project\nIn the repository root, run: `./mvnw clean -DskipTests package`\n\nAfter building, the compiled artifacts needed by the examples will be generated in `example/target`.\n\n### Run the Example (CLI)\nEntry class: `com.volcengine.veadk.example.AgentCliRunner`.\n\nRun it (without modifying the POM, directly via Maven Exec plugin coordinates):\n\n```bash\n./mvnw -pl example -q compile exec:java -Dexec.mainClass=com.volcengine.veadk.example.AgentCliRunner\n```\n\nInteraction notes:\n- After startup, follow the prompt to input messages and interact with `ArkAgent`.\n- Type `quit` to exit.\n\n### Run the Example (Web UI)\nStart command:\n\n```bash\n./mvnw -pl example -q compile exec:java \\\n    -Dexec.mainClass=\"com.google.adk.web.AdkWebServer\" \\\n    -Dexec.args=\"--adk.agents.source-dir=example/target --server.port=8000\"  \n```\n\n- Access URL: `http://localhost:8000`\n\n### Run in IDE\n- Import the Maven multi-module project using IntelliJ IDEA or Eclipse.\n- Directly run the `main` method of `AgentCliRunner` or `AdkWeb`.\n- Ensure the required environment variables are injected in your IDE run configuration (or start the IDE from a shell that has them set).\n- If you need `web search`, `Viking Memory`, or `Viking Knowledgebase`, configure these environment variables:\n  - `VOLCENGINE_ACCESS_KEY`: Volcengine AccessKey\n  - `VOLCENGINE_SECRET_KEY`: Volcengine SecretKey\n- If you need TLS Trace, besides AK/SK, also configure the TLS topic:\n  - `OBSERVABILITY_OPENTELEMETRY_TLS_SERVICE_NAME`: ID of the TLS service trace log topic\n\n## Related Projects\n- Python version and documentation: [veadk-python](https://github.com/volcengine/veadk-python).\n\n## FAQ\n- Error on startup `Missing required configuration: <ENV_NAME>`: indicates a required environment variable is not set; please complete it according to the prompt.\n- Unable to access memory/knowledgebase/search services: check AK/SK and network connectivity.\n- Port occupied: if port `8000` is occupied, adjust via `--server.port` or in the startup parameters of `AdkWeb.main`.\n\n## License\nThis project uses the Apache License 2.0; see the `LICENSE` file for details.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:21.737187"
+  },
+  {
+    "basic_info": {
+      "name": "spring-ai-playground",
+      "full_name": "spring-ai-community/spring-ai-playground",
+      "owner": "spring-ai-community",
+      "description": "Spring AI Playground is a self-hosted web UI for low-code AI tool development with live MCP server registration. It includes MCP server inspection, agentic chat, and integrated LLM and RAG workflows, enabling real-time experimentation and evolution of tool-enabled AI systems without redeployment.",
+      "url": "https://github.com/spring-ai-community/spring-ai-playground",
+      "clone_url": "https://github.com/spring-ai-community/spring-ai-playground.git",
+      "ssh_url": "git@github.com:spring-ai-community/spring-ai-playground.git",
+      "homepage": "https://springaicommunity.mintlify.app/projects/incubating/spring-ai-playground",
+      "created_at": "2025-12-10T05:18:38Z",
+      "updated_at": "2025-12-30T14:58:00Z",
+      "pushed_at": "2025-12-23T12:37:55Z"
+    },
+    "stats": {
+      "stars": 85,
+      "forks": 20,
+      "watchers": 85,
+      "open_issues": 0,
+      "size": 8882
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 539708,
+        "JavaScript": 8729,
+        "HTML": 8670,
+        "CSS": 628
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agentic-chat",
+        "ai-agents",
+        "ai-playground",
+        "low-code-platform",
+        "mcp-client",
+        "mcp-server",
+        "rag",
+        "tool-development"
+      ]
+    },
+    "content": {
+      "readme": "# Spring AI Playground\n\n**Spring AI Playground is a self-hosted web UI platform for building low-code tools and dynamically exposing them via built-in MCP server for AI agents.**\n\nUnlike most AI playgrounds that focus solely on prompt testing and chat visualization, it bridges the gap between **static AI conversations** and **real-world actions** by enabling you to create executable tools that AI agents can use.\n\nIt brings together **Large Language Models (LLMs)**, **Retrieval-Augmented Generation (RAG)**, and **low-code tool development** in a single environment. Tools created in the **Tool Studio** are dynamically evaluated and loaded at runtime, then automatically registered and exposed as **Model Context Protocol (MCP) tools**. This makes them instantly available to MCP-compatible clients without restarting or redeploying.\n\n<p align=\"center\">\n  <b>Agentic Chat Demo</b><br/>\n  Tool-enabled agentic AI built with Spring AI and MCP\n</p>\n\n<p align=\"center\">\n  <a href=\"https://youtu.be/FlzV7TN67f0\">\n    <img src=\"https://img.youtube.com/vi/FlzV7TN67f0/0.jpg\" width=\"800\"/>\n  </a>\n</p>\n\n## Key Capabilities\n\n### Tool Studio & Built-in MCP Server\nCreate AI tools using **JavaScript (ECMAScript 2023)** directly in the browser. Powered by **GraalVM Polyglot**, these tools run inside the JVM (Polyglot) with configurable security constraints and are immediately exposed via **built-in MCP Server**. Experience a no-restart, no-redeploy workflow: just write, test, and publish.\n\n### MCP Server & Tool Inspection\nConnect to external **MCP servers**, inspect available tools, and validate tool execution behavior. Test both your custom **Tool Studio tools** and third-party MCP services in a unified interface.\n\n### Vector Database & RAG Pipeline\nUpload documents, configure **chunking** and **embeddings**, and test retrieval pipelines. Evaluate prompt execution against selected RAG sources to validate **knowledge-grounded** responses.\n\n### Agentic Chat & Agent Workflow\nInteract with LLMs in a chat interface where models can reason, select tools, and execute actions. Combine **MCP tools** and **RAG-enhanced context** to validate end-to-end agent workflows.\n\n## Why Spring AI Playground?\n\n- **Dynamic MCP Hosting**: Build and expose tools in real-time with immediate MCP server exposure and no deployment overhead.\n- **Unified Testing Hub**: Validate prompts, RAG pipelines, and agentic workflows in a single, cohesive environment.\n- **Provider Agnostic**: Switch between Ollama, OpenAI, and other LLM providers (including OpenAI-compatible APIs) with ease.\n- **Built for Modern AI**: Designed specifically for the Spring AI ecosystem, MCP protocol, and agent-oriented architectures.\n\n## Table of Contents\n\n* [Overview](#spring-ai-playground)\n* [Key Capabilities](#key-capabilities)\n    * [Tool Studio & Built-in MCP Server](#tool-studio--built-in-mcp-server)\n    * [MCP Server & Tool Inspection](#mcp-server--tool-inspection)\n    * [Vector Database & RAG Pipeline](#vector-database--rag-pipeline)\n    * [Agentic Chat & Agent Workflow](#agentic-chat--agent-workflow)\n* [Why Spring AI Playground?](#why-spring-ai-playground)\n* [Quick Start](#quick-start)\n    * [Prerequisites](#prerequisites)\n    * [Getting Started](#getting-started)\n    * [Running the Application](#running-the-application)\n        * [Running with Docker (Recommended)](#running-with-docker-recommended)\n        * [Cleaning Up Docker](#cleaning-up-docker)\n        * [Running Locally (Optional)](#running-locally-optional)\n    * [PWA Installation](#pwa-installation)\n* [Configuration](#auto-configuration)\n* [AI Models](#ai-models)\n    * [Supported Model Providers](#support-for-major-ai-model-providers)\n    * [Configuring Ollama Models](#selecting-and-configuring-ollama-models)\n    * [Using OpenAI](#switching-to-openai)\n    * [OpenAI-Compatible Servers](#switching-to-openai-compatible-servers)\n* [Tool Studio](#tool-studio)\n    * [Built-in MCP Server](#built-in-mcp-server)\n    * [Dynamic Tool Registration](#dynamic-tool-registration)\n    * [JavaScript Runtime](#javascript-runtime)\n    * [Low-code Tool Development Workflow](#low-code-tool-development-workflow)\n    * [Pre-built Example Tools](#pre-built-example-tools)\n    * [Using Tools in Agentic Chat](#using-tools-in-chat)\n    * [Connecting External MCP Clients](#connect-external-mcp-clients)\n* [MCP Playground](#mcp-server)\n    * [Key Features](#key-features)\n    * [Getting Started with MCP](#getting-started-with-mcp)\n* [Vector Database](#vector-database)\n    * [Supported Vector Databases](#support-for-major-vector-database-providers)\n    * [Vector Database Playground Features](#key-features-1)\n* [Agentic Chat](#agentic-chat)\n    * [Two Integrated Paradigms](#two-integrated-paradigms)\n        * [RAG: Chain-based Workflow](#1-rag-knowledge-via-chain-workflow)\n        * [MCP: Agentic Reasoning](#2-mcp-actions-via-agentic-reasoning)\n    * [Workflow Integration](#workflow-integration)\n    * [Model Requirements for Agentic Reasoning](#️-requirement",
+      "default_branch": "0.2.0-M1"
+    },
+    "fetched_at": "2025-12-31T02:51:23.074263"
+  },
+  {
+    "basic_info": {
+      "name": "hash-smith",
+      "full_name": "bluuewhale/hash-smith",
+      "owner": "bluuewhale",
+      "description": "Fast & memory efficient hash tables for Java",
+      "url": "https://github.com/bluuewhale/hash-smith",
+      "clone_url": "https://github.com/bluuewhale/hash-smith.git",
+      "ssh_url": "git@github.com:bluuewhale/hash-smith.git",
+      "homepage": "",
+      "created_at": "2025-12-05T15:52:13Z",
+      "updated_at": "2025-12-30T20:36:27Z",
+      "pushed_at": "2025-12-29T12:31:28Z"
+    },
+    "stats": {
+      "stars": 81,
+      "forks": 5,
+      "watchers": 81,
+      "open_issues": 1,
+      "size": 3981
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 186267
+      },
+      "license": "MIT License",
+      "topics": [
+        "benchmark",
+        "collections",
+        "hashtable",
+        "java",
+        "jmh",
+        "open-addressing",
+        "robinhood-hashing",
+        "simd",
+        "swiss-table"
+      ]
+    },
+    "content": {
+      "readme": "# HashSmith: Fast & memory efficient hash tables for Java\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Maven Central](https://img.shields.io/maven-central/v/io.github.bluuewhale/hashsmith.svg)](https://central.sonatype.com/artifact/io.github.bluuewhale/hashsmith)\n[![javadoc](https://javadoc.io/badge2/io.github.bluuewhale/hashsmith/javadoc.svg)](https://javadoc.io/doc/io.github.bluuewhale/hashsmith)\n[![Status: experimental](https://img.shields.io/badge/status-experimental-orange.svg)](#overview)\n\n> ⚠️ This project is experimental and not ready for production use.\n\n<p align=\"center\">\n  <img src=\"images/logo.png\" alt=\"HashSmith logo\" width=\"330\">\n</p>\n\n\n## Overview\n- HashSmith provides multiple high-performance hash table implementations optimized for speed and memory efficiency on modern JVMs.\n- Focus areas: SWAR-probing (`SwissMap`), SIMD-probing (`SwissSimdMap`), predictable probe lengths (Robin Hood), and minimal per-entry overhead.\n- Built for JDK 21+; `SwissSimdMap` uses the incubating Vector API for SIMD acceleration.\n- More memory-efficient than the built-in JDK `HashMap`; performance depends on workload.\n\n## Implementations\n- **SwissMap**: SwissTable-inspired design using SWAR control-byte probing (no Vector API) with tombstone reuse. Default map.\n- **SwissSimdMap**: SIMD (Vector API incubator) variant of SwissMap with vectorized control-byte probing. See `docs/SwissSimdMap.md` for details.\n- **ConcurrentSwissMap**: sharded, thread-safe wrapper around `SwissMap` using per-shard `StampedLock` (null keys not supported).\n- **SwissSet**: SwissTable-style hash set with SIMD control-byte probing, tombstone reuse, and null-element support \n\n### Why SWAR by default?\nVector API is still incubating, and profiling on my setup showed the SIMD path taking longer than expected, so the default `SwissMap` favors a SWAR probe. Numbers can differ significantly by hardware/JVM version; please run your own benchmarks if you plan to use `SwissSimdMap`.\n\n## Blog / Write-up\n- If you want a guided tour with design notes and benchmarks, see **[this write-up](https://bluuewhale.github.io/posts/building-a-fast-and-memory-efficient-hash-table-in-java-by-borrowing-the-best-ideas/)**.\n\n## Quick Start\n```java\nimport io.github.bluuewhale.hashsmith.SwissMap;      // SWAR\nimport io.github.bluuewhale.hashsmith.SwissSimdMap;  // Vector API\nimport io.github.bluuewhale.hashsmith.ConcurrentSwissMap;\nimport io.github.bluuewhale.hashsmith.RobinHoodMap;\nimport io.github.bluuewhale.hashsmith.SwissSet;\n\npublic class Demo {\n    public static void main(String[] args) {\n        // SwissMap (SWAR)\n        var swiss = new SwissMap<String, Integer>();\n        swiss.put(\"a\", 1);\n        swiss.put(\"b\", 2);\n        System.out.println(swiss.get(\"a\")); // 1\n\n        // SwissSimdMap (Vector API incubator)\n        var swissSimd = new SwissSimdMap<String, Integer>();\n        swissSimd.put(\"a\", 1);\n        swissSimd.put(\"b\", 2);\n        System.out.println(swissSimd.get(\"a\")); // 1\n\n        // ConcurrentSwissMap (sharded, thread-safe)\n        var concurrentSwiss = new ConcurrentSwissMap<String, Integer>();\n        concurrentSwiss.put(\"a\", 1);\n        concurrentSwiss.put(\"b\", 2);\n        System.out.println(concurrentSwiss.get(\"a\")); // 1\n\n        // SwissSet\n        var swissSet = new SwissSet<String>();\n        swissSet.add(\"k\");\n        swissSet.add(null); // nulls allowed\n        System.out.println(swissSet.contains(\"k\")); // true\n    }\n}\n```\n\n## Install\n- Gradle (Kotlin DSL):\n```kotlin\ndependencies {\n    implementation(\"io.github.bluuewhale:hashsmith:0.1.7\")\n}\n```\n- Gradle (Groovy):\n```groovy\ndependencies {\n    implementation 'io.github.bluuewhale:hashsmith:0.1.7'\n}\n```\n- Maven:\n```xml\n<dependency>\n  <groupId>io.github.bluuewhale</groupId>\n  <artifactId>hashsmith</artifactId>\n  <version>0.1.7</version>\n</dependency>\n```\n\n## Requirements\n- JDK 21+ (`SwissSimdMap` needs `jdk.incubator.vector`)\n- Gradle (wrapper provided)\n- The JVM flag `--add-modules jdk.incubator.vector` is already configured for build, test, and JMH tasks that exercise `SwissSimdMap`.\n\n## Build & Test\n```bash\n./gradlew build        # full build\n./gradlew test         # JUnit 5 tests\n```\n\n## Memory Footprint \n- Compares retained heap for both maps (`HashMap` vs `SwissSimdMap` vs `SwissMap` vs fastutil `Object2ObjectOpenHashMap` vs Eclipse Collections `UnifiedMap`) and sets (`HashSet` vs `SwissSet` vs fastutil `ObjectOpenHashSet` vs Eclipse Collections `UnifiedSet`).\n- Set benchmarks use UUID `String` keys (HashSet, SwissSet, ObjectOpenHashSet, UnifiedSet). Primitive-specialized collections (e.g., fastutil primitive sets) are excluded because their memory profile is driven by primitive storage, whereas these tests target general reference workloads.\n### Results\n- Maps: `SwissMap`/`SwissSimdMap` use open addressing to cut space; default load factor 0.875, up to 53.3% retained-heap reduction in payload-light cases vs `HashMap`.\n- Sets: `SwissSet` (SwissHas",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:24.389069"
+  },
+  {
+    "basic_info": {
+      "name": "devSphere",
+      "full_name": "shutu-hub/devSphere",
+      "owner": "shutu-hub",
+      "description": "devSphere-chat 是一个基于 Spring Boot 构建的高性能实时聊天系统，支持私聊、群聊、消息持久化、离线消息推送等功能。系统采用 Netty 实现 WebSocket 通信，通过 Redis Stream 保证消息可靠传输，并集成完善的用户认证和权限管理体系。",
+      "url": "https://github.com/shutu-hub/devSphere",
+      "clone_url": "https://github.com/shutu-hub/devSphere.git",
+      "ssh_url": "git@github.com:shutu-hub/devSphere.git",
+      "homepage": null,
+      "created_at": "2025-12-10T01:22:44Z",
+      "updated_at": "2025-12-31T01:54:56Z",
+      "pushed_at": "2025-12-23T07:46:05Z"
+    },
+    "stats": {
+      "stars": 76,
+      "forks": 3,
+      "watchers": 76,
+      "open_issues": 1,
+      "size": 6247
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 739091,
+        "Vue": 314578,
+        "TypeScript": 100156,
+        "HTML": 38057,
+        "JavaScript": 1267,
+        "Lua": 691,
+        "CSS": 634
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# DevSphere 开发者平台\nDevSphere 是一个面向开发者的现代化协作平台，集 **即时通讯 (IM)**、**对象存储**、**API 管理**、**微服务监控** 于一体，采用 **Spring Cloud + Vue3** 的前后端分离架构，支持高并发实时通信与分布式扩展。\n\n## 一、项目特点\n+ 基于微服务架构，独立部署、弹性扩展、容错性高\n+ 支持私聊、群聊、文件消息、历史记录、在线状态等 IM 能力\n+ 集成 OAuth2 + JWT，统一安全认证与接口授权\n+ 支持 MinIO 对象存储，提供分片上传与权限控制\n+ 支持 API 限流、文档生成、访问控制与统计分析\n+ 可扩展的监控系统，支持日志收集与性能监控\n\n## 二、技术栈\n### 后端技术\n| 分类 | 技术 |\n| --- | --- |\n| 核心框架 | Spring Boot 3.1.2，Spring Cloud 2022.0.3 |\n| 服务注册/配置 | Nacos |\n| API 网关 | Spring Cloud Gateway |\n| 安全认证 | Spring Security，OAuth2，JWT |\n| ORM | MyBatis Plus 3.5.3.2 |\n| 消息与缓存 | RabbitMQ，Redis 6+ |\n| 数据库 | MySQL 8.0 |\n| 实时通信 | Netty 4.1.76.Final + WebSocket |\n| 对象存储 | MinIO |\n| 构建工具 | Maven 3.8+ |\n\n\n### 前端技术\n| 应用 | 技术 |\n| --- | --- |\n| 主应用 | Vue3，Vite，TypeScript，Element Plus |\n| IM 聊天应用 | Vue3，Vite，TypeScript，Naive UI |\n\n\n## 三、模块结构概览\n```plain\nDevSphere\n├── shutu-commons                   # 公共依赖与通用工具组件\n│   ├── dependencies                # 统一第三方依赖版本\n│   ├── security                    # JWT、认证与授权配置\n│   ├── dynamic-datasource          # 动态数据源切换\n│   ├── swagger                     # 接口文档配置\n│   ├── mybatis                     # MyBatis Plus 扩展（分页、多租户等）\n│   ├── tools                       # 工具类（加密、时间、字符串、文件等）\n│   └── log                         # 日志统一处理\n├── shutu-auth                      # 认证授权服务\n│   ├── auth-server                 # Token 颁发与 OAuth2 授权\n│   └── auth-client                 # 其他服务集成认证\n├── shutu-gateway                   # API 网关\n├── shutu-admin                     # 服务监控\n│   ├── admin-server                # 数据展示、健康监控\n│   └── admin-client                # 上报指标\n├── shutu-module-message            # 消息/通知模块（异步消息）\n├── shutu-module-oss                # 文件上传下载模块（MinIO）\n├── devSphere-chat                  # 实时聊天服务（Netty + WS）\n└── dev-sphere-frontend-main        # 前端主应用\n```\n\n## 四、功能说明\n### 1. 用户与权限\n+ 用户注册、登录、注销\n+ 基于角色的权限控制\n+ Token 刷新与无状态认证\n+ 个人信息与设置管理\n\n### 2. 即时通讯 IM\n+ 私聊与群聊\n+ 文本、图片、文件消息\n+ 在线状态实时显示\n+ 离线消息存储与未读提醒\n+ 历史聊天记录分页查询\n+ 1v1 与群组音视频通话能力（可扩展）\n+  支持发布动态、图片及代码内容，好友可点赞评论并展示个性化技术分享。\n\n### 3. 文件与对象存储\n+ 多类型文件上传/下载\n+ MinIO 分片上传与断点续传\n+ 文件预览与访问权限控制\n\n### 4. API 管理\n+ REST API 文档自动生成\n+ 访问频率限制与统计\n+ 鉴权与访问控制\n\n### 5. 系统监控\n+ 服务健康检查\n+ 实例性能指标展示\n+ 异常日志收集与分析\n+ 可视化监控面板\n\n## 五、页面预览\n多模式聊天： 支持好友私聊和群组聊天，消息实时同步。\n![功能预览](assets/img.png)\n\n![功能预览](assets/img_1.png)\n\n![功能预览](assets/img_2.png)\n\n实时音视频通话： 稳定流畅的 1v1 和 群聊音视频通话体验。\n\n![功能预览](assets/img_3.png)\n\n![功能预览](assets/img_4.png)\n\n群聊音视频通话\n\n![功能预览](assets/img_5.png)\n\n![功能预览](assets/img_6.png)\n\n朋友圈：用户可以发布技术心得、生活动态，支持点赞、评论及代码块高亮显示。\n\n![功能预览](assets/img_7.png)\n\n个人中心页面：展示用户信息（待完善）\n\n![功能预览](assets/img_8.png)\n\n### 系统架构图\n```latex\n┌──────────────────────┐\n│   前端应用           │\n│  (Vue3 + ElementPlus)│\n└─────────┬────────────┘\n          │ HTTP/WebSocket\n┌─────────▼────────────┐\n│   网关服务            │\n│  (Spring Cloud Gateway)│\n└─────────┬────────────┘\n          │\n┌─────────▼────────────┐\n│   服务注册与配置中心   │\n│      (Nacos)         │\n└─────┬───────┬────────┘\n      │       │\n┌─────▼──┐ ┌──▼──────┐\n│ 认证服务 │ │ 管理服务 │\n│ (Auth) │ │ (Admin) │\n└─────┬──┘ └──┬──────┘\n      │       │\n┌─────▼───────▼──────┐\n│   业务服务模块       │\n│  - 消息服务         │\n│  - 对象存储服务      │\n└─────┬──────────────┘\n      │\n┌─────▼──────────────┐\n│   实时聊天服务       │\n│   (Netty + WebSocket)│\n└────────────────────┘\n```\n\n## 六、部署说明\n### 环境要求\n| 依赖 | 版本 |\n| --- | --- |\n| JDK | 17+ |\n| MySQL | 8.0+ |\n| Redis | 6.0+ |\n| RabbitMQ | 最新稳定版 |\n| MinIO | 最新稳定版 |\n| Nacos | 2.x |\n| Node.js | 16+ |\n\n\n### 部署步骤\n1. **启动基础服务**\n\n启动 MySQL、Redis、RabbitMQ、MinIO、Nacos。\n\n2. **初始化数据库**\n\n执行 `dev_sphere.sql` 数据库脚本。\n\n3. **修改配置文件**\n\n配置 `bootstrap.yml` 内数据库、Nacos、Redis 等连接信息。\n\n4. **启动后端服务（建议顺序）**\n\n```plain\n1. shutu-auth-server\n2. shutu-admin-server\n3. shutu-module-message\n4. shutu-module-oss\n5. shutu-gateway\n6. devSphere-chat\n```\n\n5. **构建前端应用**\n\n主应用：\n\n```plain\nnpm install\nnpm run build\n```\n\n聊天应用：\n\n```plain\nnpm install\nnpm run build\n```\n\n### 默认访问地址\n| 服务 | 地址 |\n| --- | --- |\n| 主系统 | [http://localhost:8081](http://localhost:8081) |\n| API 文档 | [http://localhost:8081/doc.html](http://localhost:8081/doc.html) |\n| Nacos 控制台 | [http://localhost:8848/nacos](http://localhost:8848/nacos) |\n| WebSocket 聊天 | ws://localhost:9000 |\n\n\n## 七、贡献指南\n欢迎对 DevSphere 项目进行贡献！在提交 Pull Request 前，请确保:\n\n1. 阅读代码规范文档\n2. 编写相应的单元测试\n3. 更新相关文档说明\n4. 遵守提交信息格式规范\n\n## 八、许可证\n本项目采用 Apache License 2.0 开源许可证。\n\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-31T02:51:25.724028"
+  },
+  {
+    "basic_info": {
+      "name": "jvm-custom-memory-arena",
+      "full_name": "masonliiu/jvm-custom-memory-arena",
+      "owner": "masonliiu",
+      "description": "Manual memory arena for Java, with the sole purpose of re-enacting how the JVM works under the hood.",
+      "url": "https://github.com/masonliiu/jvm-custom-memory-arena",
+      "clone_url": "https://github.com/masonliiu/jvm-custom-memory-arena.git",
+      "ssh_url": "git@github.com:masonliiu/jvm-custom-memory-arena.git",
+      "homepage": "",
+      "created_at": "2025-12-19T17:50:05Z",
+      "updated_at": "2025-12-29T18:36:03Z",
+      "pushed_at": "2025-12-23T22:46:20Z"
+    },
+    "stats": {
+      "stars": 71,
+      "forks": 30,
+      "watchers": 71,
+      "open_issues": 0,
+      "size": 51
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 57872
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# JVM Custom Memory Arena\n\nThis project is a from-scratch, educational implementation of a manual memory arena in Java, built to understand how low-level memory, pointers, and data structures actually work beneath high-level language abstractions.\n\n \n\n## Motivation\n\nAfter ~4 years of programming in Java, a persistent and sizable chunk of its functionality as a language still feels opaque and abstract because of how it manages things under the hood:\n\n- Objects appear without visible allocation\n- Memory is automatically managed\n- References feel disconnected from actual memory\n\nThis project aims to remove that abstraction.\n\nEverything here is built on top of a single `byte[]`, and all structures, safety measures, and meaning are implemented manually.\n\nThe design emphasizes explicit control and fail-fast behavior so that incorrect assumptions about memory usage surface immediately.\n\n \n\n## Project Overview\n\nAt its core, this project implements a **manual memory arena**:\n\n- Memory is allocated explicitly\n- All reads and writes are bounds-checked\n- Data structures are constructed by defining layouts over raw bytes\n- Pointers are represented as integer offsets\n- Invalid memory access fails immediately\n\nThe project incrementally builds higher-level behavior on top of this foundation in a controlled and well-defined manner.\n\n \n\n## Core Concepts Implemented\n\n### 1. Memory Arena\n\nA contiguous `byte[]` with a single allocation pointer (`offset`).\n\n```\nMemory Arena (128 bytes capacity)\n┌─────────────────────────────────────────────────────────┐\n│ 0x00 │ 0x01 │ 0x02 │ ... │ 0x0B │ 0x0C │ ... │ 0x7F     │\n├──────┴──────┴──────┴─────┴──────┴──────┴─────┴──────────┤\n│ ←─── Allocated (12 bytes) ───→ │ ←─── Free ────────────→│\n│                                ↑                        │\n│                            offset = 12                  │\n└─────────────────────────────────────────────────────────┘\n\nRules: Allocate before use | Bounds-checked access | Reset clears all\n```\n\n \n\n### 2. Strict Allocation Model\n\nAll access validated against allocation boundary. Invalid access → immediate exception.\n\n```\nValid Access:          Invalid Access:\n┌─────────────┐        ┌─────────────┐\n│ Allocated   │        │ Allocated   │\n│   [data]    │        │   [data]    │\n│             │        │             │\n│ ←─✓─→       │        │ ←─✓─→  ✗──→ │\n└─────────────┘        └─────────────┘\n   offset=12              offset=12\n                          (tries to read at 20)\n```\n\n \n\n### 3. Primitive Storage (Big Endian)\n\nAll primitives stored with explicit byte-level encoding.\n\n```\nType Sizes:           Big-Endian Encoding Example (int 0x12345678):\n┌─────────┬──────┐   ┌─────────────────────────────────────────┐\n│ byte    │  1B  │   │ Value: 0x12345678                       │\n│ boolean │  1B  │   │                                         │\n│ short   │  2B  │   │ Memory Layout:                          │\n│ char    │  2B  │   │ ┌──────┬──────┬──────┬──────┐           │\n│ int     │  4B  │   │ │ 0x12 │ 0x34 │ 0x56 │ 0x78 │           │\n│ long    │  8B  │   │ └──────┴──────┴──────┴──────┘           │\n└─────────┴──────┘   │   MSB ────────────────→ LSB             │\n                     │   (Most Significant Byte First)         │\n                     └─────────────────────────────────────────┘\n\n\nExample: storing an `int`:\n\nStorage (big-endian approach):   \n(x >>> 24) & 0xFF  →  byte[0]\n(x >>> 16) & 0xFF  →  byte[1]\n(x >>>  8) & 0xFF  →  byte[2]\n(x >>>  0) & 0xFF  →  byte[3]\n\n- An `int` occupies 4 bytes\n- Values are stored in big-endian order: `[byte0][byte1][byte2][byte3]`\n- Bit shifting: `(x >>> 24) & 0xFF` for most significant byte\n- Reconstruction: `(byte0 << 24) | (byte1 << 16) | (byte2 << 8) | byte3`\n\nThis makes primitive representation and endianness explicit instead of implicit.\n```\n \n\n### 4. Struct-like Layouts (Nodes)\n\nOn top of raw memory, the project defines structured layouts through the `NodeStore` class.\n\nA Node is defined as:\n\n```\nNode (8 bytes total):\n+------------------+\n| value (int)      |  offset + 0\n+------------------+\n| next (int)       |  offset + 4\n+------------------+\n```\n\n\n \n\n### 5. Pointers and Sentinel Values\n\nPointers = integer offsets. `-1` = null sentinel.\n\n```\nPointer States:\n┌─────────────┬──────────────────────────────────────┐\n│ Valid       │ Points to allocated memory           │\n│   ptr = 8   │ ┌────┐                               │\n│             │ │ 8  │→ [Node at address 8]          │\n├─────────────┼──────────────────────────────────────┤\n│ Null        │ Sentinel value                       │\n│   ptr = -1  │ ┌────┐                               │\n│             │ │ -1 │→ (end of list)                │\n├─────────────┼──────────────────────────────────────┤\n│ Invalid     │ Throws InvalidPointerException       │\n│   ptr = 999 │ ┌────┐                               │\n│             │ │999 │→ ✗ Out of bounds              │\n└─────────────┴──────────────────────────────────────┘\n```\n\n \n\n### 6. Data Structures Built from Raw ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:27.085419"
+  },
+  {
+    "basic_info": {
+      "name": "JDOxyGent4J",
+      "full_name": "jd-opensource/JDOxyGent4J",
+      "owner": "jd-opensource",
+      "description": "JDOxyGent4J: The Java sibling of the OxyGent ecosystem.",
+      "url": "https://github.com/jd-opensource/JDOxyGent4J",
+      "clone_url": "https://github.com/jd-opensource/JDOxyGent4J.git",
+      "ssh_url": "git@github.com:jd-opensource/JDOxyGent4J.git",
+      "homepage": null,
+      "created_at": "2025-12-22T05:07:57Z",
+      "updated_at": "2025-12-31T02:35:58Z",
+      "pushed_at": "2025-12-30T07:38:45Z"
+    },
+    "stats": {
+      "stars": 66,
+      "forks": 11,
+      "watchers": 66,
+      "open_issues": 0,
+      "size": 5466
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 1699616,
+        "Batchfile": 2837,
+        "Shell": 2671
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "[English](./README.md) | [中文](./README_zh.md)\n\n<p align=\"center\">\n  <a href=\"https://github.com/jd-opensource/JDOxyGent4J/pulls\">\n    <img src=\"https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square\" alt=\"PRs Welcome\">\n  </a>\n  <a href=\"https://github.com/jd-opensource/JDOxyGent4J/blob/main/LICENSE\">\n    <img src=\"https://img.shields.io/badge/License-Apache_2.0-blue.svg\" alt=\"license\"/>\n  </a>\n  <a href=\"https://search.maven.org/search?q=g:com.jd.oxygent%20AND%20a:JDOxyGent4J\">\n    <img src=\"https://img.shields.io/badge/maven_central-JDOxyGentJ1.0.0-blue\" alt=\"maven\"/>\n  </a>\n  <a href=\"https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html\">\n    <img src=\"https://img.shields.io/badge/Java-17-orange?logo=openjdk\" alt=\"jdk17\"/>\n  </a>\n</p>\n\n![Banner](docs/images/images_banner.jpg)\n\n<h2 align=\"center\">An advanced Java framework that enables developers to quickly build production-grade intelligent systems.</h2>\n\n<div align=\"center\">\n\n**🌐 Official Website:** [OxyGent](http://oxygent.jd.com) | **📚 Open Source:** [Python Version](https://github.com/jd-opensource/OxyGent) | [Java Version](https://github.com/jd-opensource/JDOxyGent4J)\n\n</div>\n\n## 🔍 1. Project Overview\n\nOxyGent is an open-source multi-agent framework that unifies Agent/LLM/Tool as composable Oxy components, providing transparent end-to-end pipelines with orchestration capabilities, supporting continuous evolution and unlimited expansion in production environments.\n\nJDOxyGent4J shares the same philosophy as the Python version and is deeply optimized for the Java ecosystem: native type safety and compile-time validation, seamless Spring Boot integration, enterprise-grade concurrency and stability, and developer-friendly APIs for Java developers.\n\nJDOxyGent4J has been validated and applied in multiple real-world business scenarios, proving its stability and scalability in production environments.\n\n---\n\n## ⚡ 2. Core Features\n\n⚙️ **Deep Java Ecosystem Integration**\n- Seamlessly integrates with Spring Boot and Java EE standards, providing a type-safe intelligent agent development experience. Supports rapid definition of agent behavior through annotations and configuration files, leveraging Java ecosystem's mature toolchain and dependency injection mechanisms to accelerate enterprise AI application development.\n\n🛡️ **Enterprise-Grade Reliability Assurance**\n- Inherits Java platform's security model and exception handling mechanisms, ensuring stable operation of agent systems in production environments. Provides complete access control, audit logs, and observability support, meeting enterprise application security and compliance requirements.\n\n⚡ **High-Performance Concurrent Processing**\n- Based on Java's concurrent programming model, enabling efficient asynchronous execution of agent tasks. Supports large-scale concurrent agent execution, with non-blocking IO for inter-agent communication, showing significant performance improvements over the Python version in concurrency tests.\n\n🔄 **Flexible Configuration and Extensible Storage**\n- Provides unified infrastructure abstraction layer and flexible configuration system, supporting user-defined extensions for various storage implementations (databases, caches, vector libraries, etc.). Through configuration-driven architecture design, easily adapts to local development, cloud deployment, and enterprise runtime environments, achieving hot-pluggable storage layer and seamless migration.\n\n\n---\n\n## 🗂️ 3. Project Structure\n\n```\nJDOxyGent4J/\n├── oxygent-core/                  # Core: Agent/LLM/Tool/MAS with examples\n│   └── src/main/java/com/jd/oxygent/core/\n│       ├── Config.java            # Global configuration\n│       ├── Mas.java               # Multi-Agent System (MAS) core\n│       ├── MasFactoryBean.java    # Spring integration and space management\n│       ├── oxygent/oxy/           # Component implementations\n│       │   ├── agents/            # Chat/ReAct/Workflow/RAG/SSE/Parallel etc.\n│       │   ├── llms/              # HttpLlm, OpenAiLlm etc.\n│       │   ├── function_tools/    # FunctionHub, FunctionTool\n│       │   └── mcp/               # StdioMCPClient, SSEMCPClient\n│       ├── oxygent/schemas/       # Request/Response/Memory/Context/Exception/Observation\n│       ├── oxygent/infra/         # Database, RAG, multimodal abstraction\n│       ├── oxygent/samples/       # Sample code and servers\n│       ├── tools/                 # Preset tools and example tools\n│       └── utils/                 # Common utility classes\n├── oxygent-infra/                # Infrastructure implementation\n├── oxygent-starter-core/          # Spring Boot Starter (auto-configuration)\n├── oxygent-studio/                # Web examples and demo UI\n├── docs/                          # Documentation (Chinese in docs/docs_zh)\n└── cache_dir/                     # Local cache directory\n```\n\n## 🚀 4. Quick Start\n\n> 💡 **Quick Start Recommendations**:\n> - Read [docs/](docs/docs_zh/README.md) for compl",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:28.374975"
+  },
+  {
+    "basic_info": {
+      "name": "Jarida",
+      "full_name": "BitTheByte/Jarida",
+      "owner": "BitTheByte",
+      "description": "Jarida (Jadx + Frida) is a Jadx GUI plugin that lets you trace and optionally patch Java method return values at runtime using Frida, directly from Jadx’s decompiled view.",
+      "url": "https://github.com/BitTheByte/Jarida",
+      "clone_url": "https://github.com/BitTheByte/Jarida.git",
+      "ssh_url": "git@github.com:BitTheByte/Jarida.git",
+      "homepage": "",
+      "created_at": "2025-12-23T10:47:46Z",
+      "updated_at": "2025-12-30T03:00:42Z",
+      "pushed_at": "2025-12-28T01:44:53Z"
+    },
+    "stats": {
+      "stars": 65,
+      "forks": 0,
+      "watchers": 65,
+      "open_issues": 0,
+      "size": 51026
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 231814
+      },
+      "license": null,
+      "topics": [
+        "android",
+        "frida",
+        "jadx",
+        "mobile",
+        "reverse-engineering"
+      ]
+    },
+    "content": {
+      "readme": "# Jarida — Android Runtime Dynamic Tracing\n\n<div align=\"center\">\n<pre>\n────────────────────────────────────────────────────────────────────────────────\n   J A R I D A   |   JADX × Frida   |   Android Reverse Engineering Toolkit\n────────────────────────────────────────────────────────────────────────────────\n</pre>\n</div>\n\nJarida (Jadx + Frida) is a Jadx GUI plugin that lets you trace and optionally patch Java method return values **at runtime** using Frida, directly from Jadx’s decompiled view.\n\n## Motivation\nStatic analysis tells you what the code *could* do. Jarida shows what it *actually* does at runtime, without leaving Jadx. The goal is fast, practical inspection: choose a method → hook it → watch arguments and results live.\n\n## Showcase\n![](assets/showcase.gif)\n\n## Key features\n\n- **Exact overload resolution**, supports overloaded methods, static/instance methods, arrays, primitives, objects.\n- **Hook logs**: arguments, return value, thread name, optional stack trace.\n- **Return patching**: constant / expression / conditional / full script.\n- **Multi-hooking**: keep adding hooks without restarting the app.\n- **Hook indicators** in Jadx code view.\n\n## Requirements\n- Jadx GUI **1.5.x** (tested with 1.5.3)\n- Python + `frida` + `frida-tools`\n- `adb` in PATH\n- `frida-server` running on your device/emulator\n\n## Build (local)\nMaven pulls the required Jadx dependencies automatically.\n\nBuild:\n```\nmvn -DskipTests package\n```\n\nJar output:\n```\ntarget/jarida-<version>.jar\n```\n\n## Install in Jadx GUI\nYou can install Jarida either from the Jadx plugin store or from a local jar.\n\n### Option A — Install from Jadx Plugin Store (recommended)\n1. Open Jadx GUI\n2. **Plugins → Manage plugins**\n3. Find **Jarida**\n4. Click **Install**\n5. Restart Jadx\n\n### Option B — Install local jar\nYou can download the jar from **GitHub Releases** or build it yourself.\n\n1. Open Jadx GUI\n2. **Plugins → Install plugin**\n3. Select the jar (from Releases or local build): `jarida-<version>.jar`\n4. Restart Jadx\n\n## Troubleshooting\n- **Frida CLI not found:** check `frida` and `frida-tools` are installed and on PATH.\n- **No device:** confirm `adb devices -l` shows your device.\n- **frida-server not running:** restart it from ADB shell.\n- **Attach fails:** try Spawn mode or select the correct PID.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:29.680985"
+  },
+  {
+    "basic_info": {
+      "name": "APITALLY-Java",
+      "full_name": "Davidjos03/APITALLY-Java",
+      "owner": "Davidjos03",
+      "description": "Simple API monitoring & analytics for Java web apps",
+      "url": "https://github.com/Davidjos03/APITALLY-Java",
+      "clone_url": "https://github.com/Davidjos03/APITALLY-Java.git",
+      "ssh_url": "git@github.com:Davidjos03/APITALLY-Java.git",
+      "homepage": "https://apitally.io/",
+      "created_at": "2025-12-12T22:11:36Z",
+      "updated_at": "2025-12-27T17:30:17Z",
+      "pushed_at": "2025-12-15T07:28:08Z"
+    },
+    "stats": {
+      "stars": 51,
+      "forks": 46,
+      "watchers": 51,
+      "open_issues": 0,
+      "size": 41
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 124831,
+        "Makefile": 61
+      },
+      "license": "MIT License",
+      "topics": [
+        "api",
+        "api-monitoring",
+        "java",
+        "java-sdk",
+        "real-time",
+        "spring-boot",
+        "web-framework"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  \n  <a href=\"https://apitally.io\" target=\"_blank\">\n    <picture>\n      <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://assets.apitally.io/logos/logo-horizontal-new-dark.png\">\n      <source media=\"(prefers-color-scheme: light)\" srcset=\"https://assets.apitally.io/logos/logo-horizontal-new-light.png\">\n      <img alt=\"Apitally logo\" src=\"https://assets.apitally.io/logos/logo-vertical-light.png\" width=\"220\">\n    </picture>\n  </a>\n</p>\n<p align=\"center\"><b>API monitoring & analytics made simple</b></p>\n<p align=\"center\" style=\"color: #ccc;\">Real-time metrics, request logs, and alerts for your APIs — with just a few lines of code.</p>\n\n<p align=\"center\">\n  <a href=\"mailto:stanley.eugene.wilson@gmail.com\">\n    <img src=\"https://img.shields.io/badge/Email-stanley.eugene.wilson@gmail.com-ef4444?style=flat&logo=gmail&logoColor=white\" />\n  </a>\n  <a href=\"https://t.me/lorine93s\">\n    <img src=\"https://img.shields.io/badge/Telegram-@lorine93s-2AABEE?style=flat&logo=telegram&logoColor=white\" />\n  </a>\n</p>\n\n<br>\n<img alt=\"Apitally screenshots\" src=\"https://assets.apitally.io/screenshots/overview.png\">\n<br>\n\n# Apitally SDK for Java\n\n[![Tests](https://github.com/apitally/apitally-java/actions/workflows/tests.yaml/badge.svg?event=push)](https://github.com/apitally/apitally-java/actions)\n[![Codecov](https://codecov.io/gh/apitally/apitally-java/graph/badge.svg?token=sV0D4JeWG6)](https://codecov.io/gh/apitally/apitally-java)\n\nThis SDK for Apitally currently supports the following Java web frameworks:\n\n- [Spring Boot](https://docs.apitally.io/frameworks/spring-boot) (≥ 3.0, Java\n  17+)\n\nLearn more about Apitally on our 🌎 [website](https://apitally.io) or check out\nthe 📚 [documentation](https://docs.apitally.io).\n\n## Key features\n\n### API analytics\n\nTrack traffic, error and performance metrics for your API, each endpoint and\nindividual API consumers, allowing you to make informed, data-driven engineering\nand product decisions.\n\n### Error tracking\n\nUnderstand which validation rules in your endpoints cause client errors. Capture\nerror details and stack traces for 500 error responses, and have them linked to\nSentry issues automatically.\n\n### Request logging\n\nDrill down from insights to individual requests or use powerful filtering to\nunderstand how consumers have interacted with your API. Configure exactly what\nis included in the logs to meet your requirements.\n\n### API monitoring & alerting\n\nGet notified immediately if something isn't right using custom alerts, synthetic\nuptime checks and heartbeat monitoring. Notifications can be delivered via\nemail, Slack or Microsoft Teams.\n\n## Install\n\nAdd the following dependency to your `pom.xml` file:\n\n```xml\n<dependency>\n  <groupId>io.apitally</groupId>\n  <artifactId>apitally</artifactId>\n  <version>[0.1.0,)</version>\n</dependency>\n```\n\n## Usage\n\nAdd Apitally to your Spring Boot application using the `@UseApitally`\nannotation.\n\n```java\nimport org.springframework.boot.SpringApplication;\nimport org.springframework.boot.autoconfigure.SpringBootApplication;\n\nimport io.apitally.spring.UseApitally;\n\n@UseApitally\n@SpringBootApplication\npublic class Application {\n    public static void main(String[] args) {\n        SpringApplication.run(Application.class, args);\n    }\n}\n```\n\nThen add the following properties to your `application.yml` file:\n\n```yaml\napitally:\n  client-id: \"your-client-id\"\n  env: \"dev\" # or \"prod\" etc.\n```\n\nFor further instructions, see our\n[setup guide for Spring Boot](https://docs.apitally.io/frameworks/spring-boot).\n\n## Getting help\n\nIf you need help please\n[create a new discussion](https://github.com/orgs/apitally/discussions/categories/q-a)\non GitHub or\n[join our Slack workspace](https://join.slack.com/t/apitally-community/shared_invite/zt-2b3xxqhdu-9RMq2HyZbR79wtzNLoGHrg).\n\n## License\n\nThis library is licensed under the terms of the MIT license.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:31.026079"
+  },
+  {
+    "basic_info": {
+      "name": "jls",
+      "full_name": "idelice/jls",
+      "owner": "idelice",
+      "description": null,
+      "url": "https://github.com/idelice/jls",
+      "clone_url": "https://github.com/idelice/jls.git",
+      "ssh_url": "git@github.com:idelice/jls.git",
+      "homepage": null,
+      "created_at": "2025-12-16T10:06:56Z",
+      "updated_at": "2025-12-30T13:55:32Z",
+      "pushed_at": "2025-12-27T09:16:41Z"
+    },
+    "stats": {
+      "stars": 51,
+      "forks": 1,
+      "watchers": 51,
+      "open_issues": 0,
+      "size": 4645
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 927278,
+        "Shell": 8370,
+        "Starlark": 3282
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# JLS (Java Language Server) using the [Java compiler API](https://docs.oracle.com/javase/10/docs/api/jdk.compiler-summary.html)\n\nThis server is based on the original implementation at `https://github.com/georgewfraser/java-language-server`,\nwith updated functionality and ongoing improvements.\n\nA Java language server based on v3.0 of the protocol and implemented using the Java compiler API.\n\n## Enhancements in this fork\n\nThis fork keeps the original behavior while adding practical improvements for day-to-day work:\n\n- Lombok support (annotation processing + `-javaagent` wiring).\n- Faster startup and navigation with workspace caches.\n- Persistent workspace index cache to speed up restarts.\n- Parallel indexing for large projects.\n- Smarter compile scoping to reduce work on main vs. test sources.\n- Completion prioritizes already-imported types.\n- Optional timing/debug logs via `~/.config/jls/logging.properties`.\n- Unused import warnings in diagnostics.\n\n\n## IMPORTANT\nI may often introduce **breaking changes** until i'm satisfied with a stable version so prepare your horses for a wild ride\n\n\n## First-run checklist\n\n- Install a compatible JDK and verify `java -version`.\n- (Optional) create `~/.config/jls/runtimes.json` for per-project runtime selection.\n- (Optional) add `~/.config/jls/logging.properties` for timing logs.\n- Build or download release artifacts so `dist/` exists.\n\n## Installation (other editors)\n\nJLS does not bundle a runtime. Install a compatible JDK and either add it to PATH, set `JAVA_HOME`, or configure `~/.config/jls/runtimes.json`.\n\n### Neovim (with nvim-lspconfig)\n\nSee `docs/lazyvim-java-lsp.md` for a complete LazyVim example. For a minimal `nvim-lspconfig` setup:\nEnsure a compatible JDK is installed and available on PATH (or set `JAVA_HOME`).\n\n```lua\nlocal lspconfig = require(\"lspconfig\")\nlocal configs = require(\"lspconfig.configs\")\n\nif not configs.jls then\n  configs.jls = {\n    default_config = {\n      cmd = {\n        \"/path/to/jls/dist/lang_server_{linux|mac|windows}.sh\",\n        \"-Dorg.javacs.lombokPath=/path/to/lombok.jar\",\n      },\n      filetypes = { \"java\" },\n      root_dir = lspconfig.util.root_pattern(\"pom.xml\", \"build.gradle\", \"build.gradle.kts\", \".java-version\", \".git\"),\n      settings = {\n        java = {\n          classPath = {\n            \"lib/some-dependency.jar\",\n          },\n          docPath = {\n            \"lib/some-dependency-sources.jar\",\n          },\n          externalDependencies = {\n            \"junit:junit:jar:4.12:test\",\n            \"junit:junit:4.12\",\n          },\n          mavenSettings = \"/Users/you/.m2/settings.xml\",\n        },\n      },\n    },\n  }\nend\n\nlspconfig.jls.setup({})\n```\n\n### Linux (env-based Lombok)\nFor including lombok support execute\n```sh\nexport LOMBOK_PATH=/path/to/lombok.jar\n```\nbefore using language server\n\n## [Issues](https://github.com/idelice/jls/issues)\n\n## Usage\n\nThe language server will provide autocomplete and other features using:\n* .java files anywhere in your workspace\n* Java platform classes\n* External dependencies specified using `pom.xml` or [settings](#Settings)\n\n## Settings\n\nIf the language server doesn't detect your external dependencies automatically, you can specify them in your LSP client settings (the JSON examples map directly to `settings.java.*` in most clients):\n\n```json\n{\n    \"java.externalDependencies\": [\n        \"junit:junit:jar:4.12:test\", // Maven format\n        \"junit:junit:4.12\" // Gradle-style format is also allowed\n    ]\n}\n```\n\nIf all else fails, you can specify the Java class path and the locations of\nsource jars manually:\n\n```json\n{\n    \"java.classPath\": [\n        \"lib/some-dependency.jar\"\n    ],\n    \"java.docPath\": [\n        \"lib/some-dependency-sources.jar\"\n    ]\n}\n```\n\nIf your project needs a private Maven repository, make sure the language server\nuses the same `settings.xml` that contains your credentials:\n\n```json\n{\n    \"java.mavenSettings\": \"/Users/you/.m2/settings.xml\"\n}\n```\n\nThat file is passed to `mvn -s …` when Maven runs dependency goals, so private\nartifacts can be resolved just like they are in `jdtls`.\n\nYou can generate a list of external dependencies using your build tool:\n* Maven: `mvn dependency:list`\n* Gradle: `gradle dependencies`\n\nThe Java language server will look for the dependencies you specify in `java.externalDependencies` in your Maven and Gradle caches `~/.m2` and `~/.gradle`. You should use your build tool to download the library *and* source jars of all your dependencies so that the Java language server can find them:\n* Maven\n  * `mvn dependency:resolve` for compilation and autocomplete\n  * `mvn dependency:resolve -Dclassifier=sources` for inline Javadoc help\n* Gradle\n  * `gradle dependencies` for compilation and autocomplete\n  * Include `classifier: sources` in your build.gradle for inline Javadoc help, for example:\n    ```\n    dependencies {\n        testCompile group: 'junit', name: 'junit', version: '4.+'\n        testCompile group: 'junit', name: 'junit', version: '4.+', classifie",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-31T02:51:32.470108"
+  },
+  {
+    "basic_info": {
+      "name": "fastjson_mysql",
+      "full_name": "Fushuling/fastjson_mysql",
+      "owner": "Fushuling",
+      "description": "Fastjson + MySQL 条件下不出网利用测试环境",
+      "url": "https://github.com/Fushuling/fastjson_mysql",
+      "clone_url": "https://github.com/Fushuling/fastjson_mysql.git",
+      "ssh_url": "git@github.com:Fushuling/fastjson_mysql.git",
+      "homepage": "",
+      "created_at": "2025-12-04T12:24:18Z",
+      "updated_at": "2025-12-30T09:02:31Z",
+      "pushed_at": "2025-12-06T11:50:58Z"
+    },
+    "stats": {
+      "stars": 45,
+      "forks": 4,
+      "watchers": 45,
+      "open_issues": 0,
+      "size": 17
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 6522,
+        "Python": 2600,
+        "Dockerfile": 153
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Fastjson + MySQL 不出网利用测试环境\n\n这是一个用于测试 Fastjson + MySQL 条件下不出网利用的测试环境。该环境演示了在 Fastjson 1.2.83 开启 autotype 的情况下(对于老版本 Fastjson 不开启 autotype 的情况也能利用类似的手法)，通过 MySQL JDBC 的 NamedPipe 机制实现不出网 RCE 的利用方式。\n\n## 相关文章\n\n详细的技术分析和利用原理请参考：\n\n**Fastjson1.2.83(开autotype)+MySQL不出网利用**  \nhttps://fushuling.com/index.php/2025/12/04/fastjson1-2-83%e5%bc%80autotypemysql%e4%b8%8d%e5%87%ba%e7%bd%91%e5%88%a9%e7%94%a8/\n\n## 快速开始\n\n### 启动环境\n\n使用 docker-compose 启动测试环境：\n\n```bash\ndocker-compose up\n```\n\n启动后访问：http://127.0.0.1:8080\n\n### 利用方式\n\n`exp.py` 是利用脚本，默认利用的是 [java-chains](https://github.com/vulhub/java-chains) 上的 OneForAllEcho 内存马（利用的是 `rce.txt`）。\n\n通过请求头 `X-Authorization` 可以指定执行的命令，例如：\n\n```bash\npython exp.py\n```\n\n脚本会自动：\n1. 将 `rce.txt` 中的恶意数据通过 socket 发送到目标服务器\n2. 通过爆破 `/proc/self/fd/{fd}` 的方式找到缓存的恶意文件\n3. 构造 Fastjson payload 触发反序列化\n4. 执行内存马，通过 `X-Authorization` 请求头传递命令\n\n## 项目结构\n\n```\nfastjson_mysql/\n├── docker-compose.yml          # Docker Compose 配置文件\n├── Dockerfile                  # Docker 镜像构建文件\n├── pom.xml                     # Maven 项目配置文件\n├── exp.py                      # 利用脚本（使用 OneForAllEcho 内存马）\n├── rce.txt                     # OneForAllEcho 内存马的恶意 pipe 文件\n├── calc_5.txt                  # MySQL 5 版本的恶意 pipe 文件（用于弹出计算器）\n├── calc_6.txt                  # MySQL 6 版本的恶意 pipe 文件（用于弹出计算器）\n├── calc_8.txt                  # MySQL 8 版本的恶意 pipe 文件（用于弹出计算器）\n├── src/\n│   └── main/\n│       └── java/\n│           └── com/\n│               └── suctf/\n│                   ├── Application.java                    # Spring Boot 主应用类\n│                   ├── Fastjson_mysql_calc_5.java         # MySQL 5 条件下 Fastjson 不出网利用示例代码（需要 calc_5.txt）\n│                   ├── Fastjon_mysql_calc_6.java          # MySQL 6 条件下 Fastjson 不出网利用示例代码（需要 calc_6.txt）\n│                   ├── Fastjson_mysql_calc_8.java         # MySQL 8 条件下 Fastjson 不出网利用示例代码（需要 calc_8.txt）\n│                   ├── Mysql_calc.java                    # MySQL 相关测试代码\n│                   └── controller/\n│                       ├── IndexController.java           # 首页控制器\n│                       └── JsonController.java            # JSON 解析控制器（/json/parse 接口）\n└── README.md                   # 本文件\n```\n\n## 文件说明\n\n### 利用脚本\n\n- **exp.py**: 自动化利用脚本，使用 OneForAllEcho 内存马实现 RCE\n  - 通过 `X-Authorization` 请求头传递要执行的命令\n  - 使用 `rce.txt` 作为恶意 pipe 文件\n\n### 恶意 Pipe 文件\n\n- **rce.txt**: OneForAllEcho 内存马的恶意 pipe 文件，用于 `exp.py` 脚本\n- **calc_5.txt**: MySQL 5 版本的恶意 pipe 文件，用于弹出计算器演示\n- **calc_6.txt**: MySQL 6 版本的恶意 pipe 文件，用于弹出计算器演示\n- **calc_8.txt**: MySQL 8 版本的恶意 pipe 文件，用于弹出计算器演示\n\n### 示例代码\n\n- **Fastjson_mysql_calc_5.java**: MySQL 5 条件下 Fastjson 不出网利用的示例代码\n  - 需要配合 `calc_5.txt` 使用\n  - 演示如何通过 Fastjson 反序列化触发 MySQL JDBC 的 NamedPipe 机制\n\n- **Fastjon_mysql_calc_6.java**: MySQL 6 条件下 Fastjson 不出网利用的示例代码\n  - 需要配合 `calc_6.txt` 使用\n  - 使用 `com.mysql.cj.jdbc.ha.LoadBalancedMySQLConnection` 类\n\n- **Fastjson_mysql_calc_8.java**: MySQL 8 条件下 Fastjson 不出网利用的示例代码\n  - 需要配合 `calc_8.txt` 使用\n\n### 应用代码\n\n- **Application.java**: Spring Boot 应用主类\n- **JsonController.java**: 提供 `/json/parse` 接口，用于接收和解析 JSON 数据\n- **IndexController.java**: 首页控制器\n\n## 技术原理\n\n该利用方式的核心在于：\n\n1. **Fastjson autotype 开启**: 当 Fastjson 开启 autotype 时，会走黑名单机制，可以使用一些未进入黑名单的类\n2. **MySQL JDBC NamedPipe**: 通过 `NamedPipeSocketFactory` 可以指定一个本地文件作为数据源，而不需要真实的网络连接\n3. **文件描述符爆破**: 利用 Linux 的 `/proc/self/fd/{fd}` 机制，通过爆破文件描述符找到缓存的恶意文件\n4. **反序列化链**: 恶意 pipe 文件中包含反序列化 payload，触发后可以实现 RCE\n\n## 注意事项\n\n- 该环境仅用于安全研究和测试目的\n- 请勿在生产环境中使用\n- 确保在隔离的网络环境中运行\n\n## 致谢\n\n- [java-chains](https://github.com/vulhub/java-chains) - 提供恶意 pipe 文件生成功能\n- [jdbc-tricks](https://github.com/yulate/jdbc-tricks) - JDBC 利用技巧总结\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:33.856815"
+  },
+  {
+    "basic_info": {
+      "name": "RogueMap",
+      "full_name": "bryan31/RogueMap",
+      "owner": "bryan31",
+      "description": "High-performance off-heap and persistent key-value storage for Java",
+      "url": "https://github.com/bryan31/RogueMap",
+      "clone_url": "https://github.com/bryan31/RogueMap.git",
+      "ssh_url": "git@github.com:bryan31/RogueMap.git",
+      "homepage": "https://roguemap.yomahub.com",
+      "created_at": "2025-12-09T15:52:23Z",
+      "updated_at": "2025-12-29T05:17:02Z",
+      "pushed_at": "2025-12-16T11:03:32Z"
+    },
+    "stats": {
+      "stars": 43,
+      "forks": 5,
+      "watchers": 43,
+      "open_issues": 3,
+      "size": 206
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 325214
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"static/img/logo.svg\" alt=\"RogueMap Logo\" width=\"120\" height=\"120\">\n  <h1>RogueMap</h1>\n</div>\n\n<div align=\"center\">\n\n[![License](https://img.shields.io/badge/license-Apache%202-blue.svg)](LICENSE)\n[![Java](https://img.shields.io/badge/Java-8%2B-orange.svg)](https://www.oracle.com/java/)\n[![Version](https://img.shields.io/badge/version-1.0.0--BETA1-green.svg)](https://github.com/bryan31/RogueMap)\n\n</div>\n\n**RogueMap** 是一个高性能的嵌入式键值存储引擎，突破 HashMap 的内存墙，提供堆外内存和持久化存储能力。\n\n## 🎯 为什么选择 RogueMap？\n\n### HashMap 的困境\n\n在处理大规模数据时，传统的 HashMap 面临诸多限制：\n\n- ❌ **内存瓶颈** - 所有数据必须存储在堆内存，受 JVM 堆大小限制\n- ❌ **GC 压力** - 百万级对象导致 Full GC 频繁，影响应用稳定性\n- ❌ **数据易失** - 进程重启后数据全部丢失，无持久化能力\n- ❌ **容量受限** - 超大数据集（10GB+）无法处理，OutOfMemoryError 噩梦\n- ❌ **冷启动慢** - 每次启动都需要重新加载数据，耗时数分钟甚至更久\n\n### RogueMap 的突破\n\nRogueMap 将数据存储在 **堆外内存** 或 **内存映射文件** 中，让你享受 HashMap 的简单 API，同时获得超越其限制的能力：\n\n- ✅ **无限容量** - 突破 JVM 堆限制，轻松处理 100GB+ 数据集\n- ✅ **零 GC 压力** - 堆内存占用减少 **84.7%**，告别 Full GC 噩梦\n- ✅ **数据持久化** - 进程重启后数据自动恢复，零成本持久化\n- ✅ **即开即用** - Mmap 模式秒级启动，无需预热加载\n- ✅ **写入更快** - 写入性能提升 **1.45 倍**，仅写入索引，延迟序列化\n- ✅ **临时存储** - 支持自动清理的临时文件模式，完美替代磁盘缓存\n\n### 核心优势\n\n| 特性 | HashMap | RogueMap |\n|------|---------|----------|\n| **数据容量** | 受限于堆大小（通常 < 10GB） | **无限制**，可达 TB 级 |\n| **堆内存占用** | 100% | **仅 15.3%** |\n| **GC 影响** | 严重（Full GC 秒级） | **几乎无影响** |\n| **持久化** | ❌ 不支持 | ✅ 支持 |\n| **进程重启** | 数据全部丢失 | **数据自动恢复** |\n| **写性能** | 基准 | **1.45 倍提升** |\n| **读性能** | 基准 | 约 1/4（反序列化开销） |\n| **临时文件** | ❌ 不支持 | ✅ 自动清理 |\n\n### 适用场景\n\n**RogueMap 适合这些场景**：\n- ✅ **写多读少** - 数据采集、日志聚合、指标统计\n- ✅ **需要持久化** - 用户会话、应用状态、缓存数据\n- ✅ **大数据集** - 数据量超过 JVM 堆大小限制\n- ✅ **GC 敏感** - 对 Full GC 停顿零容忍的实时系统\n- ✅ **临时数据处理** - 海量临时数据暂存，自动清理避免泄露\n\n**RogueMap 不适合这些场景**：\n- ❌ **读密集型** - 如果你的应用是读多写少，HashMap 或 Caffeine 更合适\n- ❌ **微秒级延迟** - 如果需要极致的读取性能，纯内存方案更好\n- ❌ **小数据集** - 数据量 < 1GB 时，HashMap 的简单性更有优势\n\n## ✨ 特性\n\n- ✅ **多种存储模式** - 支持 堆外内存、内存映射文件、内存映射临时文件 三种模式\n- ✅ **持久化支持** - Mmap 模式支持数据持久化到磁盘，支持自动恢复\n- ✅ **临时文件模式** - 支持自动清理的临时文件存储\n- ✅ **零拷贝序列化** - 原始类型直接内存布局，无序列化开销\n- ✅ **高并发支持** - 分段锁设计（64 个段），StampedLock 乐观锁优化\n- ✅ **智能内存分配** - Slab Allocator 减少内存碎片\n- ✅ **多种索引结构** - 支持 HashIndex、SegmentedHashIndex、LongPrimitiveIndex、IntPrimitiveIndex\n- ✅ **类型安全** - 泛型支持，编译时类型检查\n- ✅ **零依赖** - 核心库无第三方依赖\n\n## 🚀 快速开始\n\n### Maven 依赖\n\n```xml\n<dependency>\n    <groupId>com.yomahub</groupId>\n    <artifactId>roguemap</artifactId>\n    <version>1.0.0-BETA2</version>\n</dependency>\n```\n\n### 基本使用\n\n#### OffHeap 模式（堆外内存）\n\n```java\nimport com.yomahub.roguemap.RogueMap;\nimport com.yomahub.roguemap.serialization.PrimitiveCodecs;\nimport com.yomahub.roguemap.serialization.StringCodec;\n\n// 创建一个 String -> Long 的堆外内存 Map\ntry (RogueMap<String, Long> map = RogueMap.<String, Long>offHeap()\n        .keyCodec(StringCodec.INSTANCE)\n        .valueCodec(PrimitiveCodecs.LONG)\n        .maxMemory(100 * 1024 * 1024) // 100MB\n        .build()) {\n\n    // 存储数据\n    map.put(\"user1\", 1000L);\n    map.put(\"user2\", 2000L);\n\n    // 读取数据\n    Long score = map.get(\"user1\");\n    System.out.println(\"Score: \" + score);\n\n    // 更新数据\n    map.put(\"user1\", 1500L);\n\n    // 删除数据\n    map.remove(\"user2\");\n\n    // 检查存在\n    boolean exists = map.containsKey(\"user1\");\n\n    // 获取大小\n    int size = map.size();\n}\n```\n\n#### Mmap 临时文件模式\n\n```java\n// 自动创建临时文件，JVM 关闭后自动删除\nRogueMap<Long, Long> tempMap = RogueMap.<Long, Long>mmap()\n    .temporary()\n    .allocateSize(500 * 1024 * 1024L)\n    .keyCodec(PrimitiveCodecs.LONG)\n    .valueCodec(PrimitiveCodecs.LONG)\n    .build();\n```\n\n#### Mmap 模式（持久化存储）\n\n```java\n// 第一次：创建并写入数据\nRogueMap<String, Long> map1 = RogueMap.<String, Long>mmap()\n    .persistent(\"data/scores.db\")\n    .allocateSize(1024 * 1024 * 1024L)  // 1GB\n    .keyCodec(StringCodec.INSTANCE)\n    .valueCodec(PrimitiveCodecs.LONG)\n    .build();\n\nmap1.put(\"alice\", 100L);\nmap1.put(\"bob\", 200L);\nmap1.flush();  // 刷新到磁盘\nmap1.close();\n\n// 第二次：重新打开并恢复数据\nRogueMap<String, Long> map2 = RogueMap.<String, Long>mmap()\n    .persistent(\"data/scores.db\")\n    .keyCodec(StringCodec.INSTANCE)\n    .valueCodec(PrimitiveCodecs.LONG)\n    .build();\n\nlong score = map2.get(\"alice\");  // 100L（从磁盘恢复）\nmap2.close();\n```\n\n### 支持的数据类型\n\nRogueMap 提供了零拷贝的原始类型编解码器：\n\n```java\n// Long 类型（高性能）\nRogueMap<Long, Long> longMap = RogueMap.<Long, Long>offHeap()\n    .keyCodec(PrimitiveCodecs.LONG)\n    .valueCodec(PrimitiveCodecs.LONG)\n    .build();\n\n// Integer 类型\nRogueMap<Integer, Integer> intMap = RogueMap.<Integer, Integer>offHeap()\n    .keyCodec(PrimitiveCodecs.INTEGER)\n    .valueCodec(PrimitiveCodecs.INTEGER)\n    .build();\n\n// String 类型\nRogueMap<String, String> stringMap = RogueMap.<String, String>offHeap()\n    .keyCodec(StringCodec.INSTANCE)\n    .valueCodec(StringCodec.INSTANCE)\n    .build();\n\n// 混合类型\nRogueMap<String, Double> mixedMap = RogueMap.<String, Double>offHeap()\n    .keyCodec(StringCodec.INSTANCE)\n    .valueCodec(PrimitiveCodecs.DOUBLE)\n    .build();\n```\n\n**支持的原始类型**：`Long`, `Integer`, `Double`, `Float`, `Short`, `Byte`, `Boolean`\n\n如果是对象类型，RogueMap也提供了对象的编码解析器：\n\n```java\n// 对象类型\nRogueMap<Long, Long> longMap = RogueMap.<String, YourObject>offHeap(",
+      "default_branch": "master"
+    },
+    "fetched_at": "2025-12-31T02:51:35.254147"
+  },
+  {
+    "basic_info": {
+      "name": "MusicAutoTagger",
+      "full_name": "lux032/MusicAutoTagger",
+      "owner": "lux032",
+      "description": "A smart music file organization tool based on audio fingerprinting technology. It automatically monitors the download directory, identifies songs using AcoustID and MusicBrainz, completes metadata (artist, album, cover), and automatically downloads lyrics.",
+      "url": "https://github.com/lux032/MusicAutoTagger",
+      "clone_url": "https://github.com/lux032/MusicAutoTagger.git",
+      "ssh_url": "git@github.com:lux032/MusicAutoTagger.git",
+      "homepage": "",
+      "created_at": "2025-12-02T03:16:42Z",
+      "updated_at": "2025-12-30T06:19:35Z",
+      "pushed_at": "2025-12-30T02:37:50Z"
+    },
+    "stats": {
+      "stars": 39,
+      "forks": 0,
+      "watchers": 39,
+      "open_issues": 0,
+      "size": 1645
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 460096,
+        "HTML": 29901,
+        "Dockerfile": 831
+      },
+      "license": "MIT License",
+      "topics": [
+        "acoustid",
+        "docker",
+        "music-tagger",
+        "nas",
+        "selfhosted"
+      ]
+    },
+    "content": {
+      "readme": "# 🎵 Music Auto Tagger | Automated Music Library Organizer\n\n<div align=\"center\">\n\n[![Java](https://img.shields.io/badge/Java-17%2B-orange.svg)](https://www.java.com/)\n[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)\n[![MusicBrainz](https://img.shields.io/badge/Data-MusicBrainz-purple.svg)](https://musicbrainz.org/)\n[![LrcLib](https://img.shields.io/badge/Lyrics-LrcLib-green.svg)](https://lrclib.net/)\n[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n\n[English](README.md) | [简体中文](README_ZH.md)\n\n</div>\n\n**Music Auto Tagger** is an automated music library organizer based on **audio fingerprinting** and **duration sequence fingerprinting**. Designed for NAS and server environments, it monitors your download folder, identifies music files, fetches comprehensive metadata (including lyrics), and organizes them into a clean structure.\n\n> **Core Value**: Say goodbye to messy music folders. Automatically tag, cover, and organize your music library to perfection.\n\n## 📊 Web Monitoring Dashboard\n\n![Web Dashboard](src/main/resources/static/web.png)\n\nThe built-in real-time monitoring dashboard provides:\n- 📊 Real-time statistics and processing progress\n- 📝 Recently processed files with detailed metadata\n- 📋 Live system logs with auto-scroll\n- ⚙️ System configuration and status overview\n\n## ✨ Key Features\n\n- 🎧 **Audio Fingerprinting**: Uses **Chromaprint (AcoustID)** to accurately identify files even with garbled filenames (e.g., `track01.mp3`).\n- 📝 **Authoritative Metadata**: Sources data from **MusicBrainz** to automatically complete Title, Artist, Album, Year, **Composer**, **Lyricist**, and more.\n- 📜 **Synced Lyrics**: 🆕 Integrates with **LrcLib** to automatically download and embed **synced lyrics (.lrc)**, perfect for modern players.\n- 🖼️ **HD Cover Art**: Automatically downloads and embeds high-quality album art from the Cover Art Archive.\n- 📁 **Automated Organization**: Automatically renames and sorts files into a `Artist/Album/Title` structure.\n- 🤖 **Unattended Operation**: Works seamlessly with qBittorrent/Transmission to process downloads automatically upon completion.\n- ⚡ **Smart Scan Optimization**: 🆕 **Two-tier identification + folder-level caching**\n    - **Tier 1: Quick Scan** - Tag & duration sequence matching, passes at 90% accuracy\n    - **Tier 2: Fingerprint** - Only triggered when quick scan fails, ensures high recognition rate\n    - **Folder-level Caching** - Subsequent files in the same album use cached results, skip all scans\n    - **Performance Boost**: Processing a 16-track album requires only 1 full scan + 15 cache lookups\n- 💾 **Dual Persistence Modes**:\n    - **File Mode (Default)**: Uses a CSV file to track processed files. Zero config, ready out of the box for personal use.\n    - **MySQL Mode**: Supports external database connection for massive libraries and high concurrency.\n- 🐳 **Docker Ready**: Provides lightweight Docker images compatible with Synology, QNAP, Unraid, and other NAS systems.\n- 🔄 **Smart Retry**: Automatically handles network failures with retry logic and isolates failed files for later inspection.\n- 📊 **Web Monitoring Dashboard**: 🆕 Built-in real-time monitoring dashboard to visualize processing progress, system status, and runtime logs.\n- 🌐 **Multi-language Support**: 🆕 Supports both Chinese and English interfaces, easily switchable via configuration file, providing localized experience for global users.\n\n## ⚠️ Best Practice: How to Get the Most Accurate Results\n\nSince music releases are extremely complex (Singles, EPs, Albums, Compilations, Deluxe Editions, etc.), to ensure the tool accurately categorizes your music into the correct albums, it is **highly recommended** to follow this practice:\n\n> **Please place audio files from the same album (or single) into a separate folder** before processing them with this tool.\n\n❌ **Not Recommended**: Dumping hundreds of songs from different artists and albums into a single directory.\n✅ **Recommended**:\n  - `/Downloads/Jay_Chou_Fantasy/` (Contains songs from the Fantasy album)\n  - `/Downloads/Adele_21/` (Contains songs from the 21 album)\n\n**Reason**: When files are isolated in separate folders, the program can better determine that they belong to the same album based on context, avoiding misidentification of album tracks as \"Best Of\" compilations or \"Single\" versions.\n## 🚀 Quick Start (Docker Compose)\n\nThe easiest way to run the application. No Java installation required.\n\n1.  **Download Config Template**\n    Download `config.properties.example` from the repository and rename it to `config.properties`.\n\n2.  **Get API Key (Free)**\n    Visit [AcoustID](https://acoustid.org/new-application) to apply for an API Key and add it to your config:\n    ```properties\n    acoustid.apiKey=YOUR_API_KEY_HERE\n    ```\n\n3.  **Create `docker-compose.yml`**\n    ```yaml\n    version: '3.8'\n    services:\n      music-tagger:\n        image: ghcr.io/lux032/musicautotagger:latest\n        container_",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:36.597211"
+  },
+  {
+    "basic_info": {
+      "name": "SRE-Agent-App",
+      "full_name": "qicesun/SRE-Agent-App",
+      "owner": "qicesun",
+      "description": "An Autonomous AI SRE Agent for Kubernetes, built with Java Spring Boot & LangChain4j. Implements OODA loop for self-healing.",
+      "url": "https://github.com/qicesun/SRE-Agent-App",
+      "clone_url": "https://github.com/qicesun/SRE-Agent-App.git",
+      "ssh_url": "git@github.com:qicesun/SRE-Agent-App.git",
+      "homepage": "",
+      "created_at": "2025-12-28T07:11:36Z",
+      "updated_at": "2025-12-31T01:38:30Z",
+      "pushed_at": "2025-12-29T06:34:54Z"
+    },
+    "stats": {
+      "stars": 38,
+      "forks": 0,
+      "watchers": 38,
+      "open_issues": 0,
+      "size": 15149
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 194631,
+        "HTML": 52087
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agents",
+        "devops",
+        "java",
+        "kubernetes",
+        "langchain4j",
+        "openai",
+        "spring-boot",
+        "sre"
+      ]
+    },
+    "content": {
+      "readme": "# SRE-Agent\n> The Autonomous Site Reliability Engineer for your Kubernetes Cluster.\n\n[![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)](#)\n[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3-6DB33F?logo=springboot&logoColor=white)](#)\n[![LangChain4j](https://img.shields.io/badge/LangChain4j-0.35-3B82F6)](#)\n[![Kubernetes](https://img.shields.io/badge/Kubernetes-Fabric8-326CE5?logo=kubernetes&logoColor=white)](#)\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)\n\n**SRE-Agent** is an **enterprise-grade AIOps framework** for Kubernetes, built in Java, to replace human firefighting with **AI reasoning**.\nIt implements the **OODA Loop (Observe -> Orient -> Decide -> Act)** to autonomously detect, diagnose, and resolve production incidents, combining **Kubernetes (Fabric8)**, **GitLab**, **Jira**, and **web browsing** into a unified cognitive architecture.\n\n## Features\n- 🔭 **Deep Observability:** Direct K8s API integration to inspect pod state and fetch logs in real time.\n- 🧠 **Cognitive Diagnosis:** Correlates stack traces with recent GitLab commits to identify likely regressions (\"who broke the build\").\n- 🛠️ **Self-Healing Action:** Executes safe remediation steps such as rolling restarts (and can be extended to rollbacks).\n- 🎫 **Incident Management:** Auto-creates Jira tickets with rich context (symptoms, logs, suspected root cause, and next actions).\n\n## Demo\n<img width=\"2559\" height=\"1342\" alt=\"image\" src=\"https://github.com/user-attachments/assets/0aa8b294-a283-49da-b668-9026d55192ce\" />\nhttps://youtu.be/G__SXo8P7X0\n\n## Architecture & Technology\n\n### 🗺️ High-level Architecture\n\n```mermaid\ngraph TD\n  U[User / SRE] --> UI[SRE Cockpit]\n  UI --> API[Spring Boot API]\n  API --> AGENT[DevOpsAssistant - LangChain4j AiServices]\n\n  AGENT --> OBS[Observe]\n  OBS --> ORI[Orient]\n  ORI --> DEC[Decide]\n  DEC --> ACT[Act]\n  ACT --> OBS\n\n  AGENT --> SYS[DevOpsSystemMessageProvider]\n  SYS --> CFG[SessionConfigStore]\n  AGENT --> MEM[SessionMemoryStore]\n\n  AGENT --> K8S[KubernetesTool - Fabric8]\n  AGENT --> GL[GitLabTool - HttpClient]\n  AGENT --> JIRA[JiraTool - REST API v3]\n  AGENT --> WEB[WebScraperTool - Jsoup]\n\n  K8S --> CLUSTER[Kubernetes Cluster]\n  GL --> GITLAB[GitLab API]\n  JIRA --> JIRAC[Jira Cloud API]\n  WEB --> WWW[Docs and Runbooks]\n\n  AGENT --> EVT[AgentEventStore - SSE]\n  EVT --> UI\n```\n### 🧠 Cognitive Architecture (The Brain)\nThis is not a chatbot. It is an agentic workflow built on **Spring Boot 3** and **LangChain4j**, designed to run the **OODA loop** on live production signals.\n\n- 👁️ **Observe:** Pull real-time cluster state and logs from Kubernetes (pods, restarts, tail logs).\n- 🧭 **Orient:** Interpret symptoms, correlate stack traces with recent code changes, and enrich context via targeted web lookups.\n- 🤔 **Decide:** Choose the minimal safe action: self-heal for transient failures, or escalate to an incident ticket for code-level bugs.\n- ⚙️ **Act:** Execute the decision via tools (e.g., rolling restart) and record the result (e.g., Jira issue + comments).\n\nKey building blocks:\n- 🧩 **Persona & System Prompt:** `DevOpsSystemMessageProvider` defines the agent persona as an \"Elite SRE\" and injects the latest session-scoped external config before every model invocation.\n- 🧠 **Memory Management:** `SessionMemoryStore` maintains a per-session message window, enabling multi-turn reasoning keyed by `X-Session-Id`.\n\n### 🧰 Toolchain (The Arsenal)\n- ☸️ **Kubernetes Tool (`KubernetesTool`):** Uses the **Fabric8 Kubernetes Client** for native cluster operations (list pods, fetch logs, rolling restarts for Deployments/StatefulSets).\n- 🧬 **GitLab Tool (`GitLabTool`):** A lightweight integration built on JDK `HttpClient` to fetch recent commits without heavy SDK dependencies (and can be extended to diffs).\n- 🧾 **Jira Tool (`JiraTool`):** Incident lifecycle workflows (search, create, comment) using the Atlassian Jira Cloud **REST API v3** (ADF descriptions for rich context).\n- 🌐 **Web Scraper (`WebScraperTool`):** A lightweight **Jsoup**-based fetcher to \"Google\" error strings and pull troubleshooting hints from docs/posts.\n\n### 🧱 Tech Stack\n| Layer | Technology | Purpose |\n| --- | --- | --- |\n| ☕ Runtime | Java 17 | Modern JVM baseline |\n| 🌱 Framework | Spring Boot 3.2.x | API + wiring for tools, sessions, and streaming responses |\n| 🧠 Agent Backbone | LangChain4j 0.35.0 | System prompt, tool calling, and memory orchestration |\n| ☸️ Kubernetes | Fabric8 Kubernetes Client | Native cluster inspection and remediation |\n| 🔌 Integrations | JDK `HttpClient` | GitLab/Jira REST calls without heavy dependencies |\n| 🎛️ Frontend | Tailwind CSS | SRE Cockpit UI |\n\n## Getting Started\n\n### ✅ Prerequisites\n- 🐳 Docker (required by Minikube)\n- ☸️ Minikube + `kubectl`\n- ☕ Java 17\n- 🧠 OpenAI API Key (`OPENAI_API_KEY`)\n\n### 📦 Installation & Setup\n1) Clone the repo:\n```bash\ngit clone https://github.com/<your-org>/SRE-Agent-App.git\ncd SRE-Agent-App\n```\n\n2) Configure credent",
+      "default_branch": "main"
+    },
+    "fetched_at": "2025-12-31T02:51:37.924914"
+  }
+]

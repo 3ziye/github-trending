@@ -1,0 +1,802 @@
+[
+  {
+    "basic_info": {
+      "name": "witr",
+      "full_name": "pranshuparmar/witr",
+      "owner": "pranshuparmar",
+      "description": "Why is this running?",
+      "url": "https://github.com/pranshuparmar/witr",
+      "clone_url": "https://github.com/pranshuparmar/witr.git",
+      "ssh_url": "git@github.com:pranshuparmar/witr.git",
+      "homepage": "",
+      "created_at": "2025-12-20T17:26:59Z",
+      "updated_at": "2026-01-10T02:27:56Z",
+      "pushed_at": "2026-01-09T12:15:54Z"
+    },
+    "stats": {
+      "stars": 10649,
+      "forks": 236,
+      "watchers": 10649,
+      "open_issues": 13,
+      "size": 4312
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 212717,
+        "Shell": 2938,
+        "PowerShell": 2903,
+        "Nix": 2347
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# witr\n\n### Why is this running?\n\n[![Go Report Card](https://goreportcard.com/badge/github.com/pranshuparmar/witr)](https://goreportcard.com/report/github.com/pranshuparmar/witr) [![Go Version](https://img.shields.io/github/go-mod/go-version/pranshuparmar/witr)](https://github.com/pranshuparmar/witr/blob/main/go.mod) [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows%20%7C%20freebsd-blue)](https://github.com/pranshuparmar/witr) <br>\n[![Build Status](https://github.com/pranshuparmar/witr/actions/workflows/pr-check.yml/badge.svg)](https://github.com/pranshuparmar/witr/actions/workflows/pr-check.yml) [![Latest Release](https://img.shields.io/github/v/release/pranshuparmar/witr?label=Latest%20Release)](https://github.com/pranshuparmar/witr/releases/latest) [![Homebrew](https://img.shields.io/homebrew/v/witr)](https://formulae.brew.sh/formula/witr) [![AUR](https://img.shields.io/aur/version/witr-bin)](https://aur.archlinux.org/packages/witr-bin) [![Conda](https://img.shields.io/conda/vn/conda-forge/witr)](https://anaconda.org/conda-forge/witr)\n\n<img width=\"1232\" height=\"693\" alt=\"witr_banner\" src=\"https://github.com/user-attachments/assets/e9c19ef0-1391-4a5f-a015-f4003d3697a9\" />\n\n</div>\n\n---\n\n## Table of Contents\n\n- [1. Purpose](#1-purpose)\n- [2. Goals](#2-goals)\n- [3. Core Concept](#3-core-concept)\n- [4. Supported Targets](#4-supported-targets)\n- [5. Output Behavior](#5-output-behavior)\n- [6. Flags & Options](#6-flags--options)\n- [7. Example Outputs](#7-example-outputs)\n- [8. Installation](#8-installation)\n  - [8.1 Script Installation (Recommended)](#81-script-installation-recommended)\n  - [8.2 Homebrew (macOS & Linux)](#82-homebrew-macos--linux)\n  - [8.3 Conda (macOS, Linux & Windows)](#83-conda-macos-linux--windows)\n  - [8.4 Arch Linux (AUR)](#84-arch-linux-aur)\n  - [8.5 Prebuilt Packages (deb, rpm, apk)](#85-prebuilt-packages-deb-rpm-apk)\n  - [8.6 Go (cross-platform)](#86-go-cross-platform)\n  - [8.7 Manual Installation](#87-manual-installation)\n  - [8.8 Verify Installation](#88-verify-installation)\n  - [8.9 Uninstallation](#89-uninstallation)\n  - [8.10 Run Without Installation](#810-run-without-installation)\n- [9. Platform Support](#9-platform-support)\n- [10. Success Criteria](#10-success-criteria)\n\n---\n\n## 1. Purpose\n\n**witr** exists to answer a single question:\n\n> **Why is this running?**\n\nWhen something is running on a system—whether it is a process, a service, or something bound to a port—there is always a cause. That cause is often indirect, non-obvious, or spread across multiple layers such as supervisors, containers, services, or shells.\n\nExisting tools (`ps`, `top`, `lsof`, `ss`, `systemctl`, `docker ps`) expose state and metadata. They show _what_ is running, but leave the user to infer _why_ by manually correlating outputs across tools.\n\n**witr** makes that causality explicit.\n\nIt explains **where a running thing came from**, **how it was started**, and **what chain of systems is responsible for it existing right now**, in a single, human-readable output.\n\n---\n\n## 2. Goals\n\n### Primary goals\n\n- Explain **why a process exists**, not just that it exists\n- Reduce time‑to‑understanding during debugging and outages\n- Work with zero configuration\n- Be safe, read‑only, and non‑destructive\n- Prefer clarity over completeness\n\n### Non‑goals\n\n- Not a monitoring tool\n- Not a performance profiler\n- Not a replacement for systemd/docker tooling\n- Not a remediation or auto‑fix tool\n\n---\n\n## 3. Core Concept\n\nwitr treats **everything as a process question**.\n\nPorts, services, containers, and commands all eventually map to **PIDs**. Once a PID is identified, witr builds a causal chain explaining _why that PID exists_.\n\nAt its core, witr answers:\n\n1. What is running?\n2. How did it start?\n3. What is keeping it running?\n4. What context does it belong to?\n\n---\n\n## 4. Supported Targets\n\nwitr supports multiple entry points that converge to PID analysis.\n\n---\n\n### 4.1 Name (process or service)\n\n```bash\nwitr node\nwitr nginx\n```\n\nA single positional argument (without flags) is treated as a process or service name. If multiple matches are found, witr will prompt for disambiguation by PID.\n\n---\n\n### 4.2 PID\n\n```bash\nwitr --pid 14233\n```\n\nExplains why a specific process exists.\n\n---\n\n### 4.3 Port\n\n```bash\nwitr --port 5000\n```\n\nExplains the process(es) listening on a port.\n\n---\n\n## 5. Output Behavior\n\n### 5.1 Output Principles\n\n- Single screen by default (best effort)\n- Deterministic ordering\n- Narrative-style explanation\n- Best-effort detection with explicit uncertainty\n\n---\n\n### 5.2 Standard Output Sections\n\n#### Target\n\nWhat the user asked about.\n\n#### Process\n\nExecutable, PID, user, command, start time and restart count.\n\n#### Why It Exists\n\nA causal ancestry chain showing how the process came to exist.\nThis is the core value of witr.\n\n#### Source\n\nThe primary system responsible for starting or supervising the process (best effort).\n\nExamples:\n\n- systemd unit (Linux",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:47:58.489564"
+  },
+  {
+    "basic_info": {
+      "name": "DeepTutor",
+      "full_name": "HKUDS/DeepTutor",
+      "owner": "HKUDS",
+      "description": "\"DeepTutor: AI-Powered Personalized Learning Assistant\"",
+      "url": "https://github.com/HKUDS/DeepTutor",
+      "clone_url": "https://github.com/HKUDS/DeepTutor.git",
+      "ssh_url": "git@github.com:HKUDS/DeepTutor.git",
+      "homepage": "https://hkuds.github.io/DeepTutor",
+      "created_at": "2025-12-28T15:35:54Z",
+      "updated_at": "2026-01-10T02:37:39Z",
+      "pushed_at": "2026-01-10T01:56:39Z"
+    },
+    "stats": {
+      "stars": 7413,
+      "forks": 891,
+      "watchers": 7413,
+      "open_issues": 8,
+      "size": 60210
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1575162,
+        "TypeScript": 917189,
+        "Shell": 13838,
+        "Dockerfile": 11231,
+        "CSS": 8674,
+        "JavaScript": 2572
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "ai-agents",
+        "ai-tutor",
+        "deepresearch",
+        "idea-generation",
+        "interactive-learning",
+        "knowledge-graph",
+        "large-language-models",
+        "multi-agent-systems",
+        "rag"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/logo-ver2.png\" alt=\"DeepTutor Logo\" width=\"150\" style=\"border-radius: 15px;\">\n\n# DeepTutor: AI-Powered Personalized Learning Assistant\n\n[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)\n[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)\n[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)\n[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)\n[![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)\n[![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square)](LICENSE)\n\n<p align=\"center\">\n  <a href=\"https://discord.gg/zpP9cssj\"><img src=\"https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white\" alt=\"Discord\"></a>\n  &nbsp;&nbsp;\n  <a href=\"./Communication.md\"><img src=\"https://img.shields.io/badge/Feishu-Join_Group-00D4AA?style=for-the-badge&logo=feishu&logoColor=white\" alt=\"Feishu\"></a>\n  &nbsp;&nbsp;\n  <a href=\"https://github.com/HKUDS/DeepTutor/issues/78\"><img src=\"https://img.shields.io/badge/WeChat-Join_Group-07C160?style=for-the-badge&logo=wechat&logoColor=white\" alt=\"WeChat\"></a>\n</p>\n\n\n\n[**Quick Start**](#quick-start) · [**Core Modules**](#core-modules) · [**FAQ**](#faq)\n\n[🇨🇳 中文](assets/README/README_CN.md) · [🇯🇵 日本語](assets/README/README_JA.md) · [🇪🇸 Español](assets/README/README_ES.md) · [🇫🇷 Français](assets/README/README_FR.md) · [🇸🇦 العربية](assets/README/README_AR.md) · [🇷🇺 Русский](assets/README/README_RU.md) · [🇮🇳 हिन्दी](assets/README/README_HI.md) · [🇵🇹 Português](assets/README/README_PT.md)\n\n</div>\n\n<div align=\"center\">\n\n📚 **Massive Document Knowledge Q&A** &nbsp;•&nbsp; 🎨 **Interactive Learning Visualization**<br>\n🎯 **Knowledge Reinforcement** &nbsp;•&nbsp; 🔍 **Deep Research & Idea Generation**\n\n</div>\n\n---\n### 📰 News\n\n> **[2026.1.1]** Join our [Discord Community](https://discord.gg/zpP9cssj) and [GitHub Discussions](https://github.com/HKUDS/DeepTutor/discussions) - shape the future of DeepTutor! 💬\n\n> **[2025.12.30]** Visit our [Official Website](https://hkuds.github.io/DeepTutor/) for more details!\n\n> **[2025.12.29]** DeepTutor is now live! ✨\n\n### 📦 Releases\n\n> **[2026.1.9]** Release [v0.4.1](https://github.com/HKUDS/DeepTutor/releases/tag/v0.4.1) with LLM Provider system overhaul, Question Generation robustness improvements, and codebase cleanup - Thanks to all the contributors!\n<details>\n<summary>History releases</summary>\n\n> **[2026.1.9]** Release [v0.4.0](https://github.com/HKUDS/DeepTutor/releases/tag/v0.4.0) with new code structure, multiple llm & embeddings support - Thanks to all the contributors!\n\n> **[2026.1.5]** [v0.3.0](https://github.com/HKUDS/DeepTutor/releases/tag/v0.3.0) - Unified PromptManager architecture, CI/CD automation & pre-built Docker images on GHCR\n\n> **[2026.1.2]** [v0.2.0](https://github.com/HKUDS/DeepTutor/releases/tag/v0.2.0) - Docker deployment, Next.js 16 & React 19 upgrade, WebSocket security & critical vulnerability fixes\n\n</details>\n\n---\n\n## Key Features of DeepTutor\n\n### 📚 Massive Document Knowledge Q&A\n• **Smart Knowledge Base**: Upload textbooks, research papers, technical manuals, and domain-specific documents. Build a comprehensive AI-powered knowledge repository for instant access.<br>\n• **Multi-Agent Problem Solving**: Dual-loop reasoning architecture with RAG, web search, and code execution -- delivering step-by-step solutions with precise citations.\n\n### 🎨 Interactive Learning Visualization\n• **Knowledge Simplification & Explanations**: Transform complex concepts, knowledge, and algorithms into easy-to-understand visual aids, detailed step-by-step breakdowns, and engaging interactive demonstrations.<br>\n• **Personalized Q&A**: Context-aware conversations that adapt to your learning progress, with interactive pages and session-based knowledge tracking.\n\n### 🎯 Knowledge Reinforcement with Practice Exercise Generator\n• **Intelligent Exercise Creation**: Generate targeted quizzes, practice problems, and customized assessments tailored to your current knowledge level and specific learning objectives.<br>\n• **Authentic Exam Simulation**: Upload reference exams to generate practice questions that perfectly match the original style, format, and difficulty—giving you realistic preparation for the actual test.\n\n### 🔍 Deep Research & Idea Generation\n• **Comprehensive Research & Literature Review**: Conduct in-depth topic exploration with systematic analysis. Identify patterns, connect related concepts across disciplines, and synthesize existing research findings.<br>\n• **Novel Insight Discovery**: Generate structured learning materials ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:47:59.628888"
+  },
+  {
+    "basic_info": {
+      "name": "ml-sharp",
+      "full_name": "apple/ml-sharp",
+      "owner": "apple",
+      "description": "Sharp Monocular View Synthesis in Less Than a Second",
+      "url": "https://github.com/apple/ml-sharp",
+      "clone_url": "https://github.com/apple/ml-sharp.git",
+      "ssh_url": "git@github.com:apple/ml-sharp.git",
+      "homepage": "https://apple.github.io/ml-sharp/",
+      "created_at": "2025-12-12T03:46:09Z",
+      "updated_at": "2026-01-10T02:40:02Z",
+      "pushed_at": "2025-12-19T05:14:10Z"
+    },
+    "stats": {
+      "stars": 6690,
+      "forks": 441,
+      "watchers": 6690,
+      "open_issues": 57,
+      "size": 189483
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 186219
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Sharp Monocular View Synthesis in Less Than a Second\n\n[![Project Page](https://img.shields.io/badge/Project-Page-green)](https://apple.github.io/ml-sharp/)\n[![arXiv](https://img.shields.io/badge/arXiv-2512.10685-b31b1b.svg)](https://arxiv.org/abs/2512.10685)\n\nThis software project accompanies the research paper: _Sharp Monocular View Synthesis in Less Than a Second_\nby _Lars Mescheder, Wei Dong, Shiwei Li, Xuyang Bai, Marcel Santos, Peiyun Hu, Bruno Lecouat, Mingmin Zhen, Amaël Delaunoy,\nTian Fang, Yanghai Tsin, Stephan Richter and Vladlen Koltun_.\n\n![](data/teaser.jpg)\n\nWe present SHARP, an approach to photorealistic view synthesis from a single image. Given a single photograph, SHARP regresses the parameters of a 3D Gaussian representation of the depicted scene. This is done in less than a second on a standard GPU via a single feedforward pass through a neural network. The 3D Gaussian representation produced by SHARP can then be rendered in real time, yielding high-resolution photorealistic images for nearby views. The representation is metric, with absolute scale, supporting metric camera movements. Experimental results demonstrate that SHARP delivers robust zero-shot generalization across datasets. It sets a new state of the art on multiple datasets, reducing LPIPS by 25–34% and DISTS by 21–43% versus the best prior model, while lowering the synthesis time by three orders of magnitude.\n\n## Getting started\n\nWe recommend to first create a python environment:\n\n```\nconda create -n sharp python=3.13\n```\n\nAfterwards, you can install the project using\n\n```\npip install -r requirements.txt\n```\n\nTo test the installation, run\n\n```\nsharp --help\n```\n\n## Using the CLI\n\nTo run prediction:\n\n```\nsharp predict -i /path/to/input/images -o /path/to/output/gaussians\n```\n\nThe model checkpoint will be downloaded automatically on first run and cached locally at `~/.cache/torch/hub/checkpoints/`.\n\nAlternatively, you can download the model directly:\n\n```\nwget https://ml-site.cdn-apple.com/models/sharp/sharp_2572gikvuh.pt\n```\n\nTo use a manually downloaded checkpoint, specify it with the `-c` flag:\n\n```\nsharp predict -i /path/to/input/images -o /path/to/output/gaussians -c sharp_2572gikvuh.pt\n```\n\nThe results will be 3D gaussian splats (3DGS) in the output folder. The 3DGS `.ply` files are compatible to various public 3DGS renderers. We follow the OpenCV coordinate convention (x right, y down, z forward). The 3DGS scene center is roughly at (0, 0, +z). When dealing with 3rdparty renderers, please scale and rotate to re-center the scene accordingly.\n\n### Rendering trajectories (CUDA GPU only)\n\nAdditionally you can render videos with a camera trajectory. While the gaussians prediction works for all CPU, CUDA, and MPS, rendering videos via the `--render` option currently requires a CUDA GPU. The gsplat renderer takes a while to initialize at the first launch.\n\n```\nsharp predict -i /path/to/input/images -o /path/to/output/gaussians --render\n\n# Or from the intermediate gaussians:\nsharp render -i /path/to/output/gaussians -o /path/to/output/renderings\n```\n\n## Evaluation\n\nPlease refer to the paper for both quantitative and qualitative evaluations.\nAdditionally, please check out this [qualitative examples page](https://apple.github.io/ml-sharp/) containing several video comparisons against related work.\n\n## Citation\n\nIf you find our work useful, please cite the following paper:\n\n```bibtex\n@inproceedings{Sharp2025:arxiv,\n  title      = {Sharp Monocular View Synthesis in Less Than a Second},\n  author     = {Lars Mescheder and Wei Dong and Shiwei Li and Xuyang Bai and Marcel Santos and Peiyun Hu and Bruno Lecouat and Mingmin Zhen and Ama\\\"{e}l Delaunoy and Tian Fang and Yanghai Tsin and Stephan R. Richter and Vladlen Koltun},\n  journal    = {arXiv preprint arXiv:2512.10685},\n  year       = {2025},\n  url        = {https://arxiv.org/abs/2512.10685},\n}\n```\n\n## Acknowledgements\n\nOur codebase is built using multiple opensource contributions, please see [ACKNOWLEDGEMENTS](ACKNOWLEDGEMENTS) for more details.\n\n## License\n\nPlease check out the repository [LICENSE](LICENSE) before using the provided code and\n[LICENSE_MODEL](LICENSE_MODEL) for the released models.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:00.769675"
+  },
+  {
+    "basic_info": {
+      "name": "vibe-coding-cn",
+      "full_name": "2025Emma/vibe-coding-cn",
+      "owner": "2025Emma",
+      "description": null,
+      "url": "https://github.com/2025Emma/vibe-coding-cn",
+      "clone_url": "https://github.com/2025Emma/vibe-coding-cn.git",
+      "ssh_url": "git@github.com:2025Emma/vibe-coding-cn.git",
+      "homepage": null,
+      "created_at": "2025-12-17T00:10:23Z",
+      "updated_at": "2026-01-10T02:47:35Z",
+      "pushed_at": "2025-12-17T00:11:18Z"
+    },
+    "stats": {
+      "stars": 6642,
+      "forks": 775,
+      "watchers": 6642,
+      "open_issues": 0,
+      "size": 28890
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 34941,
+        "Shell": 28256,
+        "Makefile": 842
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<!--\n-------------------------------------------------------------------------------\n  项目头部区域 (HEADER)\n-------------------------------------------------------------------------------\n-->\n<p align=\"center\">\n  <!-- 建议尺寸: 1280x640px。可以使用 Canva, Figma 或 https://banners.beyondco.de/ 等工具制作 -->\n  <img src=\"https://github.com/tukuaiai.png\" alt=\"Vibe Coding 指南\" width=\"80px\">\n</p>\n\n<div align=\"center\">\n\n# Vibe Coding 指南\n\n**一个通过与 AI 结对编程，将想法变为现实的终极工作站**\n\n---\n\n<!--\n  徽章区域 (BADGES)\n-->\n<!-- 项目状态徽章 -->\n<p>\n  <a href=\"https://github.com/tukuaiai/vibe-coding-cn/actions\"><img src=\"https://img.shields.io/github/actions/workflow/status/tukuaiai/vibe-coding-cn/main.yml?label=%E6%9E%84%E5%BB%BA%E7%8A%B6%E6%80%81&style=for-the-badge\" alt=\"构建状态\"></a>\n  <a href=\"https://github.com/tukuaiai/vibe-coding-cn/releases\"><img src=\"https://img.shields.io/github/v/release/tukuaiai/vibe-coding-cn?label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC&style=for-the-badge\" alt=\"最新版本\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/github/license/tukuaiai/vibe-coding-cn?label=%E8%AE%B8%E5%8F%AF%E8%AF%81&style=for-the-badge\" alt=\"许可证\"></a>\n  <a href=\"https://github.com/tukuaiai/vibe-coding-cn\"><img src=\"https://img.shields.io/github/languages/top/tukuaiai/vibe-coding-cn?label=%E4%B8%BB%E8%A6%81%E8%AF%AD%E8%A8%80&style=for-the-badge\" alt=\"主要语言\"></a>\n  <a href=\"https://github.com/tukuaiai/vibe-coding-cn\"><img src=\"https://img.shields.io/github/languages/code-size/tukuaiai/vibe-coding-cn?label=%E4%BB%A3%E7%A0%81%E9%87%8F&style=for-the-badge\" alt=\"代码量\"></a>\n  <a href=\"https://github.com/tukuaiai/vibe-coding-cn/graphs/contributors\"><img src=\"https://img.shields.io/github/contributors/tukuaiai/vibe-coding-cn?label=%E8%B4%A1%E7%8C%AE%E8%80%85&style=for-the-badge\" alt=\"贡献者\"></a>\n  <a href=\"https://t.me/glue_coding\"><img src=\"https://img.shields.io/badge/聊天-Telegram-blue?style=for-the-badge&logo=telegram\" alt=\"交流群\"></a>\n</p>\n\n<!-- 多语言入口 -->\n<p>\n  <a href=\"./i18n/zh/README.md\"><img src=\"https://img.shields.io/badge/语言-中文-red?style=for-the-badge\" alt=\"简体中文\"></a>\n  <a href=\"./i18n/en/README.md\"><img src=\"https://img.shields.io/badge/语言-English-lightgrey?style=for-the-badge\" alt=\"English\"></a>\n  <a href=\"./i18n/he/\"><img src=\"https://img.shields.io/badge/语言-עברית-navy?style=for-the-badge\" alt=\"Hebrew\"></a>\n  <a href=\"./i18n/ar/\"><img src=\"https://img.shields.io/badge/语言-العربية-brown?style=for-the-badge\" alt=\"Arabic\"></a>\n  <a href=\"./i18n/bn/\"><img src=\"https://img.shields.io/badge/语言-বাংলা-orange?style=for-the-badge\" alt=\"Bengali\"></a>\n  <a href=\"./i18n/de/\"><img src=\"https://img.shields.io/badge/语言-Deutsch-black?style=for-the-badge\" alt=\"Deutsch\"></a>\n  <a href=\"./i18n/es/\"><img src=\"https://img.shields.io/badge/语言-Español-yellow?style=for-the-badge\" alt=\"Español\"></a>\n  <a href=\"./i18n/fa/\"><img src=\"https://img.shields.io/badge/语言-فارسی-purple?style=for-the-badge\" alt=\"Farsi\"></a>\n  <a href=\"./i18n/fr/\"><img src=\"https://img.shields.io/badge/语言-Français-blue?style=for-the-badge\" alt=\"Français\"></a>\n  <a href=\"./i18n/ha/\"><img src=\"https://img.shields.io/badge/语言-Hausa-darkgreen?style=for-the-badge\" alt=\"Hausa\"></a>\n  <a href=\"./i18n/hi/\"><img src=\"https://img.shields.io/badge/语言-हिन्दी-darkorange?style=for-the-badge\" alt=\"Hindi\"></a>\n  <a href=\"./i18n/id/\"><img src=\"https://img.shields.io/badge/语言-Bahasa%20Indonesia-teal?style=for-the-badge\" alt=\"Bahasa Indonesia\"></a>\n  <a href=\"./i18n/it/\"><img src=\"https://img.shields.io/badge/语言-Italiano-green?style=for-the-badge\" alt=\"Italiano\"></a>\n  <a href=\"./i18n/ja/\"><img src=\"https://img.shields.io/badge/语言-日本語-indigo?style=for-the-badge\" alt=\"日本語\"></a>\n  <a href=\"./i18n/ko/\"><img src=\"https://img.shields.io/badge/语言-한국어-slateblue?style=for-the-badge\" alt=\"한국어\"></a>\n  <a href=\"./i18n/ms/\"><img src=\"https://img.shields.io/badge/语言-Bahasa%20Melayu-seagreen?style=for-the-badge\" alt=\"Bahasa Melayu\"></a>\n  <a href=\"./i18n/nl/\"><img src=\"https://img.shields.io/badge/语言-Nederlands-darkred?style=for-the-badge\" alt=\"Nederlands\"></a>\n  <a href=\"./i18n/pl/\"><img src=\"https://img.shields.io/badge/语言-Polski-crimson?style=for-the-badge\" alt=\"Polski\"></a>\n  <a href=\"./i18n/pt/\"><img src=\"https://img.shields.io/badge/语言-Português-darkslategray?style=for-the-badge\" alt=\"Português\"></a>\n  <a href=\"./i18n/ru/\"><img src=\"https://img.shields.io/badge/语言-Русский-steelblue?style=for-the-badge\" alt=\"Русский\"></a>\n  <a href=\"./i18n/sw/\"><img src=\"https://img.shields.io/badge/语言-Kiswahili-forestgreen?style=for-the-badge\" alt=\"Swahili\"></a>\n  <a href=\"./i18n/ta/\"><img src=\"https://img.shields.io/badge/语言-தமிழ்-darkmagenta?style=for-the-badge\" alt=\"Tamil\"></a>\n  <a href=\"./i18n/th/\"><img src=\"https://img.shields.io/badge/语言-ไทย-royalblue?style=for-the-badge\" alt=\"ภาษาไทย\"></a>\n  <a href=\"./i18n/tr/\"><img src=\"https://img.shields.io/badge/语言-Türkçe-firebrick?style=for-the-badge\" alt=\"Türkçe\"></a>\n  <a href=\"./i18n/uk/\"><img src=\"https://img.shields.io/badge/语言-Українська-cornflowerblue?style=for-the-badge\" alt=\"Українська\"></a>\n  <a href=",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:01.879887"
+  },
+  {
+    "basic_info": {
+      "name": "planning-with-files",
+      "full_name": "OthmanAdi/planning-with-files",
+      "owner": "OthmanAdi",
+      "description": "Claude Code skill implementing Manus-style persistent markdown planning — the workflow pattern behind the $2B acquisition.",
+      "url": "https://github.com/OthmanAdi/planning-with-files",
+      "clone_url": "https://github.com/OthmanAdi/planning-with-files.git",
+      "ssh_url": "git@github.com:OthmanAdi/planning-with-files.git",
+      "homepage": "",
+      "created_at": "2026-01-03T07:37:28Z",
+      "updated_at": "2026-01-10T02:47:43Z",
+      "pushed_at": "2026-01-09T13:33:08Z"
+    },
+    "stats": {
+      "stars": 6552,
+      "forks": 544,
+      "watchers": 6552,
+      "open_issues": 1,
+      "size": 132
+    },
+    "tech_info": {
+      "language": "Shell",
+      "languages": {
+        "Shell": 3414
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Planning with Files\n\n> **Work like Manus** — the AI agent company Meta acquired for **$2 billion**.\n\n## Thank You\n\nTo everyone who starred, forked, and shared this skill — thank you. This project blew up in less than 24 hours, and the support from the community has been incredible.\n\nIf this skill helps you work smarter, that's all I wanted.\n\n---\n\nA Claude Code plugin containing an [Agent Skill](https://code.claude.com/docs/en/skills) that transforms your workflow to use persistent markdown files for planning, progress tracking, and knowledge storage — the exact pattern that made Manus worth billions.\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n[![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-blue)](https://code.claude.com/docs/en/plugins)\n[![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-green)](https://code.claude.com/docs/en/skills)\n[![Cursor Rules](https://img.shields.io/badge/Cursor-Rules-purple)](https://docs.cursor.com/context/rules-for-ai)\n[![Version](https://img.shields.io/badge/version-2.0.1-brightgreen)](https://github.com/OthmanAdi/planning-with-files/releases)\n\n## Versions\n\n| Version | Branch | Features | Install |\n|---------|--------|----------|---------|\n| **v2.0.0** (current) | `master` | Hooks, templates, scripts | `/plugin install planning-with-files@planning-with-files` |\n| **v1.0.0** (legacy) | `legacy` | Core 3-file pattern | `git clone -b legacy https://github.com/OthmanAdi/planning-with-files.git` |\n\n## What's New in v2.0.0\n\n- **Hooks Integration** — Automatic plan re-reading and completion verification\n- **Templates** — Structured templates for task_plan.md, findings.md, progress.md\n- **Scripts** — Helper scripts for initialization and completion checks\n- **Enhanced Documentation** — 2-Action Rule, 3-Strike Protocol, 5-Question Reboot Test\n\nSee [CHANGELOG.md](CHANGELOG.md) for details. Upgrading from v1.x? See [MIGRATION.md](MIGRATION.md).\n\n## Why This Skill?\n\nOn December 29, 2025, [Meta acquired Manus for $2 billion](https://techcrunch.com/2025/12/29/meta-just-bought-manus-an-ai-startup-everyone-has-been-talking-about/). In just 8 months, Manus went from launch to $100M+ revenue. Their secret? **Context engineering**.\n\nThis skill implements Manus's core workflow pattern:\n\n> \"Markdown is my 'working memory' on disk. Since I process information iteratively and my active context has limits, Markdown files serve as scratch pads for notes, checkpoints for progress, building blocks for final deliverables.\"\n> — Manus AI\n\n## The Problem\n\nClaude Code (and most AI agents) suffer from:\n\n- **Volatile memory** — TodoWrite tool disappears on context reset\n- **Goal drift** — After 50+ tool calls, original goals get forgotten\n- **Hidden errors** — Failures aren't tracked, so the same mistakes repeat\n- **Context stuffing** — Everything crammed into context instead of stored\n\n## The Solution: 3-File Pattern\n\nFor every complex task, create THREE files:\n\n```\ntask_plan.md      → Track phases and progress\nfindings.md       → Store research and findings\nprogress.md       → Session log and test results\n```\n\n### The Core Principle\n\n```\nContext Window = RAM (volatile, limited)\nFilesystem = Disk (persistent, unlimited)\n\n→ Anything important gets written to disk.\n```\n\n<details>\n<summary><strong>Workflow Diagram</strong> (click to expand)</summary>\n\nThis diagram shows how the three files work together and how hooks interact with them:\n\n```\n┌─────────────────────────────────────────────────────────────────┐\n│                    TASK START                                    │\n│  User requests a complex task (>5 tool calls expected)          │\n└────────────────────────┬────────────────────────────────────────┘\n                         │\n                         ▼\n         ┌───────────────────────────────┐\n         │  STEP 1: Create task_plan.md │\n         │  (NEVER skip this step!)      │\n         └───────────────┬───────────────┘\n                         │\n                         ▼\n         ┌───────────────────────────────┐\n         │  STEP 2: Create findings.md   │\n         │  STEP 3: Create progress.md   │\n         └───────────────┬───────────────┘\n                         │\n                         ▼\n    ┌────────────────────────────────────────────┐\n    │         WORK LOOP (Iterative)              │\n    │                                            │\n    │  ┌──────────────────────────────────────┐ │\n    │  │  PreToolUse Hook (Automatic)         │ │\n    │  │  → Reads task_plan.md before        │ │\n    │  │    Write/Edit/Bash operations       │ │\n    │  │  → Refreshes goals in attention      │ │\n    │  └──────────────┬───────────────────────┘ │\n    │                 │                          │\n    │                 ▼                          │\n    │  ┌──────────────────────────────────────┐ │\n    │  │  Perform work (tool calls)          │ │\n    │  │  - Research → Update findings.md    │ │\n    │  │  - ",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-01-10T02:48:02.994312"
+  },
+  {
+    "basic_info": {
+      "name": "Agent-Skills-for-Context-Engineering",
+      "full_name": "muratcankoylan/Agent-Skills-for-Context-Engineering",
+      "owner": "muratcankoylan",
+      "description": "A comprehensive collection of Agent Skills for context engineering, multi-agent architectures, and production agent systems. Use when building, optimizing, or debugging agent systems that require effective context management.",
+      "url": "https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering",
+      "clone_url": "https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering.git",
+      "ssh_url": "git@github.com:muratcankoylan/Agent-Skills-for-Context-Engineering.git",
+      "homepage": null,
+      "created_at": "2025-12-21T02:43:42Z",
+      "updated_at": "2026-01-10T02:04:58Z",
+      "pushed_at": "2026-01-07T17:32:32Z"
+    },
+    "stats": {
+      "stars": 6244,
+      "forks": 502,
+      "watchers": 6244,
+      "open_issues": 4,
+      "size": 3401
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 155988
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Agent Skills for Context Engineering\n\nA comprehensive, open collection of Agent Skills focused on context engineering principles for building production-grade AI agent systems. These skills teach the art and science of curating context to maximize agent effectiveness across any agent platform.\n\n## What is Context Engineering?\n\nContext engineering is the discipline of managing the language model's context window. Unlike prompt engineering, which focuses on crafting effective instructions, context engineering addresses the holistic curation of all information that enters the model's limited attention budget: system prompts, tool definitions, retrieved documents, message history, and tool outputs.\n\nThe fundamental challenge is that context windows are constrained not by raw token capacity but by attention mechanics. As context length increases, models exhibit predictable degradation patterns: the \"lost-in-the-middle\" phenomenon, U-shaped attention curves, and attention scarcity. Effective context engineering means finding the smallest possible set of high-signal tokens that maximize the likelihood of desired outcomes.\n\n## Skills Overview\n\n### Foundational Skills\n\nThese skills establish the foundational understanding required for all subsequent context engineering work.\n\n| Skill | Description |\n|-------|-------------|\n| [context-fundamentals](skills/context-fundamentals/) | Understand what context is, why it matters, and the anatomy of context in agent systems |\n| [context-degradation](skills/context-degradation/) | Recognize patterns of context failure: lost-in-middle, poisoning, distraction, and clash |\n| [context-compression](skills/context-compression/) | Design and evaluate compression strategies for long-running sessions |\n\n### Architectural Skills\n\nThese skills cover the patterns and structures for building effective agent systems.\n\n| Skill | Description |\n|-------|-------------|\n| [multi-agent-patterns](skills/multi-agent-patterns/) | Master orchestrator, peer-to-peer, and hierarchical multi-agent architectures |\n| [memory-systems](skills/memory-systems/) | Design short-term, long-term, and graph-based memory architectures |\n| [tool-design](skills/tool-design/) | Build tools that agents can use effectively |\n| [filesystem-context](skills/filesystem-context/) | **NEW** Use filesystems for dynamic context discovery, tool output offloading, and plan persistence |\n\n### Operational Skills\n\nThese skills address the ongoing operation and optimization of agent systems.\n\n| Skill | Description |\n|-------|-------------|\n| [context-optimization](skills/context-optimization/) | Apply compaction, masking, and caching strategies |\n| [evaluation](skills/evaluation/) | Build evaluation frameworks for agent systems |\n| [advanced-evaluation](skills/advanced-evaluation/) | Master LLM-as-a-Judge techniques: direct scoring, pairwise comparison, rubric generation, and bias mitigation |\n\n### Development Methodology\n\nThese skills cover the meta-level practices for building LLM-powered projects.\n\n| Skill | Description |\n|-------|-------------|\n| [project-development](skills/project-development/) | Design and build LLM projects from ideation through deployment, including task-model fit analysis, pipeline architecture, and structured output design |\n\n### Cognitive Architecture Skills\n\nThese skills cover formal cognitive modeling for rational agent systems.\n\n| Skill | Description |\n|-------|-------------|\n| [bdi-mental-states](skills/bdi-mental-states/) | **NEW** Transform external RDF context into agent mental states (beliefs, desires, intentions) using formal BDI ontology patterns for deliberative reasoning and explainability |\n\n## Design Philosophy\n\n### Progressive Disclosure\n\nEach skill is structured for efficient context use. At startup, agents load only skill names and descriptions. Full content loads only when a skill is activated for relevant tasks.\n\n### Platform Agnosticism\n\nThese skills focus on transferable principles rather than vendor-specific implementations. The patterns work across Claude Code, Cursor, and any agent platform that supports skills or allows custom instructions.\n\n### Conceptual Foundation with Practical Examples\n\nScripts and examples demonstrate concepts using Python pseudocode that works across environments without requiring specific dependency installations.\n\n## Usage\n\n### Usage with Claude Code\n\nThis repository is a **Claude Code Plugin Marketplace** containing context engineering skills that Claude automatically discovers and activates based on your task context.\n\n### Installation\n\n**Step 1: Add the Marketplace**\n\nRun this command in Claude Code to register this repository as a plugin source:\n\n```\n/plugin marketplace add muratcankoylan/Agent-Skills-for-Context-Engineering\n```\n\n**Step 2: Browse and Install**\n\nOption A - Browse available plugins:\n1. Select `Browse and install plugins`\n2. Select `context-engineering-marketplace`\n3. Choose a plugin (e.g., `context-engineering-fundamentals`, `agent-ar",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:04.104928"
+  },
+  {
+    "basic_info": {
+      "name": "mquickjs",
+      "full_name": "bellard/mquickjs",
+      "owner": "bellard",
+      "description": "Public repository of the Micro QuickJS Javascript Engine",
+      "url": "https://github.com/bellard/mquickjs",
+      "clone_url": "https://github.com/bellard/mquickjs.git",
+      "ssh_url": "git@github.com:bellard/mquickjs.git",
+      "homepage": "",
+      "created_at": "2025-12-22T14:20:32Z",
+      "updated_at": "2026-01-09T22:29:12Z",
+      "pushed_at": "2026-01-03T09:35:12Z"
+    },
+    "stats": {
+      "stars": 5168,
+      "forks": 181,
+      "watchers": 5168,
+      "open_issues": 15,
+      "size": 98
+    },
+    "tech_info": {
+      "language": "C",
+      "languages": {
+        "C": 884623,
+        "JavaScript": 68312,
+        "Makefile": 3334
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "MicroQuickJS\n============\n\n## Introduction\n\nMicroQuickJS (aka. MQuickJS) is a JavaScript engine targeted at\nembedded systems. It compiles and runs JavaScript programs using as little\nas 10 kB of RAM. The whole engine requires about 100 kB of ROM (ARM\nThumb-2 code) including the C library. The speed is comparable to\nQuickJS.\n\nMQuickJS only supports a [subset](#javascript-subset-reference) of JavaScript close to ES5. It\nimplements a **stricter mode** where some error prone or inefficient\nJavaScript constructs are forbidden.\n\nAlthough MQuickJS shares much code with QuickJS, it internals are\ndifferent in order to consume less memory. In particular, it relies on\na tracing garbage collector, the VM does not use the CPU stack and\nstrings are stored in UTF-8.\n\n## REPL\n\nThe REPL is `mqjs`. Usage:\n\n```\nusage: mqjs [options] [file [args]]\n-h  --help            list options\n-e  --eval EXPR       evaluate EXPR\n-i  --interactive     go to interactive mode\n-I  --include file    include an additional file\n-d  --dump            dump the memory usage stats\n    --memory-limit n  limit the memory usage to 'n' bytes\n--no-column           no column number in debug information\n-o FILE               save the bytecode to FILE\n-m32                  force 32 bit bytecode output (use with -o)\n-b  --allow-bytecode  allow bytecode in input file\n```\n\nCompile and run a program using 10 kB of RAM:\n\n```sh\n./mqjs --memory-limit 10k tests/mandelbrot.js\n```\n\n\nIn addition to normal script execution, `mqjs` can output the compiled\nbytecode to a persistent storage (file or ROM):\n\n```sh\n./mqjs -o mandelbrot.bin tests/mandelbrot.js\n```\n\nThen you can run the compiled bytecode as a normal script:\n\n```sh\n./mqjs -b mandelbrot.bin\n```\n\nThe bytecode format depends on the endianness and word length (32 or\n64 bit) of the CPU. On a 64 bit CPU, it is possible to use the option\n`-m32` to generate 32 bit bytecode that can run on an embedded 32 bit\nsystem.\n\nUse the option `--no-column` to remove the column number debug info\n(only line numbers are remaining) if you want to save some storage.\n\n## Stricter mode\n\nMQuickJS only supports a subset of JavaScript (mostly ES5). It is\nalways in **stricter** mode where some error prone JavaScript features\nare disabled. The general idea is that the stricter mode is a subset\nof JavaScript, so it still works as usual in other JavaScript\nengines. Here are the main points:\n\n- Only **strict mode** constructs are allowed, hence no `with` keyword\n  and global variables must be declared with the `var` keyword.\n\n- Arrays cannot have holes. Writing an element after the end is not\n  allowed:\n```js\n    a = []\n    a[0] = 1; // OK to extend the array length\n    a[10] = 2; // TypeError\n```\n  If you need an array like object with holes, use a normal object\n  instead:\n```js\n    a = {}\n    a[0] = 1;\n    a[10] = 2;\n```\n  `new Array(len)` still works as expected, but the array elements are\n  initialized to `undefined`.\n  Array literals with holes are a syntax error:\n```js\n    [ 1, , 3 ] // SyntaxError\n```\n- Only global `eval` is supported so it cannot access to nor modify\n  local variables:\n```js\n    eval('1 + 2'); // forbidden\n    (1, eval)('1 + 2'); // OK\n```\n- No value boxing: `new Number(1)` is not supported and never\n  necessary.\n\n## JavaScript Subset Reference\n \n- Only strict mode is supported with emphasis on ES5 compatibility.\n\n- `Array` objects:\n\n    - They have no holes.\n    \n    - Numeric properties are always handled by the array object and not\n      forwarded to its prototype.\n  \n    - Out-of-bound sets are an error except when they are at the end of\n      the array.\n      \n    - The `length` property is a getter/setter in the array prototype.\n\n- all properties are writable, enumerable and configurable.\n\n- `for in` only iterates over the object own properties. It should be\n  used with this common pattern to have a consistent behavior with\n  standard JavaScript:\n  \n```js\n    for(var prop in obj) {\n        if (obj.hasOwnProperty(prop)) {\n            ...\n        }\n    }\n```    \nAlways prefer using `for of` instead which is supported with arrays:\n\n```js\n    for(var prop of Object.keys(obj)) {\n        ...\n    }\n```\n\n- `prototype`, `length` and `name` are getter/setter in function objects.\n\n- C functions cannot have their own properties (but C constructors\n  behave as expected).\n\n- The global object is supported, but its use is discouraged. It\n  cannot contain getter/setters and properties directly created in it\n  are not visible as global variables in the executing script.\n\n- The variable associated with the `catch` keyword is a normal\n  variable.\n\n- Direct `eval` is not supported. Only indirect (=global) `eval` is\n  supported.\n\n- No value boxing (e.g. `new Number(1)` is not supported)\n\n- Regexp:\n\n    - case folding only works with ASCII characters.\n\n    - the matching is unicode only i.e. `/./` matches a unicode code\n      point instead of an UTF-16 character as with the `u` flag.\n\n- String: `toLowerCase` / `toUpperCase` only handle A",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:05.215507"
+  },
+  {
+    "basic_info": {
+      "name": "agentskills",
+      "full_name": "agentskills/agentskills",
+      "owner": "agentskills",
+      "description": "Specification and documentation for Agent Skills",
+      "url": "https://github.com/agentskills/agentskills",
+      "clone_url": "https://github.com/agentskills/agentskills.git",
+      "ssh_url": "git@github.com:agentskills/agentskills.git",
+      "homepage": "https://agentskills.io",
+      "created_at": "2025-12-16T15:47:19Z",
+      "updated_at": "2026-01-10T02:39:27Z",
+      "pushed_at": "2026-01-09T17:15:44Z"
+    },
+    "stats": {
+      "stars": 4965,
+      "forks": 253,
+      "watchers": 4965,
+      "open_issues": 42,
+      "size": 120
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 29204,
+        "Shell": 268
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Agent Skills\n\n[Agent Skills](https://agentskills.io) are a simple, open format for giving agents new capabilities and expertise.\n\nSkills are folders of instructions, scripts, and resources that agents can discover and use to perform better at specific tasks. Write once, use everywhere.\n\n## Getting Started\n\n- [Documentation](https://agentskills.io) - Guides and tutorials\n- [Specification](https://agentskills.io/specification) - Format details\n- [Example Skills](https://github.com/anthropics/skills) - See what's possible\n\nThis repo contains the specification, documentation, and reference SDK. Also see a list of example skills [here](https://github.com/anthropics/skills).\n\n## About\n\nAgent Skills is an open format maintained by [Anthropic](https://anthropic.com) and open to contributions from the community.",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:06.337689"
+  },
+  {
+    "basic_info": {
+      "name": "mapcn",
+      "full_name": "AnmolSaini16/mapcn",
+      "owner": "AnmolSaini16",
+      "description": "Beautiful map components. 100% Free, Zero config, one command setup.",
+      "url": "https://github.com/AnmolSaini16/mapcn",
+      "clone_url": "https://github.com/AnmolSaini16/mapcn.git",
+      "ssh_url": "git@github.com:AnmolSaini16/mapcn.git",
+      "homepage": "https://mapcn.dev",
+      "created_at": "2025-12-28T10:57:22Z",
+      "updated_at": "2026-01-10T02:33:43Z",
+      "pushed_at": "2026-01-08T17:52:26Z"
+    },
+    "stats": {
+      "stars": 4091,
+      "forks": 202,
+      "watchers": 4091,
+      "open_issues": 21,
+      "size": 851
+    },
+    "tech_info": {
+      "language": "TypeScript",
+      "languages": {
+        "TypeScript": 180881,
+        "CSS": 5763,
+        "JavaScript": 559
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"public/banner.png\" alt=\"mapcn banner\" />\n  \n  <h1>mapcn</h1>\n  <p><strong>Beautiful maps, made simple.</strong></p>\n  \n  <p>\n    Free & open source map components. Zero config, one command setup.<br/>\n    Built on <a href=\"https://maplibre.org/\">MapLibre GL</a>, styled with <a href=\"https://tailwindcss.com/\">Tailwind</a>, works seamlessly with <a href=\"https://ui.shadcn.com/\">shadcn/ui</a>.\n  </p>\n  \n  <p>\n    <a href=\"https://mapcn.dev/docs\">Get Started</a> •\n    <a href=\"https://mapcn.dev/docs/installation\">Installation</a> •\n    <a href=\"https://mapcn.dev/docs/basic-map\">Examples</a>\n  </p>\n</div>\n\n---\n\n## Features\n\n- 🎨 **Theme-aware** — Automatically adapts to light/dark mode\n- 🎯 **Zero config** — Works out of the box with sensible defaults\n- 📦 **shadcn/ui compatible** — Uses the same patterns and styling conventions\n- 🗺️ **MapLibre GL powered** — Full access to MapLibre's powerful mapping capabilities\n- 🧩 **Composable** — Build complex map UIs with simple, declarative components\n- 📍 **Markers & Popups** — Rich marker system with popups, tooltips, and labels\n- 🛤️ **Routes** — Draw routes and paths on your maps\n- 🎮 **Controls** — Zoom, compass, locate, and fullscreen controls\n\n## Basemap Terms of Service\n\nThis project uses [CARTO Basemaps](https://docs.carto.com/faqs/carto-basemaps) which are based on OpenStreetMap data.\n\n- **Commercial use**: Requires a CARTO Enterprise license. [Request a demo](https://carto.com/request-live-demo) for pricing details.\n- **Non-commercial use**: Free for CARTO grantees under their [basemap terms](https://carto.com/legal/bmap).\n- **Alternative**: You can switch to [OpenStreetMap](https://www.openstreetmap.org/) tiles or any other MapLibre-compatible tile provider.\n\n## Contributing\n\nContributions are welcome! Please feel free to submit a Pull Request.\n\n1. Fork the repository\n2. Create your feature branch (`git checkout -b feature/amazing-feature`)\n3. Commit your changes (`git commit -m 'Add some amazing feature'`)\n4. Push to the branch (`git push origin feature/amazing-feature`)\n5. Open a Pull Request\n\n## License\n\nMIT License - see the [LICENSE](LICENSE) file for details.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:07.476404"
+  },
+  {
+    "basic_info": {
+      "name": "obsidian-skills",
+      "full_name": "kepano/obsidian-skills",
+      "owner": "kepano",
+      "description": "Claude Skills for Obsidian",
+      "url": "https://github.com/kepano/obsidian-skills",
+      "clone_url": "https://github.com/kepano/obsidian-skills.git",
+      "ssh_url": "git@github.com:kepano/obsidian-skills.git",
+      "homepage": "",
+      "created_at": "2026-01-02T21:45:11Z",
+      "updated_at": "2026-01-10T02:47:21Z",
+      "pushed_at": "2026-01-09T16:48:25Z"
+    },
+    "stats": {
+      "stars": 3827,
+      "forks": 163,
+      "watchers": 3827,
+      "open_issues": 4,
+      "size": 10
+    },
+    "tech_info": {
+      "language": null,
+      "languages": {},
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "Claude Skills for use with Obsidian.\n\n## Installation\n\nAdd the contents of this repo to a `/.claude` folder in the root of your Obsidian vault (or whichever folder you're using with Claude Code). See more in the [official Claude Skills documentation](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview).\n\n## Skills\n\n### Create and edit Obsidian-compatible plain text files\n\n- [Obsidian Flavored Markdown](https://help.obsidian.md/obsidian-flavored-markdown) `.md`\n- [Obsidian Bases](https://help.obsidian.md/bases/syntax) `.base`\n- [JSON Canvas](https://jsoncanvas.org/) `.canvas`\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:08.644361"
+  },
+  {
+    "basic_info": {
+      "name": "claude-code-showcase",
+      "full_name": "ChrisWiles/claude-code-showcase",
+      "owner": "ChrisWiles",
+      "description": "Comprehensive Claude Code project configuration example with hooks, skills, agents, commands, and GitHub Actions workflows",
+      "url": "https://github.com/ChrisWiles/claude-code-showcase",
+      "clone_url": "https://github.com/ChrisWiles/claude-code-showcase.git",
+      "ssh_url": "git@github.com:ChrisWiles/claude-code-showcase.git",
+      "homepage": null,
+      "created_at": "2026-01-06T18:51:02Z",
+      "updated_at": "2026-01-10T02:47:26Z",
+      "pushed_at": "2026-01-06T19:05:18Z"
+    },
+    "stats": {
+      "stars": 3296,
+      "forks": 300,
+      "watchers": 3296,
+      "open_issues": 4,
+      "size": 70
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 10789,
+        "Shell": 902
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Claude Code Project Configuration Showcase\n\n> Most software engineers are seriously sleeping on how good LLM agents are right now, especially something like Claude Code.\n\nOnce you've got Claude Code set up, you can point it at your codebase, have it learn your conventions, pull in best practices, and refine everything until it's basically operating like a super-powered teammate. **The real unlock is building a solid set of reusable \"[skills](#skills---domain-knowledge)\" plus a few \"[agents](#agents---specialized-assistants)\" for the stuff you do all the time.**\n\n### What This Looks Like in Practice\n\n**Custom UI Library?** We have a [skill that explains exactly how to use it](.claude/skills/core-components/SKILL.md). Same for [how we write tests](.claude/skills/testing-patterns/SKILL.md), [how we structure GraphQL](.claude/skills/graphql-schema/SKILL.md), and basically how we want everything done in our repo. So when Claude generates code, it already matches our patterns and standards out of the box.\n\n**Automated Quality Gates?** We use [hooks](.claude/settings.json) to auto-format code, run tests when test files change, type-check TypeScript, and even [block edits on the main branch](.claude/settings.md). Claude Code also created a bunch of ESLint automation, including custom rules and lint checks that catch issues before they hit review.\n\n**Deep Code Review?** We have a [code review agent](.claude/agents/code-reviewer.md) that Claude runs after changes are made. It follows a detailed checklist covering TypeScript strict mode, error handling, loading states, mutation patterns, and more. When a PR goes up, we have a [GitHub Action](.github/workflows/pr-claude-code-review.yml) that does a full PR review automatically.\n\n**Scheduled Maintenance?** We've got GitHub workflow agents that run on a schedule:\n- [Monthly docs sync](.github/workflows/scheduled-claude-code-docs-sync.yml) - Reads commits from the last month and makes sure docs are still aligned\n- [Weekly code quality](.github/workflows/scheduled-claude-code-quality.yml) - Reviews random directories and auto-fixes issues\n- [Biweekly dependency audit](.github/workflows/scheduled-claude-code-dependency-audit.yml) - Safe dependency updates with test verification\n\n**Intelligent Skill Suggestions?** We built a [skill evaluation system](#skill-evaluation-hooks) that analyzes every prompt and automatically suggests which skills Claude should activate based on keywords, file paths, and intent patterns.\n\nA ton of maintenance and quality work is just... automated. It runs ridiculously smoothly.\n\n**JIRA/Linear Integration?** We connect Claude Code to our ticket system via [MCP servers](.mcp.json). Now Claude can read the ticket, understand the requirements, implement the feature, update the ticket status, and even create new tickets if it finds bugs along the way. The [`/ticket` command](.claude/commands/ticket.md) handles the entire workflow—from reading acceptance criteria to linking the PR back to the ticket.\n\nWe even use Claude Code for ticket triage. It reads the ticket, digs into the codebase, and leaves a comment with what it thinks should be done. So when an engineer picks it up, they're basically starting halfway through already.\n\n**There is so much low-hanging fruit here that it honestly blows my mind people aren't all over it.**\n\n---\n\n## Table of Contents\n\n- [Directory Structure](#directory-structure)\n- [Quick Start](#quick-start)\n- [Configuration Reference](#configuration-reference)\n  - [CLAUDE.md - Project Memory](#claudemd---project-memory)\n  - [settings.json - Hooks & Environment](#settingsjson---hooks--environment)\n  - [MCP Servers - External Integrations](#mcp-servers---external-integrations)\n  - [LSP Servers - Real-Time Code Intelligence](#lsp-servers---real-time-code-intelligence)\n  - [Skill Evaluation Hooks](#skill-evaluation-hooks)\n  - [Skills - Domain Knowledge](#skills---domain-knowledge)\n  - [Agents - Specialized Assistants](#agents---specialized-assistants)\n  - [Commands - Slash Commands](#commands---slash-commands)\n- [GitHub Actions Workflows](#github-actions-workflows)\n- [Best Practices](#best-practices)\n- [Examples in This Repository](#examples-in-this-repository)\n\n---\n\n## Directory Structure\n\n```\nyour-project/\n├── CLAUDE.md                      # Project memory (alternative location)\n├── .mcp.json                      # MCP server configuration (JIRA, GitHub, etc.)\n├── .claude/\n│   ├── settings.json              # Hooks, environment, permissions\n│   ├── settings.local.json        # Personal overrides (gitignored)\n│   ├── settings.md                # Human-readable hook documentation\n│   ├── .gitignore                 # Ignore local/personal files\n│   │\n│   ├── agents/                    # Custom AI agents\n│   │   └── code-reviewer.md       # Proactive code review agent\n│   │\n│   ├── commands/                  # Slash commands (/command-name)\n│   │   ├── onboard.md             # Deep task exploration\n│   │   ├── pr-review.md           #",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:09.853166"
+  },
+  {
+    "basic_info": {
+      "name": "port-killer",
+      "full_name": "productdevbook/port-killer",
+      "owner": "productdevbook",
+      "description": "A powerful cross-platform port management tool for developers. Monitor ports, manage Kubernetes port forwards, integrate Cloudflare Tunnels, and kill processes with one click.",
+      "url": "https://github.com/productdevbook/port-killer",
+      "clone_url": "https://github.com/productdevbook/port-killer.git",
+      "ssh_url": "git@github.com:productdevbook/port-killer.git",
+      "homepage": "",
+      "created_at": "2025-12-16T01:44:50Z",
+      "updated_at": "2026-01-10T02:23:16Z",
+      "pushed_at": "2026-01-05T09:05:09Z"
+    },
+    "stats": {
+      "stars": 3054,
+      "forks": 104,
+      "watchers": 3054,
+      "open_issues": 27,
+      "size": 8093
+    },
+    "tech_info": {
+      "language": "Swift",
+      "languages": {
+        "Swift": 408498,
+        "C#": 125507,
+        "Shell": 9522
+      },
+      "license": "MIT License",
+      "topics": [
+        "developer-tools",
+        "kubernetes",
+        "macos",
+        "macos-app",
+        "menu-bar",
+        "port-killer",
+        "process-manager",
+        "swift",
+        "swiftui",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "# PortKiller\n\n<p align=\"center\">\n  <img src=\"Resources/AppIcon.svg\" alt=\"PortKiller Icon\" width=\"128\" height=\"128\">\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-MIT-blue.svg\" alt=\"License: MIT\"></a>\n  <a href=\"https://www.apple.com/macos/\"><img src=\"https://img.shields.io/badge/macOS-15.0%2B-brightgreen\" alt=\"macOS\"></a>\n  <a href=\"https://www.microsoft.com/windows\"><img src=\"https://img.shields.io/badge/Windows-10%2B-0078D6\" alt=\"Windows\"></a>\n  <a href=\"https://github.com/productdevbook/port-killer/releases\"><img src=\"https://img.shields.io/github/v/release/productdevbook/port-killer\" alt=\"GitHub Release\"></a>\n</p>\n\n<p align=\"center\">\nA powerful cross-platform port management tool for developers.<br>\nMonitor ports, manage Kubernetes port forwards, integrate Cloudflare Tunnels, and kill processes with one click.\n</p>\n\n### macOS\n\n<p align=\"center\">\n  <img src=\".github/assets/macos.png\" alt=\"PortKiller macOS\" width=\"800\">\n</p>\n\n### Windows\n\n<p align=\"center\">\n  <img src=\".github/assets/windows.jpeg\" alt=\"PortKiller Windows\" width=\"800\">\n</p>\n\n## Installation\n\n### macOS\n\n**Homebrew:**\n```bash\nbrew install --cask productdevbook/tap/portkiller\n```\n\n**Manual:** Download `.dmg` from [GitHub Releases](https://github.com/productdevbook/port-killer/releases).\n\n### Windows\n\nDownload `.zip` from [GitHub Releases](https://github.com/productdevbook/port-killer/releases) and extract.\n\n## Features\n\n### Port Management\n- 🔍 Auto-discovers all listening TCP ports\n- ⚡ One-click process termination (graceful + force kill)\n- 🔄 Auto-refresh with configurable interval\n- 🔎 Search and filter by port number or process name\n- ⭐ Favorites for quick access to important ports\n- 👁️ Watched ports with notifications\n- 📂 Smart categorization (Web Server, Database, Development, System)\n\n### Kubernetes Port Forwarding\n- 🔗 Create and manage kubectl port-forward sessions\n- 🔌 Auto-reconnect on connection loss\n- 📝 Connection logs and status monitoring\n- 🔔 Notifications on connect/disconnect\n\n### Cloudflare Tunnels\n- ☁️ View and manage active Cloudflare Tunnel connections\n- 🌐 Quick access to tunnel status\n\n### Cross-Platform\n- 📍 Menu bar integration (macOS)\n- 🖥️ System tray app (Windows)\n- 🎨 Native UI for each platform\n\n## Contributing\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.\n\n## Sponsors\n\n<p align=\"center\">\n  <a href=\"https://cdn.jsdelivr.net/gh/productdevbook/static/sponsors.svg\">\n    <img src='https://cdn.jsdelivr.net/gh/productdevbook/static/sponsors.svg'/>\n  </a>\n</p>\n\n## License\n\nMIT License - see [LICENSE](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:11.632942"
+  },
+  {
+    "basic_info": {
+      "name": "gastown",
+      "full_name": "steveyegge/gastown",
+      "owner": "steveyegge",
+      "description": "Gas Town - multi-agent workspace manager",
+      "url": "https://github.com/steveyegge/gastown",
+      "clone_url": "https://github.com/steveyegge/gastown.git",
+      "ssh_url": "git@github.com:steveyegge/gastown.git",
+      "homepage": "",
+      "created_at": "2025-12-16T00:33:33Z",
+      "updated_at": "2026-01-10T02:47:00Z",
+      "pushed_at": "2026-01-10T02:14:36Z"
+    },
+    "stats": {
+      "stars": 2961,
+      "forks": 223,
+      "watchers": 2961,
+      "open_issues": 55,
+      "size": 34411
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 3427566,
+        "Shell": 18421,
+        "HTML": 12524,
+        "JavaScript": 9947,
+        "Python": 3302,
+        "Makefile": 924
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Gas Town\n\n**Multi-agent orchestration system for Claude Code with persistent work tracking**\n\n## Overview\n\nGas Town is a workspace manager that lets you coordinate multiple Claude Code agents working on different tasks. Instead of losing context when agents restart, Gas Town persists work state in git-backed hooks, enabling reliable multi-agent workflows.\n\n### What Problem Does This Solve?\n\n| Challenge                       | Gas Town Solution                            |\n| ------------------------------- | -------------------------------------------- |\n| Agents lose context on restart  | Work persists in git-backed hooks            |\n| Manual agent coordination       | Built-in mailboxes, identities, and handoffs |\n| 4-10 agents become chaotic      | Scale comfortably to 20-30 agents            |\n| Work state lost in agent memory | Work state stored in Beads ledger            |\n\n### Architecture\n\n```mermaid\ngraph TB\n    Mayor[The Mayor<br/>AI Coordinator]\n    Town[Town Workspace<br/>~/gt/]\n\n    Town --> Mayor\n    Town --> Rig1[Rig: Project A]\n    Town --> Rig2[Rig: Project B]\n\n    Rig1 --> Crew1[Crew Member<br/>Your workspace]\n    Rig1 --> Hooks1[Hooks<br/>Persistent storage]\n    Rig1 --> Polecats1[Polecats<br/>Worker agents]\n\n    Rig2 --> Crew2[Crew Member]\n    Rig2 --> Hooks2[Hooks]\n    Rig2 --> Polecats2[Polecats]\n\n    Hooks1 -.git worktree.-> GitRepo1[Git Repository]\n    Hooks2 -.git worktree.-> GitRepo2[Git Repository]\n\n    style Mayor fill:#e1f5ff\n    style Town fill:#f0f0f0\n    style Rig1 fill:#fff4e1\n    style Rig2 fill:#fff4e1\n```\n\n## Core Concepts\n\n### The Mayor 🎩\n\nYour primary AI coordinator. The Mayor is a Claude Code instance with full context about your workspace, projects, and agents. **Start here** - just tell the Mayor what you want to accomplish.\n\n### Town 🏘️\n\nYour workspace directory (e.g., `~/gt/`). Contains all projects, agents, and configuration.\n\n### Rigs 🏗️\n\nProject containers. Each rig wraps a git repository and manages its associated agents.\n\n### Crew Members 👤\n\nYour personal workspace within a rig. Where you do hands-on work.\n\n### Polecats 🦨\n\nEphemeral worker agents that spawn, complete a task, and disappear.\n\n### Hooks 🪝\n\nGit worktree-based persistent storage for agent work. Survives crashes and restarts.\n\n### Convoys 🚚\n\nWork tracking units. Bundle multiple issues/tasks that get assigned to agents.\n\n### Beads Integration 📿\n\nGit-backed issue tracking system that stores work state as structured data.\n\n> **New to Gas Town?** See the [Glossary](docs/glossary.md) for a complete guide to terminology and concepts.\n\n## Installation\n\n### Prerequisites\n\n- **Go 1.23+** - [go.dev/dl](https://go.dev/dl/)\n- **Git 2.25+** - for worktree support\n- **beads (bd) 0.44.0+** - [github.com/steveyegge/beads](https://github.com/steveyegge/beads) (required for custom type support)\n- **tmux 3.0+** - recommended for full experience\n- **Claude Code CLI** (default runtime) - [claude.ai/code](https://claude.ai/code)\n- **Codex CLI** (optional runtime) - [developers.openai.com/codex/cli](https://developers.openai.com/codex/cli)\n\n### Setup\n\n```bash\n# Install Gas Town\ngo install github.com/steveyegge/gastown/cmd/gt@latest\n\n# Add Go binaries to PATH (add to ~/.zshrc or ~/.bashrc)\nexport PATH=\"$PATH:$HOME/go/bin\"\n\n# Create workspace with git initialization\ngt install ~/gt --git\ncd ~/gt\n\n# Add your first project\ngt rig add myproject https://github.com/you/repo.git\n\n# Create your crew workspace\ngt crew add yourname --rig myproject\ncd myproject/crew/yourname\n\n# Start the Mayor session (your main interface)\ngt mayor attach\n```\n\n## Quick Start Guide\n\n### Basic Workflow\n\n```mermaid\nsequenceDiagram\n    participant You\n    participant Mayor\n    participant Convoy\n    participant Agent\n    participant Hook\n\n    You->>Mayor: Tell Mayor what to build\n    Mayor->>Convoy: Create convoy with issues\n    Mayor->>Agent: Sling issue to agent\n    Agent->>Hook: Store work state\n    Agent->>Agent: Complete work\n    Agent->>Convoy: Report completion\n    Mayor->>You: Summary of progress\n```\n\n### Example: Feature Development\n\n```bash\n# 1. Start the Mayor\ngt mayor attach\n\n# 2. In Mayor session, create a convoy\ngt convoy create \"Feature X\" issue-123 issue-456 --notify --human\n\n# 3. Assign work to an agent\ngt sling issue-123 myproject\n\n# 4. Track progress\ngt convoy list\n\n# 5. Monitor agents\ngt agents\n```\n\n## Common Workflows\n\n### Mayor Workflow (Recommended)\n\n**Best for:** Coordinating complex, multi-issue work\n\n```mermaid\nflowchart LR\n    Start([Start Mayor]) --> Tell[Tell Mayor<br/>what to build]\n    Tell --> Creates[Mayor creates<br/>convoy + agents]\n    Creates --> Monitor[Monitor progress<br/>via convoy list]\n    Monitor --> Done{All done?}\n    Done -->|No| Monitor\n    Done -->|Yes| Review[Review work]\n```\n\n**Commands:**\n\n```bash\n# Attach to Mayor\ngt mayor attach\n\n# In Mayor, create convoy and let it orchestrate\ngt convoy create \"Auth System\" issue-101 issue-102 --notify\n\n# Track progress\ngt convoy list\n```\n\n### Minimal Mode (No Tmux",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:13.927819"
+  },
+  {
+    "basic_info": {
+      "name": "sqlit",
+      "full_name": "Maxteabag/sqlit",
+      "owner": "Maxteabag",
+      "description": "A user friendly TUI for SQL databases. Written in python. Supports SQL server, Mysql, PostreSQL, SQLite, Turso and more.",
+      "url": "https://github.com/Maxteabag/sqlit",
+      "clone_url": "https://github.com/Maxteabag/sqlit.git",
+      "ssh_url": "git@github.com:Maxteabag/sqlit.git",
+      "homepage": "",
+      "created_at": "2025-12-13T00:10:36Z",
+      "updated_at": "2026-01-10T02:32:45Z",
+      "pushed_at": "2026-01-10T00:24:33Z"
+    },
+    "stats": {
+      "stars": 2711,
+      "forks": 64,
+      "watchers": 2711,
+      "open_issues": 10,
+      "size": 25852
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 2676875,
+        "Shell": 6977,
+        "HCL": 6254,
+        "CSS": 5650,
+        "Nix": 2732,
+        "Dockerfile": 278
+      },
+      "license": "MIT License",
+      "topics": [
+        "cockroachdb",
+        "command-line-tool",
+        "duckdb",
+        "mariadb",
+        "mysql",
+        "oracle",
+        "postgresql",
+        "python",
+        "sql",
+        "sqlite",
+        "ssh",
+        "tui",
+        "turso"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/favorites/logo_sqlit.png\" alt=\"sqlit logo\" width=\"180\">\n</p>\n\n<h3 align=\"center\">The lazygit of SQL databases</h3>\n\n<p align=\"center\">\n  <em>Connect and query your database from your terminal in seconds.</em>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/Maxteabag/sqlit/stargazers\"><img src=\"https://img.shields.io/github/stars/Maxteabag/sqlit?style=flat&color=yellow\" alt=\"GitHub Stars\"></a>\n  <img src=\"https://img.shields.io/badge/python-3.10+-blue.svg\" alt=\"Python\">\n  <img src=\"https://img.shields.io/badge/license-MIT-green.svg\" alt=\"License\">\n</p>\n\n<p align=\"center\">\n  <code>pipx install sqlit-tui</code>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://www.buymeacoffee.com/PeterAdams\"><img src=\"https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black\" alt=\"Buy Me a Coffee\"></a>\n</p>\n\n---\n\n### Connect\nSupports all major databases: SQL Server, PostgreSQL, MySQL, SQLite, MariaDB, FirebirdSQL, Oracle, DuckDB, CockroachDB, ClickHouse, Snowflake, Supabase, CloudFlare D1, Turso, Athena, BigQuery, RedShift, IBM Db2, SAP HANA, Teradata, Trino, Presto and Apache Flight SQL.\n\n![Database Providers](docs/demos/demo-providers.gif)\n\n### Query\nSyntax highlighting. History. Vim-style keybindings.\n\n![Query History](docs/demos/demo-history.gif)\n\n### Results\nLoad millions of rows. Inspect data, filter by content, fuzzy search.\n\n![Filter results](docs/demos/demo-filter/demo-filter.gif)\n\n### Docker Discovery\nAutomatically finds running database containers. Press 'Enter' to connect, sqlit figures out the details for you.\n\n![Docker Discovery](docs/demos/demo-docker-picker.gif)\n\n---\n\n## Features\n\n**Connection manager:** Save and switch connections without CLI args\n\n**Just run `sqlit`:** No CLI config needed, pick a connection and go\n\n**Multi-database support:** PostgreSQL, MySQL, SQLite, SQL Server, and 10+ more\n\n**Docker integration:** Auto-detect running database containers\n\n**Cloud CLI integration:** Easily browse and connect to your external databases through Azure, AWS and GCP CLI's\n\n**SSH tunnels:** Connect to remote databases securely with password or key auth\n\n**Secure credentials:** Passwords stored in your OS keyring\n\n**Vim-style editing:** Modal editing for terminal purists\n\n**Query history:** Searchable, per-connection history\n\n**Filter results:** Fuzzy search through millions of rows\n\n**Context-aware help:** Keybindings shown on screen\n\n**Browse databases:** Tables, views, procedures, indexes, triggers, sequences\n\n**Autocomplete:** Sophisticated SQL completion engine for tables, columns, and procedures\n\n**CLI mode:** Execute SQL from the command line\n\n**Themes:** Rose Pine, Tokyo Night, Nord, Gruvbox\n\n**Dependency wizard:** Auto-install missing drivers\n\n---\n\n## Motivation\n\nThroughout my career, the undesputed truth was that heavy GUI's like SSMS was the only respectable way to access a database. It didn't matter that I wasn't a DBA, or that I didn't need complex performance graphs. I was expected to install a gigabyte-heavy behemoth that took ages to launch all for the mere purpose of running a few queries to update and view a couple of rows.\n\nWhen I switched to Linux, I was suddenly unable to return to the devil I know, and I asked myself: _how do I access my data now?_\n\nThe popular answer was VS Code's SQL extension. But why should we developers launch a heavy Electron app designed for coding just to execute SQL?\n\nI had recently grown fond of Terminal UI's for their speed and keybinding focus. I looked for SQL TUIs, but the options were sparse. The ones I found lacked the user-friendliness and immediate \"pick-up-and-go\" nature of tools I loved, like lazygit, and I shortly returning to vscode sql extension.\n\nSomething wasn't right. I asked myself, why is it that running SQL queries can't be enjoyable? So I created sqlit.\n\nsqlit is for the developer who just wants to query their database with a user friendly UI without their RAM being eaten alive. It is a lightweight, beautiful, and keyboard-driven TUI designed to make accessing your data enjoyable, fast and easy like it should be-- all from inside your favorite terminal.\n\n---\n\n## Installation\n\n```bash\n# pipx (recommended)\npipx install sqlit-tui\n\n# uv\nuv tool install sqlit-tui\n\n# pip\npip install sqlit-tui\n\n# Arch Linux (AUR)\nyay -S sqlit\n\n# Nix (flake)\nnix run github:Maxteabag/sqlit\n```\n\n## Usage\n\n```bash\nsqlit\n```\n\nThe keybindings are shown at the bottom of the screen.\n\n### Try it without a database\n\nWant to explore the UI without connecting to a real database? Run with mock data:\n\n```bash\nsqlit --mock=sqlite-demo\n```\n\n### CLI\n\n```bash\n# Run a query\nsqlit query -c \"MyConnection\" -q \"SELECT * FROM Users\"\n\n# Output as CSV or JSON\nsqlit query -c \"MyConnection\" -q \"SELECT * FROM Users\" --format csv\nsqlit query -c \"MyConnection\" -f \"script.sql\" --format json\n\n# Create connections for different databases\nsqlit connections add mssql --name \"MySqlServer\" --server \"localhost\" --auth-ty",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:16.253048"
+  },
+  {
+    "basic_info": {
+      "name": "vibium",
+      "full_name": "VibiumDev/vibium",
+      "owner": "VibiumDev",
+      "description": "Browser automation for AI agents and humans",
+      "url": "https://github.com/VibiumDev/vibium",
+      "clone_url": "https://github.com/VibiumDev/vibium.git",
+      "ssh_url": "git@github.com:VibiumDev/vibium.git",
+      "homepage": "https://vibium.com",
+      "created_at": "2025-12-12T00:56:53Z",
+      "updated_at": "2026-01-09T22:00:45Z",
+      "pushed_at": "2026-01-05T04:21:34Z"
+    },
+    "stats": {
+      "stars": 2259,
+      "forks": 114,
+      "watchers": 2259,
+      "open_issues": 32,
+      "size": 1250
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 131757,
+        "JavaScript": 33079,
+        "TypeScript": 31953,
+        "Python": 25183,
+        "Makefile": 8157
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Vibium\n\n**Browser automation without the drama.**\n\nVibium is browser automation infrastructure built for AI agents. A single binary handles browser lifecycle, [WebDriver BiDi](docs/explanation/webdriver-bidi.md) protocol, and exposes an MCP server — so Claude Code (or any MCP client) can drive a browser with zero setup. Works great for AI agents, test automation, and anything else that needs a browser.\n\n**New here?** [Getting Started Tutorial](docs/tutorials/getting-started.md) — zero to hello world in 5 minutes.\n\n---\n\n## Why Vibium?\n\n**Browser automation for AI agents and humans.**\n\n- **AI-native.** MCP server built-in. Claude Code can drive a browser out of the box.\n- **Zero config.** One install, browser downloads automatically, visible by default.\n- **Standards-based.** Built on [WebDriver BiDi](docs/explanation/webdriver-bidi.md), not proprietary protocols controlled by large corporations.\n- **Lightweight.** Single ~10MB binary. No runtime dependencies.\n\n---\n\n## Quick Reference\n\n| Component | Purpose | Interface |\n|-----------|---------|-----------|\n| **Clicker** | Browser automation, BiDi proxy, MCP server | CLI / stdio / WebSocket :9515 |\n| **JS Client** | Developer-facing API | npm package |\n| **Python Client** | Developer-facing API | pip package |\n\n---\n\n## Architecture\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│                         LLM / Agent                         │\n│          (Claude Code, Codex, Gemini, Local Models)         │\n└─────────────────────────────────────────────────────────────┘\n                      ▲\n                      │ MCP Protocol (stdio)\n                      ▼\n           ┌─────────────────────┐         \n           │   Vibium Clicker    │\n           │                     │\n           │  ┌───────────────┐  │\n           │  │  MCP Server   │  │\n           │  └───────▲───────┘  │         ┌──────────────────┐\n           │          │          │         │                  │\n           │  ┌───────▼───────┐  │WebSocket│                  │\n           │  │  BiDi Proxy   │  │◄───────►│  Chrome Browser  │\n           │  └───────────────┘  │  BiDi   │                  │\n           │                     │         │                  │\n           └─────────────────────┘         └──────────────────┘\n                      ▲\n                      │ WebSocket BiDi :9515\n                      ▼\n┌─────────────────────────────────────────────────────────────┐\n│                       Client Libraries                       │\n│           npm install vibium  ·  pip install vibium          │\n│                                                             │\n│    ┌─────────────────┐               ┌─────────────────┐    │\n│    │ Async API       │               │    Sync API     │    │\n│    │ await vibe.go() │               │    vibe.go()    │    │\n│    │                 │               │                 │    │\n│    └─────────────────┘               └─────────────────┘    │\n└─────────────────────────────────────────────────────────────┘\n```\n\n---\n\n## Components\n\n### Clicker\n\nA single Go binary (~10MB) that does everything:\n\n- **Browser Management:** Detects/launches Chrome with BiDi enabled\n- **BiDi Proxy:** WebSocket server that routes commands to browser\n- **MCP Server:** stdio interface for LLM agents\n- **Auto-Wait:** Polls for elements before interacting\n- **Screenshots:** Viewport capture as PNG\n\n**Design goal:** The binary is invisible. JS developers just `npm install vibium` and it works.\n\n### JS/TS Client\n\n```javascript\n// Option 1: require (REPL-friendly)\nconst { browserSync } = require('vibium')\n\n// Option 2: dynamic import (REPL with --experimental-repl-await)\nconst { browser } = await import('vibium')\n\n// Option 3: static import (in .mjs or .ts files)\nimport { browser, browserSync } from 'vibium'\n```\n\n**Sync API:**\n```javascript\nconst fs = require('fs')\nconst { browserSync } = require('vibium')\n\nconst vibe = browserSync.launch()\nvibe.go('https://example.com')\n\nconst png = vibe.screenshot()\nfs.writeFileSync('screenshot.png', png)\n\nconst link = vibe.find('a')\nlink.click()\nvibe.quit()\n```\n\n**Async API:**\n```javascript\nconst fs = await import('fs/promises')\nconst { browser } = await import('vibium')\n\nconst vibe = await browser.launch()\nawait vibe.go('https://example.com')\n\nconst png = await vibe.screenshot()\nawait fs.writeFile('screenshot.png', png)\n\nconst link = await vibe.find('a')\nawait link.click()\nawait vibe.quit()\n```\n\n### Python Client\n\n```python\nfrom vibium import browser, browser_sync\n```\n\n**Sync API:**\n```python\nfrom vibium import browser_sync as browser\n\nvibe = browser.launch()\nvibe.go(\"https://example.com\")\n\npng = vibe.screenshot()\nwith open(\"screenshot.png\", \"wb\") as f:\n    f.write(png)\n\nlink = vibe.find(\"a\")\nlink.click()\nvibe.quit()\n```\n\n**Async API:**\n```python\nimport asyncio\nfrom vibium import browser\n\nasync def main():\n    vibe = await browser.launch()\n    await vibe.go(\"https://example.com\")\n\n    png = await vibe.screenshot()\n    with open(\"screenshot",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:17.425075"
+  },
+  {
+    "basic_info": {
+      "name": "quotio",
+      "full_name": "nguyenphutrong/quotio",
+      "owner": "nguyenphutrong",
+      "description": "Stop juggling AI accounts. Quotio is a beautiful native macOS menu bar app that unifies your Claude, Gemini, OpenAI, Qwen, and Antigravity subscriptions – with real-time quota tracking and smart auto-failover for AI coding tools like Claude Code, OpenCode, and Droid.",
+      "url": "https://github.com/nguyenphutrong/quotio",
+      "clone_url": "https://github.com/nguyenphutrong/quotio.git",
+      "ssh_url": "git@github.com:nguyenphutrong/quotio.git",
+      "homepage": "https://www.quotio.dev",
+      "created_at": "2025-12-24T14:42:00Z",
+      "updated_at": "2026-01-10T01:42:44Z",
+      "pushed_at": "2026-01-09T17:56:42Z"
+    },
+    "stats": {
+      "stars": 2192,
+      "forks": 129,
+      "watchers": 2192,
+      "open_issues": 33,
+      "size": 28442
+    },
+    "tech_info": {
+      "language": "Swift",
+      "languages": {
+        "Swift": 1171281,
+        "Shell": 41244
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-tools",
+        "developer-tools",
+        "proxy",
+        "quota-monitor"
+      ]
+    },
+    "content": {
+      "readme": "# Quotio\n\n<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"screenshots/menu_bar_dark.png\" />\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"screenshots/menu_bar.png\" />\n    <img alt=\"Quotio Banner\" src=\"screenshots/menu_bar.png\" height=\"600\" />\n  </picture>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/platform-macOS-lightgrey.svg?style=flat\" alt=\"Platform macOS\" />\n  <img src=\"https://img.shields.io/badge/language-Swift-orange.svg?style=flat\" alt=\"Language Swift\" />\n  <img src=\"https://img.shields.io/badge/license-MIT-blue.svg?style=flat\" alt=\"License MIT\" />\n  <a href=\"https://discord.gg/dFzeZ7qS\"><img src=\"https://img.shields.io/badge/Discord-Join%20us-5865F2.svg?style=flat&logo=discord&logoColor=white\" alt=\"Discord\" /></a>\n  <a href=\"README.vi.md\"><img src=\"https://img.shields.io/badge/lang-Tiếng%20Việt-red.svg?style=flat\" alt=\"Vietnamese\" /></a>\n  <a href=\"README.zh.md\"><img src=\"https://img.shields.io/badge/lang-zh--CN-green.svg?style=flat\" alt=\"Chinese\" /></a>\n  <a href=\"README.fr.md\"><img src=\"https://img.shields.io/badge/lang-Français-blue.svg?style=flat\" alt=\"French\" /></a>\n</p>\n\n<p align=\"center\">\n  <strong>The ultimate command center for your AI coding assistants on macOS.</strong>\n</p>\n\nQuotio is a native macOS application for managing **CLIProxyAPI** - a local proxy server that powers your AI coding agents. It helps you manage multiple AI accounts, track quotas, and configure CLI tools in one place.\n\n## ✨ Features\n\n- **🔌 Multi-Provider Support**: Connect accounts from Gemini, Claude, OpenAI Codex, Qwen, Vertex AI, iFlow, Antigravity, Kiro, Trae, and GitHub Copilot via OAuth or API keys.\n- **📊 Standalone Quota Mode**: View quota and accounts without running the proxy server - perfect for quick checks.\n- **🚀 One-Click Agent Configuration**: Auto-detect and configure AI coding tools like Claude Code, OpenCode, Gemini CLI, and more.\n- **📈 Real-time Dashboard**: Monitor request traffic, token usage, and success rates live.\n- **📉 Smart Quota Management**: Visual quota tracking per account with automatic failover strategies (Round Robin / Fill First).\n- **🔑 API Key Management**: Generate and manage API keys for your local proxy.\n- **🖥️ Menu Bar Integration**: Quick access to server status, quota overview, and custom provider icons from your menu bar.\n- **🔔 Notifications**: Alerts for low quotas, account cooling periods, or service issues.\n- **🔄 Auto-Update**: Built-in Sparkle updater for seamless updates.\n- **🌍 Multilingual**: English, Vietnamese, and Simplified Chinese support.\n\n## 🤖 Supported Ecosystem\n\n### AI Providers\n| Provider | Auth Method |\n|----------|-------------|\n| Google Gemini | OAuth |\n| Anthropic Claude | OAuth |\n| OpenAI Codex | OAuth |\n| Qwen Code | OAuth |\n| Vertex AI | Service Account JSON |\n| iFlow | OAuth |\n| Antigravity | OAuth |\n| Kiro | OAuth |\n| GitHub Copilot | OAuth |\n\n### IDE Quota Tracking (Monitor Only)\n| IDE | Description |\n|-----|-------------|\n| Cursor | Auto-detected when installed and logged in |\n| Trae | Auto-detected when installed and logged in |\n\n> **Note**: These IDEs are only used for quota usage monitoring. They cannot be used as providers for the proxy.\n\n### Compatible CLI Agents\nQuotio can automatically configure these tools to use your centralized proxy:\n- Claude Code\n- Codex CLI\n- Gemini CLI\n- Amp CLI\n- OpenCode\n- Factory Droid\n\n## 🚀 Installation\n\n### Requirements\n- macOS 15.0 (Sequoia) or later\n- Internet connection for OAuth authentication\n\n### Homebrew (Recommended)\n```bash\nbrew tap nguyenphutrong/tap\nbrew install --cask quotio\n```\n\n### Download\nDownload the latest `.dmg` from the [Releases](https://github.com/nguyenphutrong/quotio/releases) page.\n\n> ⚠️ **Note**: The app is not signed with an Apple Developer certificate yet. If macOS blocks the app, run:\n> ```bash\n> xattr -cr /Applications/Quotio.app\n> ```\n\n### Building from Source\n\n1. **Clone the repository:**\n   ```bash\n   git clone https://github.com/nguyenphutrong/quotio.git\n   cd Quotio\n   ```\n\n2. **Open in Xcode:**\n   ```bash\n   open Quotio.xcodeproj\n   ```\n\n3. **Build and Run:**\n   - Select the \"Quotio\" scheme\n   - Press `Cmd + R` to build and run\n\n> The app will automatically download the `CLIProxyAPI` binary on first launch.\n\n## 📖 Usage\n\n### 1. Start the Server\nLaunch Quotio and click **Start** on the dashboard to initialize the local proxy server.\n\n### 2. Connect Accounts\nGo to **Providers** tab → Click on a provider → Authenticate via OAuth or import credentials.\n\n### 3. Configure Agents\nGo to **Agents** tab → Select an installed agent → Click **Configure** → Choose Automatic or Manual mode.\n\n### 4. Monitor Usage\n- **Dashboard**: Overall health and traffic\n- **Quota**: Per-account usage breakdown\n- **Logs**: Raw request/response logs for debugging\n\n## ⚙️ Settings\n\n- **Port**: Change the proxy listening port\n- **Routing Strategy**: Round Robin or Fill First\n- **Auto-start**: Launch proxy automatically when Quotio opens\n- *",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-01-10T02:48:18.540392"
+  },
+  {
+    "basic_info": {
+      "name": "gemini-watermark-remover",
+      "full_name": "journey-ad/gemini-watermark-remover",
+      "owner": "journey-ad",
+      "description": "A high-performance, 100% client-side tool for removing Gemini AI watermarks. Built with pure JavaScript, it leverages a mathematically precise Reverse Alpha Blending algorithm rather than unpredictable AI inpainting. / 基于 Javascript 的纯浏览器端 Gemini AI 图像无损去水印工具，使用数学精确的反向 Alpha 混合算法",
+      "url": "https://github.com/journey-ad/gemini-watermark-remover",
+      "clone_url": "https://github.com/journey-ad/gemini-watermark-remover.git",
+      "ssh_url": "git@github.com:journey-ad/gemini-watermark-remover.git",
+      "homepage": "https://banana.ovo.re",
+      "created_at": "2025-12-19T12:06:10Z",
+      "updated_at": "2026-01-10T01:52:28Z",
+      "pushed_at": "2026-01-04T11:34:14Z"
+    },
+    "stats": {
+      "stars": 1948,
+      "forks": 217,
+      "watchers": 1948,
+      "open_issues": 9,
+      "size": 11122
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 30880,
+        "HTML": 25761
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "[中文文档](README_zh.md)\n\n# Gemini Lossless Watermark Remover - [banana.ovo.re](https://banana.ovo.re)\n\nA high-performance, 100% client-side tool for removing Gemini AI watermarks. Built with pure JavaScript, it leverages a mathematically precise **Reverse Alpha Blending** algorithm rather than unpredictable AI inpainting.\n\n<p align=\"center\">\n  <img src=\"https://count.getloli.com/@gemini-watermark-remover?name=gemini-watermark-remover&theme=minecraft&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto\" width=\"400\">\n</p>\n\n## Features\n\n- ✅ **100% Client-side** - No backend, no server-side processing. Your data stays in your browser.\n- ✅ **Privacy-First** - Images are never uploaded to any server. Period.\n- ✅ **Mathematical Precision** - Based on the Reverse Alpha Blending formula, not \"hallucinating\" AI models.\n- ✅ **Auto-Detection** - Intelligent recognition of 48×48 or 96×96 watermark variants.\n- ✅ **User Friendly** - Simple drag-and-drop interface with instant processing.\n- ✅ **Cross-Platform** - Runs smoothly on all modern web browsers.\n\n## Examples\n\n<details open>\n<summary>Click to Expand/Collapse Examples</summary>\n　\n<p>lossless diff example</p>\n<p><img src=\"docs/lossless_diff.webp\"></p>\n\n\n<p>example images</p>\n\n| Original Image | Watermark Removed |\n| :---: | :----: |\n| <img src=\"docs/1.webp\" width=\"400\"> | <img src=\"docs/unwatermarked_1.webp\" width=\"400\"> |\n| <img src=\"docs/2.webp\" width=\"400\"> | <img src=\"docs/unwatermarked_2.webp\" width=\"400\"> |\n| <img src=\"docs/3.webp\" width=\"400\"> | <img src=\"docs/unwatermarked_3.webp\" width=\"400\"> |\n| <img src=\"docs/4.webp\" width=\"400\"> | <img src=\"docs/unwatermarked_4.webp\" width=\"400\"> |\n| <img src=\"docs/5.webp\" width=\"400\"> | <img src=\"docs/unwatermarked_5.webp\" width=\"400\"> |\n\n</details>\n\n## ⚠️ Disclaimer\n\n> [!WARNING]\n>  **USE AT YOUR OWN RISK**\n>\n> This tool modifies image files. While it is designed to work reliably, unexpected results may occur due to:\n> - Variations in Gemini's watermark implementation\n> - Corrupted or unusual image formats\n> - Edge cases not covered by testing\n>\n> The author assumes no responsibility for any data loss, image corruption, or unintended modifications. By using this tool, you acknowledge that you understand these risks.\n\n> [!NOTE]\n> **Note**: Disabling any fingerprint defender extensions (e.g., Canvas Fingerprint Defender) to avoid processing errors. https://github.com/journey-ad/gemini-watermark-remover/issues/3\n\n## Usage\n\n### Online Website\n\n1. Open [banana.ovo.re](https://banana.ovo.re).\n2. Drag and drop or click to select your Gemini-generated image.\n3. The engine will automatically process and remove the watermark.\n4. Download the cleaned image.\n\n### Userscript for Gemini Conversation Pages\n\n1. Install a userscript manager (e.g., Tampermonkey or Greasemonkey).\n2. Open [gemini-watermark-remover.user.js](https://banana.ovo.re/userscript/gemini-watermark-remover.user.js).\n3. The script will install automatically.\n4. Navigate to Gemini conversation pages.\n5. Click \"Copy Image\" or \"Download Image\" to remove the watermark.\n\n## Development\n\n```bash\n# Install dependencies\npnpm install\n\n# Development build\npnpm dev\n\n# Production build\npnpm build\n\n# Local preview\npnpm serve\n```\n\n## How it Works\n\n### The Gemini Watermarking Process\n\nGemini applies watermarks using standard alpha compositing:\n\n$$watermarked = \\alpha \\cdot logo + (1 - \\alpha) \\cdot original$$\n\nWhere:\n- `watermarked`: The pixel value with the watermark.\n- `α`: The Alpha channel value (0.0 - 1.0).\n- `logo`: The watermark logo color value (White = 255).\n- `original`: The raw, original pixel value we want to recover.\n\n### The Reverse Solution\n\nTo remove the watermark, we solve for `original`:\n\n$$original = \\frac{watermarked - \\alpha \\cdot logo}{1 - \\alpha}$$\n\nBy capturing the watermark on a known solid background, we reconstruct the exact Alpha map and apply the inverse formula to restore the original pixels with zero loss.\n\n## Detection Rules\n\n| Image Dimension Condition | Watermark Size | Right Margin | Bottom Margin |\n| :--- | :--- | :--- | :--- |\n| Width > 1024 **AND** Height > 1024 | 96×96 | 64px | 64px |\n| Otherwise | 48×48 | 32px | 32px |\n\n## Project Structure\n\n```text\ngemini-watermark-remover/\n├── public/\n│   ├── index.html         # Main page\n│   └── terms.html         # Terms of Service page\n├── src/\n│   ├── core/\n│   │   ├── alphaMap.js    # Alpha map calculation logic\n│   │   ├── blendModes.js  # Implementation of Reverse Alpha Blending\n│   │   └── watermarkEngine.js  # Main engine coordinator\n│   ├── assets/\n│   │   ├── bg_48.png      # Pre-captured 48×48 watermark map\n│   │   └── bg_96.png      # Pre-captured 96×96 watermark map\n│   ├── i18n/              # Internationalization language files\n│   ├── userscript/        # Userscript for Gemini\n│   ├── app.js             # Website application entry point\n│   └── i18n.js            # Internationalization utilities\n├── dist/                  # Build output directory\n├── build.js               # Build s",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:19.651145"
+  },
+  {
+    "basic_info": {
+      "name": "claude-hud",
+      "full_name": "jarrodwatts/claude-hud",
+      "owner": "jarrodwatts",
+      "description": "A Claude Code plugin that shows what's happening - context usage, active tools, running agents, and todo progress",
+      "url": "https://github.com/jarrodwatts/claude-hud",
+      "clone_url": "https://github.com/jarrodwatts/claude-hud.git",
+      "ssh_url": "git@github.com:jarrodwatts/claude-hud.git",
+      "homepage": null,
+      "created_at": "2026-01-02T01:35:07Z",
+      "updated_at": "2026-01-10T02:15:21Z",
+      "pushed_at": "2026-01-09T00:59:01Z"
+    },
+    "stats": {
+      "stars": 1857,
+      "forks": 90,
+      "watchers": 1857,
+      "open_issues": 6,
+      "size": 896
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 65682,
+        "TypeScript": 45949
+      },
+      "license": "MIT License",
+      "topics": [
+        "anthropic",
+        "claude",
+        "claude-code",
+        "cli",
+        "plugin",
+        "statusline",
+        "typescript"
+      ]
+    },
+    "content": {
+      "readme": "# Claude HUD\n\nA Claude Code plugin that shows what's happening — context usage, active tools, running agents, and todo progress. Always visible below your input.\n\n[![License](https://img.shields.io/github/license/jarrodwatts/claude-hud?v=2)](LICENSE)\n[![Stars](https://img.shields.io/github/stars/jarrodwatts/claude-hud)](https://github.com/jarrodwatts/claude-hud/stargazers)\n\n![Claude HUD in action](claude-hud-preview-5-2.png)\n\n## Install\n\nInside a Claude Code instance, run the following commands:\n\n**Step 1: Add the marketplace**\n```\n/plugin marketplace add jarrodwatts/claude-hud\n```\n\n**Step 2: Install the plugin**\n```\n/plugin install claude-hud\n```\n\n**Step 3: Configure the statusline**\n```\n/claude-hud:setup\n```\n\nDone! The HUD appears immediately — no restart needed.\n\n---\n\n## What is Claude HUD?\n\nClaude HUD gives you better insights into what's happening in your Claude Code session.\n\n| What You See | Why It Matters |\n|--------------|----------------|\n| **Project path** | Know which project you're in (configurable 1-3 directory levels) |\n| **Context health** | Know exactly how full your context window is before it's too late |\n| **Tool activity** | Watch Claude read, edit, and search files as it happens |\n| **Agent tracking** | See which subagents are running and what they're doing |\n| **Todo progress** | Track task completion in real-time |\n\n## What Each Line Shows\n\n### Session Info\n```\n[Opus | Pro] █████░░░░░ 45% | my-project git:(main) | 2 CLAUDE.md | 5h: 25% | ⏱️ 5m\n```\n- **Model** — Current model in use (shown first)\n- **Plan name** — Your subscription tier (Pro, Max, Team) when usage enabled\n- **Context bar** — Visual meter with color coding (green → yellow → red as it fills)\n- **Project path** — Configurable 1-3 directory levels (default: 1)\n- **Git branch** — Current branch name (configurable on/off)\n- **Config counts** — CLAUDE.md files, rules, MCPs, and hooks loaded\n- **Usage limits** — 5-hour rate limit percentage (opt-in, Pro/Max/Team only)\n- **Duration** — How long the session has been running\n\n### Tool Activity\n```\n✓ TaskOutput ×2 | ✓ mcp_context7 ×1 | ✓ Glob ×1 | ✓ Skill ×1\n```\n- **Running tools** show a spinner with the target file\n- **Completed tools** aggregate by type with counts\n\n### Agent Status\n```\n✓ Explore: Explore home directory structure (5s)\n✓ open-source-librarian: Research React hooks patterns (2s)\n```\n- **Agent type** and what it's working on\n- **Elapsed time** for each agent\n\n### Todo Progress\n```\n✓ All todos complete (5/5)\n```\n- **Current task** or completion status\n- **Progress counter** (completed/total)\n\n---\n\n## How It Works\n\nClaude HUD uses Claude Code's native **statusline API** — no separate window, no tmux required, works in any terminal.\n\n```\nClaude Code → stdin JSON → claude-hud → stdout → displayed in your terminal\n           ↘ transcript JSONL (tools, agents, todos)\n```\n\n**Key features:**\n- Native token data from Claude Code (not estimated)\n- Parses the transcript for tool/agent activity\n- Updates every ~300ms\n\n---\n\n## Configuration\n\nCustomize your HUD anytime:\n\n```\n/claude-hud:configure\n```\n\nThe guided flow walks you through customization — no manual editing needed:\n\n- **First time setup**: Choose a preset (Full/Essential/Minimal), then fine-tune individual elements\n- **Customize anytime**: Toggle items on/off, adjust git display style, switch layouts\n- **Preview before saving**: See exactly how your HUD will look before committing changes\n\n### Presets\n\n| Preset | What's Shown |\n|--------|--------------|\n| **Full** | Everything enabled — tools, agents, todos, git, usage, duration |\n| **Essential** | Activity lines + git status, minimal info clutter |\n| **Minimal** | Core only — just model name and context bar |\n\nAfter choosing a preset, you can turn individual elements on or off.\n\n### Manual Configuration\n\nYou can also edit the config file directly at `~/.claude/plugins/claude-hud/config.json`.\n\n### Options\n\n| Option | Type | Default | Description |\n|--------|------|---------|-------------|\n| `layout` | string | `default` | Layout style: `default` or `separators` |\n| `pathLevels` | 1-3 | 1 | Directory levels to show in project path |\n| `gitStatus.enabled` | boolean | true | Show git branch in HUD |\n| `gitStatus.showDirty` | boolean | true | Show `*` for uncommitted changes |\n| `gitStatus.showAheadBehind` | boolean | false | Show `↑N ↓N` for ahead/behind remote |\n| `display.showModel` | boolean | true | Show model name `[Opus]` |\n| `display.showContextBar` | boolean | true | Show visual context bar `████░░░░░░` |\n| `display.showConfigCounts` | boolean | true | Show CLAUDE.md, rules, MCPs, hooks counts |\n| `display.showDuration` | boolean | true | Show session duration `⏱️ 5m` |\n| `display.showUsage` | boolean | true | Show usage limits (Pro/Max/Team only) |\n| `display.showTokenBreakdown` | boolean | true | Show token details at high context (85%+) |\n| `display.showTools` | boolean | true | Show tools activity line |\n| `display.showAgents` | boolean | true | Show agent",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:20.780235"
+  },
+  {
+    "basic_info": {
+      "name": "Continuous-Claude-v3",
+      "full_name": "parcadei/Continuous-Claude-v3",
+      "owner": "parcadei",
+      "description": "Context management for Claude Code. Hooks maintain state via ledgers and handoffs. MCP execution without context pollution. Agent orchestration with isolated context windows.",
+      "url": "https://github.com/parcadei/Continuous-Claude-v3",
+      "clone_url": "https://github.com/parcadei/Continuous-Claude-v3.git",
+      "ssh_url": "git@github.com:parcadei/Continuous-Claude-v3.git",
+      "homepage": "",
+      "created_at": "2025-12-23T00:12:49Z",
+      "updated_at": "2026-01-10T02:47:43Z",
+      "pushed_at": "2026-01-10T02:47:40Z"
+    },
+    "stats": {
+      "stars": 1812,
+      "forks": 104,
+      "watchers": 1812,
+      "open_issues": 4,
+      "size": 541
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1739708,
+        "TypeScript": 684138,
+        "Lean": 271555,
+        "JavaScript": 67415,
+        "Shell": 65247,
+        "PLpgSQL": 8825
+      },
+      "license": "MIT License",
+      "topics": [
+        "agents",
+        "claude-code",
+        "claude-code-cli",
+        "claude-code-hooks",
+        "claude-code-mcp",
+        "claude-code-skills",
+        "claude-code-subagents",
+        "claude-skills",
+        "mcp"
+      ]
+    },
+    "content": {
+      "readme": "# Continuous Claude\n\n> A persistent, learning, multi-agent development environment built on Claude Code\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)\n[![Claude Code](https://img.shields.io/badge/Claude-Code-orange.svg)](https://claude.ai/code)\n[![Skills](https://img.shields.io/badge/Skills-109-green.svg)](#skills-system)\n[![Agents](https://img.shields.io/badge/Agents-32-purple.svg)](#agents-system)\n[![Hooks](https://img.shields.io/badge/Hooks-30-blue.svg)](#hooks-system)\n\n**Continuous Claude** transforms Claude Code into a continuously learning system that maintains context across sessions, orchestrates specialized agents, and eliminates wasting tokens through intelligent code analysis.\n\n## Table of Contents\n\n- [Why Continuous Claude?](#why-continuous-claude)\n- [Design Principles](#design-principles)\n- [How to Talk to Claude](#how-to-talk-to-claude)\n- [Quick Start](#quick-start)\n- [Architecture](#architecture)\n- [Core Systems](#core-systems)\n  - [Skills (109)](#skills-system)\n  - [Agents (32)](#agents-system)\n  - [Hooks (30)](#hooks-system)\n  - [TLDR Code Analysis](#tldr-code-analysis)\n  - [Memory System](#memory-system)\n  - [Continuity System](#continuity-system)\n  - [Math System](#math-system)\n- [Workflows](#workflows)\n- [Installation](#installation)\n- [Configuration](#configuration)\n- [Contributing](#contributing)\n- [License](#license)\n\n---\n\n## Why Continuous Claude?\n\nClaude Code has a **compaction problem**: when context fills up, the system compacts your conversation, losing nuanced understanding and decisions made during the session.\n\n**Continuous Claude solves this with:**\n\n| Problem | Solution |\n|---------|----------|\n| Context loss on compaction | YAML handoffs - more token-efficient transfer |\n| Starting fresh each session | Memory system recalls + daemon auto-extracts learnings |\n| Reading entire files burns tokens | 5-layer code analysis + semantic index |\n| Complex tasks need coordination | Meta-skills orchestrate agent workflows |\n| Repeating workflows manually | 109 skills with natural language triggers |\n\n**The mantra: Compound, don't compact.** Extract learnings automatically, then start fresh with full context.\n\n### Why \"Continuous\"? Why \"Compounding\"?\n\nThe name is a pun. **Continuous** because Claude maintains state across sessions. **Compounding** because each session makes the system smarter—learnings accumulate like compound interest.\n\n---\n\n## Design Principles\n\nAn agent is five things: **Prompt + Tools + Context + Memory + Model**.\n\n| Component | What We Optimize |\n|-----------|------------------|\n| **Prompt** | Skills inject relevant context; hooks add system reminders |\n| **Tools** | TLDR reduces tokens; agents parallelize work |\n| **Context** | Not just *what* Claude knows, but *how* it's provided |\n| **Memory** | Daemon extracts learnings; recall surfaces them |\n| **Model** | Becomes swappable when the other four are solid |\n\n### Anti-Complexity\n\nWe resist plugin sprawl. Every MCP, subscription, and tool you add promises improvement but risks breaking context, tools, or prompts through clashes.\n\n**Our approach:**\n- **Time, not money** — No required paid services. Perplexity and NIA are optional, high-value-per-token.\n- **Learn, don't accumulate** — A system that learns handles edge cases better than one that collects plugins.\n- **Shift-left validation** — Hooks run pyright/ruff after edits, catching errors before tests.\n\nThe failure modes of complex systems are structurally invisible until they happen. A learning, context-efficient system doesn't prevent all failures—but it recovers and improves.\n\n---\n\n## How to Talk to Claude\n\n**You don't need to memorize slash commands.** Just describe what you want naturally.\n\n### The Skill Activation System\n\nWhen you send a message, a hook injects context that tells **Claude** which skills and agents are relevant. Claude infers from a rule-based system and decides which tools to use.\n\n```\n> \"Fix the login bug in auth.py\"\n\n🎯 SKILL ACTIVATION CHECK\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n⚠️ CRITICAL SKILLS (REQUIRED):\n  → create_handoff\n\n📚 RECOMMENDED SKILLS:\n  → fix\n  → debug\n\n🤖 RECOMMENDED AGENTS (token-efficient):\n  → debug-agent\n  → scout\n\nACTION: Use Skill tool BEFORE responding\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n```\n\n### Priority Levels\n\n| Level | Meaning |\n|-------|---------|\n| ⚠️ **CRITICAL** | Must use (e.g., handoffs before ending session) |\n| 📚 **RECOMMENDED** | Should use (e.g., workflow skills) |\n| 💡 **SUGGESTED** | Consider using (e.g., optimization tools) |\n| 📌 **OPTIONAL** | Nice to have (e.g., documentation helpers) |\n\n### Natural Language Examples\n\n| What You Say | What Activates |\n|--------------|----------------|\n| \"Fix the broken login\" | `/fix` workflow → debug-agent, scout |\n| \"Build a user dashboard\" | `/build` workflow → plan-agent, kraken |\n| \"I want to understand this codebase\" | `/explore` + scout agent |\n| \"What could go wrong with this plan?\" | `/premortem` |\n| \"Help me figure ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:21.883047"
+  },
+  {
+    "basic_info": {
+      "name": "LTX-2",
+      "full_name": "Lightricks/LTX-2",
+      "owner": "Lightricks",
+      "description": "Official Python inference and LoRA trainer package for the LTX-2 audio–video generative model.",
+      "url": "https://github.com/Lightricks/LTX-2",
+      "clone_url": "https://github.com/Lightricks/LTX-2.git",
+      "ssh_url": "git@github.com:Lightricks/LTX-2.git",
+      "homepage": "https://ltx.io/model/ltx-2",
+      "created_at": "2026-01-03T13:16:29Z",
+      "updated_at": "2026-01-10T02:34:40Z",
+      "pushed_at": "2026-01-08T15:35:04Z"
+    },
+    "stats": {
+      "stars": 1744,
+      "forks": 177,
+      "watchers": 1744,
+      "open_issues": 27,
+      "size": 413
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 787101
+      },
+      "license": "Other",
+      "topics": [
+        "generative-ai",
+        "ltx",
+        "ltx-2"
+      ]
+    },
+    "content": {
+      "readme": "# LTX-2\n\n[![Website](https://img.shields.io/badge/Website-LTX-181717?logo=google-chrome)](https://ltx.io)\n[![Model](https://img.shields.io/badge/HuggingFace-Model-orange?logo=huggingface)](https://huggingface.co/Lightricks/LTX-2)\n[![Demo](https://img.shields.io/badge/Demo-Try%20Now-brightgreen?logo=vercel)](https://app.ltx.studio/ltx-2-playground/i2v)\n[![Paper](https://img.shields.io/badge/Paper-PDF-EC1C24?logo=adobeacrobatreader&logoColor=white)](https://videos.ltx.io/LTX-2/grants/LTX_2_Technical_Report_compressed.pdf)\n[![Discord](https://img.shields.io/badge/Join-Discord-5865F2?logo=discord)](https://discord.gg/ltxplatform)\n\n**LTX-2** is the first DiT-based audio-video foundation model that contains all core capabilities of modern video generation in one model: synchronized audio and video, high fidelity, multiple performance modes, production-ready outputs, API access, and open access.\n\n<div align=\"center\">\n  <video src=\"https://github.com/user-attachments/assets/4414adc0-086c-43de-b367-9362eeb20228\" width=\"70%\" poster=\"\"> </video>\n</div>\n\n## 🚀 Quick Start\n\n```bash\n# Clone the repository\ngit clone https://github.com/Lightricks/LTX-2.git\ncd LTX-2\n\n# Set up the environment\nuv sync --frozen\nsource .venv/bin/activate\n```\n\n### Required Models\n\nDownload the following models from the [LTX-2 HuggingFace repository](https://huggingface.co/Lightricks/LTX-2):\n\n**LTX-2 Model Checkpoint** (choose and download one of the following)\n  * [`ltx-2-19b-dev-fp8.safetensors`](https://huggingface.co/Lightricks/LTX-2/blob/main/ltx-2-19b-dev-fp8.safetensors) - [Download](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-dev-fp8.safetensors)\n\n  * [`ltx-2-19b-dev.safetensors`](https://huggingface.co/Lightricks/LTX-2/blob/main/ltx-2-19b-dev.safetensors) - [Download](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-dev.safetensors)\n  * [`ltx-2-19b-distilled.safetensors`](https://huggingface.co/Lightricks/LTX-2/blob/main/ltx-2-19b-distilled.safetensors) - [Download](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled.safetensors)\n  * [`ltx-2-19b-distilled-fp8.safetensors`](https://huggingface.co/Lightricks/LTX-2/blob/main/ltx-2-19b-distilled-fp8.safetensors) - [Download](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled-fp8.safetensors)\n\n**Spatial Upscaler** - Required for current two-stage pipeline implementations in this repository\n  * [`ltx-2-spatial-upscaler-x2-1.0.safetensors`](https://huggingface.co/Lightricks/LTX-2/blob/main/ltx-2-spatial-upscaler-x2-1.0.safetensors) - [Download](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-spatial-upscaler-x2-1.0.safetensors)\n\n**Temporal Upscaler** - Supported by the model and will be required for future pipeline implementations\n  * [`ltx-2-temporal-upscaler-x2-1.0.safetensors`](https://huggingface.co/Lightricks/LTX-2/blob/main/ltx-2-temporal-upscaler-x2-1.0.safetensors) - [Download](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-temporal-upscaler-x2-1.0.safetensors)\n\n**Distilled LoRA** - Required for current two-stage pipeline implementations in this repository (except DistilledPipeline and ICLoraPipeline)\n  * [`ltx-2-19b-distilled-lora-384.safetensors`](https://huggingface.co/Lightricks/LTX-2/blob/main/ltx-2-19b-distilled-lora-384.safetensors) - [Download](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled-lora-384.safetensors)\n\n**Gemma Text Encoder** (download all assets from the repository)\n  * [`Gemma 3`](https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized/tree/main)\n\n**LoRAs**\n  * [`LTX-2-19b-IC-LoRA-Canny-Control`](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Canny-Control) - [Download](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Canny-Control/resolve/main/ltx-2-19b-ic-lora-canny-control.safetensors)\n  * [`LTX-2-19b-IC-LoRA-Depth-Control`](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Depth-Control) - [Download](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Depth-Control/resolve/main/ltx-2-19b-ic-lora-depth-control.safetensors)\n  * [`LTX-2-19b-IC-LoRA-Detailer`](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Detailer) - [Download](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Detailer/resolve/main/ltx-2-19b-ic-lora-detailer.safetensors)\n  * [`LTX-2-19b-IC-LoRA-Pose-Control`](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Pose-Control) - [Download](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Pose-Control/resolve/main/ltx-2-19b-ic-lora-pose-control.safetensors)\n  * [`LTX-2-19b-LoRA-Camera-Control-Dolly-In`](https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-In) - [Download](https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-In/resolve/main/ltx-2-19b-lora-camera-control-dolly-in.safetensors)\n  * [`LTX-2-19b-LoRA-Camera-Control-Dolly-Left`](https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Left) - [Download](https://huggingface.co/Lightricks/LTX-2-19b",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-10T02:48:22.990208"
+  }
+]

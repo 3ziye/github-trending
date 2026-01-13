@@ -1,0 +1,857 @@
+[
+  {
+    "basic_info": {
+      "name": "witr",
+      "full_name": "pranshuparmar/witr",
+      "owner": "pranshuparmar",
+      "description": "Why is this running?",
+      "url": "https://github.com/pranshuparmar/witr",
+      "clone_url": "https://github.com/pranshuparmar/witr.git",
+      "ssh_url": "git@github.com:pranshuparmar/witr.git",
+      "homepage": "",
+      "created_at": "2025-12-20T17:26:59Z",
+      "updated_at": "2026-01-13T02:52:05Z",
+      "pushed_at": "2026-01-12T12:48:38Z"
+    },
+    "stats": {
+      "stars": 10798,
+      "forks": 244,
+      "watchers": 10798,
+      "open_issues": 13,
+      "size": 4354
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 211820,
+        "Shell": 2938,
+        "PowerShell": 2903,
+        "Nix": 2347
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# witr\n\n### Why is this running?\n\n[![Go Report Card](https://goreportcard.com/badge/github.com/pranshuparmar/witr)](https://goreportcard.com/report/github.com/pranshuparmar/witr) [![Go Version](https://img.shields.io/github/go-mod/go-version/pranshuparmar/witr)](https://github.com/pranshuparmar/witr/blob/main/go.mod) [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows%20%7C%20freebsd-blue)](https://github.com/pranshuparmar/witr) <br>\n[![Build Status](https://github.com/pranshuparmar/witr/actions/workflows/pr-check.yml/badge.svg)](https://github.com/pranshuparmar/witr/actions/workflows/pr-check.yml) [![Latest Release](https://img.shields.io/github/v/release/pranshuparmar/witr?label=Latest%20Release)](https://github.com/pranshuparmar/witr/releases/latest) [![Homebrew](https://img.shields.io/homebrew/v/witr)](https://formulae.brew.sh/formula/witr) [![AUR](https://img.shields.io/aur/version/witr-bin)](https://aur.archlinux.org/packages/witr-bin) [![Conda](https://img.shields.io/conda/vn/conda-forge/witr)](https://anaconda.org/conda-forge/witr)\n\n<img width=\"1232\" height=\"693\" alt=\"witr_banner\" src=\"https://github.com/user-attachments/assets/e9c19ef0-1391-4a5f-a015-f4003d3697a9\" />\n\n</div>\n\n---\n\n## Table of Contents\n\n- [1. Purpose](#1-purpose)\n- [2. Goals](#2-goals)\n- [3. Core Concept](#3-core-concept)\n- [4. Supported Targets](#4-supported-targets)\n- [5. Output Behavior](#5-output-behavior)\n- [6. Flags & Options](#6-flags--options)\n- [7. Example Outputs](#7-example-outputs)\n- [8. Installation](#8-installation)\n  - [8.1 Script Installation (Recommended)](#81-script-installation-recommended)\n  - [8.2 Homebrew (macOS & Linux)](#82-homebrew-macos--linux)\n  - [8.3 Conda (macOS, Linux & Windows)](#83-conda-macos-linux--windows)\n  - [8.4 Arch Linux (AUR)](#84-arch-linux-aur)\n  - [8.5 Prebuilt Packages (deb, rpm, apk)](#85-prebuilt-packages-deb-rpm-apk)\n  - [8.6 Go (cross-platform)](#86-go-cross-platform)\n  - [8.7 Manual Installation](#87-manual-installation)\n  - [8.8 Verify Installation](#88-verify-installation)\n  - [8.9 Uninstallation](#89-uninstallation)\n  - [8.10 Run Without Installation](#810-run-without-installation)\n- [9. Platform Support](#9-platform-support)\n- [10. Success Criteria](#10-success-criteria)\n\n---\n\n## 1. Purpose\n\n**witr** exists to answer a single question:\n\n> **Why is this running?**\n\nWhen something is running on a system—whether it is a process, a service, or something bound to a port—there is always a cause. That cause is often indirect, non-obvious, or spread across multiple layers such as supervisors, containers, services, or shells.\n\nExisting tools (`ps`, `top`, `lsof`, `ss`, `systemctl`, `docker ps`) expose state and metadata. They show _what_ is running, but leave the user to infer _why_ by manually correlating outputs across tools.\n\n**witr** makes that causality explicit.\n\nIt explains **where a running thing came from**, **how it was started**, and **what chain of systems is responsible for it existing right now**, in a single, human-readable output.\n\n---\n\n## 2. Goals\n\n### Primary goals\n\n- Explain **why a process exists**, not just that it exists\n- Reduce time‑to‑understanding during debugging and outages\n- Work with zero configuration\n- Be safe, read‑only, and non‑destructive\n- Prefer clarity over completeness\n\n### Non‑goals\n\n- Not a monitoring tool\n- Not a performance profiler\n- Not a replacement for systemd/docker tooling\n- Not a remediation or auto‑fix tool\n\n---\n\n## 3. Core Concept\n\nwitr treats **everything as a process question**.\n\nPorts, services, containers, and commands all eventually map to **PIDs**. Once a PID is identified, witr builds a causal chain explaining _why that PID exists_.\n\nAt its core, witr answers:\n\n1. What is running?\n2. How did it start?\n3. What is keeping it running?\n4. What context does it belong to?\n\n---\n\n## 4. Supported Targets\n\nwitr supports multiple entry points that converge to PID analysis.\n\n---\n\n### 4.1 Name (process or service)\n\n```bash\nwitr node\nwitr nginx\n```\n\nA single positional argument (without flags) is treated as a process or service name. If multiple matches are found, witr will prompt for disambiguation by PID.\n\n---\n\n### 4.2 PID\n\n```bash\nwitr --pid 14233\n```\n\nExplains why a specific process exists.\n\n---\n\n### 4.3 Port\n\n```bash\nwitr --port 5000\n```\n\nExplains the process(es) listening on a port.\n\n---\n\n## 5. Output Behavior\n\n### 5.1 Output Principles\n\n- Single screen by default (best effort)\n- Deterministic ordering\n- Narrative-style explanation\n- Best-effort detection with explicit uncertainty\n\n---\n\n### 5.2 Standard Output Sections\n\n#### Target\n\nWhat the user asked about.\n\n#### Process\n\nExecutable, PID, user, command, start time and restart count.\n\n#### Why It Exists\n\nA causal ancestry chain showing how the process came to exist.\nThis is the core value of witr.\n\n#### Source\n\nThe primary system responsible for starting or supervising the process (best effort).\n\nExamples:\n\n- systemd unit (Linux",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:42.272326"
+  },
+  {
+    "basic_info": {
+      "name": "gastown",
+      "full_name": "steveyegge/gastown",
+      "owner": "steveyegge",
+      "description": "Gas Town - multi-agent workspace manager",
+      "url": "https://github.com/steveyegge/gastown",
+      "clone_url": "https://github.com/steveyegge/gastown.git",
+      "ssh_url": "git@github.com:steveyegge/gastown.git",
+      "homepage": "",
+      "created_at": "2025-12-16T00:33:33Z",
+      "updated_at": "2026-01-13T02:39:16Z",
+      "pushed_at": "2026-01-13T02:42:27Z"
+    },
+    "stats": {
+      "stars": 3339,
+      "forks": 271,
+      "watchers": 3339,
+      "open_issues": 91,
+      "size": 47801
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 3933526,
+        "Shell": 18421,
+        "HTML": 12524,
+        "JavaScript": 9947,
+        "Python": 3302,
+        "Makefile": 1021
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Gas Town\n\n**Multi-agent orchestration system for Claude Code with persistent work tracking**\n\n## Overview\n\nGas Town is a workspace manager that lets you coordinate multiple Claude Code agents working on different tasks. Instead of losing context when agents restart, Gas Town persists work state in git-backed hooks, enabling reliable multi-agent workflows.\n\n### What Problem Does This Solve?\n\n| Challenge                       | Gas Town Solution                            |\n| ------------------------------- | -------------------------------------------- |\n| Agents lose context on restart  | Work persists in git-backed hooks            |\n| Manual agent coordination       | Built-in mailboxes, identities, and handoffs |\n| 4-10 agents become chaotic      | Scale comfortably to 20-30 agents            |\n| Work state lost in agent memory | Work state stored in Beads ledger            |\n\n### Architecture\n\n```mermaid\ngraph TB\n    Mayor[The Mayor<br/>AI Coordinator]\n    Town[Town Workspace<br/>~/gt/]\n\n    Town --> Mayor\n    Town --> Rig1[Rig: Project A]\n    Town --> Rig2[Rig: Project B]\n\n    Rig1 --> Crew1[Crew Member<br/>Your workspace]\n    Rig1 --> Hooks1[Hooks<br/>Persistent storage]\n    Rig1 --> Polecats1[Polecats<br/>Worker agents]\n\n    Rig2 --> Crew2[Crew Member]\n    Rig2 --> Hooks2[Hooks]\n    Rig2 --> Polecats2[Polecats]\n\n    Hooks1 -.git worktree.-> GitRepo1[Git Repository]\n    Hooks2 -.git worktree.-> GitRepo2[Git Repository]\n\n    style Mayor fill:#e1f5ff\n    style Town fill:#f0f0f0\n    style Rig1 fill:#fff4e1\n    style Rig2 fill:#fff4e1\n```\n\n## Core Concepts\n\n### The Mayor 🎩\n\nYour primary AI coordinator. The Mayor is a Claude Code instance with full context about your workspace, projects, and agents. **Start here** - just tell the Mayor what you want to accomplish.\n\n### Town 🏘️\n\nYour workspace directory (e.g., `~/gt/`). Contains all projects, agents, and configuration.\n\n### Rigs 🏗️\n\nProject containers. Each rig wraps a git repository and manages its associated agents.\n\n### Crew Members 👤\n\nYour personal workspace within a rig. Where you do hands-on work.\n\n### Polecats 🦨\n\nEphemeral worker agents that spawn, complete a task, and disappear.\n\n### Hooks 🪝\n\nGit worktree-based persistent storage for agent work. Survives crashes and restarts.\n\n### Convoys 🚚\n\nWork tracking units. Bundle multiple issues/tasks that get assigned to agents.\n\n### Beads Integration 📿\n\nGit-backed issue tracking system that stores work state as structured data.\n\n> **New to Gas Town?** See the [Glossary](docs/glossary.md) for a complete guide to terminology and concepts.\n\n## Installation\n\n### Prerequisites\n\n- **Go 1.23+** - [go.dev/dl](https://go.dev/dl/)\n- **Git 2.25+** - for worktree support\n- **beads (bd) 0.44.0+** - [github.com/steveyegge/beads](https://github.com/steveyegge/beads) (required for custom type support)\n- **tmux 3.0+** - recommended for full experience\n- **Claude Code CLI** (default runtime) - [claude.ai/code](https://claude.ai/code)\n- **Codex CLI** (optional runtime) - [developers.openai.com/codex/cli](https://developers.openai.com/codex/cli)\n\n### Setup\n\n```bash\n# Install Gas Town\ngo install github.com/steveyegge/gastown/cmd/gt@latest\n\n# Add Go binaries to PATH (add to ~/.zshrc or ~/.bashrc)\nexport PATH=\"$PATH:$HOME/go/bin\"\n\n# Create workspace with git initialization\ngt install ~/gt --git\ncd ~/gt\n\n# Add your first project\ngt rig add myproject https://github.com/you/repo.git\n\n# Create your crew workspace\ngt crew add yourname --rig myproject\ncd myproject/crew/yourname\n\n# Start the Mayor session (your main interface)\ngt mayor attach\n```\n\n## Quick Start Guide\n\n### Basic Workflow\n\n```mermaid\nsequenceDiagram\n    participant You\n    participant Mayor\n    participant Convoy\n    participant Agent\n    participant Hook\n\n    You->>Mayor: Tell Mayor what to build\n    Mayor->>Convoy: Create convoy with issues\n    Mayor->>Agent: Sling issue to agent\n    Agent->>Hook: Store work state\n    Agent->>Agent: Complete work\n    Agent->>Convoy: Report completion\n    Mayor->>You: Summary of progress\n```\n\n### Example: Feature Development\n\n```bash\n# 1. Start the Mayor\ngt mayor attach\n\n# 2. In Mayor session, create a convoy\ngt convoy create \"Feature X\" issue-123 issue-456 --notify --human\n\n# 3. Assign work to an agent\ngt sling issue-123 myproject\n\n# 4. Track progress\ngt convoy list\n\n# 5. Monitor agents\ngt agents\n```\n\n## Common Workflows\n\n### Mayor Workflow (Recommended)\n\n**Best for:** Coordinating complex, multi-issue work\n\n```mermaid\nflowchart LR\n    Start([Start Mayor]) --> Tell[Tell Mayor<br/>what to build]\n    Tell --> Creates[Mayor creates<br/>convoy + agents]\n    Creates --> Monitor[Monitor progress<br/>via convoy list]\n    Monitor --> Done{All done?}\n    Done -->|No| Monitor\n    Done -->|Yes| Review[Review work]\n```\n\n**Commands:**\n\n```bash\n# Attach to Mayor\ngt mayor attach\n\n# In Mayor, create convoy and let it orchestrate\ngt convoy create \"Auth System\" issue-101 issue-102 --notify\n\n# Track progress\ngt convoy list\n```\n\n### Minimal Mode (No Tmux",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:43.410730"
+  },
+  {
+    "basic_info": {
+      "name": "ccg-workflow",
+      "full_name": "fengshao1227/ccg-workflow",
+      "owner": "fengshao1227",
+      "description": "多模型协作开发工具集 - 基于 Claude Code CLI，整合 Codex/Gemini 后端能力，提供智能路由、代码审查、Git 工具等 17+ 个命令",
+      "url": "https://github.com/fengshao1227/ccg-workflow",
+      "clone_url": "https://github.com/fengshao1227/ccg-workflow.git",
+      "ssh_url": "git@github.com:fengshao1227/ccg-workflow.git",
+      "homepage": "",
+      "created_at": "2026-01-04T15:56:26Z",
+      "updated_at": "2026-01-13T02:45:53Z",
+      "pushed_at": "2026-01-12T10:10:47Z"
+    },
+    "stats": {
+      "stars": 941,
+      "forks": 71,
+      "watchers": 941,
+      "open_issues": 2,
+      "size": 109080
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 389489,
+        "TypeScript": 105134,
+        "JavaScript": 268
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# CCG - Claude + Codex + Gemini 多模型协作系统\n\n<div align=\"center\">\n\n**Claude Code 编排 Codex + Gemini 双模型协作的智能开发工作流系统**\n\n[![npm version](https://img.shields.io/npm/v/ccg-workflow.svg)](https://www.npmjs.com/package/ccg-workflow)\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\n[![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-green.svg)](https://claude.ai/code)\n\n[快速开始](#-快速开始) • [命令参考](#-命令参考) • [常见问题](#-常见问题) • [更新日志](CHANGELOG.md)\n\n</div>\n\n---\n\n## 💡 这是什么？\n\n**CCG** = **Claude Code** (编排) + **Codex CLI** (后端) + **Gemini CLI** (前端)\n\n一个让 Claude Code 专注于编排决策，把具体代码生成交给专业模型的多模型协作系统：\n\n- **前端任务** → Gemini（擅长 UI/CSS/组件）\n- **后端任务** → Codex（擅长逻辑/算法/调试）\n- **全栈整合** → Claude（工作流控制、代码主权）\n\n### 核心优势\n\n- ✅ **智能路由** - 前端 → Gemini，后端 → Codex，自动选择\n- ✅ **多模型并行** - Codex ∥ Gemini 同时分析，交叉验证减少错误\n- ✅ **零写入权限** - 外部模型只返回 Patch，Claude 保持代码主权\n- ✅ **Token 优化** - ROLE_FILE 动态注入，专家提示词零消耗\n- ✅ **Web UI 实时输出** - 自动打开浏览器，流式显示思考过程、命令执行、生成结果\n- ✅ **一键安装** - npx 运行，自动安装全部 15 个命令\n\n---\n\n## 🚀 快速开始\n\n### 前置要求\n\n**必需**：\n- [Claude Code CLI](https://claude.ai/code)\n- Node.js 18+\n\n**可选**（根据需求安装）：\n- Codex CLI - 用于后端任务\n- Gemini CLI - 用于前端任务\n\n> 💡 **只装 Claude Code 也能用！** 系统会自动降级为纯 Claude 工作流\n\n### 一键安装\n\n```bash\nnpx ccg-workflow\n```\n\n**安装流程**：\n1. 选择是否配置 ace-tool MCP（可跳过）\n2. 确认安装\n3. 自动安装全部 15 个命令\n4. 配置 PATH（如需要）\n\n就这么简单！无需选择语言、模型、命令预设。\n\n### 固定配置\n\n| 项目 | 配置 |\n|------|------|\n| 前端模型 | **Gemini** |\n| 后端模型 | **Codex** |\n| 协作模式 | **smart** |\n| 命令数量 | **15 个**（全部安装） |\n\n### 第一个命令\n\n```bash\n# 在 Claude Code 中执行\n/ccg:workflow 实现用户登录功能\n\n# 自动执行 6 阶段工作流：\n# 阶段 1: 研究 - Prompt 增强 + 上下文检索\n# 阶段 2: 构思 - 多模型分析 (Codex ∥ Gemini)\n# 阶段 3: 计划 - 多模型规划 + 用户确认\n# 阶段 4: 执行 - 代码实施\n# 阶段 5: 优化 - 多模型审查\n# 阶段 6: 评审 - 质量检查\n```\n\n---\n\n## 📚 命令参考\n\n### 核心命令（记住这 3 个就够了）\n\n```bash\n/ccg:workflow   # 完整任务（6 阶段工作流）\n/ccg:feat       # 新功能开发（自动规划）\n/ccg:frontend   # 纯前端任务（Gemini 主导，更快）\n/ccg:backend    # 纯后端任务（Codex 主导，更快）\n```\n\n### 完整命令列表（15 个）\n\n#### 开发工作流\n\n| 命令 | 用途 | 模型 |\n|-----|------|------|\n| `/ccg:workflow` | 完整 6 阶段开发工作流 | Codex ∥ Gemini |\n| `/ccg:frontend` | 前端专项（快速模式） | Gemini |\n| `/ccg:backend` | 后端专项（快速模式） | Codex |\n| `/ccg:feat` | 智能功能开发 | 规划 → 实施 |\n| `/ccg:enhance` | Prompt 增强（ace-tool） | MCP |\n| `/ccg:analyze` | 技术分析（仅分析不改代码） | Codex ∥ Gemini |\n| `/ccg:debug` | 问题诊断 + 修复 | Codex ∥ Gemini |\n| `/ccg:optimize` | 性能优化 | Codex ∥ Gemini |\n| `/ccg:test` | 测试生成 | 智能路由 |\n| `/ccg:review` | 代码审查（无参数自动审查 git diff） | Codex ∥ Gemini |\n\n#### Git 工具\n\n| 命令 | 用途 |\n|-----|------|\n| `/ccg:commit` | 智能提交（自动生成 conventional commit）|\n| `/ccg:rollback` | 交互式回滚 |\n| `/ccg:clean-branches` | 清理已合并分支 |\n| `/ccg:worktree` | Worktree 管理 |\n\n#### 项目工具\n\n| 命令 | 用途 |\n|-----|------|\n| `/ccg:init` | 初始化项目 CLAUDE.md |\n\n---\n\n## 🎭 专家角色系统\n\n### ROLE_FILE 动态注入机制\n\n12 个专家提示词（Codex 6 + Gemini 6），**零 token 消耗**：\n\n**Codex 专家**（后端）：\n- `architect.md` - 后端架构师\n- `analyzer.md` - 技术分析师\n- `debugger.md` - 调试专家\n- `optimizer.md` - 性能优化师\n- `reviewer.md` - 代码审查员\n- `tester.md` - 测试工程师\n\n**Gemini 专家**（前端）：\n- `frontend.md` - 前端架构师\n- `analyzer.md` - UI/UX 分析师\n- `debugger.md` - 前端调试专家\n- `optimizer.md` - 前端性能优化\n- `reviewer.md` - 代码审查员\n- `tester.md` - 前端测试工程师\n\n**工作原理**：\n1. 每个命令自动注入对应角色提示词\n2. 通过 `codeagent-wrapper` 子进程读取\n3. 不占用主会话 token\n4. 用户可自定义修改（路径：`~/.claude/.ccg/prompts/`）\n\n---\n\n## 🗂️ 安装目录结构\n\n```\n~/.claude/\n├── commands/ccg/          # 15 个斜杠命令\n├── agents/ccg/            # 4 个子智能体\n├── skills/                # 暂无\n├── bin/\n│   └── codeagent-wrapper  # Go 多后端调用工具\n└── .ccg/\n    ├── config.toml        # 主配置\n    └── prompts/           # 12 个专家提示词\n        ├── codex/\n        └── gemini/\n```\n\n---\n\n## 🏗️ 架构说明\n\n```\n┌─────────────────────────────────────────────────┐\n│          Claude Code CLI (主导编排)              │\n│        决策、编排、代码实施、质量把控             │\n└──────────────┬──────────────────────────────────┘\n               │\n       ┌───────┴────────┐\n       │                │\n       ↓                ↓\n┌─────────────┐  ┌─────────────┐\n│  Codex CLI  │  │ Gemini CLI  │\n│  后端专家   │  │  前端专家   │\n│  逻辑算法   │  │  UI 组件    │\n└─────────────┘  └─────────────┘\n       │                │\n       └────────┬───────┘\n                ↓\n      Unified Diff Patch\n    (零写入权限，仅返回补丁)\n```\n\n**信任规则**：\n- 后端问题 → **以 Codex 意见为准**\n- 前端问题 → **以 Gemini 意见为准**\n- 冲突时 → Claude 综合判断，向用户说明分歧\n\n---\n\n## ❓ 常见问题\n\n<details>\n<summary><strong>Q1: 只装了 Claude Code，没装 Codex/Gemini 能用吗？</strong></summary>\n\n✅ **可以！** 系统会自动降级为纯 Claude 工作流。\n\n但会失去：\n- 智能路由（前端/后端自动分配）\n- 多模型并行（交叉验证）\n- 专家角色系统（ROLE_FILE 注入）\n\n建议至少安装 Codex 或 Gemini 其中一个以获得完整体验。\n\n</details>\n\n<details>\n<summary><strong>Q2: MCP 工具如何配置？</strong></summary>\n\n**安装时配置**（推荐）：\n\n```bash\nnpx ccg-workflow\n# 选择 \"安装 ace-tool\"\n```\n\n**ace-tool 两种方式**：\n\n1. **官方服务**：\n   - 注册地址：https://augmentcode.com/\n   - 获取 Token 后填写即可\n\n2. **中转服务**（无需注册）⭐：\n   - 免费使用：https://linux.do/t/topic/1291730\n   - linux.do 社区提供\n   - 需填写 Base URL 和 Token\n\n**跳过 MCP**：\n\n跳过 MCP 后，命令中涉及 ace-tool 的步骤（代码检索、Prompt 增强）会失效，但其他功能正常工作。\n\n</details>\n\n<details>\n<summary><strong>Q3: 如何更新到最新版本？</strong></summary>\n\n```bash\nnpx ccg-workflow@latest\n# 选择 \"更新工作流\"\n```\n\n更新会自动：",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:44.577766"
+  },
+  {
+    "basic_info": {
+      "name": "tailsnitch",
+      "full_name": "Adversis/tailsnitch",
+      "owner": "Adversis",
+      "description": "A security auditor for Tailscale configurations. Scans your tailnet for misconfigurations, overly permissive access controls, and security best practice violations.",
+      "url": "https://github.com/Adversis/tailsnitch",
+      "clone_url": "https://github.com/Adversis/tailsnitch.git",
+      "ssh_url": "git@github.com:Adversis/tailsnitch.git",
+      "homepage": "",
+      "created_at": "2025-12-24T21:54:49Z",
+      "updated_at": "2026-01-13T01:23:46Z",
+      "pushed_at": "2026-01-07T20:03:36Z"
+    },
+    "stats": {
+      "stars": 914,
+      "forks": 20,
+      "watchers": 914,
+      "open_issues": 1,
+      "size": 208
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 293978,
+        "Makefile": 678
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Tailsnitch\n\nA security auditor for Tailscale configurations. Tailsnitch scans your tailnet for 50+ misconfigurations, overly permissive access controls, and security best practice violations.\n\n## Quick Start\n\n```bash\n# 1. Set your Tailscale API credentials\nexport TSKEY=\"tskey-api-...\"\n\n# 2. Run audit\ntailsnitch\n\n# 3. See only high-severity findings\ntailsnitch --severity high\n\n# 4. Fix some issues  ~interactively~ yolo mode\ntailsnitch --fix\n```\n\n## Installation\n\n### Download Pre-built Binary\n\nDownload the latest release from [GitHub Releases](https://github.com/Adversis/tailsnitch/releases).\n\n**macOS users:** Remove quarantine attribute after download:\n```bash\nsudo xattr -rd com.apple.quarantine tailsnitch\n```\n\n### Install via Go\n\n```bash\ngo install github.com/Adversis/tailsnitch@latest\n```\n\n### Build from Source\n\n```bash\ngit clone https://github.com/Adversis/tailsnitch.git\ncd tailsnitch\ngo build -o tailsnitch .\n```\n\n## Authentication\n\nTailsnitch supports two authentication methods. OAuth is preferred when both are configured.\n\n### Option 1: OAuth Client (Recommended)\n\nOAuth clients provide scoped, auditable access that doesn't expire when employees leave.\n\n```bash\nexport TS_OAUTH_CLIENT_ID=\"...\"\nexport TS_OAUTH_CLIENT_SECRET=\"tskey-client-...\"\n```\n\nCreate an OAuth client at: https://login.tailscale.com/admin/settings/oauth\n\n**Required scopes for read-only audit:**\n- `all:read` (simplest), or individually:\n- `policy_file:read` - ACL policy\n- `devices:core:read` - Device list\n- `dns:read` - DNS configuration\n- `auth_keys:read` - Auth keys (for AUTH checks)\n\n**Additional scopes for fix mode:**\n- `devices:core` - Delete devices, modify tags (requires tag selection)\n- `auth_keys` - Delete auth keys\n\n### Option 2: API Key\n\nAPI keys operate as the user who created them and inherit that user's permissions.\n\n```bash\nexport TSKEY=\"tskey-api-...\"\n```\n\nCreate an API key at: https://login.tailscale.com/admin/settings/keys\n\n## Usage Examples\n\n### Basic Audit\n\n```bash\n# Run full audit\ntailsnitch\n\n# Show passing checks too (verbose)\ntailsnitch --verbose\n\n# Output as JSON for processing\ntailsnitch --json\n\n# Audit a specific tailnet (when OAuth client has access to multiple)\ntailsnitch --tailnet mycompany.com\n```\n\n### Filter Results\n\n```bash\n# Only show critical and high severity issues\ntailsnitch --severity high\n\n# Filter by category\ntailsnitch --category access    # ACL issues\ntailsnitch --category auth      # Authentication & keys\ntailsnitch --category device    # Device security\ntailsnitch --category network   # Network exposure\ntailsnitch --category ssh       # SSH rules\ntailsnitch --category log       # Logging & admin\n\n# Run specific checks only\ntailsnitch --checks ACL-001,AUTH-001,DEV-010\ntailsnitch --checks stale-devices,tailnet-lock-not-enabled\n\n# List all available checks\ntailsnitch --list-checks\n```\n\n### Interactive Fix Mode\n\nFix mode allows you to remediate issues directly via the Tailscale API:\n\n```bash\n# Interactive fix mode\ntailsnitch --fix\n\n# Preview what would be fixed (dry run)\ntailsnitch --fix --dry-run\n\n# Auto-select safe fixes (still requires confirmation)\ntailsnitch --fix --auto\n\n# Disable audit logging of fix actions\ntailsnitch --fix --no-audit-log\n```\n\n**API-fixable items:**\n\n| Check | Action |\n|-------|--------|\n| AUTH-001, AUTH-002, AUTH-003 | Delete auth keys |\n| AUTH-004 | Replace with ephemeral keys |\n| DEV-002 | Remove tags from user devices |\n| DEV-004 | Delete stale devices |\n| DEV-005 | Authorize pending devices |\n\nFix mode also provides direct links to the admin console for issues that require manual intervention.\n\n### SOC 2 Evidence Export\n\nGenerate evidence reports for SOC 2 audits with Common Criteria (CC) control mappings:\n\n```bash\n# Export as JSON\ntailsnitch --soc2 json > soc2-evidence.json\n\n# Export as CSV (for spreadsheets)\ntailsnitch --soc2 csv > soc2-evidence.csv\n```\n\nThe SOC 2 report includes:\n- Per-resource test results (each device, key, ACL rule tested individually)\n- CC code mappings (CC6.1, CC6.2, CC6.3, CC6.6, CC7.1, CC7.2, etc.)\n- Pass/Fail/N/A status for each control test\n- Timestamp for audit trail\n\n**Example CSV output:**\n```csv\nresource_type,resource_id,resource_name,check_id,check_title,cc_codes,status,details,tested_at\ndevice,node123,prod-server,DEV-001,Tagged devices with key expiry disabled,CC6.1;CC6.3,PASS,Tags: [tag:server] key expiry enabled,2025-01-05T10:30:00Z\nkey,tskey-auth-xxx,tskey-auth-xxx,AUTH-001,Reusable auth keys exist,CC6.1;CC6.2;CC6.3,FAIL,Reusable key expires in 45 days,2025-01-05T10:30:00Z\n```\n\n### Ignore Known Risks\n\nCreate a `.tailsnitch-ignore` file to suppress findings for known-accepted risks:\n\n```bash\n# .tailsnitch-ignore\n# Ignore informational checks\nACL-008  # We intentionally don't use groups\nACL-009  # Legacy ACLs are fine for our use case\n\n# Ignore specific medium checks with justification\nDEV-006  # External devices are approved contractors\nLOG-001  # Flow logs require Enterprise plan\n```\n\n**Ignore file locations (checked in order):**\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:45.724347"
+  },
+  {
+    "basic_info": {
+      "name": "opensqt_market_maker",
+      "full_name": "dennisyang1986/opensqt_market_maker",
+      "owner": "dennisyang1986",
+      "description": "OpenSQT 是一个高性能、低延迟的加密货币做市商系统，专注于永续合约市场的做多网格交易策略。系统采用 Go 语言开发，基于 WebSocket 实时数据流驱动，旨在为 Binance、Bitget、Gate.io 等主流交易所提供稳定的流动性支持。",
+      "url": "https://github.com/dennisyang1986/opensqt_market_maker",
+      "clone_url": "https://github.com/dennisyang1986/opensqt_market_maker.git",
+      "ssh_url": "git@github.com:dennisyang1986/opensqt_market_maker.git",
+      "homepage": "https://www.OpenSQT.com/",
+      "created_at": "2025-12-24T11:22:01Z",
+      "updated_at": "2026-01-12T09:23:34Z",
+      "pushed_at": "2025-12-24T12:28:26Z"
+    },
+    "stats": {
+      "stars": 664,
+      "forks": 282,
+      "watchers": 664,
+      "open_issues": 1,
+      "size": 1265
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 382146,
+        "HTML": 24168
+      },
+      "license": null,
+      "topics": [
+        "crypto",
+        "crypto-bot",
+        "marketmaker",
+        "marketmakerbot"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"https://r2.opensqt.com/opensqt_logo.png\" alt=\"OpenSQT Logo\" width=\"600\"/>\n  \n  # OpenSQT Market Maker\n  \n  **毫秒级高频加密货币做市商系统 | High-Frequency Crypto Market Maker**\n\n  [![Go Version](https://img.shields.io/badge/Go-1.21%2B-blue.svg)](https://golang.org/dl/)\n  [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)\n</div>\n\n---\n\n## 📖 项目简介 (Introduction)\n\nOpenSQT Market Maker 是一个高性能、低延迟的加密货币做市商系统，专注于永续合约市场的单向做多无限独立网格交易策略。系统采用 Go 语言开发，基于 WebSocket 实时数据流驱动，旨在为 Binance、Bitget、Gate.io 等主流交易所提供稳定的流动性支持。\n\n经过数个版本迭代，我们已经使用此系统交易超过1亿美元的虚拟货币，例如，交易币安ETHUSDC，0手续，价格间隔1美元，每笔购买300美元，每天的交易量将达到300万美元以上，一个月可以交易5000万美元以上，只要市场是震荡或向上将持续产生盈利，如果市场单边下跌，3万美元保证金可以保证下跌1000个点不爆仓，通过不断交易拉低成本，只要回涨50%即可保本，涨回开仓原价可以赚到丰厚利润，如果出现单边极速下跌，主动风控系统将会自动识别立刻停止交易，当市场恢复后才允许继续下单，不担心插针爆仓。\n\n举例： eth 3000点开始交易，价格下跌到2700点，亏损约3000美元，价格涨回2850点以上已经保本，涨回3000点，盈利在1000-3000美元。\n\nOpenSQT is a high-performance, low-latency cryptocurrency market maker system focusing on long grid trading strategies for perpetual contract markets. Developed in Go and driven by WebSocket real-time data streams, it aims to provide stable liquidity support for major exchanges like Binance, Bitget, and Gate.io.\n\n## 📺 实时演示 (Live Demo)\n\n<video src=\"https://r2.opensqt.com/product_review.mp4\" controls=\"controls\" width=\"100%\"></video>\n\n[点击观看演示视频 / Watch Demo Video](https://r2.opensqt.com/product_review.mp4)\n\n## ✨ 核心特性 (Key Features)\n\n- **多交易所支持**: 适配 Binance, Bitget, Gate.io, Bybit, EdgeX 等主流平台。\n- **毫秒级响应**: 全 WebSocket 驱动（行情与订单流），拒绝轮询延迟。\n- **智能网格策略**: \n  - **固定金额模式**: 资金利用率更可控。\n  - **超级槽位系统 (Super Slot)**: 智能管理挂单与持仓状态，防止并发冲突。\n- **强大的风控系统**:\n  - **主动风控**: 实时监控 K 线成交量异常，自动暂停交易。\n  - **资金安全**: 启动前自动检查余额、杠杆倍数与最大持仓风险。\n  - **自动对账**: 定期同步本地与交易所状态，确保数据一致性。\n- **高并发架构**: 基于 Goroutine + Channel + Sync.Map 的高效并发模型。\n\n## 🏦 支持的交易所 (Supported Exchanges)\n\n| 交易所 (Exchange) | 状态 (Status) \n|-------------------|---------------\n| **Binance**       | ✅ Stable      \n| **Bitget**        | ✅ Stable      \n| **Gate.io**       | ✅ Stable      \n\n\n## 模块架构\n\n```\nopensqt_platform/\n├── main.go                    # 主程序入口，组件编排\n│\n├── config/                    # 配置管理\n│   └── config.go              # YAML配置加载与验证\n│\n├── exchange/                  # 交易所抽象层（核心）\n│   ├── interface.go           # IExchange 统一接口\n│   ├── factory.go             # 工厂模式创建交易所实例\n│   ├── types.go               # 通用数据结构\n│   ├── wrapper_*.go           # 适配器（包装各交易所）\n│   ├── binance/               # 币安实现\n│   ├── bitget/                # Bitget实现\n│   └── gate/                  # Gate.io实现\n│\n├── logger/                    # 日志系统\n│   └── logger.go              # 文件日志 + 控制台日志\n│\n├── monitor/                   # 价格监控\n│   └── price_monitor.go       # 全局唯一价格流\n│\n├── order/                     # 订单执行层\n│   └── executor_adapter.go    # 订单执行器（限流+重试）\n│\n├── position/                  # 仓位管理（核心）\n│   └── super_position_manager.go  # 超级槽位管理器\n│\n├── safety/                    # 安全与风控\n│   ├── safety.go              # 启动前安全检查\n│   ├── risk_monitor.go        # 主动风控（K线监控）\n│   ├── reconciler.go          # 持仓对账\n│   └── order_cleaner.go       # 订单清理\n│\n└── utils/                     # 工具函数\n    └── orderid.go             # 自定义订单ID生成\n```\n\n## 最佳实践\n1.用来刷交易所vip，本系统是刷量神器，如果上涨下跌幅度不大，3000美元保证金两三天即可刷出1000万美元交易量。\n\n2.赚钱的最佳实践，在市场经过一轮下跌后介入，先买一笔持仓，然后再启动软件，会自动向上一格格卖出，当你的持仓卖光以后停止系统，或不确定当前市场是否是低点，可以不买底仓启动，如果下跌在低点再补一笔持仓重新启动持续给你卖出，利润将最大化，如此循环往复持续赚钱，下跌也不怕，程序持续拉低成本，只要涨回一半即可保本。\n\n## 🚀 快速开始 (Getting Started)\n\n### 环境要求 (Prerequisites)\n- Go 1.21 或更高版本\n- 网络环境需能访问交易所 API\n\n### 安装 (Installation)\n\n1. **克隆仓库**\n   ```bash\n   git clone https://github.com/dennisyang1986/opensqt_market_maker.git\n   cd opensqt_market_maker\n   ```\n\n2. **安装依赖**\n   ```bash\n   go mod download\n   ```\n\n### 配置 (Configuration)\n\n1. 复制示例配置文件：\n   ```bash\n   cp config.example.yaml config.yaml\n   ```\n\n2. 编辑 `config.yaml`，填入你的 API Key 和策略参数：\n\n   ```yaml\n   app:\n     current_exchange: \"binance\"  # 选择交易所\n\n   exchanges:\n     binance:\n       api_key: \"YOUR_API_KEY\"\n       secret_key: \"YOUR_SECRET_KEY\"\n       fee_rate: 0.0002\n\n   trading:\n     symbol: \"ETHUSDT\"       # 交易对\n     price_interval: 2       # 网格间距 (价格)\n     order_quantity: 30      # 每格投入金额 (USDT)\n     buy_window_size: 10     # 买单挂单数量\n     sell_window_size: 10    # 卖单挂单数量\n   ```\n\n### 运行 (Usage)\n\n```bash\ngo run main.go\n```\n\n或者编译后运行：\n\n```bash\ngo build -o opensqt\n./opensqt\n```\n\n## 🏗️ 系统架构 (Architecture)\n\n系统采用模块化设计，核心组件包括：\n\n- **Exchange Layer**: 统一的交易所接口抽象，屏蔽底层 API 差异。\n- **Price Monitor**: 全局唯一的 WebSocket 价格源，确保决策一致性。\n- **Super Position Manager**: 核心仓位管理器，基于槽位 (Slot) 机制管理订单生命周期。\n- **Safety & Risk Control**: 多层级风控，包含启动检查、运行时监控和异常熔断。\n\n更多详细架构说明请参阅 [ARCHITECTURE.md](ARCHITECTURE.md)。\n\n## ⚠️ 免责声明 (Disclaimer)\n\n本软件仅供学习和研究使用。加密货币交易具有极高风险，可能导致资金损失。\n- 使用本软件产生的任何盈亏由用户自行承担。\n- 请务必在实盘前使用测试网 (Testnet) 进行充分测试。\n- 开发者不对因软件错误、网络延迟或交易所故障导致的损失负责。\n\nThis software is for educational and research purposes only. Cryptocurrency trading involves high risk.\n- Users are solely responsible for any profits or losses.\n- Always test thoroughly on Testnet before using real funds.\n- The developers are n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:46.873709"
+  },
+  {
+    "basic_info": {
+      "name": "sub2api",
+      "full_name": "Wei-Shaw/sub2api",
+      "owner": "Wei-Shaw",
+      "description": "Sub2API-CRS2 一站式开源中转服务，让 Claude、Openai 、Gemini、Antigravity订阅统一接入，支持拼车共享，更高效分摊成本，原生工具无缝使用。",
+      "url": "https://github.com/Wei-Shaw/sub2api",
+      "clone_url": "https://github.com/Wei-Shaw/sub2api.git",
+      "ssh_url": "git@github.com:Wei-Shaw/sub2api.git",
+      "homepage": "",
+      "created_at": "2025-12-18T02:26:18Z",
+      "updated_at": "2026-01-13T02:10:31Z",
+      "pushed_at": "2026-01-13T01:55:12Z"
+    },
+    "stats": {
+      "stars": 599,
+      "forks": 142,
+      "watchers": 599,
+      "open_issues": 53,
+      "size": 34759
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 3115804,
+        "Vue": 1561233,
+        "TypeScript": 525118,
+        "Shell": 38128,
+        "CSS": 25670,
+        "Python": 8782,
+        "JavaScript": 5294,
+        "Dockerfile": 3691,
+        "Makefile": 2006,
+        "HTML": 370
+      },
+      "license": "MIT License",
+      "topics": [
+        "2api",
+        "antigravity2api",
+        "cc2api",
+        "claude",
+        "claude-code",
+        "codex",
+        "crs",
+        "crs2",
+        "gemini"
+      ]
+    },
+    "content": {
+      "readme": "# Sub2API\n\n<div align=\"center\">\n\n[![Go](https://img.shields.io/badge/Go-1.25.5-00ADD8.svg)](https://golang.org/)\n[![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)\n[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)\n[![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)\n[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)\n\n**AI API Gateway Platform for Subscription Quota Distribution**\n\nEnglish | [中文](README_CN.md)\n\n</div>\n\n---\n\n## Demo\n\nTry Sub2API online: **https://v2.pincc.ai/**\n\nDemo credentials (shared demo environment; **not** created automatically for self-hosted installs):\n\n| Email | Password |\n|-------|----------|\n| admin@sub2api.com | admin123 |\n\n## Overview\n\nSub2API is an AI API gateway platform designed to distribute and manage API quotas from AI product subscriptions (like Claude Code $200/month). Users can access upstream AI services through platform-generated API Keys, while the platform handles authentication, billing, load balancing, and request forwarding.\n\n## Features\n\n- **Multi-Account Management** - Support multiple upstream account types (OAuth, API Key)\n- **API Key Distribution** - Generate and manage API Keys for users\n- **Precise Billing** - Token-level usage tracking and cost calculation\n- **Smart Scheduling** - Intelligent account selection with sticky sessions\n- **Concurrency Control** - Per-user and per-account concurrency limits\n- **Rate Limiting** - Configurable request and token rate limits\n- **Admin Dashboard** - Web interface for monitoring and management\n\n## Tech Stack\n\n| Component | Technology |\n|-----------|------------|\n| Backend | Go 1.25.5, Gin, Ent |\n| Frontend | Vue 3.4+, Vite 5+, TailwindCSS |\n| Database | PostgreSQL 15+ |\n| Cache/Queue | Redis 7+ |\n\n---\n\n## Documentation\n\n- Dependency Security: `docs/dependency-security.md`\n\n---\n\n## Deployment\n\n### Method 1: Script Installation (Recommended)\n\nOne-click installation script that downloads pre-built binaries from GitHub Releases.\n\n#### Prerequisites\n\n- Linux server (amd64 or arm64)\n- PostgreSQL 15+ (installed and running)\n- Redis 7+ (installed and running)\n- Root privileges\n\n#### Installation Steps\n\n```bash\ncurl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash\n```\n\nThe script will:\n1. Detect your system architecture\n2. Download the latest release\n3. Install binary to `/opt/sub2api`\n4. Create systemd service\n5. Configure system user and permissions\n\n#### Post-Installation\n\n```bash\n# 1. Start the service\nsudo systemctl start sub2api\n\n# 2. Enable auto-start on boot\nsudo systemctl enable sub2api\n\n# 3. Open Setup Wizard in browser\n# http://YOUR_SERVER_IP:8080\n```\n\nThe Setup Wizard will guide you through:\n- Database configuration\n- Redis configuration\n- Admin account creation\n\n#### Upgrade\n\nYou can upgrade directly from the **Admin Dashboard** by clicking the **Check for Updates** button in the top-left corner.\n\nThe web interface will:\n- Check for new versions automatically\n- Download and apply updates with one click\n- Support rollback if needed\n\n#### Useful Commands\n\n```bash\n# Check status\nsudo systemctl status sub2api\n\n# View logs\nsudo journalctl -u sub2api -f\n\n# Restart service\nsudo systemctl restart sub2api\n\n# Uninstall\ncurl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y\n```\n\n---\n\n### Method 2: Docker Compose\n\nDeploy with Docker Compose, including PostgreSQL and Redis containers.\n\n#### Prerequisites\n\n- Docker 20.10+\n- Docker Compose v2+\n\n#### Installation Steps\n\n```bash\n# 1. Clone the repository\ngit clone https://github.com/Wei-Shaw/sub2api.git\ncd sub2api\n\n# 2. Enter the deploy directory\ncd deploy\n\n# 3. Copy environment configuration\ncp .env.example .env\n\n# 4. Edit configuration (set your passwords)\nnano .env\n```\n\n**Required configuration in `.env`:**\n\n```bash\n# PostgreSQL password (REQUIRED - change this!)\nPOSTGRES_PASSWORD=your_secure_password_here\n\n# Optional: Admin account\nADMIN_EMAIL=admin@example.com\nADMIN_PASSWORD=your_admin_password\n\n# Optional: Custom port\nSERVER_PORT=8080\n\n# Optional: Security configuration\n# Enable URL allowlist validation (false to skip allowlist checks, only basic format validation)\nSECURITY_URL_ALLOWLIST_ENABLED=false\n\n# Allow insecure HTTP URLs when allowlist is disabled (default: false, requires https)\n# ⚠️ WARNING: Enabling this allows HTTP (plaintext) URLs which can expose API keys\n#             Only recommended for:\n#             - Development/testing environments\n#             - Internal networks with trusted endpoints\n#             - When using local test servers (http://localhost)\n# PRODUCTION: Keep this false or use HTTPS URLs only\nSECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=false\n\n# Allow private IP addresses for upstream/pricing/CRS (for internal deployments)\nSECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=false\n```\n\n```bash\n# 5. Start all ser",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:48.018554"
+  },
+  {
+    "basic_info": {
+      "name": "whatomate",
+      "full_name": "shridarpatil/whatomate",
+      "owner": "shridarpatil",
+      "description": "Whatomate is an open-source WhatsApp integration",
+      "url": "https://github.com/shridarpatil/whatomate",
+      "clone_url": "https://github.com/shridarpatil/whatomate.git",
+      "ssh_url": "git@github.com:shridarpatil/whatomate.git",
+      "homepage": "https://whatomate.io/",
+      "created_at": "2025-12-19T13:04:21Z",
+      "updated_at": "2026-01-13T02:51:21Z",
+      "pushed_at": "2026-01-12T10:41:50Z"
+    },
+    "stats": {
+      "stars": 442,
+      "forks": 76,
+      "watchers": 442,
+      "open_issues": 4,
+      "size": 4265
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 969458,
+        "Vue": 915557,
+        "TypeScript": 138341,
+        "CSS": 6503,
+        "Makefile": 4102,
+        "JavaScript": 2726,
+        "Dockerfile": 1868,
+        "HTML": 998
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<a href=\"https://zerodha.tech\"><img src=\"https://zerodha.tech/static/images/github-badge.svg\" align=\"right\" alt=\"Zerodha Tech Badge\" /></a>\n\n# Whatomate\n\nModern, open-source WhatsApp Business Platform. Single binary app.\n\n![Dashboard](docs/public/images/01-dashboard.png)\n\n## Features\n\n- **Multi-tenant Architecture**\n  Support multiple organizations with isolated data and configurations.\n\n- **Role-Based Access Control**\n  Three roles (Admin, Manager, Agent) with granular permissions.\n\n- **WhatsApp Cloud API Integration**\n  Connect with Meta's WhatsApp Business API for messaging.\n\n- **Real-time Chat**\n  Live messaging with WebSocket support for instant communication.\n\n- **Template Management**\n  Create and manage message templates approved by Meta.\n\n- **Bulk Campaigns**\n  Send campaigns to multiple contacts with retry support for failed messages.\n\n- **Chatbot Automation**\n  Keyword-based auto-replies, conversation flows with branching logic, and AI-powered responses (OpenAI, Anthropic, Google).\n\n- **Canned Responses**\n  Pre-defined quick replies with slash commands (`/shortcut`) and dynamic placeholders.\n\n- **Analytics Dashboard**\n  Track messages, engagement, and campaign performance.\n\n<details>\n<summary>View more screenshots</summary>\n\n![Chatbot Settings](docs/public/images/02-chatbot-settings.png)\n![Conversation Flow Builder](docs/public/images/08-conversation-flow-builder.png)\n![Templates](docs/public/images/11-templates.png)\n![Campaigns](docs/public/images/13-campaigns.png)\n\n</details>\n\n## Installation\n\n### Docker\n\nThe latest image is available on Docker Hub at [`shridh0r/whatomate:latest`](https://hub.docker.com/r/shridh0r/whatomate)\n\n```bash\n# Download compose file and sample config\ncurl -LO https://raw.githubusercontent.com/shridarpatil/whatomate/main/docker/docker-compose.yml\ncurl -LO https://raw.githubusercontent.com/shridarpatil/whatomate/main/config.example.toml\n\n# Copy and edit config\ncp config.example.toml config.toml\n\n# Run services\ndocker compose up -d\n```\n\nGo to `http://localhost:8080` and login with `admin@admin.com` / `admin`\n\n__________________\n\n### Binary\n\nDownload the [latest release](https://github.com/shridarpatil/whatomate/releases) and extract the binary.\n\n```bash\n# Copy and edit config\ncp config.example.toml config.toml\n\n# Run with migrations\n./whatomate server -migrate\n```\n\nGo to `http://localhost:8080` and login with `admin@admin.com` / `admin`\n\n__________________\n\n### Build from Source\n\n```bash\ngit clone https://github.com/shridarpatil/whatomate.git\ncd whatomate\n\n# Production build (single binary with embedded frontend)\nmake build-prod\n./whatomate server -migrate\n```\n\nSee [configuration docs](docs/src/content/docs/getting-started/configuration.mdx) for detailed setup options.\n\n## CLI Usage\n\n```bash\n./whatomate server              # API + 1 worker (default)\n./whatomate server -workers=0   # API only\n./whatomate worker -workers=4   # Workers only (for scaling)\n./whatomate version             # Show version\n```\n\n## Developers\n\nThe backend is written in Go ([Fastglue](https://github.com/zerodha/fastglue)) and the frontend is Vue.js 3 with shadcn-vue.\n\n```bash\n# Development setup\nmake run-migrate    # Backend (port 8080)\ncd frontend && npm run dev   # Frontend (port 3000)\n```\n\n## License\n\nSee [LICENSE](LICENSE) for details.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:49.173177"
+  },
+  {
+    "basic_info": {
+      "name": "production-saas-starter",
+      "full_name": "moasq/production-saas-starter",
+      "owner": "moasq",
+      "description": "Production-ready B2B SaaS Starter Kit (Go + Next.js). Modular Monolith. Hexagonal Arch.",
+      "url": "https://github.com/moasq/production-saas-starter",
+      "clone_url": "https://github.com/moasq/production-saas-starter.git",
+      "ssh_url": "git@github.com:moasq/production-saas-starter.git",
+      "homepage": null,
+      "created_at": "2025-12-16T14:54:25Z",
+      "updated_at": "2026-01-12T08:41:19Z",
+      "pushed_at": "2026-01-07T09:17:59Z"
+    },
+    "stats": {
+      "stars": 441,
+      "forks": 69,
+      "watchers": 441,
+      "open_issues": 3,
+      "size": 1790
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 755739,
+        "TypeScript": 492334,
+        "PLpgSQL": 19413,
+        "Shell": 6750,
+        "JavaScript": 5887,
+        "Dockerfile": 5803,
+        "Makefile": 2929,
+        "CSS": 1742
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ⭐ Production SaaS Starter Kit\n\nThe Enterprise-Grade SaaS boilerplate for serious founders. Built with **Next.js 16** and **Go 1.25**.\n\n[![Go Report Card](https://goreportcard.com/badge/github.com/moasq/production-saas-starter)](https://goreportcard.com/report/github.com/moasq/production-saas-starter)\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\n\n![Dashboard Preview](docs/dashboard.png)\n\n## 🛠️ Built With\n\n### Frontend Stack\n\n- **[Next.js 16](https://nextjs.org)** (v16.0.10)\n  Modern React framework with App Router and API routes.\n- **[React 19](https://react.dev)** (v19.2.3)\n  Latest React with improved performance and concurrent features.\n- **[TypeScript](https://www.typescriptlang.org)** (v5.7.3)\n  Type-safe JavaScript for enhanced developer experience.\n- **[Tailwind CSS](https://tailwindcss.com)** (v3.4.17)\n  Utility-first CSS framework for rapid UI development.\n- **[shadcn/ui](https://ui.shadcn.com)** + **Radix UI**\n  Accessible component library with 29+ pre-built components.\n- **[TanStack Query](https://tanstack.com/query)** (v5.90.5)\n  Powerful data fetching and state management.\n- **[Zustand](https://zustand-demo.pmnd.rs)** (v5.0.8)\n  Lightweight state management for UI state.\n- **[react-hook-form](https://react-hook-form.com)** + **[Zod](https://zod.dev)**\n  Type-safe forms with schema validation.\n- **[Stytch](https://stytch.com)**\n  Enterprise authentication with magic links, OAuth, and SSO.\n- **[Polar.sh](https://polar.sh)**\n  Billing integration and subscription management.\n- **[Recharts](https://recharts.org)**\n  Composable charting library for data visualization.\n\n### Backend Stack\n\n- **[Go 1.25](https://go.dev)**\n  High-performance, concurrent backend with excellent tooling.\n- **[Gin](https://gin-gonic.com)**\n  Fast HTTP web framework with middleware support.\n- **[PostgreSQL](https://www.postgresql.org)** with **[pgvector](https://github.com/pgvector/pgvector)**\n  Reliable relational database with vector similarity search.\n- **[SQLC](https://sqlc.dev)**\n  Type-safe SQL compiler for Go (no ORM).\n- **[Stytch B2B](https://stytch.com)**\n  Enterprise authentication, SSO, and RBAC.\n- **[Polar.sh](https://polar.sh)**\n  Merchant of Record for subscriptions, invoicing, and global tax compliance.\n- **[OpenAI API](https://openai.com)**\n  LLM integration with RAG pipeline and vector embeddings.\n- **[Mistral AI](https://mistral.ai)**\n  OCR service for document data extraction.\n- **[Cloudflare R2](https://www.cloudflare.com/products/r2/)**\n  Object storage for file management.\n- **[Docker](https://www.docker.com)** + **Docker Compose**\n  Containerization for consistent environments.\n\n## 🥇 Features\n\n- **Authentication**: Sign in with Magic Link, Google OAuth, and Enterprise SSO.\n- **Multi-Tenancy**: Built-in Organization support with strict data isolation.\n- **Roles & Permissions**: Granular RBAC system with 3 roles (Member, Manager, Admin) and 7 permission types.\n- **Billing & Subscriptions**: Complete integration with Polar.sh for SaaS pricing models.\n- **AI & RAG**: Ready-to-use vector embeddings pipeline for AI features.\n- **OCR Service**: Extract structured data from valid documents instantly.\n- **Team Management**: Invite members, manage roles, and update settings.\n- **Responsive Design**: Mobile-first UI built with Tailwind CSS and shadcn/ui.\n- **Type Safety**: End-to-end type safety from database (SQLC) to frontend (TypeScript).\n\n## ➡️ Coming Soon\n\n- **Audit Logs**: Complete audit logging system for tracking user activities.\n- **Webhooks UI**: Customer-facing webhook configuration.\n- **Advanced Analytics**: Built-in charts and usage tracking.\n\n## ✨ Getting Started\n\nPlease follow these simple steps to get a local copy up and running.\n\n### Prerequisites\n\n- **Docker** & **Docker Compose**\n- **Go 1.25+**\n- **Node.js 20+** & **pnpm**\n\n### The One-Line Setup\n\nRun this command to configure your keys and start the infrastructure:\n\n```bash\nchmod +x setup.sh && ./setup.sh\n```\n\n**Manual Start:**\n\n1.  **Backend:** `cd go-b2b-starter && make dev`\n2.  **Frontend:** `cd next_b2b_starter && pnpm dev`\n3.  **Visit:** [http://localhost:3000](http://localhost:3000)\n\n> [!IMPORTANT]\n> See **[SETUP.md](./SETUP.md)** for quick setup or **[DEVELOPMENT.md](./DEVELOPMENT.md)** for comprehensive guidance including multi-platform prerequisites, troubleshooting, and daily workflow tips.\n\n## 🛡️ License\n\n[MIT License](./LICENSE)\n\n## 👯 Consulting & Services\n\nAlthough this kit is self-service, I help ambitious founders move faster.\n\n**I can help you with:**\n1.  **Managed Config:** I sets up your AWS/GCP production environment so you never touch DevOps.\n2.  **Custom Features:** Need SAML SSO or complex RAG flows? I'll build them directly into your repo.\n3.  **Code Audits:** Migrating from Node/Python? I'll review your architecture for scale.\n\n**[m.salim@apflowhq.com](mailto:m.salim@apflowhq.com)** • [**@foundmod**](https://x.com/foundmod)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:50.319860"
+  },
+  {
+    "basic_info": {
+      "name": "sentinel",
+      "full_name": "aqstack/sentinel",
+      "owner": "aqstack",
+      "description": "Self-healing edge computing agent with predictive failure detection and partition-resilient orchestration for Kubernetes",
+      "url": "https://github.com/aqstack/sentinel",
+      "clone_url": "https://github.com/aqstack/sentinel.git",
+      "ssh_url": "git@github.com:aqstack/sentinel.git",
+      "homepage": "",
+      "created_at": "2025-12-25T05:22:51Z",
+      "updated_at": "2026-01-10T12:46:59Z",
+      "pushed_at": "2026-01-04T10:48:18Z"
+    },
+    "stats": {
+      "stars": 396,
+      "forks": 343,
+      "watchers": 396,
+      "open_issues": 0,
+      "size": 110
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 187629,
+        "Makefile": 2565
+      },
+      "license": "MIT License",
+      "topics": [
+        "aiops",
+        "distributed-systems",
+        "edge-computing",
+        "failure-prediction",
+        "golang",
+        "kubernetes",
+        "machine-learning",
+        "prometheus",
+        "raft",
+        "self-healing"
+      ]
+    },
+    "content": {
+      "readme": "# Sentinel\n\n[![CI](https://github.com/aqstack/sentinel/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aqstack/sentinel/actions/workflows/ci.yml)\n[![Go Report Card](https://goreportcard.com/badge/github.com/aqstack/sentinel)](https://goreportcard.com/report/github.com/aqstack/sentinel)\n\nPredictive failure detection and autonomous orchestration for Kubernetes edge nodes.\n\n## What it does\n\nSentinel runs on each edge node and does three things:\n\n1. **Predicts failures** - Monitors CPU thermals, memory pressure, disk I/O, and network health. Uses lightweight statistical models to predict failures before they happen.\n\n2. **Survives partitions** - When nodes lose contact with the control plane, they form a local consensus group and continue operating autonomously.\n\n3. **Takes action** - Triggers preemptive workload migrations, cordons unhealthy nodes, and logs decisions for reconciliation when connectivity returns.\n\n## Why\n\nKubernetes assumes the control plane is always reachable. Edge environments break this assumption constantly - spotty networks, power issues, harsh conditions. When a node goes \"Unknown\", Kubernetes stops making decisions for it.\n\nCloud AIOps tools assume unlimited resources. Edge nodes run K8s + workloads + monitoring in 4GB RAM with no datacenter cooling.\n\nSentinel fills the gap.\n\n## What's different\n\nMost edge/IoT platforms focus on deployment and connectivity. Most AIOps tools assume cloud-scale resources. Sentinel combines ideas from both:\n\n- **Predictive, not reactive** - Catches thermal throttling and memory pressure before they cause failures\n- **Autonomous, not dependent** - Continues operating during control plane partitions instead of going dark\n- **Lightweight, not bloated** - Runs statistical models in <64MB RAM, no GPUs or cloud inference needed\n- **Consensus-aware** - Nodes coordinate decisions locally using Raft-lite when disconnected\n\n## Quick Start\n\n```bash\n# Build\nmake build\n\n# Run locally\n./bin/predictor --node=my-node\n\n# With config file\n./bin/predictor --config=config.yaml\n\n# Deploy to cluster\nhelm install sentinel ./deploy/helm/sentinel\n```\n\n## Configuration\n\nSentinel supports YAML/JSON config files with CLI flag overrides:\n\n```yaml\nnode:\n  name: edge-node-1\n\nserver:\n  listen: \":9101\"\n  metrics: \":9100\"\n\npredictor:\n  interval: 1s\n  warn_threshold: 0.3\n  critical_threshold: 0.7\n  risk_weights:\n    thermal: 0.3\n    memory: 0.3\n    disk: 0.2\n    network: 0.2\n\nconsensus:\n  enabled: true\n  addr: \":9200\"\n  peers:\n    - edge-node-2:9200\n    - edge-node-3:9200\n\nlogging:\n  level: info\n  format: json\n```\n\nCLI flags:\n\n```bash\n--config          Config file path\n--node            Node name\n--listen          API listen address (default :9101)\n--metrics         Prometheus metrics address (default :9100)\n--interval        Collection interval (default 1s)\n--log-level       Log level: debug, info, warn, error\n--log-format      Log format: text, json\n--consensus-addr  Consensus listen address\n--peers           Comma-separated peer addresses\n```\n\n## Architecture\n\n```\n┌──────────────────────────────────────────────────────────┐\n│                        Sentinel                          │\n│                                                          │\n│  ┌────────────┐  ┌────────────┐  ┌───────────────────┐   │\n│  │ Collector  │─▶│ Predictor  │─▶│ Consensus (Raft)  │   │\n│  │            │  │            │  │                   │   │\n│  │ /proc, /sys│  │ ML model   │  │ Leader election   │   │\n│  │ thermals   │  │ risk calc  │  │ Decision log      │   │\n│  └────────────┘  └────────────┘  └───────────────────┘   │\n│        │               │                  │              │\n│        └───────────────┼──────────────────┘              │\n│                        ▼                                 │\n│            ┌─────────────────────┐                       │\n│            │ Prometheus Metrics  │                       │\n│            │ Health Endpoints    │                       │\n│            │ K8s Client          │                       │\n│            └─────────────────────┘                       │\n└──────────────────────────────────────────────────────────┘\n```\n\n## API\n\n| Endpoint | Description |\n|----------|-------------|\n| `/health` | Detailed health status with component checks |\n| `/healthz` | Liveness probe |\n| `/readyz` | Readiness probe |\n| `/prediction` | Current failure prediction |\n| `/metrics/latest` | Raw metrics snapshot |\n| `/consensus` | Consensus state and peers |\n| `/decisions` | Autonomous decisions log |\n| `/metrics` | Prometheus metrics |\n\n## Metrics\n\nPrediction:\n- `sentinel_prediction_failure_probability` - 0 to 1\n- `sentinel_prediction_confidence` - model confidence\n- `sentinel_prediction_time_to_failure_seconds` - estimated TTF\n- `sentinel_prediction_preemptive_migrations_total` - migration count\n\nPartition:\n- `sentinel_partition_detected` - 0 or 1\n- `sentinel_partition_duration_seconds` - how long partitioned\n- `sentinel_consensus_is_leader` - leader status\n- `",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:51.465765"
+  },
+  {
+    "basic_info": {
+      "name": "agent-exchange",
+      "full_name": "open-experiments/agent-exchange",
+      "owner": "open-experiments",
+      "description": "Agent Discovery & Work Exchange Platform",
+      "url": "https://github.com/open-experiments/agent-exchange",
+      "clone_url": "https://github.com/open-experiments/agent-exchange.git",
+      "ssh_url": "git@github.com:open-experiments/agent-exchange.git",
+      "homepage": null,
+      "created_at": "2025-12-19T17:12:26Z",
+      "updated_at": "2026-01-13T02:47:11Z",
+      "pushed_at": "2026-01-12T14:05:11Z"
+    },
+    "stats": {
+      "stars": 338,
+      "forks": 266,
+      "watchers": 338,
+      "open_issues": 4,
+      "size": 90910
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 535075,
+        "Shell": 116319,
+        "Dockerfile": 8523,
+        "Makefile": 6597,
+        "JavaScript": 4148,
+        "HTML": 2782
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">Agent Exchange (AEX)</h1>\n\n<p align=\"center\">\n  <strong>The NASDAQ for AI Agents</strong><br/>\n  <em>A programmatic marketplace applying ad-tech economics for agentic AI services</em>\n</p>\n\n<p align=\"center\">\n  <img src=\"shared/drawings/aex-marketplace-for-ai-agents-trim.png\" alt=\"Agent Exchange\" width=\"800\"/>\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-MIT-yellow.svg\" alt=\"License\"></a>\n  <a href=\"https://github.com/open-experiments/agent-exchange/commits/main\"><img src=\"https://img.shields.io/github/last-commit/open-experiments/agent-exchange\" alt=\"Last Commit\"></a>\n  <a href=\"#\"><img src=\"https://img.shields.io/badge/Python-3.10+-green.svg\" alt=\"Python 3.10+\"></a>\n  <a href=\"#\"><img src=\"https://img.shields.io/badge/Go-1.21+-00ADD8.svg\" alt=\"Go 1.21+\"></a>\n  <a href=\"#\"><img src=\"https://img.shields.io/badge/GCP-Cloud%20Run-4285F4.svg\" alt=\"GCP Cloud Run\"></a>\n</p>\n\n---\n\n<h2 align=\"center\">What Problem AEX Solves?</h2>\n\nAs AI agents proliferate, enterprises face a critical challenge: **the N×M integration problem**. Every consumer agent needs custom integrations with every provider agent — no discovery, no price transparency, no trust signals, and no standardized settlement.\n\n<p align=\"center\">\n  <img src=\"shared/drawings/solving-the-nxm-integration-trim.png\" alt=\"The NxM Integration Crisis\" width=\"700\"/>\n</p>\n\n**AEX is a broker, not a host.** Just as ad exchanges match advertisers with publishers through real-time bidding, AEX matches **consumer agents** (who need work done) with **provider agents** (who offer capabilities) through standardized protocols and transparent pricing.\n\n> **Key insight:** After contract award, AEX steps aside. Consumer and provider communicate directly via A2A protocol. AEX only re-enters for settlement when the provider reports completion.\n\n| Problem | Impact |\n|---------|--------|\n| **No Discovery** | How does an agent find another agent that can \"book flights\"? |\n| **No Price Transparency** | What should a task cost? No market signals exist. |\n| **No Trust Signals** | Is this provider reliable? Will they deliver? |\n| **No Standardized Contracts** | Custom integration required for every provider. |\n| **No Settlement** | Manual invoicing, no outcome verification. |\n\n---\n\n<h2 align=\"center\">Key Benefits</h2>\n\n| Benefit | For Consumers | For Providers |\n|---------|---------------|---------------|\n| **Discovery** | Find capable agents instantly | Get discovered by enterprises |\n| **Competitive Pricing** | Providers bid for your work | Win work on merit + price |\n| **Trust Scores** | See track record before contracting | Build reputation over time |\n| **Automated Settlement** | Pay only for verified outcomes | Get paid automatically |\n| **No Lock-in** | Switch providers freely | Serve multiple consumers |\n\n---\n\n<h2 align=\"center\">Quick Start</h2>\n\n### Prerequisites\n\n- Docker & Docker Compose\n- Go 1.22+ (for building services locally)\n- Python 3.11+ (for demo agents)\n- Anthropic API key (for demo)\n\n### Run the Demo\n\n```bash\n# Clone the repository\ngit clone https://github.com/open-experiments/agent-exchange.git\ncd agent-exchange/demo\n\n# Configure API key\ncp .env.example .env\n# Edit .env and add your ANTHROPIC_API_KEY\n\n# Start everything (AEX services + Demo agents + UI)\ndocker-compose up --build\n\n# Access the demo UI\nopen http://localhost:8501\n```\n\n### Build Services Locally\n\n```bash\n# From project root\nmake build          # Build all Go services\nmake test           # Run all tests\nmake docker-up      # Start via Docker Compose\n```\n\n<details>\n<summary><strong>Available Make Targets</strong></summary>\n\n```bash\nmake build              # Build all services\nmake build-aex-gateway  # Build specific service\nmake test               # Run all tests\nmake test-aex-settlement # Test specific service\nmake docker-build       # Build Docker images\nmake docker-up          # Start services\nmake docker-down        # Stop services\nmake fmt                # Format Go code\nmake lint               # Run linter\nmake tidy               # Go mod tidy all services\n```\n\n</details>\n\n---\n\n<h2 align=\"center\">How It Works</h2>\n\n<p align=\"center\">\n  <img src=\"shared/drawings/how-the-agent-exchange-works-trim.png\" alt=\"How It Works\" width=\"800\"/>\n</p>\n\n**Scenario:** An enterprise assistant needs to book a flight for an employee. <br><br>\n**The Flow:**\n1. **Consumer submits work specification** → AEX broadcasts to subscribed providers\n2. **Providers submit bids** → Price, confidence score, and capability proof\n3. **AEX evaluates and awards** → Best scored bid wins the contract\n4. **Direct A2A execution** → Consumer and provider communicate directly\n5. **Provider reports completion** → AEX verifies outcome and settles payment\n\n---\n\n<h2 align=\"center\">The Ad-Tech Parallel</h2>\n\nAEX applies proven programmatic advertising patterns to agent services:\n\n| Ad-Tech Concept | AEX Equivalent | Function |\n|-----------------|----------------|----------|\n| Ad E",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:52.610876"
+  },
+  {
+    "basic_info": {
+      "name": "gh-yule-log",
+      "full_name": "leereilly/gh-yule-log",
+      "owner": "leereilly",
+      "description": "A Yule log extension for GitHub CLI.  ̶Y̶u̶l̶e̶ You'll love it! 🪵 🔥",
+      "url": "https://github.com/leereilly/gh-yule-log",
+      "clone_url": "https://github.com/leereilly/gh-yule-log.git",
+      "ssh_url": "git@github.com:leereilly/gh-yule-log.git",
+      "homepage": "",
+      "created_at": "2025-12-16T00:09:11Z",
+      "updated_at": "2026-01-12T11:11:09Z",
+      "pushed_at": "2026-01-07T16:51:28Z"
+    },
+    "stats": {
+      "stars": 298,
+      "forks": 20,
+      "watchers": 298,
+      "open_issues": 0,
+      "size": 86088
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 9944,
+        "Shell": 703
+      },
+      "license": "MIT License",
+      "topics": [
+        "gh-extension",
+        "github-cli",
+        "vibe-coding",
+        "yule-log"
+      ]
+    },
+    "content": {
+      "readme": "# GitHub Yule Log\n\n![Yule Log GIF](screencap.gif)\n\nA [GitHub CLI](https://cli.github.com/) extension that turns your terminal into a festive, animated Yule log :fire:\n\nEnjoy your Git logs over toasted marshmallows and your favorite beverage :beers:\n\nVibe-coded with GitHub Copilot Agent and GPT-5.1 the week before Christmas 2025.\n\n## Requirements\n\n- `gh` (GitHub CLI) installed and configured\n- A modern terminal that supports ANSI colors\n\n## Installation\n\n```bash\ngh extension install leereilly/gh-yule-log\n```\n\nFor local development:\n\n```bash\ngit clone leereilly/gh-yule-log\ncd gh-yule-log\ngh extension install .\n```\n\n## Usage\n\nRun the extension with:\n\n```bash\ngh yule-log\n```\n\n![](images/gh-yule-log-vanilla.gif)\n\nAnd thanks to [@shplok](https://github.com/shplok) via [#7](https://github.com/leereilly/gh-yule-log/pull/7) you can now press <kbd>↑</kbd> or <kbd>↓</kbd> to adjust flame intensity.\n\nTry the experimental `--contribs` flag to see a Yule log themed around your GitHub contributions:\n\n```bash\ngh yule-log --contribs\n```\n\n![](images/gh-yule-log-contribs.gif)\n \n## Inspiration\n\nI was surfing Netflix the other night and was astonished at how many [branded Yule logs there were](https://youtu.be/ytMdeo9Re1k?si=Fowy4F-40MmdwMcp). I figured GitHub should get in on that action! Also inspired by [@msimpson's curses-based ASCII art fire art from back in the day](https://gist.github.com/msimpson/1096950).\n\n## License\n\nThis project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:53.760056"
+  },
+  {
+    "basic_info": {
+      "name": "clopus-watcher",
+      "full_name": "kubeden/clopus-watcher",
+      "owner": "kubeden",
+      "description": "An autonomous 24/7 on-call engineer in the form of a Claude Code living in a cronjob.",
+      "url": "https://github.com/kubeden/clopus-watcher",
+      "clone_url": "https://github.com/kubeden/clopus-watcher.git",
+      "ssh_url": "git@github.com:kubeden/clopus-watcher.git",
+      "homepage": "",
+      "created_at": "2025-12-25T18:47:32Z",
+      "updated_at": "2026-01-13T02:19:34Z",
+      "pushed_at": "2026-01-01T10:28:34Z"
+    },
+    "stats": {
+      "stars": 262,
+      "forks": 38,
+      "watchers": 262,
+      "open_issues": 1,
+      "size": 34
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 14048,
+        "HTML": 13120,
+        "Shell": 7250
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Clopus Watcher\n\nA Kubernetes-native Claude Code watcher that monitors pods, detects errors, and applies hotfixes directly, or just writes a report on its findings.\n\n## Overview\n\nClopus Watcher runs as a CronJob that:\n1. Monitors pods in a target namespace\n2. Detects degraded pods (CrashLoopBackOff, Error, etc.)\n3. Reads logs to understand the error\n4. Execs into the pod, explores and applies a hotfix\n5. Records the fix to SQLite & provides a report\n\nA separate Dashboard deployment provides a web UI to view all detected errors and applied fixes.\n\n## Prerequisites\n\n**Cluster:**\n\n- Kubernetes cluster\n- Sealed Secrets (for API key / Claude Code Credentials file)\n\n**Local (to build the images):**\n\n- podman / docker / etc.\n- kubectl\n- container registry access\n\n## Configuration\n\n| Environment Variable | Description | Default |\n|---------------------|-------------|---------|\n| `TARGET_NAMESPACE` | Namespace to monitor | `default` |\n| `AUTH_MODE` | Auth method: `api-key` or `credentials` | `api-key` |\n| `WATCHER_MODE` | Watcher mode: `autonomous` or `watcher` | `autonomous` |\n| `ANTHROPIC_API_KEY` | Claude API key (if AUTH_MODE=api-key) | - |\n| `SQLITE_PATH` | Path to SQLite database | `/data/watcher.db` |\n\n## Deployment\n\n### Option 1: API Key (Recommended)\n\n```bash\n# 1. Create namespace\nkubectl create namespace clopus-watcher\n\n# 2. Create secret with API key\nkubectl create secret generic claude-auth \\\n  --namespace clopus-watcher \\\n  --from-literal=api-key=sk-ant-xxxxx\n\n# 3. Ensure AUTH_MODE=api-key in k8s/cronjob.yaml (default)\n\n# 4. Deploy\n./scripts/deploy.sh\n```\n\n### Option 2: Credentials File (OAuth)\n\n```bash\n# 1. Create namespace\nkubectl create namespace clopus-watcher\n\n# 2. Create secret from credentials file\nkubectl create secret generic claude-credentials \\\n  --namespace clopus-watcher \\\n  --from-file=credentials.json=$HOME/.claude/.credentials.json\n\n# 3. Edit k8s/cronjob.yaml:\n#    - Set AUTH_MODE=credentials\n#    - Uncomment claude-credentials volume and volumeMount\n\n# 4. Deploy\n./scripts/deploy.sh\n```\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:54.909563"
+  },
+  {
+    "basic_info": {
+      "name": "distributed-system-algorithms",
+      "full_name": "pipethedev/distributed-system-algorithms",
+      "owner": "pipethedev",
+      "description": null,
+      "url": "https://github.com/pipethedev/distributed-system-algorithms",
+      "clone_url": "https://github.com/pipethedev/distributed-system-algorithms.git",
+      "ssh_url": "git@github.com:pipethedev/distributed-system-algorithms.git",
+      "homepage": null,
+      "created_at": "2026-01-03T14:25:21Z",
+      "updated_at": "2026-01-12T03:13:15Z",
+      "pushed_at": "2026-01-03T16:46:54Z"
+    },
+    "stats": {
+      "stars": 255,
+      "forks": 35,
+      "watchers": 255,
+      "open_issues": 1,
+      "size": 9
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2921
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Distributed System Algorithms\n\nImplementations of fundamental algorithms that help multiple computers work together and stay coordinated, even when they can't trust a single clock or communicate instantly.\n\nThese are practical Go implementations for understanding how distributed system algorithms work in code.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:56.055626"
+  },
+  {
+    "basic_info": {
+      "name": "git-wt",
+      "full_name": "k1LoW/git-wt",
+      "owner": "k1LoW",
+      "description": "A Git subcommand that makes `git worktree` simple",
+      "url": "https://github.com/k1LoW/git-wt",
+      "clone_url": "https://github.com/k1LoW/git-wt.git",
+      "ssh_url": "git@github.com:k1LoW/git-wt.git",
+      "homepage": "",
+      "created_at": "2025-12-26T00:16:09Z",
+      "updated_at": "2026-01-13T01:00:30Z",
+      "pushed_at": "2026-01-12T06:28:16Z"
+    },
+    "stats": {
+      "stars": 216,
+      "forks": 9,
+      "watchers": 216,
+      "open_issues": 0,
+      "size": 270
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 177563,
+        "Makefile": 760
+      },
+      "license": "MIT License",
+      "topics": [
+        "git",
+        "git-worktree"
+      ]
+    },
+    "content": {
+      "readme": "# git-wt ![Coverage](https://raw.githubusercontent.com/k1LoW/octocovs/main/badges/k1LoW/git-wt/coverage.svg) ![Code to Test Ratio](https://raw.githubusercontent.com/k1LoW/octocovs/main/badges/k1LoW/git-wt/ratio.svg) ![Test Execution Time](https://raw.githubusercontent.com/k1LoW/octocovs/main/badges/k1LoW/git-wt/time.svg)\n\nA Git subcommand that makes `git worktree` simple.\n\n## Usage\n\n``` console\n$ git wt                       # List all worktrees\n$ git wt <branch|worktree>     # Switch to worktree (create worktree/branch if needed)\n$ git wt -d <branch|worktree>  # Delete worktree and branch (safe)\n$ git wt -D <branch|worktree>  # Force delete worktree and branch\n```\n\n## Install\n\n**go install:**\n\n``` console\n$ go install github.com/k1LoW/git-wt@latest\n```\n\n**homebrew tap:**\n\n``` console\n$ brew install k1LoW/tap/git-wt\n```\n\n**manually:**\n\nDownload binary from [releases page](https://github.com/k1LoW/git-wt/releases)\n\n## Shell Integration\n\nAdd the following to your shell config to enable worktree switching and completion:\n\n**zsh (~/.zshrc):**\n\n``` zsh\neval \"$(git wt --init zsh)\"\n```\n\n**bash (~/.bashrc):** (experimental)\n\n``` bash\neval \"$(git wt --init bash)\"\n```\n\n**fish (~/.config/fish/config.fish):** (experimental)\n\n``` fish\ngit wt --init fish | source\n```\n\n**powershell ($PROFILE):** (experimental)\n\n``` powershell\nInvoke-Expression (git wt --init powershell | Out-String)\n```\n\n> [!IMPORTANT]\n> The shell integration creates a `git()` wrapper function to enable automatic directory switching with `git wt <branch>`. This wrapper intercepts only `git wt <branch>` commands and passes all other git commands through unchanged. If you have other tools or customizations that also wrap the `git` command, there may be conflicts.\n\nIf you want only completion without the `git()` wrapper (no automatic directory switching), use the `--nocd` option:\n\n``` zsh\neval \"$(git wt --init zsh --nocd)\"\n```\n\nYou can also use `--nocd` with `git wt <branch>` to create/switch to a worktree without changing the current directory:\n\n``` console\n$ git wt --nocd feature-branch\n/path/to/worktree/feature-branch  # prints path but stays in current directory\n```\n\n## Configuration\n\nConfiguration is done via `git config`. All config options can be overridden with flags for a single invocation.\n\n#### `wt.basedir` / `--basedir`\n\nWorktree base directory.\n\n``` console\n$ git config wt.basedir \"../{gitroot}-worktrees\"\n# or override for a single invocation\n$ git wt --basedir=\"/tmp/worktrees\" feature-branch\n```\n\nSupported template variables:\n- `{gitroot}`: repository root directory name\n\nDefault: `../{gitroot}-wt`\n\n#### `wt.copyignored` / `--copyignored`\n\nCopy files ignored by `.gitignore` (e.g., `.env`) to new worktrees.\n\n``` console\n$ git config wt.copyignored true\n# or override for a single invocation\n$ git wt --copyignored feature-branch\n$ git wt --copyignored=false feature-branch  # explicitly disable\n```\n\nDefault: `false`\n\n#### `wt.copyuntracked` / `--copyuntracked`\n\nCopy untracked files (not yet added to git) to new worktrees.\n\n``` console\n$ git config wt.copyuntracked true\n# or override for a single invocation\n$ git wt --copyuntracked feature-branch\n$ git wt --copyuntracked=false feature-branch  # explicitly disable\n```\n\nDefault: `false`\n\n#### `wt.copymodified` / `--copymodified`\n\nCopy modified files (tracked but with uncommitted changes) to new worktrees.\n\n``` console\n$ git config wt.copymodified true\n# or override for a single invocation\n$ git wt --copymodified feature-branch\n$ git wt --copymodified=false feature-branch  # explicitly disable\n```\n\nDefault: `false`\n\n#### `wt.nocopy` / `--nocopy`\n\nExclude files matching patterns from copying. Uses `.gitignore` syntax.\n\n``` console\n$ git config --add wt.nocopy \"*.log\"\n$ git config --add wt.nocopy \"vendor/\"\n# or override for a single invocation (multiple patterns supported)\n$ git wt --copyignored --nocopy \"*.log\" --nocopy \"vendor/\" feature-branch\n```\n\nSupported patterns (same as `.gitignore`):\n- `*.log`: wildcard matching\n- `vendor/`: directory matching\n- `**/temp`: match in any directory\n- `/config.local`: relative to git root\n\n#### `wt.copy` / `--copy`\n\nAlways copy files matching patterns, even if they are gitignored. Uses `.gitignore` syntax.\n\n``` console\n$ git config --add wt.copy \"*.code-workspace\"\n$ git config --add wt.copy \".vscode/\"\n# or override for a single invocation (multiple patterns supported)\n$ git wt --copy \"*.code-workspace\" --copy \".vscode/\" feature-branch\n```\n\nThis is useful when you want to copy specific IDE files (like VS Code workspace files) without enabling `wt.copyignored` for all gitignored files.\n\n> [!NOTE]\n> If the same file matches both `wt.copy` and `wt.nocopy`, `wt.nocopy` takes precedence.\n\n#### `wt.hook` / `--hook`\n\nCommands to run after creating a new worktree. Hooks run in the new worktree directory.\n\n``` console\n$ git config --add wt.hook \"npm install\"\n$ git config --add wt.hook \"go generate ./...\"\n# or override for a single invocation (multiple hooks supported)\n$ git w",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:57.226124"
+  },
+  {
+    "basic_info": {
+      "name": "presto",
+      "full_name": "paramientos/presto",
+      "owner": "paramientos",
+      "description": "Presto is a dependency manager for PHP and drop-in-replacement for Composer",
+      "url": "https://github.com/paramientos/presto",
+      "clone_url": "https://github.com/paramientos/presto.git",
+      "ssh_url": "git@github.com:paramientos/presto.git",
+      "homepage": "",
+      "created_at": "2025-12-19T08:21:13Z",
+      "updated_at": "2026-01-13T00:49:15Z",
+      "pushed_at": "2026-01-09T18:20:07Z"
+    },
+    "stats": {
+      "stars": 216,
+      "forks": 9,
+      "watchers": 216,
+      "open_issues": 0,
+      "size": 120
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 78891,
+        "Shell": 3748,
+        "Makefile": 3665,
+        "PowerShell": 809
+      },
+      "license": "MIT License",
+      "topics": [
+        "cli",
+        "commandline-tool",
+        "ngrok",
+        "pinggy",
+        "proxy",
+        "tunnel",
+        "tunneling"
+      ]
+    },
+    "content": {
+      "readme": "# 🎵 Presto\n\n**Lightning-Fast PHP Package Manager - A Composer Drop-in Replacement**\n\n[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)\n[![Version](https://img.shields.io/badge/version-v0.1.11-blue.svg)](https://github.com/paramientos/presto/releases)\n[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)\n[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/paramientos/presto/actions)\n[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)\n\n> ⚠️ **BETA SOFTWARE**: Presto is currently in **BETA**. While it is functional and fast, it may still have bugs or incomplete features. Use with caution in production environments.\n\n> ⚡ **10x-20x faster** than Composer | 🔒 **Built-in security audit** | 🔍 **Dependency insights** | 💯 **100% compatible**\n\nPresto is a blazing-fast, drop-in replacement for Composer written in Go. It's 100% compatible with `composer.json` and `composer.lock` while being **10x-20x faster** thanks to parallel downloads and native binary execution.\n\n## 📥 Installation\n\n### macOS / Linux\n```bash\ncurl -fsSL https://raw.githubusercontent.com/paramientos/presto/main/scripts/install.sh | bash\n```\n\n### Windows (PowerShell)\n```powershell\niwr -useb https://raw.githubusercontent.com/paramientos/presto/main/scripts/install.ps1 | iex\n```\n\n\n## 📥 Or Manual Downloads\n\n| Platform | Architecture | Download |\n|----------|--------------|----------|\n| **Windows** | x86_64 | [presto-windows-amd64.exe](https://github.com/paramientos/presto/releases/latest/download/presto-windows-amd64.exe) |\n| **macOS** | Apple Silicon (M1/M2) | [presto-darwin-arm64](https://github.com/paramientos/presto/releases/latest/download/presto-darwin-arm64) |\n| **macOS** | Intel | [presto-darwin-amd64](https://github.com/paramientos/presto/releases/latest/download/presto-darwin-amd64) |\n| **Linux** | x86_64 | [presto-linux-amd64](https://github.com/paramientos/presto/releases/latest/download/presto-linux-amd64) |\n| **Linux** | ARM64 | [presto-linux-arm64](https://github.com/paramientos/presto/releases/latest/download/presto-linux-arm64) |\n\n\n## ✨ Features\n\n### 🚀 **Blazing Fast**\n- **10x-20x faster** than Composer\n- Parallel package downloads (8 concurrent workers)\n- Native binary (no PHP JIT overhead)\n- Smart caching system\n\n### 🔒 **Security First**\n```bash\npresto audit  # Scan for vulnerabilities\n```\n- Built-in CVE database scanning\n- Real-time security alerts\n- License compliance checking\n\n### 🔍 **Dependency Insights**\n```bash\npresto why package/name           # Why is this installed?\npresto why-not package/name 2.0   # Why can't I install this?\n```\n- Visual dependency trees\n- Conflict resolution explanations\n- Better than Composer!\n\n### 💯 **100% Compatible**\n- Drop-in replacement for Composer\n- Reads `composer.json` and `composer.lock`\n- Works with Packagist.org\n- PSR-4/PSR-0 autoloading\n- **Strict Validation** (v0.1.9+)\n- **Composer Scripts** (Added in v0.1.10)\n\n## 🛠️ Building\n\nTo build Presto from source:\n\n```bash\ngit clone https://github.com/paramientos/presto.git\ncd presto\nmake build\n```\n\n## 🎯 Usage\n\n### Global Options\n\n- `-v, --verbose`: Enable verbose output for debugging\n- `-h, --help`: Show help\n\n### Commands\n\nPresto uses the same commands as Composer:\n\n```bash\n# Install dependencies\npresto install\n\n# Add a package\npresto require symfony/console\n\n# Update packages\npresto update\n\n# Remove a package\npresto remove vendor/package\n\n# Show installed packages\npresto show\n\n# Show dependency tree (map)\npresto tree\n\n# Security audit (NEW!)\npresto audit\n\n# Dependency insights (NEW!)\npresto why symfony/console\npresto why-not doctrine/orm 3.0\n\n# Initialize new project\npresto init\n\n# Validate composer.json (v0.1.9+)\npresto validate\npresto validate --strict\n\n# Run custom scripts (v0.1.10+)\npresto run post-install-cmd\n\n# Clear cache\npresto cache clear\n```\n\n## ⚡ Performance Comparison\n\nReal-world benchmark (Laravel-sized project with 47 packages):\n\n| Tool     | Time    | Speed  |\n|----------|---------|--------|\n| Composer | 42.3s   | 1x     |\n| **Presto** | **3.8s** | **11x** |\n\n**Second run (with cache):**\n| Tool     | Time    | Speed  |\n|----------|---------|--------|\n| Composer | 8.2s    | 1x     |\n| **Presto** | **0.4s** | **20x** |\n\n## 🎨 Example Output\n\n```bash\n$ presto install\n🎵 Presto Install\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📦 Project: myapp/project\n📝 Description: My awesome PHP project\n\n🔍 Resolving dependencies...\n✅ Resolved 47 packages\n\n⬇️  Downloading packages...\n[========================================] 47/47\n\n📝 Generating autoload files...\n\n✨ Installation complete!\n```\n\n```bash\n$ presto audit\n🎵 Security Audit\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n⚠️  Found 2 vulnerabilities:\n\n[HIGH] symfony/http-kernel@5.4.0\n  CVE: CVE-2023-XXXXX\n  Description: Security vulnerability in HTTP kernel\n  Fix: Update to 5.4.31 or later\n```\n\n```bash\n$ presto tree\n📦 laravel/laravel\n├── php ^8.1\n├── laravel",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:58.423027"
+  },
+  {
+    "basic_info": {
+      "name": "cek",
+      "full_name": "bschaatsbergen/cek",
+      "owner": "bschaatsbergen",
+      "description": "Explore the (overlay) filesystem and layers of OCI container images, without running them.",
+      "url": "https://github.com/bschaatsbergen/cek",
+      "clone_url": "https://github.com/bschaatsbergen/cek.git",
+      "ssh_url": "git@github.com:bschaatsbergen/cek.git",
+      "homepage": "",
+      "created_at": "2025-12-27T17:55:02Z",
+      "updated_at": "2026-01-13T00:40:06Z",
+      "pushed_at": "2026-01-12T15:21:51Z"
+    },
+    "stats": {
+      "stars": 201,
+      "forks": 4,
+      "watchers": 201,
+      "open_issues": 2,
+      "size": 536
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 78075,
+        "Makefile": 234
+      },
+      "license": "MIT License",
+      "topics": [
+        "containers",
+        "oci"
+      ]
+    },
+    "content": {
+      "readme": "# cek (container exploration kit)\n\n[![Go Report Card](https://goreportcard.com/badge/github.com/bschaatsbergen/cek)](https://goreportcard.com/report/github.com/bschaatsbergen/cek)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n\nExplore OCI container images without running them.\n\ncek is a command-line utility for filesystem exploration inside OCI container\nimages. It focuses on browsing files, reading contents, and inspecting layer\nmechanics—without running containers. cek reads images directly from local\ncontainer daemons (Docker, Podman, containerd, etc.) or pulls them from remote\nregistries.\n\ncek runs without root privileges and works with any OCI-compliant image\nregistry. While it does not require a container daemon, it can leverage one when\navailable to access locally cached images and avoid registry rate limits. Most\nimportantly, cek never runs containers.\n\n## Installation\n\n```bash\nbrew install cek\n```\n\nOr with Go:\n\n```bash\ngo install github.com/bschaatsbergen/cek@latest\n```\n\nOr build from source:\n\n```bash\ngit clone https://github.com/bschaatsbergen/cek.git\ncd cek\ngo build -o cek .\n```\n\n## Usage\n\n### List files in an image\n\nBy default, `cek ls` shows the merged overlay filesystem, which is what you see\ninside a running container. All layers are combined, with upper layers\noverriding lower ones.\n\nYou can optionally specify a path to list only files under a specific directory.\n\n```bash\n# Show all files (merged overlay view)\ncek ls nginx:latest\n\n# List files in a specific directory\ncek ls nginx:latest /etc\ncek ls nginx:latest /etc/nginx\n\n# Combine path with pattern filter\ncek ls nginx:latest /etc/nginx --filter '*.conf'\n\n# Filter by pattern (supports doublestar glob matching)\ncek ls --filter '**/nginx/*.conf' nginx:latest\n\n# Show files from a specific layer only\ncek ls --layer 1 nginx:latest\n```\n\nPatterns without slashes match against basenames. Patterns with slashes match\nagainst full paths. Use `**` for recursive directory matching.\n\n### Read file contents\n\nWrite file contents to standard output from any image without creating a\ncontainer. Output can be piped to other commands or redirected to files for\ninspection, diffing, or processing.\n\n```bash\ncek cat nginx:latest /etc/nginx/nginx.conf\n\n# Read from a specific layer\ncek cat --layer 2 nginx:latest /etc/os-release\n\n# Pipe to other tools\ncek cat alpine:latest /etc/os-release | grep VERSION_ID\n\n# Compare configuration between image versions\ndiff <(cek cat nginx:1.25 /etc/nginx/nginx.conf) \\\n     <(cek cat nginx:1.24 /etc/nginx/nginx.conf)\n```\n\nThe `cat` command searches layers top-down to find the final file state after\nall overlays, just like in a running container.\n\n### List available tags\n\nList all tags in a repository from the remote registry, allowing you to find\navailable tags or a specific tag.\n\n```bash\ncek tags nginx\n\n# Limit output to first N tags\ncek tags alpine --limit 20\n\n# Pipe to less for pagination\ncek tags nginx | less\n\n# Filter tags with grep\ncek tags nginx | grep '^1\\.2'\ncek tags python | grep -E '^3\\.(11|12)'\n```\n\nNote: This queries the remote registry directly, not the local daemon cache.\n\n### Export images to tar files\n\nExport OCI images to tar files, including manifest, config, and all layers.\nThese tarballs make it easy to move images between environments, share images\nwithout a registry, or back them up for disaster recovery.\n\n```bash\n# Export an image to a tar file\ncek export alpine:latest -o alpine.tar\n\n# Export a specific platform\ncek export --platform linux/amd64 ubuntu:22.04 -o ubuntu-amd64.tar\n\n# Load the exported tar into Docker or Podman\ndocker load -i alpine.tar\npodman load -i alpine.tar\n```\n\nUse cases include air-gapped deployments, image backups, sharing images without\npushing to a registry, and transferring images between different container\nruntimes.\n\n### Display directory tree\n\nShow the directory tree structure of an OCI image, making it easy to visualize\nthe filesystem layout.\n\n```bash\n# Show the top-level directories in an image\ncek tree nginx:latest -L 1\n\n# Inspect the /usr/local/bin folder of a specific layer\ncek tree --layer 4 python:3.12-slim /usr/local/bin\n```\n\n### Inspect image metadata\n\nView image details including digest, creation time, architecture, total size,\nand individual layer information.\n\n```bash\ncek inspect nginx\nImage: nginx\nRegistry: index.docker.io\nDigest: sha256:ec0ee8695f2f71addca9b40f27df0fdfbde460485a2b68b834e18ea856542f1e\nCreated: 2025-12-09T22:50:18Z\nOS/Arch: linux/arm64\nSize: 55.6 MB\n\nLayers:\n#  Digest                                                                   Size\n1  sha256:f626fba1463b32b20f78d29b52dcf15be927dbb5372a9ba6a5f97aad47ae220b  28.7 MB\n2  sha256:89d0a1112522e6e01ed53f0b339cb1a121ea7e19cfebdb325763bf5045ba7a47  26.8 MB\n3  sha256:1b7c70849006971147c73371c868b789998c7220ba42e777d2d7e5894ac26e54  627 B\n4  sha256:b8b0307e95c93307d99d02d3bdc61c3ed0b8d26685bb9bafc6c62d4170a2363e  954 B\n5  sha256:fe1d23b41cb3b150a19a6",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:52:59.586284"
+  },
+  {
+    "basic_info": {
+      "name": "lagident",
+      "full_name": "nook24/lagident",
+      "owner": "nook24",
+      "description": "Lagident pings targets and collects information about response time and packet loss. Helps you identify anomalies across your network",
+      "url": "https://github.com/nook24/lagident",
+      "clone_url": "https://github.com/nook24/lagident.git",
+      "ssh_url": "git@github.com:nook24/lagident.git",
+      "homepage": "",
+      "created_at": "2025-12-21T17:37:07Z",
+      "updated_at": "2026-01-11T02:21:42Z",
+      "pushed_at": "2026-01-04T14:51:27Z"
+    },
+    "stats": {
+      "stars": 187,
+      "forks": 7,
+      "watchers": 187,
+      "open_issues": 2,
+      "size": 497
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 38105,
+        "TypeScript": 31679,
+        "HTML": 9210,
+        "CSS": 1634,
+        "Dockerfile": 733,
+        "Shell": 672
+      },
+      "license": "MIT License",
+      "topics": [
+        "gaming",
+        "gaming-tools",
+        "latency",
+        "monitoring",
+        "network",
+        "observability",
+        "ping"
+      ]
+    },
+    "content": {
+      "readme": "# Lagident\n\n![Lagident Logo](./Lagident_Logo.png)\n\nLagident pings targets and collects information about response time and packet loss. The results are displayed through a scatter chart, which will (hopefully) help you identify anomalies across your network.\n\nLagident pings each target every **15** seconds.\n\nThis project was highly inspired by [Meshping](https://github.com/Svedrin/meshping). However, Meshping has more features.\n\n## Web interface\n\nLagident has a simple web interface, where you can add new targets to ping.\n\n![Lagident Web Interface](./images/Lagident.png)\n\nBy default Lagident will keep 3 days of data (~17280 measurements per target) and will display all points in a scatter chart.\nYou can use the chart to identify latency spikes or packet loss.\n![Lagident History Chart](./images/Lagident_Modal.png)\n\nFor example the chart for a poor quality Wifi connection can look like in the\nfollowing example.\nAs you can see the measured latency is all over the place from 5ms to 100ms most of the time and spikes to 300ms.\nThis connection is also suffering from packet loss. (0.33%)\n\nPoor quality connections like this can be a pain for online gaming.\n![Lagident Bad Wifi Connection](./images/Lagident_bad_wifi_connection.png)\n\n## Motivation\nMeshping does not store any information about packet loss. Unfortunately, I had to deal with strange packet loss issues on my desktop PC. Additionally, I wanted to embed an Angular application into Go for a long time, so I thought this was a cool project to do.\n\n## Features\n - Graphs displaying latencies and packet loss\n - Mobile-friendly\n - Add and remove targets on the fly\n - Simple Docker-based setup\n - IPv6 support\n\n### Cons\nLagident is not a full-fledged monitoring solution. It is more like a stopwatch. All it does is send ping requests to targets and document the response time and packet loss. That's it. You cannot do anything else.\n\nIf you are looking for a comprehensive monitoring solution that can do more, you may want to take a look at [openITCOCKPIT](https://github.com/openITCOCKPIT/openITCOCKPIT).\n\n## Start in Production Mode\n\nTo start Lagident in production mode, run:\n```sh\ndocker compose up\n```\nThis will build Lagident and start it together with\nits database. Access Lagident on http://localhost:9933.\n\n### Standalone with sqlite\n\nFirst you should create a new volume to store the sqlite database file.\n```\ndocker volume create lagident-sqlite-data\n```\n\nNow you can start the Lagident container:\n```\ndocker run --rm \\\n -p 9933:8080 \\\n -e DB_TYPE=sqlite \\\n -e PROFILE=prod \\\n -v lagident-sqlite-data:/data \\\n --name=lagident \\\n nook24/lagident:latest\n```\n\n### Docker Compose with sqlite\n```\ndocker compose -f docker-compose-sqlite.yml up\n```\n\n## Configuration\n\nLagident can be configured using environment variables. The following environment variables are available:\n\n- `DB_TYPE`: The type of database to use (`mysql` or `sqlite`).\n- `DB_HOST`: The database host (for MySQL).\n- `DB_PORT`: The database port (for MySQL).\n- `DB_USER`: The database user (for MySQL).\n- `DB_PASS`: The database password (for MySQL).\n- `DB_NAME`: The database name.\n- `PROFILE`: The application profile (`dev` or `prod`).\n- `HOUSEKEEPING_RETENTION_DAYS`: 3 (override to keep more or fewer days of data).\n\n## Support for x64 and arm64\n\nThe official Docker images of Lagident are available for `amd64` and `arm64` so you can\nsetup Lagident on your Desktop PC, Apple silicon or a SoC like the Raspberry Pi 4 or newer.\n\n\n\n# Start in development mode\n\n## Environment setup\n\nYou need to have [Go](https://go.dev/),\n[Node.js](https://nodejs.org/) and\n[Docker](https://www.docker.com/)\ninstalled on your computer.\n\nVerify the tools by running the following commands:\n\n```sh\ngo version\nnpm --version\ndocker --version\n```\n\n\nIn the project directory run the command (you might\nneed to prepend it with `sudo` depending on your setup):\n```sh\ndocker compose -f docker-compose-dev.yml up\n```\n\nThis starts a local MySQL database on `localhost:3306`.\nThe database will be populated with test records from\nthe [init-mysqldb.sql](init-mysqldb.sql) file for MySQL\nand in the `InitializeSQLiteDB` function for SQLite.\n\nNavigate to the `server` folder and start the back end:\n\n```sh\ncd server\ngo run server.go\n```\nThe back end will serve on http://localhost:8080.\n\nNavigate to the `webapp` folder, install dependencies,\nand start the front end development server by running:\n\n```sh\ncd webapp\nnpm install\nnpm start\n```\nThe application will be available on http://localhost:3000.\n\n\n## Connect to database\n```\nmysql --defaults-file=./mysql.cnf\n```\n\n## Acknowledgements\n\n- This project was kickstarted using the [goxygen](https://github.com/shpota/goxygen) project, thanks a lot.\n- Also thanks to my brother wo created [meshping](https://github.com/Svedrin/meshping), in the first place.\n\n## Naming\nThe name is a combination of [Lag](https://en.wikipedia.org/wiki/Lag_(video_games)) and [identify](https://en.wiktionary.org/wiki/identify) == `Lagident`.\n\n## Release",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:53:00.778945"
+  },
+  {
+    "basic_info": {
+      "name": "mimir",
+      "full_name": "aqstack/mimir",
+      "owner": "aqstack",
+      "description": "mimir is a drop-in proxy that caches LLM API responses using semantic similarity, reducing costs and latency for repeated or similar queries.",
+      "url": "https://github.com/aqstack/mimir",
+      "clone_url": "https://github.com/aqstack/mimir.git",
+      "ssh_url": "git@github.com:aqstack/mimir.git",
+      "homepage": "https://aqstack.github.io/mimir/",
+      "created_at": "2025-12-24T07:01:10Z",
+      "updated_at": "2026-01-08T21:37:10Z",
+      "pushed_at": "2025-12-24T09:47:25Z"
+    },
+    "stats": {
+      "stars": 160,
+      "forks": 103,
+      "watchers": 160,
+      "open_issues": 0,
+      "size": 4233
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 97209,
+        "Makefile": 1637,
+        "Dockerfile": 720
+      },
+      "license": "MIT License",
+      "topics": [
+        "caching",
+        "cost-optimization",
+        "golang",
+        "kubernetes",
+        "llm",
+        "openai",
+        "proxy",
+        "semantic-cache"
+      ]
+    },
+    "content": {
+      "readme": "# mimir\n\n**LLM Semantic Cache**\n\nmimir is a drop-in proxy that caches LLM API responses using semantic similarity, reducing costs and latency for repeated or similar queries.\n\n## Features\n\n- **Semantic Caching** - Cache hits for semantically similar prompts, not just exact matches\n- **Free Local Embeddings** - Use Ollama for embeddings with zero API costs\n- **OpenAI-Compatible** - Drop-in replacement proxy for OpenAI API\n- **Configurable Threshold** - Tune similarity sensitivity (0.0-1.0)\n- **TTL Support** - Time-based cache expiration\n- **Zero Dependencies** - Single binary, no external database required\n- **Docker Ready** - Simple containerized deployment\n\n## How It Works\n\n```\n┌─────────────┐     ┌─────────────┐     ┌─────────────┐\n│   Client    │────▶│    mimir    │────▶│  LLM API    │\n│  (app/pod)  │◀────│   (proxy)   │◀────│ (OpenAI/..) │\n└─────────────┘     └──────┬──────┘     └─────────────┘\n                           │\n                    ┌──────▼──────┐\n                    │ Vector Store│\n                    │ (embeddings)│\n                    └─────────────┘\n```\n\n1. Incoming request is converted to an embedding\n2. Cache is searched for semantically similar previous requests\n3. If similarity exceeds threshold → return cached response\n4. Otherwise → forward to upstream, cache response\n\n## Quick Start\n\n### Option 1: Local Embeddings with Ollama (Free)\n\n```bash\n# Install Ollama (if not already installed)\nbrew install ollama  # macOS\n# or: curl -fsSL https://ollama.com/install.sh | sh  # Linux\n\n# Start Ollama and pull embedding model\nollama serve &\nollama pull nomic-embed-text\n\n# Clone and run mimir\ngit clone https://github.com/aqstack/mimir.git\ncd mimir\nmake build\n./bin/mimir\n```\n\n### Option 2: OpenAI Embeddings\n\n```bash\n# Clone and build\ngit clone https://github.com/aqstack/mimir.git\ncd mimir\nmake build\n\n# Run with OpenAI\nexport OPENAI_API_KEY=sk-...\n./bin/mimir\n```\n\n### Using Docker\n\n```bash\n# With Ollama (requires Ollama running on host)\ndocker run -p 8080:8080 -e OLLAMA_BASE_URL=http://host.docker.internal:11434 ghcr.io/aqstack/mimir:latest\n\n# With OpenAI\ndocker run -p 8080:8080 -e OPENAI_API_KEY=$OPENAI_API_KEY ghcr.io/aqstack/mimir:latest\n```\n\n## Usage\n\nPoint your OpenAI client to mimir instead of the OpenAI API:\n\n```python\nfrom openai import OpenAI\n\n# Point to mimir proxy\nclient = OpenAI(\n    base_url=\"http://localhost:8080/v1\",\n    api_key=\"your-api-key\"  # or use OPENAI_API_KEY env var\n)\n\nresponse = client.chat.completions.create(\n    model=\"gpt-4\",\n    messages=[{\"role\": \"user\", \"content\": \"What is the capital of France?\"}]\n)\n\n# Check cache status in response headers\n# X-Mimir-Cache: HIT or MISS\n# X-Mimir-Similarity: 0.9823 (if HIT)\n```\n\n## Configuration\n\n| Environment Variable | Default | Description |\n|---------------------|---------|-------------|\n| `MIMIR_EMBEDDING_PROVIDER` | `ollama` | Embedding provider: `ollama` or `openai` |\n| `MIMIR_EMBEDDING_MODEL` | `nomic-embed-text` | Embedding model name |\n| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |\n| `OPENAI_API_KEY` | - | OpenAI API key (auto-switches provider if set) |\n| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Upstream API URL |\n| `MIMIR_PORT` | `8080` | Server port |\n| `MIMIR_HOST` | `0.0.0.0` | Server host |\n| `MIMIR_SIMILARITY_THRESHOLD` | `0.95` | Minimum similarity for cache hit (0.0-1.0) |\n| `MIMIR_CACHE_TTL` | `24h` | Cache entry time-to-live |\n| `MIMIR_MAX_CACHE_SIZE` | `10000` | Maximum cache entries |\n| `MIMIR_LOG_JSON` | `false` | JSON log format |\n\n### Embedding Models\n\n**Ollama (free, local):**\n- `nomic-embed-text` (768 dims, recommended)\n- `mxbai-embed-large` (1024 dims)\n- `all-minilm` (384 dims, fastest)\n\n**OpenAI (paid):**\n- `text-embedding-3-small` (1536 dims, recommended)\n- `text-embedding-3-large` (3072 dims)\n- `text-embedding-ada-002` (1536 dims)\n\n## API Endpoints\n\n| Endpoint | Description |\n|----------|-------------|\n| `POST /v1/chat/completions` | Chat completions (cached) |\n| `GET /health` | Health check |\n| `GET /stats` | Cache statistics |\n| `* /v1/*` | Other OpenAI endpoints (passthrough) |\n\n## Cache Statistics\n\n```bash\ncurl http://localhost:8080/stats\n```\n\n```json\n{\n  \"total_entries\": 150,\n  \"total_hits\": 1234,\n  \"total_misses\": 567,\n  \"hit_rate\": 0.685,\n  \"estimated_saved_usd\": 1.234\n}\n```\n\n## Tuning the Similarity Threshold\n\nThe `MIMIR_SIMILARITY_THRESHOLD` controls how similar a query must be to trigger a cache hit:\n\n| Threshold | Behavior |\n|-----------|----------|\n| `0.99` | Nearly exact matches only |\n| `0.95` | Very similar queries (recommended) |\n| `0.90` | Moderate similarity |\n| `0.85` | Loose matching (may return less relevant) |\n\n## Roadmap\n\n- [x] Local embeddings with Ollama\n- [ ] Redis/Qdrant backend for persistence\n- [ ] Prometheus metrics\n- [ ] Cache warming\n- [ ] Support for Anthropic, Gemini APIs\n\n## Contributing\n\nContributions are welcome! Please open an issue or submit a pull request.\n\n## License\n\nMIT License - see [LICENSE](LICENSE) for details.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:53:01.932019"
+  },
+  {
+    "basic_info": {
+      "name": "httpcloak",
+      "full_name": "sardanioss/httpcloak",
+      "owner": "sardanioss",
+      "description": "Go HTTP client with browser-identical TLS/HTTP2 fingerprinting. Bypass bot detection by perfectly mimicking Chrome, Firefox, and Safari at the cryptographic level (JA3/JA4, Akamai fingerprint, header order). Supports HTTP/1.1, HTTP/2, HTTP/3, sessions, cookies, and proxies.",
+      "url": "https://github.com/sardanioss/httpcloak",
+      "clone_url": "https://github.com/sardanioss/httpcloak.git",
+      "ssh_url": "git@github.com:sardanioss/httpcloak.git",
+      "homepage": "",
+      "created_at": "2025-12-28T22:39:27Z",
+      "updated_at": "2026-01-13T02:44:08Z",
+      "pushed_at": "2026-01-12T00:16:00Z"
+    },
+    "stats": {
+      "stars": 154,
+      "forks": 8,
+      "watchers": 154,
+      "open_issues": 1,
+      "size": 38546
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 580560,
+        "C#": 116555,
+        "Python": 110928,
+        "JavaScript": 90404,
+        "Shell": 10372,
+        "Makefile": 3318
+      },
+      "license": "MIT License",
+      "topics": [
+        "anti-bot",
+        "bot-detection",
+        "browser-fingerprint",
+        "browser-fingerprinting",
+        "cloudflare",
+        "go",
+        "golang",
+        "http-client",
+        "http2",
+        "http3",
+        "ja3-fingerprint",
+        "ja4-fingerprint",
+        "js",
+        "nodejs",
+        "python",
+        "python3",
+        "quic",
+        "tls-fingerprint",
+        "tls-fingerprinting",
+        "web-scraping"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n<img src=\"httpcloak.png\" alt=\"httpcloak\" width=\"600\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://pkg.go.dev/github.com/sardanioss/httpcloak\"><img src=\"https://pkg.go.dev/badge/github.com/sardanioss/httpcloak.svg\" alt=\"Go Reference\"></a>\n  <a href=\"https://pypi.org/project/httpcloak/\"><img src=\"https://img.shields.io/pypi/v/httpcloak\" alt=\"PyPI\"></a>\n  <a href=\"https://www.npmjs.com/package/httpcloak\"><img src=\"https://img.shields.io/npm/v/httpcloak\" alt=\"npm\"></a>\n  <a href=\"https://www.nuget.org/packages/HttpCloak\"><img src=\"https://img.shields.io/nuget/v/HttpCloak\" alt=\"NuGet\"></a>\n</p>\n\n<p align=\"center\">\n<i>Every Byte of your Request Indistinguishable from Chrome.</i>\n</p>\n\n<br>\n\n---\n\n## The Problem\n\nBot detection doesn't just check your User-Agent anymore.\n\nIt fingerprints your **TLS handshake**. Your **HTTP/2 frames**. Your **QUIC parameters**. The order of your headers. Whether your SNI is encrypted.\n\nOne mismatch = blocked.\n\n## The Solution\n\n```python\nimport httpcloak\n\nr = httpcloak.get(\"https://target.com\", preset=\"chrome-143\")\n```\n\nThat's it. Full browser transport layer fingerprint.\n\n---\n\n## What Gets Emulated\n\n<table>\n<tr>\n<td width=\"33%\" valign=\"top\">\n\n### 🔐 TLS Layer\n\n- JA3 / JA4 fingerprints\n- GREASE randomization\n- Post-quantum X25519MLKEM768\n- ECH (Encrypted Client Hello)\n\n</td>\n<td width=\"33%\" valign=\"top\">\n\n### 🚀 Transport Layer\n\n- HTTP/2 SETTINGS frames\n- WINDOW_UPDATE values\n- Stream priorities (HPACK)\n- QUIC transport parameters\n- HTTP/3 GREASE frames\n\n</td>\n<td width=\"33%\" valign=\"top\">\n\n### 🧠 Header Layer\n\n- Sec-Fetch-* coherence\n- Client Hints (Sec-Ch-UA)\n- Accept / Accept-Language\n- Header ordering\n- Cookie persistence\n\n</td>\n</tr>\n</table>\n\n---\n\n## Results\n\n```\n┌─────────────────────────────────┐\n│  ECH (Encrypted Client Hello)   │\n├─────────────────────────────────┤\n│  WITHOUT:  sni=plaintext        │\n│  WITH:     sni=encrypted   +    │\n└─────────────────────────────────┘\n```\n\n```\n┌─────────────────────────────────┐\n│  HTTP/3 Fingerprint Match       │\n├─────────────────────────────────┤\n│  Protocol:        h3       +    │\n│  QUIC Version:    1        +    │\n│  Transport Params:         +    │\n│  GREASE Frames:            +    │\n└─────────────────────────────────┘\n```\n\n---\n\n## vs curl_cffi\n\n```\n┌────────────────────────────────┬────────────────────────────────┐\n│        BOTH LIBRARIES          │       HTTPCLOAK ONLY           │\n├────────────────────────────────┼────────────────────────────────┤\n│                                │                                │\n│  + TLS fingerprint (JA3/JA4)   │  + HTTP/3 fingerprinting       │\n│  + HTTP/2 fingerprint          │  + ECH (encrypted SNI)         │\n│  + Post-quantum TLS            │  + MASQUE proxy                │\n│  + Bot score: 99               │  + Domain fronting             │\n│                                │  + Certificate pinning         │\n│                                │  + Go, Python, Node.js, C#     │\n│                                │                                │\n└────────────────────────────────┴────────────────────────────────┘\n```\n\n---\n\n## Install\n\n```bash\npip install httpcloak        # Python\nnpm install httpcloak        # Node.js\ngo get github.com/sardanioss/httpcloak   # Go\ndotnet add package HttpCloak # C#\n```\n\n---\n\n## Quick Start\n\n### Python\n\n```python\nimport httpcloak\n\n# Simple request\nr = httpcloak.get(\"https://example.com\", preset=\"chrome-143\")\nprint(r.status_code, r.protocol)\n\n# POST with JSON\nr = httpcloak.post(\"https://httpbin.org/post\",\n    json={\"key\": \"value\"},\n    preset=\"chrome-143\"\n)\n\n# Custom headers\nr = httpcloak.get(\"https://httpbin.org/headers\",\n    headers={\"X-Custom\": \"value\"},\n    preset=\"chrome-143\"\n)\n```\n\n### Go\n\n```go\nimport (\n    \"context\"\n    \"github.com/sardanioss/httpcloak/client\"\n)\n\n// Simple request\nc := client.NewClient(\"chrome-143\")\ndefer c.Close()\n\nresp, _ := c.Get(ctx, \"https://example.com\", nil)\nbody, _ := resp.Text()\nfmt.Println(resp.StatusCode, resp.Protocol)\n\n// POST with JSON\njsonBody := []byte(`{\"key\": \"value\"}`)\nresp, _ = c.Post(ctx, \"https://httpbin.org/post\",\n    bytes.NewReader(jsonBody),\n    map[string][]string{\"Content-Type\": {\"application/json\"}},\n)\n\n// Custom headers\nresp, _ = c.Get(ctx, \"https://httpbin.org/headers\", map[string][]string{\n    \"X-Custom\": {\"value\"},\n})\n```\n\n### Node.js\n\n```javascript\nimport httpcloak from \"httpcloak\";\n\n// Simple request\nconst session = new httpcloak.Session({ preset: \"chrome-143\" });\nconst r = await session.get(\"https://example.com\");\nconsole.log(r.statusCode, r.protocol);\n\n// POST with JSON\nconst r = await session.post(\"https://httpbin.org/post\", {\n    json: { key: \"value\" }\n});\n\n// Custom headers\nconst r = await session.get(\"https://httpbin.org/headers\", {\n    headers: { \"X-Custom\": \"value\" }\n});\n\nsession.close();\n```\n\n### C#\n\n```csharp\nusing HttpCloak;\n\n// Simple request\nusing var session = new Session(preset: Presets.Chrome143);\nvar r = session.Get(\"https://example.com\");\nConsole.WriteLine($\"{r.StatusCode} ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:53:03.113122"
+  },
+  {
+    "basic_info": {
+      "name": "str",
+      "full_name": "goforj/str",
+      "owner": "goforj",
+      "description": "A fluent, Laravel-inspired string toolkit for Go with explicit, rune-safe helpers and predictable behavior.",
+      "url": "https://github.com/goforj/str",
+      "clone_url": "https://github.com/goforj/str.git",
+      "ssh_url": "git@github.com:goforj/str.git",
+      "homepage": "",
+      "created_at": "2025-12-17T20:35:15Z",
+      "updated_at": "2026-01-11T17:53:50Z",
+      "pushed_at": "2025-12-28T20:05:22Z"
+    },
+    "stats": {
+      "stars": 153,
+      "forks": 2,
+      "watchers": 153,
+      "open_issues": 0,
+      "size": 1121
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 101556
+      },
+      "license": "MIT License",
+      "topics": [
+        "fluent-api",
+        "go",
+        "goforj",
+        "golang",
+        "laravel-inspired",
+        "rune-safe",
+        "string",
+        "string-utils",
+        "text-processing",
+        "unicode"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"./docs/images/logo.png?v=2\" width=\"400\" alt=\"str logo\">\n</p>\n\n<p align=\"center\">\n    A fluent, Laravel-inspired string toolkit for Go, focused on rune-safe helpers,\n    expressive transformations, and predictable behavior beyond the standard library.\n</p>\n\n<p align=\"center\">\n    <a href=\"https://pkg.go.dev/github.com/goforj/str\"><img src=\"https://pkg.go.dev/badge/github.com/goforj/str.svg\" alt=\"Go Reference\"></a>\n    <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-blue.svg\" alt=\"License: MIT\"></a>\n    <a href=\"https://github.com/goforj/str/actions\"><img src=\"https://github.com/goforj/str/actions/workflows/test.yml/badge.svg\" alt=\"Go Test\"></a>\n    <a href=\"https://golang.org\"><img src=\"https://img.shields.io/badge/go-1.18+-blue?logo=go\" alt=\"Go version\"></a>\n    <img src=\"https://img.shields.io/github/v/tag/goforj/str?label=version&sort=semver\" alt=\"Latest tag\">\n    <a href=\"https://codecov.io/gh/goforj/str\" ><img src=\"https://codecov.io/github/goforj/str/graph/badge.svg?token=9KT46ZORP3\"/></a>\n<!-- test-count:embed:start -->\n    <img src=\"https://img.shields.io/badge/tests-196-brightgreen\" alt=\"Tests\">\n<!-- test-count:embed:end -->\n    <a href=\"https://goreportcard.com/report/github.com/goforj/str\"><img src=\"https://goreportcard.com/badge/github.com/goforj/str\" alt=\"Go Report Card\"></a>\n</p>\n\n## Installation\n\n```sh\ngo get github.com/goforj/str\n```\n\n## Runnable examples\n\nEvery function has a corresponding runnable example under [`./examples`](./examples).\n\nThese examples are **generated directly from the documentation blocks** of each function, ensuring the docs and code never drift. These are the same examples you see here in the README and GoDoc.\n\nAn automated test executes **every example** to verify it builds and runs successfully.\n\nThis guarantees all examples are valid, up-to-date, and remain functional as the API evolves.\n\n<!-- api:embed:start -->\n\n## API Index\n\n| Group | Functions |\n|------:|-----------|\n| **Affixes** | [ChopEnd](#chopend) [ChopStart](#chopstart) [EnsurePrefix](#ensureprefix) [EnsureSuffix](#ensuresuffix) [Unwrap](#unwrap) [Wrap](#wrap) |\n| **Case** | [Camel](#camel) [Headline](#headline) [Kebab](#kebab) [LcFirst](#lcfirst) [Pascal](#pascal) [Snake](#snake) [Title](#title) [ToLower](#tolower) [ToTitle](#totitle) [ToUpper](#toupper) [UcFirst](#ucfirst) [UcWords](#ucwords) |\n| **Checks** | [IsASCII](#isascii) [IsBlank](#isblank) [IsEmpty](#isempty) |\n| **Cleanup** | [Deduplicate](#deduplicate) [NormalizeNewlines](#normalizenewlines) [NormalizeSpace](#normalizespace) [Squish](#squish) [Trim](#trim) [TrimLeft](#trimleft) [TrimRight](#trimright) [TrimSpace](#trimspace) |\n| **Comparison** | [Equals](#equals) [EqualsFold](#equalsfold) |\n| **Compose** | [Append](#append) [NewLine](#newline) [Prepend](#prepend) |\n| **Constructor** | [Of](#of) |\n| **Encoding** | [FromBase64](#frombase64) [ToBase64](#tobase64) |\n| **Fluent** | [GoString](#gostring) [String](#string) |\n| **Length** | [Len](#len) [RuneCount](#runecount) |\n| **Masking** | [Mask](#mask) |\n| **Match** | [Is](#is) [IsMatch](#ismatch) [Match](#match) [MatchAll](#matchall) |\n| **Padding** | [PadBoth](#padboth) [PadLeft](#padleft) [PadRight](#padright) |\n| **Pluralize** | [Plural](#plural) [Singular](#singular) |\n| **Replace** | [Remove](#remove) [ReplaceAll](#replaceall) [ReplaceArray](#replacearray) [ReplaceEnd](#replaceend) [ReplaceFirst](#replacefirst) [ReplaceFirstFold](#replacefirstfold) [ReplaceFold](#replacefold) [ReplaceLast](#replacelast) [ReplaceLastFold](#replacelastfold) [ReplaceMatches](#replacematches) [ReplaceStart](#replacestart) [Swap](#swap) |\n| **Search** | [Contains](#contains) [ContainsAll](#containsall) [ContainsAllFold](#containsallfold) [ContainsFold](#containsfold) [Count](#count) [EndsWith](#endswith) [EndsWithFold](#endswithfold) [Index](#index) [LastIndex](#lastindex) [StartsWith](#startswith) [StartsWithFold](#startswithfold) |\n| **Slug** | [Slug](#slug) |\n| **Snippet** | [Excerpt](#excerpt) |\n| **Split** | [Lines](#lines) [Split](#split) [UcSplit](#ucsplit) |\n| **Substrings** | [After](#after) [AfterLast](#afterlast) [Before](#before) [BeforeLast](#beforelast) [Between](#between) [BetweenFirst](#betweenfirst) [CharAt](#charat) [Limit](#limit) [Slice](#slice) [SubstrReplace](#substrreplace) [Take](#take) [TakeLast](#takelast) |\n| **Transform** | [Repeat](#repeat) [Reverse](#reverse) [Transliterate](#transliterate) |\n| **Words** | [FirstWord](#firstword) [Join](#join) [LastWord](#lastword) [SplitWords](#splitwords) [WordCount](#wordcount) [Words](#words) [WrapWords](#wrapwords) |\n\n\n## Affixes\n\n### <a id=\"chopend\"></a>ChopEnd\n\nChopEnd removes the first matching suffix if present.\n\n```go\nv := str.Of(\"file.txt\").ChopEnd(\".txt\", \".md\").String()\nprintln(v)\n// #string file\n```\n\n### <a id=\"chopstart\"></a>ChopStart\n\nChopStart removes the first matching prefix if present.\n\n```go\nv := str.Of(\"https://goforj.dev\").ChopStart(\"https://\", \"http://\").String()\nprintln(v)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-01-13T02:53:04.301218"
+  }
+]

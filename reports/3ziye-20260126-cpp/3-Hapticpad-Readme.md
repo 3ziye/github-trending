@@ -1,0 +1,93 @@
+# CNCDan - Haptic Pad
+![Alt text](title.png "Haptic Pad")
+
+A 6 button macropad with a display for button labels and a mouse knob with haptic feedback!
+
+[Project Video Link](https://youtu.be/bNUKRJQjuvQ)
+
+#### Features
+
+- 6 Programmable  Macro Buttons
+- 128x64 OLED display for button labels and Icons
+- Support for up to 256 profiles for a total of 1536 Macros!
+- Easy XML configuration, no special drivers required!
+- Macro button combinations can be configured with up to 3 simultaneous buttons or 3 seperate button presses with configurable delays between them.
+- Micro SD Storage for button labels and config files.
+- Haptic feedback mouse wheel with three different modes. Clicky, Twist and Momentum
+- RGB ring with configurable colours and 5 different display modes. Halo, Bands, Breath, Rainbow, Solid and Off.
+- Easy profile switching with up down profile buttons or profile list display.
+- The Last profile is stored to the SD card so the macro pad will start on whichever profile was last active.
+
+#### Bill of Materials
+
+1x 128x64 OLED Display - https://www.waveshare.com/2.42inch-oled-module.htm
+
+1x Magnetic Encoder Board - https://www.aliexpress.com/item/1005007469177411.html
+
+1x 2804 100kv Brushless Gimbal Motor - https://www.aliexpress.com/item/1005006008489660.html
+
+6x Kailh Low Profile Switches - https://www.aliexpress.com/item/1005005066585322.html
+
+1x RP2040-Plus Board - https://www.waveshare.com/rp2040-plus.htm
+
+1x TMC6300 Motor Driver Board - https://www.sparkfun.com/sparkfun-brushless-motor-driver-3-phase-tmc6300.html
+
+1x Micro SD Module - https://www.aliexpress.com/item/1005010587984346.html
+
+4x 6x1mm Magnets - https://www.aliexpress.com/item/1005009894772141.html
+
+2x Tactile Buttons - https://www.digikey.com/en/products/detail/panasonic-electronic-components/EVQ-Q2B03W/762882 (These are the ones I used, but shipping is expensive)
+
+2x Alternative Tactile Buttons - https://www.aliexpress.com/item/1005008326208629.html (These seem like a suitable replacement for the EVQ-Q2B03W switches but I haven't tried them)
+
+The following parts are optional if you want to include the LEDS:
+
+20x WS2811 LED's - https://www.aliexpress.com/item/32776731877.html
+
+20x 0.1uF (100nF) 0603 Capacitors - https://www.aliexpress.com/item/32966526545.html
+
+#### Hardware
+
+9x M3x5x5 Threaded Inserts (only needed for printed housing)
+
+3x M3x6 SHCS
+
+2x M3x10 SHCS
+
+10x M2.5x4 SHCS
+
+4x M3x6 CSK
+
+### Printing Instructions
+
+#### - Printed version
+Print all files in the 3D Files/STL's folder. You will need 6 of the keycap file, two of the Menu button file and two of the PCB spacer file.
+
+
+#### - Machined Version
+Print all files in the 3D Files/STL's folder except: "Custom Keycap.STL", "Macro Pad - Printed Version.STL" and "Menu Button Printed.STL"
+Get all of the .STEP files in the 3D Files/STEP folder machined. Don't include the Macropad Assembly .STEP file from the main directory as it is a complete model of Macro Pad rather than an individual part. If you supply the MacroPad Housing.PDF file with the housing, you can have the mounting holes tapped for you.
+
+### Motor Assembly
+
+I made this quick picture to show how the wheel motor gets assembled:
+
+![Alt text](MotorStack.png "Motor Assembly")
+
+The "Encoder Mount.STL" part has two small holes in it that are supposed to get tapped to M2 for the encoder. If you don't have an M2 tap, you can probably just glue the encoder to the mount or even use some small self tapping screws to hold it in place.
+
+The magnet holder should be a snug fit inside the hollow motor shaft. If it isn't, I'd recomend a drop of super glue to ensure it can't work free over time.
+
+### PCB's
+
+You will need to have both PCB's made to complete this project. They are very simple PCB's with only two layers, so they should be cheap!
+Just upload the Zip files found in "PCB's/MacroPad" and "PCB's/MacroPad Controller Board" to your PCB manufacturer of choice and they shouldn't need any further info.
+
+#### - Controller Board
+
+The controller board has the main components labelled so you should easily be able to tell where everything goes. I've also labelled power and ground connections on the motor controller and SD reader so just double check you are installing them up the correct way! The SD reader should be flat against the PCB as shown in the video, whilst the motor controller gets installed on its pin headers with the "bottom" of the board face up (the side with the pin labels should be showing). The Pico should also be soldered directly to the board with its USB port facing outwards.
+C1 on the Controller board is supposed to be a 10000pF 50v Capacitor. I never ended up fitting mine and I've had no issues but Sparkfun recommended it so I've left the pads there in case you decide to fit it.
+
+#### - Main Board
+
+If you're planning to include the LED's, do them first! There should be one corner of the LED with an arrow shaped rebate. It should point away from the pad labelled with a "1". All of the C components on this board are 

@@ -1,0 +1,247 @@
+<p align="center">
+ <img src="https://github.com/hulutech-web/novel-video-workflow/blob/master/logo.png?raw=true" width="300" />
+</p>
+<p align="center">
+特别说明 <br/>
+剪映客户端版本 3.4.1 其他版本可自行尝试<br/>
+下载链接： <br/><a href="https://www.ilanzou.com/s/szdnSewG">https://www.ilanzou.com/s/szdnSewG</a>  <br/>
+Aegisub客户端下载   <br/>
+<a href="https://www.ilanzou.com/s/uiDnSeXN">https://www.ilanzou.com/s/uiDnSeXN</a>
+ <br/>
+</p>
+
+# 小说视频工作流 (Novel Video Workflow)
+
+一个基于AI技术的小说转视频自动化生成系统，集成了多种AI工具（TTS、图像生成等），能够将小说文本转换为带有音频、字幕和图像的视频内容，并生成可用于剪映的一键出片项目结构。
+
+## 🌟 功能特性
+
+- ✨ **智能章节分割** - 自动将小说文本按章节拆分
+- 🗣️ **AI驱动文本转语音** - 支持声音克隆的高质量语音合成
+- 💬 **自动生成字幕** - 基于音频内容的精准时间轴字幕
+- 🎨 **AI图像生成** - 基于章节内容的智能图像生成
+- ⚙️ **自动化工作流** - 端到端的自动化处理流程
+- 🔌 **MCP服务集成** - 与Ollama Desktop等AI代理平台集成
+- 🌐 **Web控制台界面** - 直观易用的Web操作界面
+- 🎬 **剪映项目导出** - 生成可直接导入剪映的项目结构
+
+## 🖥️ Web控制台
+
+![web_pic.png](web_pic.png)
+
+## 🏗️ MCP服务架构图
+
+```mermaid
+graph TB
+    subgraph "📦 用户输入层"
+        A[📖 小说文本]
+        B[🎵 参考音频]
+    end
+    
+    subgraph "🤖 MCP服务层"
+        subgraph "🧠 Ollama (11434)"
+            O[🔍 内容分析与提示词优化]
+        end
+        
+        subgraph "💬 IndexTTS2 (7860)"
+            T[🗣️ 文本转语音]
+        end
+        
+        subgraph "🖼️ DrawThings (7861)"
+            D[🎨 AI图像生成]
+        end
+        
+        subgraph "📝 Aegisub"
+            S[💬 字幕生成]
+        end
+    end
+    
+    subgraph "⚙️ 处理层"
+        P1[✂️ 章节拆分]
+        P2[🔄 工作流编排]
+        P3[📁 文件管理]
+    end
+    
+    subgraph "📤 输出层"
+        OUT1[🔊 音频]
+        OUT2[🖼️ 图像]
+        OUT3[📝 字幕]
+        OUT4[🎥 剪映项目]
+    end
+
+    A --> P1
+    B --> T
+    P1 --> O
+    P1 --> T
+    P1 --> D
+    O --> D
+    T --> OUT1
+    D --> OUT2
+    T --> S
+    S --> OUT3
+    OUT1 --> P2
+    OUT2 --> P2
+    OUT3 --> P2
+    P2 --> OUT4
+    
+    %% 颜色定义
+    classDef inputClass fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    classDef mcpClass fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    classDef serviceClass fill:#e8f5e8,stroke:#388e3c,stroke-width:2px,color:#000
+    classDef componentClass fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    classDef outputClass fill:#ffebee,stroke:#d32f2f,stroke-width:2px,color:#000
+    classDef olamaClass fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#000
+    classDef indexttsClass fill:#e0f7fa,stroke:#0097a7,stroke-width:2px,color:#000
+    classDef drawthingsClass fill:#e8f5f0,stroke:#43a047,stroke-width:2px,color:#000
+    classDef aegisubClass fill:#f1f8e9,stroke:#7cb342,stroke-width:2px,color:#000
+
+    %% 应用颜色类
+    class A,B inputClass
+    class O olamaClass
+    class T indexttsClass
+    class D drawthingsClass
+    class S aegisubClass
+    class P1,P2,P3 componentClass
+    class OUT1,OUT2,OUT3,OUT4 outputClass
+```
+
+## 🚀 快速开始
+
+### 系统要求（项目测试,后期扩展到更多平台）
+
+- **操作系统**: macOS
+- **Go**: 1.25+ (推荐)
+- **内存**: 16GB以上 (推荐32GB)
+- **GPU**: Apple Silicon (Metal支持)
+- **存储**: 100GB以上可用空间
+
+### 依赖服务
+
+在运行系统前，请确保以下服务已安装并运行：
+
+1. **Ollama** (用于AI推理)
+   ```bash
+   # 安装Ollama
+   curl -fsSL https://ollama.ai/install.sh | sh
+   # 启动服务
+   ollama serve
+   # 下载模型
+   ollama pull qwen3:4b
+   ```
+
+2. **Drawthings** (用于图像生成)  
+苹果商店下载，开启http访问，7861端口
+
+
+3. **IndexTTS2** (用于TTS语音合成)
+   ```bash
+   # 按照IndexTTS2项目说明安装并启动服务
+   # 确保服务在 http://localhost:7860 运行
+   ```
+
+### 启动步骤
+
+1. **准备输入文件**
+   ```bash
+   # 将小说文件放入input目录
+   mkdir -p input/小说名称
+   cp 你的小说.txt input/小说名称/小说名称.txt
+   ```
+
+2. **准备参考音频** (可选但推荐)
+   ```bash
+   # 将参考音频文件放入assets目录
+   mkdir -p assets/ref_audio
+   cp 你的参考音频.m4a assets/ref_audio/ref.m4a
+   ```
+
+3. **启动系统**
+   ```bash
+   # 方法1: 同时启动MCP和Web服务 (推荐，默认)
+   go run main.go
+
+   # 方法2: 仅启动MCP服务
+   go run main.go mcp
+
+   # 方法3: 仅启动Web服务
+   go run main.go web
+
+   # 方法4: 批量处理模式
+   go run main.go batch
+   ```
+
+4. **访问Web界面**
+   - 打开浏览器访问: http://localhost:8080
+   - 上传小说文件并开始处理
+
+## 🛠️ 使用方法
+
+### 1. Web界面操作
+
+1. 访问 `http://localhost:8080`
+2. 上传小说文件夹至input目录
+3. 选择需要处理的工具（章节分割、音频生成、图像生成等）
+4. 点击"处理上传的文件夹"执行完整工作流
+5. 查看output目录中的生成结果
+
+### 2. MCP服务调用
+
+系统支持通过MCP协议调用各种工具，适用于AI代理集成：
+
+```bash
+# 启动MCP服务
+MCP_STDIO_MODE=true go run main.go
+
+# 或使用桥接器
+go run cmd/ollama_mcp_bridge/main.go -mode server
+```
+
+### 3. 命令行批量处理
+
+```bash
+go run cmd/full_workflow/main.go
+```
+
+### 4. 一键生成剪映草稿，修改后直接发布  
+在output目录下，选择chapter_0x章节，点击一键发布，打开剪映，便可以看到草稿文件，文件名与章节名一致  
+
+## 📁 目录结构
+
+### 输入目录结构
+```
+input/
+└── 小说名称/
+    └── 小说名称.txt  # 或已拆分的 chapter_01 等目录
+```
+
+### 输出目录结构
+```
+output/
+└── 小说名称/
+    └── chapter_01/
+        ├── chapter_01.wav      # 音频文件
+        ├── chapter_01.srt      # 字幕文件
+        ├── chapter_01.json     # 剪映项目文件
+        └── images/             # 图像目录
+            ├── scene_01.png
+            ├── scene_02.png
+            └── ...
+    └── chapter_02/
+        ├── chapter_02.wav
+        ├── chapter_02.srt
+        ├── chapter_02.json
+        └── images/
+            ├── scene_01.png
+            ├── scene_02.png
+            └── ...
+```
+
+## 🔧 主要工具列表
+
+系统提供以下MCP工具供调用：
+
+| 工具名称 | 功能描述 |
+|---------|----------|
+| `generate_indextts2_audio` | 使用IndexTTS2生成音频 |
+| `generate_subtitles_from_indextts2` | 生成字幕文件 |
+| `file_split_novel_into_chapters` | 分割

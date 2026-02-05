@@ -1,0 +1,142 @@
+# pmxt [![Tweet](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/intent/tweet?text=The%20ccxt%20for%20prediction%20markets.&url=https://github.com/pmxt-dev/pmxt&hashtags=predictionmarkets,trading)
+
+**The ccxt for prediction markets.** A unified API for accessing prediction market data across multiple exchanges.
+
+<img width="3840" height="2160" alt="plot" src="https://github.com/user-attachments/assets/ed77d244-c95f-4fe0-a7a7-89af713c053f" />
+
+<div align="center">
+<table>
+<tr>
+<td rowspan="3">
+<a href="https://www.producthunt.com/products/ccxt-for-prediction-markets?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ccxt-for-prediction-markets" target="_blank" rel="noopener noreferrer"><img alt="CCXT for Prediction Markets - A unified API for prediction market data across exchanges. | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1060549&amp;theme=light&amp;t=1768206672608"></a>
+</td>
+<td>
+<img src="https://img.shields.io/github/watchers/pmxt-dev/pmxt?style=social" alt="GitHub watchers">
+</td>
+<td>
+<a href="https://github.com/qoery-com/pmxt"><img src="https://img.shields.io/badge/downloads-21.2k-blue" alt="Total Downloads"></a>
+</td>
+</tr>
+<tr>
+<td>
+<img src="https://img.shields.io/github/forks/pmxt-dev/pmxt?style=social" alt="GitHub forks">
+</td>
+<td>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/pmxt-dev/pmxt/stargazers"><img src="https://img.shields.io/github/stars/pmxt-dev/pmxt?refresh=1" alt="GitHub stars"></a>
+</td>
+<td>
+<a href="https://www.npmjs.com/package/pmxtjs">
+  <img src="https://img.shields.io/npm/v/pmxtjs?label=version" alt="version">
+</a>
+</td>
+</tr>
+</table>
+</div>
+
+<p align="center">
+<img src="https://polymarket.com/favicon.ico" alt="Polymarket" width="40" height="40">
+&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="https://kalshi.com/favicon.ico" alt="Kalshi" width="40" height="40">
+&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="https://manifold.markets/logo.svg" alt="Manifold Markets" width="40" height="40">
+&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="https://metaculus.com/favicon.ico" alt="Metaculus" width="40" height="40">
+&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="https://predictit.org/favicon.ico" alt="PredictIt" width="40" height="40">
+</p>
+<p align="center">
+
+<p align="center">
+  <a href="https://discord.gg/Pyn252Pg95">
+    <img src="https://img.shields.io/discord/1461393765196501015?label=Discord&logo=discord&logoColor=white&style=for-the-badge&color=5865F2" alt="Discord">
+  </a>
+</p>
+
+## Why pmxt?
+
+Different prediction market platforms have different APIs, data formats, and conventions. pmxt provides a single, consistent interface to work with all of them.
+
+### Supported Exchanges
+
+<p align="center">
+  <img src="https://polymarket.com/favicon.ico" alt="Polymarket" width="24" height="24"> <b>Polymarket</b>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://kalshi.com/favicon.ico" alt="Kalshi" width="24" height="24"> <b>Kalshi</b>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://limitless.exchange/assets/images/logo.svg" alt="Limitless" width="24" height="24"> <b>Limitless</b>
+</p>
+
+[Feature Support & Compliance](core/COMPLIANCE.md).
+
+
+## Installation
+
+Ensure that [`Node.js`](https://nodejs.org) is installed and the `node` command is available on your PATH.
+
+### Python
+```bash
+pip install pmxt
+```
+
+### Node.js
+```bash
+npm install pmxtjs
+```
+
+## Quickstart
+
+Prediction markets are structured in a hierarchy to group related information.
+
+*   **Event**: The broad topic (e.g., *"Who will Trump nominate as Fed Chair?"*)
+*   **Market**: A specific tradeable question (e.g., *"Will Trump nominate Kevin Warsh as the next Fed Chair?"*)
+*   **Outcome**: The actual share you buy (e.g., *"Yes"* or *"No"*)
+
+### Python
+```python
+import pmxt
+
+api = pmxt.Exchange()
+
+# 1. Search for the broad Event
+events = api.fetch_events(query='Who will Trump nominate as Fed Chair?')
+fed_event = events[0]
+
+# 2. Filter for the specific Market within that event
+warsh = api.filter_markets(fed_event.markets, 'Kevin Warsh')[0]
+
+print(f"Price: {warsh.yes.price}")
+```
+
+### TypeScript
+```typescript
+import pmxt from 'pmxtjs';
+
+const api = new pmxt.Exchange();
+
+// 1. Search for the broad Event
+const events = await api.fetchEvents({ query: 'Who will Trump nominate as Fed Chair?' });
+const fedEvent = events[0];
+
+// 2. Filter for the specific Market within that event
+const warsh = api.filterMarkets(fedEvent.markets, 'Kevin Warsh')[0];
+
+console.log(`Price: ${warsh.yes?.price}`);
+```
+
+## Trading
+pmxt supports unified trading across exchanges.
+
+### Setup
+To trade, you must provide your private credentials during initialization.
+
+#### Polymarket
+```python
+exchange = pmxt.Polymarket(
+    private_key=os.getenv('POLYMARKET_PRIVATE_KEY'),
+    proxy_address=os.getenv('POLYMARKET_PROXY_ADDRESS'), # Optional: For proxy trading
+    signature_

@@ -1,0 +1,845 @@
+[
+  {
+    "basic_info": {
+      "name": "nginxpulse",
+      "full_name": "likaia/nginxpulse",
+      "owner": "likaia",
+      "description": "轻量级 Nginx 访问日志分析与可视化面板，提供实时统计、PV 过滤、IP 归属地与客户端解析。",
+      "url": "https://github.com/likaia/nginxpulse",
+      "clone_url": "https://github.com/likaia/nginxpulse.git",
+      "ssh_url": "git@github.com:likaia/nginxpulse.git",
+      "homepage": "https://nginx-pulse.kaisir.cn/",
+      "created_at": "2026-01-13T04:19:14Z",
+      "updated_at": "2026-02-10T03:36:23Z",
+      "pushed_at": "2026-02-09T17:14:26Z"
+    },
+    "stats": {
+      "stars": 2136,
+      "forks": 147,
+      "watchers": 2136,
+      "open_issues": 6,
+      "size": 31105
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 509056,
+        "Vue": 448939,
+        "SCSS": 100216,
+        "TypeScript": 98569,
+        "Shell": 40876,
+        "Python": 14091,
+        "HTML": 9582,
+        "Dockerfile": 1995,
+        "Makefile": 1006,
+        "JavaScript": 76
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/likaia/nginxpulse/main/docs/brand-mark.svg\" alt=\"NginxPulse Logo\" width=\"120\" height=\"120\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/likaia/nginxpulse/blob/main/README_EN.md\">English</a> | 简体中文\n</p>\n\n# NginxPulse\n\n轻量级 Nginx 访问日志分析与可视化面板，提供实时统计、PV 过滤、IP 归属地与客户端解析。\n\n源码仓库：https://github.com/likaia/nginxpulse\n\n> ⚠️注意：此文档只讲解了如何使用这个项目，详细文档与示例配置请移步Wiki：https://github.com/likaia/nginxpulse/wiki\n\n![demo-img-1.png](https://raw.githubusercontent.com/likaia/nginxpulse/main/docs/demo-img-1.png)\n\n![demo-img-2.png](https://raw.githubusercontent.com/likaia/nginxpulse/main/docs/demo-img-2.png)\n## 目录\n- [项目开发技术栈](#项目开发技术栈)\n- [IP 归属地查询策略](#ip-归属地查询策略)\n- [如何使用项目](#如何使用项目)\n  - [1) Docker](#1-docker)\n  - [2) Docker Compose](#2-docker-compose)\n  - [时区设置（重要）](#时区设置重要)\n  - [3) 手动构建（前端、后端）](#3-手动构建前端后端)\n  - [4) 单体部署（单进程）](#4-单体部署单进程)\n  - [5) Makefile 常用命令](#5-makefile-常用命令)\n- [Docker 部署权限说明](#docker-部署权限说明)\n- [常见问题](#常见问题)\n- [目录结构与主要文件](#目录结构与主要文件)\n- [致谢](#致谢)\n\n## 项目开发技术栈\n**重要提示（版本 > 1.5.3）**：已完全弃用 SQLite；单体部署必须自备 PostgreSQL 并配置 `DB_DSN`（或 `database.dsn`）。\n- **后端**：`Go 1.24.x` · `Gin` · `Logrus`\n- **数据**：`PostgreSQL (pgx)`\n- **IP 归属地**：`ip2region`（本地库） + `ip-api.com`（远程批量）\n- **前端**：`Vue 3` · `Vite` · `TypeScript` · `PrimeVue` · `ECharts/Chart.js` · `Scss`\n- **容器**：`Docker / Docker Compose` · `Nginx`（前端静态部署）\n\n### IP 归属地查询策略\n1. **快速过滤**：空值/本地/回环地址返回“本地”，内网地址返回“内网/本地网络”。\n2. **解析解耦**：日志解析阶段仅入库并标记“待解析”，IP 归属地由后台任务异步补齐并回填。\n3. **缓存优先**：持久化缓存 + 内存缓存命中直接返回（默认上限 1,000,000 条）。\n4. **本地优先（IPv4/IPv6）**：优先查 ip2region，本地结果可用时直接使用。\n5. **远程补齐**：本地返回“未知”或解析失败时，调用远端 API（默认 `ip-api.com/batch`，可配置）批量查询（超时 1.2s，单批最多 100 个）。\n6. **远程失败**：返回“未知”。\n\n> 归属地解析未完成时，页面会显示“待解析”，地域统计可能不完整。\n\n> 本地数据库 `ip2region_v4.xdb` 与 `ip2region_v6.xdb` 内嵌在二进制中，首次启动会自动解压到 `./var/nginxpulse_data/`，并尝试加载向量索引提升查询性能。\n\n> 本项目会访问外网 IP 归属地 API（默认 `ip-api.com`），部署环境需放行该域名的出站访问。同时也支持自己搭建IP归属地查询服务，详见下文。\n\n## 如何使用项目\n\n### 1) Docker\n单镜像（前端 Nginx + 后端服务）：\n> 镜像内置 PostgreSQL，启动时会自动初始化数据库（未自备数据库时）。**必须挂载数据目录**：`/app/var/nginxpulse_data` 与 `/app/var/pgdata`。未挂载时容器会直接退出并报错。\n> 如果你准备在**初始化向导**里配置外部数据库，可先不挂载 `pgdata`，容器能正常启动；配置完成后重启容器即可生效。\n\n一键启动（极简配置，首次启动进入初始化向导）：\n\n```bash\ndocker run -d --name nginxpulse \\\n  -p 8088:8088 \\\n  -v ./docker_local/logs:/share/logs:ro \\\n  -v ./docker_local/nginxpulse_data:/app/var/nginxpulse_data \\\n  -v ./docker_local/pgdata:/app/var/pgdata \\\n  -v ./docker_local/configs:/app/configs \\\n  -v /etc/localtime:/etc/localtime:ro \\\n  magiccoders/nginxpulse:latest\n```\n\n> 注意：docker_local请替换为你宿主机存在的目录，确保文件权限设置正确，能被容器正常访问，否则会出现无日志的情况。\n\n\n> 如果更偏好配置文件方式，可将 `configs/nginxpulse_config.json` 挂载到容器内的 `/app/configs/nginxpulse_config.json`。\n> 若未提供配置文件/环境变量，首次启动会进入“初始化配置向导”。保存后会写入 `configs/nginxpulse_config.json`，需重启容器生效（建议挂载 `/app/configs` 以持久化）。\n\n### 2) Docker Compose\n使用远程镜像（Docker Hub）：\n```yaml\nservices:\n  nginxpulse:\n    image: magiccoders/nginxpulse:latest\n    container_name: local_nginxpulse\n    ports:\n      - \"8088:8088\"\n      - \"8089:8089\"\n    volumes:\n      - ./docker_local/logs:/share/logs\n      - ./docker_local/nginxpulse_data:/app/var/nginxpulse_data\n      - ./docker_local/pgdata:/app/var/pgdata\n      - ./docker_local/configs:/app/configs\n      - /etc/localtime:/etc/localtime\n    restart: unless-stopped\n```\n\n```bash\ndocker compose up -d\n```\n\n### 时区设置（重要）\n本项目使用**系统时区**进行日志时间解析与统计，请确保运行环境时区正确。\n\n**Docker / Docker Compose**\n- 推荐挂载宿主机时区：`-v /etc/localtime:/etc/localtime:ro`（Linux）\n- 若宿主机提供 `/etc/timezone`，可额外挂载：`-v /etc/timezone:/etc/timezone:ro`\n- 若你只想指定时区，可设置 `TZ=Asia/Shanghai`，但需保证容器内有时区数据（例如安装 `tzdata` 或挂载 `/usr/share/zoneinfo`）\n\n**单体部署（单进程）**\n- 默认使用当前系统时区\n- 可通过环境变量临时指定：`TZ=Asia/Shanghai ./nginxpulse`\n\n### 移动端访问（/m）\n- 入口地址：`http://<host>:8088/m`\n- 移动端仅提供 **概览 / 日报 / 实时 / 日志** 四个页面\n- **首次初始化必须在电脑端完成**，移动端会提示在电脑打开\n\n### 3) 手动构建（前端、后端）\n前端构建：\n\n```bash\ncd webapp\nnpm install\nnpm run build\n```\n\n移动端构建（/m）：\n\n```bash\ncd webapp_mobile\nnpm install\nnpm run build\n```\n\n后端构建：\n\n```bash\ngo mod download\ngo build -o bin/nginxpulse ./cmd/nginxpulse/main.go\n```\n\n本地开发（前后端一起跑）：\n\n```bash\n./scripts/dev_local.sh\n```\n\n> 前端开发服务默认端口 8088，并会将 `/api` 代理到 `http://127.0.0.1:8089`。\n> 本地开发前请准备好日志文件，放在 `var/log/` 下（或确保 `configs/nginxpulse_config.json` 的 `logPath` 指向对应文件）。\n\n### 4) 单体部署（单进程）\n**重要提示（版本 > 1.5.3）**：已彻底弃用 SQLite。单体部署必须自备 PostgreSQL 并配置 `DB_DSN`（或在 `configs/nginxpulse_config.json` 填好 `database.dsn`）。  \n从仓库的releases下载对应平台的二进制文件，执行即可。\n\n执行后会生成单体可执行文件（已内置前端静态资源），启动后即可同时提供前后端服务：\n- 前端：`http://localhost:8088`\n- 后端：`http://localhost:8088/api/...`\n\n#### 单体部署的配置方式\n单体运行时读取配置有两种方式（任选其一）：\n\n**方式 A：配置文件（默认）**\n1. 在运行目录创建 `configs/`\n2. 放入 `configs/nginxpulse_config.json`\n3. 启动：`./nginxpulse`\n\n**方式 B：环境变量注入（无需文件）**\n```bash\nCONFIG_JSON=\"$(cat /path/to/nginxpulse_config.json)\" ./nginxpulse\n```\n\n注意事项：\n- 配置文件路径为相对路径 `./configs/nginxpulse_config.json`，请确保运行时工作目录正确。\n- 如果使用 systemd，请设置 `WorkingDirectory`，或改用 `CONFIG_JSON` 注入。\n- 数据目录 `./var/nginxpulse_data` 也是相对路径；找不到目录时请先确认当前进程的工作目录。\n\n### 5) Makefile 构建\n此项目也支持了通过Makefile来构建相关资源，命令如下：\n```bash\nmake frontend   # 构建前端（",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:46.612996"
+  },
+  {
+    "basic_info": {
+      "name": "msgvault",
+      "full_name": "wesm/msgvault",
+      "owner": "wesm",
+      "description": "Archive a lifetime of email and chat. Offline search, analytics, and AI query over your full message history. Powered by DuckDB",
+      "url": "https://github.com/wesm/msgvault",
+      "clone_url": "https://github.com/wesm/msgvault.git",
+      "ssh_url": "git@github.com:wesm/msgvault.git",
+      "homepage": "https://msgvault.io",
+      "created_at": "2026-01-28T10:49:55Z",
+      "updated_at": "2026-02-10T03:16:42Z",
+      "pushed_at": "2026-02-10T00:35:58Z"
+    },
+    "stats": {
+      "stars": 970,
+      "forks": 60,
+      "watchers": 970,
+      "open_issues": 25,
+      "size": 1793
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1780428,
+        "Shell": 15171,
+        "PowerShell": 8955,
+        "Makefile": 3005,
+        "Nix": 1493
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# msgvault\n\n[![Go 1.25+](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Docs](https://img.shields.io/badge/Docs-msgvault.io-blue)](https://msgvault.io)\n[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/fDnmxB8Wkq)\n\n[Documentation](https://msgvault.io) · [Setup Guide](https://msgvault.io/guides/oauth-setup/) · [Interactive TUI](https://msgvault.io/usage/tui/)\n\n> **Alpha software.** APIs, storage format, and CLI flags may change without notice. Back up your data.\n\nArchive a lifetime of email. Analytics and search in milliseconds, entirely offline.\n\n## Why msgvault?\n\nYour messages are yours. Decades of correspondence, attachments, and history shouldn't be locked behind a web interface or an API. msgvault downloads a complete local copy and then everything runs offline. Search, analytics, and the MCP server all work against local data with no network access required.\n\nCurrently supports Gmail, with WhatsApp and other messaging platforms planned.\n\n## Features\n\n- **Full Gmail backup**: raw MIME, attachments, labels, and metadata\n- **Interactive TUI**: drill-down analytics over your entire message history, powered by DuckDB over Parquet\n- **Full-text search**: FTS5 with Gmail-like query syntax (`from:`, `has:attachment`, date ranges)\n- **MCP server**: access your full archive at the speed of thought in Claude Desktop and other MCP-capable AI agents\n- **DuckDB analytics**: millisecond aggregate queries across hundreds of thousands of messages in the TUI, CLI, and MCP server\n- **Incremental sync**: History API picks up only new and changed messages\n- **Multi-account**: archive several Gmail accounts in a single database\n- **Resumable**: interrupted syncs resume from the last checkpoint\n- **Content-addressed attachments**: deduplicated by SHA-256\n\n## Installation\n\n**macOS / Linux:**\n```bash\ncurl -fsSL https://msgvault.io/install.sh | bash\n```\n\n**Windows (PowerShell):**\n```powershell\npowershell -ExecutionPolicy ByPass -c \"irm https://msgvault.io/install.ps1 | iex\"\n```\n\nThe installer detects your OS and architecture, downloads the latest release from [GitHub Releases](https://github.com/wesm/msgvault/releases), verifies the SHA-256 checksum, and installs the binary. You can review the script ([bash](https://msgvault.io/install.sh), [PowerShell](https://msgvault.io/install.ps1)) before running, or download a release binary directly from GitHub.\n\nTo build from source instead (requires **Go 1.25+** and a C/C++ compiler for CGO and to statically link DuckDB):\n\n```bash\ngit clone https://github.com/wesm/msgvault.git\ncd msgvault\nmake install\n```\n\n**Conda-Forge:**\n\nYou can install msgvault [from conda-forge](https://prefix.dev/channels/conda-forge/packages/msgvault) using Pixi or Conda:\n\n```bash\npixi global install msgvault\nconda install -c conda-forge msgvault\n```\n\n## Quick Start\n\n> **Prerequisites:** You need a Google Cloud OAuth credential before adding an account.\n> Follow the **[OAuth Setup Guide](https://msgvault.io/guides/oauth-setup/)** to create one (~5 minutes).\n\n```bash\nmsgvault init-db\nmsgvault add-account you@gmail.com          # opens browser for OAuth\nmsgvault sync-full you@gmail.com --limit 100\nmsgvault tui\n```\n\n## Commands\n\n| Command | Description |\n|---------|-------------|\n| `init-db` | Create the database |\n| `add-account EMAIL` | Authorize a Gmail account (use `--headless` for servers) |\n| `sync-full EMAIL` | Full sync (`--limit N`, `--after`/`--before` for date ranges) |\n| `sync EMAIL` | Sync only new/changed messages |\n| `tui` | Launch the interactive TUI (`--account` to filter) |\n| `search QUERY` | Search messages (`--json` for machine output) |\n| `mcp` | Start the MCP server for AI assistant integration |\n| `stats` | Show archive statistics |\n| `verify EMAIL` | Verify archive integrity against Gmail |\n| `export-eml` | Export a message as `.eml` |\n| `build-cache` | Rebuild the Parquet analytics cache |\n| `repair-encoding` | Fix UTF-8 encoding issues |\n| `list-senders` / `list-domains` / `list-labels` | Explore metadata |\n\nSee the [CLI Reference](https://msgvault.io/cli-reference/) for full details.\n\n## Configuration\n\nAll data lives in `~/.msgvault/` by default (override with `MSGVAULT_HOME`).\n\n```toml\n# ~/.msgvault/config.toml\n[oauth]\nclient_secrets = \"/path/to/client_secret.json\"\n\n[sync]\nrate_limit_qps = 5\n```\n\nSee the [Configuration Guide](https://msgvault.io/configuration/) for all options.\n\n## MCP Server\n\nmsgvault includes an MCP server that lets AI assistants search, analyze, and read your archived messages. Connect it to Claude Desktop or any MCP-capable agent and query your full message history conversationally. See the [MCP documentation](https://msgvault.io/usage/chat/) for setup instructions.\n\n## Documentation\n\n- [Setup Guide](https://msgvault.io/guides/oauth-setup/): OAuth, first sync, headless servers\n- [Searching](https://msg",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:47.755915"
+  },
+  {
+    "basic_info": {
+      "name": "rememory",
+      "full_name": "eljojo/rememory",
+      "owner": "eljojo",
+      "description": "have a plan for the worst-case scenario",
+      "url": "https://github.com/eljojo/rememory",
+      "clone_url": "https://github.com/eljojo/rememory.git",
+      "ssh_url": "git@github.com:eljojo/rememory.git",
+      "homepage": "https://eljojo.github.io/rememory/",
+      "created_at": "2026-02-03T08:13:42Z",
+      "updated_at": "2026-02-10T03:28:01Z",
+      "pushed_at": "2026-02-10T02:01:20Z"
+    },
+    "stats": {
+      "stars": 816,
+      "forks": 29,
+      "watchers": 816,
+      "open_issues": 7,
+      "size": 4027
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 172469,
+        "TypeScript": 110548,
+        "HTML": 109060,
+        "JavaScript": 41150,
+        "CSS": 14603,
+        "Makefile": 5324,
+        "Nix": 3613
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "age-encryption",
+        "shamir-secret-sharing"
+      ]
+    },
+    "content": {
+      "readme": "# 🧠 ReMemory\n\n**Split your secrets among trusted friends. Recover them together when needed.**\n\nReMemory encrypts your files, splits the decryption key among friends using Shamir's Secret Sharing, and gives them a self-contained offline tool to reconstruct it together.\n\n## The Key Innovation\n\n**Recovery works in any browser, fully offline, without ReMemory or the internet.**\n\nEach friend receives a bundle containing `recover.html`—a self-contained recovery tool. No servers. No dependencies. No need for this project to exist in 20 years.\n\n**[Download demo bundles](https://github.com/eljojo/rememory/releases/latest/download/demo-bundles.zip)** to try the recovery process yourself — it's the best way to understand how ReMemory works.\n\n```mermaid\ngraph TB\n    subgraph seal[\"① SEAL (you do this once)\"]\n        A[Your Secrets] --> B[Encrypt with age]\n        B --> C[Split key into 3 shares]\n        C --> D1[Alice's bundle]\n        C --> D2[Bob's bundle]\n        C --> D3[Carol's bundle]\n    end\n\n    subgraph recover[\"② RECOVER (friends do this together)\"]\n        R1[Alice opens recover.html] --> R2[Her share is pre-loaded]\n        R2 --> R3[Adds Bob's share]\n        R3 --> R5{2 of 3 shares}\n        R5 -->|Threshold met| R6[Auto-decrypts!]\n        R6 --> R7[Download files]\n    end\n\n    D1 -.-> R1\n    D2 -.-> R3\n```\n\nThe key insight: **any 2 shares can reconstruct the key, but a single share reveals nothing**—not \"very little,\" mathematically zero information.\n\nBoth the number of friends and the threshold are fully configurable: 2-of-3 for a small circle, 3-of-5 for a wider group, or even 2-of-2 for couples with shared private content that neither partner can access alone.\n\n---\n\n## Two Ways to Use ReMemory\n\n### 🌐 Web UI (Recommended)\n\nCreate bundles entirely in your browser — no installation required.\n\n| | |\n|---|---|\n| **Create Bundles** | [eljojo.github.io/rememory/maker.html](https://eljojo.github.io/rememory/maker.html) |\n| **Documentation** | [eljojo.github.io/rememory/docs.html](https://eljojo.github.io/rememory/docs.html) |\n\nEverything runs locally in your browser. Your files never leave your device.\n\n### 💻 CLI (Power Users)\n\nFor automation, scripting, or if you prefer the command line.\n\n```bash\n# Install\ngo install github.com/eljojo/rememory/cmd/rememory@latest\n\n# Or download from GitHub Releases\n```\n\nSee the **[CLI User Guide](docs/guide.md)** for complete documentation.\n\n---\n\n## Try It First\n\nBefore protecting real secrets, **try the recovery process** to understand how it works:\n\n1. **[Download demo bundles](https://github.com/eljojo/rememory/releases/download/v0.0.3/demo-bundles.zip)** (contains 3 sample bundles)\n2. Open `bundle-alice/recover.html` in your browser\n3. Alice's share is pre-loaded — add Bob's share (or Carol's)\n4. Watch the automatic decryption when the threshold is met\n\nThis hands-on experience will help you understand what your friends will see during a real recovery.\n\n---\n\n## What Friends Receive\n\nEach friend gets a ZIP bundle containing:\n\n| File | Purpose |\n|------|---------|\n| `README.txt` | Instructions + their unique share + contact list |\n| `README.pdf` | Same content, formatted for printing |\n| `MANIFEST.age` | Your encrypted secrets |\n| `recover.html` | Browser-based recovery tool (~1.8 MB, self-contained) |\n\n**A single share reveals absolutely nothing.** But tell your friends to keep their bundle safe—it's their responsibility to you.\n\n---\n\n## FAQ\n\n<details>\n<summary>Why ReMemory?</summary>\n\nWe all have digital secrets that matter: password manager recovery codes, cryptocurrency seeds, important documents, or instructions for loved ones. What happens to these if you're suddenly unavailable?\n\nTraditional approaches fail:\n- **Give one person everything** → Single point of failure and trust\n- **Split files manually** → Confusing, error-prone, no encryption\n- **Use a password manager's emergency access** → Relies on company existing\n- **Write it in a will** → Becomes public record, slow legal process\n\nReMemory solves this with cryptographic guarantees:\n- **No single point of failure** — Requires multiple friends to cooperate\n- **No trust in any one person** — Even your most trusted friend can't access secrets alone\n- **Offline and self-contained** — Recovery works without internet or servers\n- **Designed for non-technical friends** — Clear instructions, not cryptographic puzzles\n\n</details>\n\n<details>\n<summary>Why I Built This</summary>\n\nTwo things drove me to create ReMemory.\n\nFirst, I watched [a documentary about Clive Wearing](https://www.youtube.com/watch?v=k_P7Y0-wgos), a man who has lived with a 7-second memory since 1985. Seeing how fragile memory can be made me think about what would happen to my digital life if something similar happened to me.\n\nSecond, I've had several concussions from cycling accidents. Each time, I've been lucky to recover fully. But each time, I've been reminded that our brains are more fragile than we like to think.\n\nReMemory is my answer: a way to ensu",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:48.895844"
+  },
+  {
+    "basic_info": {
+      "name": "App-Store-Connect-CLI",
+      "full_name": "rudrankriyam/App-Store-Connect-CLI",
+      "owner": "rudrankriyam",
+      "description": "Fast, scriptable CLI for App Store Connect. Automate your iOS app workflows from your IDE/terminal.",
+      "url": "https://github.com/rudrankriyam/App-Store-Connect-CLI",
+      "clone_url": "https://github.com/rudrankriyam/App-Store-Connect-CLI.git",
+      "ssh_url": "git@github.com:rudrankriyam/App-Store-Connect-CLI.git",
+      "homepage": "",
+      "created_at": "2026-01-20T11:17:23Z",
+      "updated_at": "2026-02-10T03:00:57Z",
+      "pushed_at": "2026-02-10T01:12:10Z"
+    },
+    "stats": {
+      "stars": 745,
+      "forks": 45,
+      "watchers": 745,
+      "open_issues": 1,
+      "size": 3966
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 7913315,
+        "Makefile": 5688,
+        "Shell": 3421,
+        "Python": 898
+      },
+      "license": "MIT License",
+      "topics": [
+        "app-store-connect",
+        "automation",
+        "cicd",
+        "cli",
+        "devops",
+        "golang",
+        "ios",
+        "macos",
+        "testflight",
+        "xcode"
+      ]
+    },
+    "content": {
+      "readme": "# Unofficial App Store Connect CLI\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go\" alt=\"Go Version\">\n  <img src=\"https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge\" alt=\"License\">\n  <img src=\"https://img.shields.io/badge/Homebrew-compatible-blue?style=for-the-badge\" alt=\"Homebrew\">\n</p>\n\nA **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Automate your iOS app workflows from your IDE/terminal.\n\n## Why ASC?\n\n| Problem | Solution |\n|---------|----------|\n| Manual App Store Connect work | Automate everything from CLI |\n| Slow, heavy tooling | Single Go binary, instant startup |\n| Poor scripting support | JSON output, explicit flags, clean exit codes |\n\n## Wall of Apps\n\nApps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls)!\n\n- [CodexMonitor](https://github.com/Dimillian/CodexMonitor)\n- [MileIO](https://apps.apple.com/app/id6758225631)\n\n## ASC Skills\n\nAgent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rudrankriyam/app-store-connect-cli-skills\n\n## Table of Contents\n\n- [Why ASC?](#why-asc)\n- [ASC Skills](#asc-skills)\n- [Quick Start](#quick-start)\n  - [Install](#install)\n  - [Authenticate](#authenticate)\n- [Commands](#commands)\n  - [Scripting Tips](#scripting-tips)\n  - [TestFlight](#testflight)\n  - [Beta Groups](#beta-groups)\n  - [Beta Testers](#beta-testers)\n  - [Devices](#devices)\n  - [App Store](#app-store)\n  - [App Tags](#app-tags)\n  - [App Events](#app-events)\n  - [Alternative Distribution](#alternative-distribution)\n  - [Analytics & Sales](#analytics--sales)\n  - [Finance Reports](#finance-reports)\n  - [Sandbox Testers](#sandbox-testers)\n  - [Xcode Cloud](#xcode-cloud)\n  - [Notarization](#notarization)\n  - [Game Center](#game-center)\n  - [Signing](#signing)\n  - [Certificates](#certificates)\n  - [Profiles](#profiles)\n  - [Bundle IDs](#bundle-ids)\n  - [Subscriptions](#subscriptions)\n  - [In-App Purchases](#in-app-purchases)\n  - [Performance](#performance)\n  - [Webhooks](#webhooks)\n  - [Publish (End-to-End Workflows)](#publish-end-to-end-workflows)\n  - [App Clips](#app-clips)\n  - [Encryption](#encryption)\n  - [Assets (Screenshots & Previews)](#assets-screenshots--previews)\n  - [Background Assets](#background-assets)\n  - [Routing Coverage](#routing-coverage)\n  - [Notify](#notify)\n  - [Apps & Builds](#apps--builds)\n- [App Setup](#app-setup)\n  - [Categories](#categories)\n  - [Offer Codes (Subscriptions)](#offer-codes-subscriptions)\n  - [Versions](#versions)\n  - [App Info](#app-info)\n  - [Pre-Release Versions](#pre-release-versions)\n  - [Localizations](#localizations)\n  - [Build Localizations](#build-localizations)\n  - [Migrate (Fastlane Compatibility)](#migrate-fastlane-compatibility)\n  - [Submit](#submit)\n  - [Utilities](#utilities)\n  - [Output Formats](#output-formats)\n  - [Authentication](#authentication)\n- [Design Philosophy](#design-philosophy)\n  - [Explicit Over Cryptic](#explicit-over-cryptic)\n  - [JSON-First Output](#json-first-output)\n  - [No Interactive Prompts](#no-interactive-prompts)\n- [Installation](#installation)\n- [Documentation](#documentation)\n- [How to test in <10 minutes](#how-to-test-in-10-minutes)\n- [Security](#security)\n- [Contributing](#contributing)\n- [License](#license)\n- [Author](#author)\n- [Star History](#star-history)\n\n## Quick Start\n\n### Install\n\n```bash\n# Via Homebrew (recommended)\nbrew tap rudrankriyam/tap\nbrew install rudrankriyam/tap/asc\n\n# Install script (macOS/Linux)\ncurl -fsSL https://raw.githubusercontent.com/rudrankriyam/App-Store-Connect-CLI/main/install.sh | bash\n\n# Installs to ~/.local/bin by default (ensure it's on your PATH)\n\n# Or build from source\ngit clone https://github.com/rudrankriyam/App-Store-Connect-CLI.git\ncd App-Store-Connect-CLI\nmake build\n./asc --help\n```\n\n### Updates\n\n`asc` checks for updates on startup and auto-updates when installed via the GitHub release install script. Homebrew installs will show a `brew upgrade` hint instead. Disable update checks with `--no-update` or `ASC_NO_UPDATE=1`.\n\n### Authenticate\n\n```bash\n# Register your App Store Connect API key\nasc auth login \\\n  --name \"MyApp\" \\\n  --key-id \"ABC123\" \\\n  --issuer-id \"DEF456\" \\\n  --private-key /path/to/AuthKey.p8\n\n# Validate credentials via network during login\nasc auth login \\\n  --network \\\n  --name \"MyApp\" \\\n  --key-id \"ABC123\" \\\n  --issuer-id \"DEF456\" \\\n  --private-key /path/to/AuthKey.p8\n\n# Skip JWT + network validation (useful in CI)\nasc auth login \\\n  --skip-validation \\\n  --name \"MyApp\" \\\n  --key-id \"ABC123\" \\\n  --issuer-id \"DEF456\" \\\n  --private-key /path/to/AuthKey.p8\n\n# Add another profile and switch defaults\nasc auth login \\\n  --name \"ClientApp\" \\\n  --key-id \"XYZ789\" \\\n  --issuer-id \"LMN000\" \\\n  --private-key /path/to/ClientAuthKey.p8\n\nasc auth switch --name \"ClientApp\"\n\n# Use a profile for a single command\nasc --profile \"ClientApp\" apps list\n\n# Fail if c",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:50.030467"
+  },
+  {
+    "basic_info": {
+      "name": "jcp",
+      "full_name": "run-bigpig/jcp",
+      "owner": "run-bigpig",
+      "description": "韭菜盘 (JCP AI) - AI 驱动的智能A股分析系统，基于 Wails + Go + React，支持多 Agent 协作分析",
+      "url": "https://github.com/run-bigpig/jcp",
+      "clone_url": "https://github.com/run-bigpig/jcp.git",
+      "ssh_url": "git@github.com:run-bigpig/jcp.git",
+      "homepage": "",
+      "created_at": "2026-02-04T10:29:51Z",
+      "updated_at": "2026-02-10T03:43:10Z",
+      "pushed_at": "2026-02-10T03:18:50Z"
+    },
+    "stats": {
+      "stars": 575,
+      "forks": 135,
+      "watchers": 575,
+      "open_issues": 0,
+      "size": 2929
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 278674,
+        "TypeScript": 219003,
+        "NSIS": 13156,
+        "JavaScript": 10377,
+        "CSS": 9318,
+        "HTML": 280
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 韭菜盘 (JCP AI)\n\n> AI 驱动的智能股票分析系统 - 多 Agent 协作，让投资决策更智能\n\n[![Go Version](https://img.shields.io/badge/Go-1.24-blue.svg)](https://golang.org)\n[![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://reactjs.org)\n[![Wails](https://img.shields.io/badge/Wails-v2-red.svg)](https://wails.io)\n[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)\n\n## 项目简介\n\n韭菜盘是一款基于 Wails 框架开发的跨平台桌面应用，集成了多个 AI 大模型（OpenAI、Google Gemini、DeepSeek、Kimi、GLM 等 OpenAI 兼容接口），通过多 Agent 协作讨论的方式，为用户提供专业的股票分析和投资建议。\n\n### 核心特性\n\n- **多 Agent 智库** - 多个 AI 专家角色协作讨论，提供多维度分析视角\n- **智能记忆系统** - 按股票隔离的长期记忆，AI 能记住历史讨论和关键结论\n- **实时行情** - 股票实时数据、K线图表、盘口深度一应俱全\n- **热点舆情** - 聚合百度、抖音、B站、头条等平台热点趋势\n- **研报服务** - 专业研究报告查询和智能分析\n- **MCP 扩展** - 支持 Model Context Protocol，可扩展更多工具能力\n\n## 技术栈\n\n| 层级 | 技术 |\n|------|------|\n| **框架** | Wails v2 (Go + Web 混合桌面应用) |\n| **后端** | Go 1.24 |\n| **前端** | React 18 + TypeScript + Vite |\n| **UI** | TailwindCSS + Lucide Icons |\n| **图表** | Recharts |\n| **AI** | OpenAI / Gemini / DeepSeek / Kimi / GLM 等 |\n| **分词** | GSE (纯 Go 实现，无 CGO 依赖) |\n\n## 功能展示\n\n### 主界面\n- 左侧：自选股列表与市场指数\n- 中间：K线图表（支持分时/日K/周K/月K）\n- 右侧：AI 智库讨论室\n\n![主界面展示](image/1.png)\n\n![功能展示](image/2.png)\n\n### 核心功能模块\n\n| 模块 | 功能描述 |\n|------|----------|\n| 📈 **股票行情** | 实时行情数据、多周期K线、盘口深度 |\n| ⭐ **自选管理** | 添加/删除自选股、实时监控 |\n| 🤖 **AI 智库** | 多 Agent 协作分析、智能问答 |\n| 🔥 **热点舆情** | 百度/抖音/B站/头条热点聚合 |\n| 📊 **研报服务** | 专业研报查询与分析 |\n| 💬 **会议室** | Agent 多轮讨论、MCP 工具调用 |\n| 🧠 **记忆系统** | 按股票隔离的长期记忆、历史摘要、关键事实提取 |\n\n## 快速开始\n\n### 环境要求\n\n- Go 1.24+\n- Node.js 18+\n- Wails CLI v2\n\n### 安装 Wails CLI\n\n```bash\ngo install github.com/wailsapp/wails/v2/cmd/wails@latest\n```\n\n### 克隆项目\n\n```bash\ngit clone https://github.com/run-bigpig/jcp.git\ncd ccjc\n```\n\n### 安装依赖\n\n```bash\n# 安装前端依赖\ncd frontend && npm install && cd ..\n\n# 下载 Go 依赖\ngo mod download\n```\n\n### 开发模式运行\n\n```bash\nwails dev\n```\n\n### 构建发布版本\n\n```bash\n# 构建当前平台\nwails build\n\n# 构建 Windows 版本\nwails build -platform windows/amd64\n\n# 构建 macOS 版本\nwails build -platform darwin/amd64\n\n# 构建 Linux 版本\nwails build -platform linux/amd64\n```\n\n## 配置说明\n\n首次运行时，需要在设置中配置 AI 模型的 API Key：\n\n1. 点击右上角设置图标\n2. 选择 AI 模型提供商（OpenAI / Gemini）\n3. 填入对应的 API Key\n4. 保存配置\n\n配置文件存储在 `data/config.json`。\n\n## 项目结构\n\n```\nccjc/\n├── main.go                 # 应用入口\n├── app.go                  # 后端核心逻辑\n├── wails.json              # Wails 配置\n├── frontend/               # 前端项目\n│   ├── src/\n│   │   ├── components/     # React 组件\n│   │   ├── services/       # 服务层\n│   │   └── hooks/          # 自定义 Hooks\n│   └── package.json\n├── internal/               # Go 后端模块\n│   ├── adk/                # AI 开发工具包\n│   ├── services/           # 业务服务\n│   ├── models/             # 数据模型\n│   ├── agent/              # Agent 系统\n│   └── meeting/            # 会议室系统\n└── data/                   # 数据存储\n    ├── config.json         # 应用配置\n    ├── agents.json         # Agent 配置\n    └── watchlist.json      # 自选股列表\n```\n\n## AI Agent 系统\n\n项目内置多个专家 Agent，各司其职：\n\n| Agent | 角色 | 职责 |\n|-------|------|------|\n| 技术分析师 | 图表专家 | K线形态、技术指标分析 |\n| 基本面分析师 | 财务专家 | 财报解读、估值分析 |\n| 情绪分析师 | 舆情专家 | 市场情绪、热点追踪 |\n| 风控专家 | 风险管理 | 风险评估、仓位建议 |\n\nAgent 配置可在 `data/agents.json` 中自定义。\n\n## 记忆系统\n\n项目实现了按股票隔离的智能记忆系统，让 AI 能够\"记住\"历史讨论：\n\n### 核心能力\n\n| 功能 | 说明 |\n|------|------|\n| **股票隔离** | 每只股票独立记忆空间，互不干扰 |\n| **关键事实提取** | 自动提取讨论中的重要事实、观点、决策 |\n| **历史摘要** | LLM 自动生成历史讨论摘要 |\n| **相关性检索** | 基于 TF-IDF 的关键词匹配，召回相关历史 |\n| **自动压缩** | 超过阈值自动压缩旧记忆，控制上下文长度 |\n\n### 记忆结构\n\n- **KeyFacts**: 关键事实列表（事实/观点/决策）\n- **RecentRounds**: 最近 N 轮讨论详情\n- **Summary**: AI 生成的历史摘要\n\n记忆数据存储在 `data/memory/` 目录下，按股票代码分文件存储。\n\n## MCP 扩展\n\n支持 Model Context Protocol，可扩展以下工具：\n\n- 股票实时行情查询\n- K线数据获取\n- 盘口深度数据\n- 新闻资讯搜索\n- 研报查询\n- 热点舆情获取\n\n## 开发指南\n\n### 添加新的 AI 工具\n\n1. 在 `internal/adk/tools/` 下创建工具文件\n2. 实现 `Tool` 接口\n3. 在 `registry.go` 中注册工具\n\n### 添加新的 Agent\n\n1. 编辑 `data/agents.json`\n2. 配置 Agent 的名称、角色、系统提示词\n3. 重启应用生效\n\n## 贡献指南\n\n欢迎提交 Issue 和 Pull Request！\n\n1. Fork 本仓库\n2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)\n3. 提交更改 (`git commit -m 'Add AmazingFeature'`)\n4. 推送到分支 (`git push origin feature/AmazingFeature`)\n5. 提交 Pull Request\n\n## 许可证\n\n本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。\n\n## 社区\n\n- [LINUX DO](https://linux.do/) - 真诚、友善、团结、专业，共建你我引以为荣之社区\n\n## 致谢\n\n- [Wails](https://wails.io/) - 优秀的 Go 桌面应用框架\n- [React](https://reactjs.org/) - 前端 UI 框架\n- [TailwindCSS](https://tailwindcss.com/) - CSS 框架\n- [Recharts](https://recharts.org/) - 图表库\n- [GSE](https://github.com/go-ego/gse) - 高性能中文分词库\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-02-10T03:46:51.169336"
+  },
+  {
+    "basic_info": {
+      "name": "picoclaw",
+      "full_name": "sipeed/picoclaw",
+      "owner": "sipeed",
+      "description": "picoclaw",
+      "url": "https://github.com/sipeed/picoclaw",
+      "clone_url": "https://github.com/sipeed/picoclaw.git",
+      "ssh_url": "git@github.com:sipeed/picoclaw.git",
+      "homepage": null,
+      "created_at": "2026-02-04T12:32:35Z",
+      "updated_at": "2026-02-10T03:43:38Z",
+      "pushed_at": "2026-02-10T02:59:13Z"
+    },
+    "stats": {
+      "stars": 510,
+      "forks": 64,
+      "watchers": 510,
+      "open_issues": 3,
+      "size": 14885
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 155036,
+        "Makefile": 5541,
+        "Shell": 5081
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n<img src=\"assets/logo.jpg\" alt=\"PicoClaw\" width=\"512\">\n\n<h1>PicoClaw: Ultra-Efficient AI Assistant in Go</h1>\n\n<h3>$10 Hardware · 10MB RAM · 1s Boot · 皮皮虾，我们走！</h3>\n<h3></h3>\n\n<p>\n<img src=\"https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go&logoColor=white\" alt=\"Go\">\n<img src=\"https://img.shields.io/badge/Arch-x86__64%2C%20ARM64%2C%20RISC--V-blue\" alt=\"Hardware\">\n<img src=\"https://img.shields.io/badge/license-MIT-green\" alt=\"License\">\n</p>\n\n</div>\n\n\n---\n\n🦐 PicoClaw is an ultra-lightweight personal AI Assistant inspired by [nanobot](https://github.com/HKUDS/nanobot), refactored from the ground up in Go through a self-bootstrapping process, where the AI agent itself drove the entire architectural migration and code optimization.\n\n⚡️ Runs on $10 hardware with <10MB RAM: That's 99% less memory than OpenClaw and 98% cheaper than a Mac mini!\n\n<table align=\"center\">\n  <tr align=\"center\">\n    <td align=\"center\" valign=\"top\">\n      <p align=\"center\">\n        <img src=\"assets/picoclaw_mem.gif\" width=\"360\" height=\"240\">\n      </p>\n    </td>\n    <td align=\"center\" valign=\"top\">\n      <p align=\"center\">\n        <img src=\"assets/licheervnano.png\" width=\"400\" height=\"240\">\n      </p>\n    </td>\n  </tr>\n</table>\n\n## 📢 News\n2026-02-09 🎉 PicoClaw Launched! Built in 1 day to bring AI Agents to $10 hardware with <10MB RAM. 🦐 皮皮虾，我们走！\n\n## ✨ Features\n\n🪶 **Ultra-Lightweight**: <10MB Memory footprint — 99% smaller than Clawdbot - core functionality.\n\n💰 **Minimal Cost**: Efficient enough to run on $10 Hardware — 98% cheaper than a Mac mini.\n\n⚡️ **Lightning Fast**: 400X Faster startup time, boot in 1 second even in 0.6GHz single core.\n\n🌍 **True Portability**: Single self-contained binary across RISC-V, ARM, and x86, One-click to Go!\n\n🤖 **AI-Bootstrapped**: Autonomous Go-native implementation — 95% Agent-generated core with human-in-the-loop refinement.\n\n|  | OpenClaw  | NanoBot | **PicoClaw** |\n| --- | --- | --- |--- |\n| **Language** | TypeScript | Python | **Go** |\n| **RAM** | >1GB |>100MB| **< 10MB** |\n| **Startup**</br>(0.8GHz core) | >500s | >30s |  **<1s** |\n| **Cost** | Mac Mini 599$ | Most Linux SBC </br>~50$ |**Any Linux Board**</br>**As low as 10$** |\n<img src=\"assets/compare.jpg\" alt=\"PicoClaw\" width=\"512\">\n\n\n## 🦾 Demonstration\n### 🛠️ Standard Assistant Workflows\n<table align=\"center\">\n  <tr align=\"center\">\n    <th><p align=\"center\">🧩 Full-Stack Engineer</p></th>\n    <th><p align=\"center\">🗂️ Logging & Planning Management</p></th>\n    <th><p align=\"center\">🔎 Web Search & Learning</p></th>\n  </tr>\n  <tr>\n    <td align=\"center\"><p align=\"center\"><img src=\"assets/picoclaw_code.gif\" width=\"240\" height=\"180\"></p></td>\n    <td align=\"center\"><p align=\"center\"><img src=\"assets/picoclaw_memory.gif\" width=\"240\" height=\"180\"></p></td>\n    <td align=\"center\"><p align=\"center\"><img src=\"assets/picoclaw_search.gif\" width=\"240\" height=\"180\"></p></td>\n  </tr>\n  <tr>\n    <td align=\"center\">Develop • Deploy • Scale</td>\n    <td align=\"center\">Schedule • Automate • Memory</td>\n    <td align=\"center\">Discovery • Insights • Trends</td>\n  </tr>\n</table>\n\n### 🐜 Innovative Low-Footprint Deploy\n1. Minimal 10$ Home Assitant\n2. NanoKVM Automated Maintenance\n3. MaixCAM2 Smart Monitoring\n\nhttps://private-user-images.githubusercontent.com/83055338/547056448-e7b031ff-d6f5-4468-bcca-5726b6fecb5c.mp4\n\n🌟 More Deployment Cases Await！\n\n## 📦 Install\n\n### Install with precompiled binary\n\nDownload the firmware for your platform from the [release](https://github.com/sipeed/picoclaw/releases) page.\n\n### Install from source (latest features, recommended for development)\n\n```bash\ngit clone https://github.com/sipeed/picoclaw.git\n\ncd picoclaw\nmake deps\n\n# Build, no need to install\nmake build\n\n# Build for multiple platforms\nmake build-all\n\n# Build And Install\nmake install\n```\n\n### 🚀 Quick Start\n\n> [!TIP]\n> Set your API key in `~/.picoclaw/config.json`.\n> Get API keys: [OpenRouter](https://openrouter.ai/keys) (LLM) · [Zhipu](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys) (LLM)\n> Web search is **optional** - get free [Brave Search API](https://brave.com/search/api) (2000 free queries/month)\n\n**1. Initialize**\n\n```bash\npicoclaw onboard\n```\n\n**2. Configure** (`~/.picoclaw/config.json`)\n\n```json\n{\n  \"agents\": {\n    \"defaults\": {\n      \"workspace\": \"~/.picoclaw/workspace\",\n      \"model\": \"glm-4.7\",\n      \"max_tokens\": 8192,\n      \"temperature\": 0.7,\n      \"max_tool_iterations\": 20\n    }\n  },\n  \"providers\": {\n    \"openrouter\": {\n      \"api_key\": \"xxx\",\n      \"api_base\": \"https://open.bigmodel.cn/api/paas/v4\"\n    }\n  },\n  \"tools\": {\n    \"web\": {\n      \"search\": {\n        \"api_key\": \"YOUR_BRAVE_API_KEY\",\n        \"max_results\": 5\n      }\n    }\n  }\n}\n```\n\n**3. Get API Keys**\n\n- **LLM Provider**: [OpenRouter](https://openrouter.ai/keys) · [Zhipu](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys) · [Anthropic](https://console.anthropic.com) · [OpenAI](https://platform.openai.com) · [Gemini](https://aistudio.google.com/api-keys)\n- **Web",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:52.308041"
+  },
+  {
+    "basic_info": {
+      "name": "multiclaude",
+      "full_name": "dlorenc/multiclaude",
+      "owner": "dlorenc",
+      "description": null,
+      "url": "https://github.com/dlorenc/multiclaude",
+      "clone_url": "https://github.com/dlorenc/multiclaude.git",
+      "ssh_url": "git@github.com:dlorenc/multiclaude.git",
+      "homepage": null,
+      "created_at": "2026-01-18T18:15:25Z",
+      "updated_at": "2026-02-09T21:19:23Z",
+      "pushed_at": "2026-01-28T23:14:09Z"
+    },
+    "stats": {
+      "stars": 468,
+      "forks": 45,
+      "watchers": 468,
+      "open_issues": 40,
+      "size": 1123
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1215022,
+        "Makefile": 4697,
+        "Shell": 645
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# multiclaude\n\n> *Why tell Claude what to do when you can tell Claude to tell Claude what to do?*\n\nMultiple Claude Code agents. One repo. Controlled chaos.\n\nmulticlaude spawns autonomous Claude Code instances that coordinate, compete, and collaborate on your codebase. Each agent gets its own tmux window and git worktree. You watch. They work. PRs appear.\n\n**Self-hosting since day one.** multiclaude builds itself. The agents you're reading about wrote the code you're reading about.\n\n## The Philosophy: Brownian Ratchet\n\nInspired by the [Brownian ratchet](https://en.wikipedia.org/wiki/Brownian_ratchet) - random motion converted to forward progress through a one-way mechanism.\n\nMultiple agents work simultaneously. They might duplicate effort. They might conflict. *This is fine.*\n\n**CI is the ratchet.** Every PR that passes gets merged. Progress is permanent. We never go backward.\n\n- 🎲 **Chaos is Expected** - Redundant work is cheaper than blocked work\n- 🔒 **CI is King** - If tests pass, ship it. If tests fail, fix it.\n- ⚡ **Forward > Perfect** - Three okay PRs beat one perfect PR\n- 👤 **Humans Approve** - Agents propose. You dispose.\n\n## Quick Start\n\n```bash\n# Install\ngo install github.com/dlorenc/multiclaude/cmd/multiclaude@latest\n\n# Prerequisites: tmux, git, gh (authenticated)\n\n# Fire it up\nmulticlaude start\nmulticlaude repo init https://github.com/your/repo\n\n# Spawn a worker and watch the magic\nmulticlaude worker create \"Add unit tests for the auth module\"\ntmux attach -t mc-repo\n```\n\nThat's it. You now have a supervisor, merge queue, and worker grinding away. Detach with `Ctrl-b d` and they keep working while you sleep.\n\n## Two Modes\n\n**Single Player** - [Merge-queue](internal/templates/agent-templates/merge-queue.md) auto-merges PRs when CI passes. You're the only human. Maximum velocity.\n\n```bash\nmulticlaude repo init https://github.com/you/repo  # your repo\n```\n\n**Multiplayer** - [PR-shepherd](internal/templates/agent-templates/pr-shepherd.md) coordinates with human reviewers, tracks approvals, respects your team's review process.\n\n```bash\nmulticlaude repo init https://github.com/you/fork  # auto-detected as fork\n```\n\nFork detection is automatic. If you're initializing a fork, multiclaude enables pr-shepherd and disables merge-queue (you can't merge to upstream anyway).\n\n## Built-in Agents\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│                     tmux session: mc-repo                   │\n├───────────────┬───────────────┬───────────────┬─────────────┤\n│  supervisor   │  merge-queue  │  workspace    │ swift-eagle │\n│               │               │               │             │\n│ Coordinates   │ Merges when   │ Your personal │ Working on  │\n│ the chaos     │ CI passes     │ Claude        │ a task      │\n└───────────────┴───────────────┴───────────────┴─────────────┘\n```\n\n| Agent | Role | Definition |\n|-------|------|------------|\n| **Supervisor** | Air traffic control. Nudges stuck agents. Answers \"what's happening?\" | [supervisor.md](internal/prompts/supervisor.md) |\n| **Merge Queue** | The bouncer (single player). CI passes? You're in. | [merge-queue.md](internal/templates/agent-templates/merge-queue.md) |\n| **PR Shepherd** | The diplomat (multiplayer). Coordinates human reviewers. | [pr-shepherd.md](internal/templates/agent-templates/pr-shepherd.md) |\n| **Workspace** | Your personal Claude. Spawn workers, check status. | [workspace.md](internal/prompts/workspace.md) |\n| **Worker** | The grunts. One task, one branch, one PR. Done. | [worker.md](internal/templates/agent-templates/worker.md) |\n| **Reviewer** | Code review bot. Reads PRs, leaves comments. | [reviewer.md](internal/templates/agent-templates/reviewer.md) |\n\n## Fully Extensible in Markdown\n\nThese are just the built-in agents. **Want more? Write markdown.**\n\nCreate `~/.multiclaude/repos/<repo>/agents/docs-reviewer.md`:\n\n```markdown\n# Docs Reviewer\n\nYou review documentation changes. Focus on:\n- Accuracy - does the docs match the code?\n- Clarity - can a new developer understand this?\n- Completeness - are edge cases documented?\n\nWhen you find issues, leave helpful PR comments. Be constructive, not pedantic.\n```\n\nThen spawn it:\n\n```bash\nmulticlaude agents spawn --name docs-bot --class docs-reviewer --prompt-file docs-reviewer.md\n```\n\nCheck your repo's `.multiclaude/agents/` to share custom agents with your team.\n\n## The MMORPG Model\n\nmulticlaude treats software engineering like an **MMO, not a single-player game**.\n\nYour workspace is your character. Workers are party members you summon. The supervisor is your guild leader. The merge queue is the raid boss guarding main.\n\nLog off. The game keeps running. Come back to progress.\n\n## Documentation\n\n- **[Commands Reference](docs/COMMANDS.md)** - All the CLI commands\n- **[Agent Guide](docs/AGENTS.md)** - How agents work and customization\n- **[Architecture](docs/ARCHITECTURE.md)** - System design and internals\n- **[Workflows](docs/WORKFLOWS.md)** - Detailed examples and patte",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:53.436520"
+  },
+  {
+    "basic_info": {
+      "name": "md2wechat-skill",
+      "full_name": "geekjourneyx/md2wechat-skill",
+      "owner": "geekjourneyx",
+      "description": "  用 Markdown 写公众号文章，一键转换为精美排版并自动上传到微信草稿箱。支持 AI 多主题样式和批量发布，让公众号写作像发朋友圈一样简单。",
+      "url": "https://github.com/geekjourneyx/md2wechat-skill",
+      "clone_url": "https://github.com/geekjourneyx/md2wechat-skill.git",
+      "ssh_url": "git@github.com:geekjourneyx/md2wechat-skill.git",
+      "homepage": "https://md2wechat.cn",
+      "created_at": "2026-01-11T06:36:13Z",
+      "updated_at": "2026-02-10T03:21:08Z",
+      "pushed_at": "2026-02-06T07:32:45Z"
+    },
+    "stats": {
+      "stars": 408,
+      "forks": 77,
+      "watchers": 408,
+      "open_issues": 1,
+      "size": 100321
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 233383,
+        "Shell": 11978,
+        "Makefile": 3014,
+        "PowerShell": 2963
+      },
+      "license": null,
+      "topics": [
+        "claude-skills",
+        "golang",
+        "markdown-converter",
+        "skills",
+        "wechat"
+      ]
+    },
+    "content": {
+      "readme": "# md2wechat\n\n<div align=\"center\">\n\n**用 Markdown 写公众号文章，像发朋友圈一样简单**\n\n[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://golang.org)\n[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n[![GitHub Release](https://img.shields.io/badge/download-latest-green)](https://github.com/geekjourneyx/md2wechat-skill/releases)\n[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-purple)](#-claude-code-集成)\n[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-00b0aa)](#-openclaw-支持)\n[![zread](https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff)](https://zread.ai/geekjourneyx/md2wechat-skill)\n\n---\n\n> ### ⚠️ 重要提示：API 模式需要 md2wechat.cn API 服务\n> **本工具使用 md2wechat.cn API 服务，使用 API 模式前需要先获取 API Key**\n>\n> - 📖 **API 文档**：https://www.md2wechat.cn/api-docs\n> - 📧 **联系获取**：通过 [官网](https://www.md2wechat.cn/api-docs) 联系获取 API Key\n> - 💡 **AI 模式**：不需要 API Key，直接使用 Claude 即可\n\n---\n\n[快速开始](#-5分钟快速上手) • [Claude Code](#-claude-code-集成) • [OpenClaw](#-openclaw-支持) • [功能介绍](#-核心功能) • [使用说明](#-使用方法) • [常见问题](#-常见问题)\n\n---\n\n## 🚀 Claude Code 用户（推荐）\n\n在 Claude Code 中运行以下命令即可使用：\n\n```bash\n/plugin marketplace add geekjourneyx/md2wechat-skill\n/plugin install md2wechat@geekjourneyx-md2wechat-skill\n```\n\n然后直接对话：**\"请用秋日暖光主题将 article.md 转换为微信公众号格式\"**\n\n</div>\n\n## ✨ 这是什么？\n\n**md2wechat** 是一个让你的微信公众号写作更高效的神器。\n\n> 💡 **一句话理解**：用 Markdown 写文章 → 一键转换 → 自动发到微信草稿箱\n\n**适合谁用？**\n\n| 你是 | 痛点 | md2wechat 帮你 |\n|------|------|---------------|\n| 📝 内容创作者 | 微信编辑器太难用，排版花时间 | Markdown 写作，自动排版 |\n| 💼 产品经理 | 要发公告，但不会 HTML | 不用学代码，一行命令搞定 |\n| 👨‍💻 程序员 | 习惯 Markdown，讨厌微信编辑器 | 保持你的写作习惯 |\n| 🤖 AI 用户 | 用 AI 生成内容，但要手动复制粘贴 | AI 生成 → 微信草稿，无缝衔接 |\n\n---\n\n## 🎯 核心功能\n\n```mermaid\nflowchart LR\n    A[用 Markdown 写文章] --> B{选择模式}\n\n    B -->|API 模式| C[调用 md2wechat.cn API]\n    C --> D[获取 HTML]\n\n    B -->|AI 模式 ⭐| E[Claude AI 生成 HTML]\n    E --> F[精美排版]\n\n    D --> G[预览效果]\n    F --> G\n\n    G --> H{满意吗}\n    H -->|不满意| B\n    H -->|满意| I[上传图片]\n    I --> J[发送到微信草稿箱]\n    J --> K[完成]\n\n    classDef nodeA fill:#e3f2fd,stroke:#2196f3,color:#0d47a1\n    classDef nodeE fill:#fff3e0,stroke:#ff9800,color:#e65100\n    classDef nodeJ fill:#e8f5e9,stroke:#4caf50,color:#1b5e20\n    classDef nodeK fill:#c8e6c9,stroke:#4caf50,color:#1b5e20\n\n    class A nodeA\n    class E nodeE\n    class J nodeJ\n    class K nodeK\n```\n\n### 五大核心功能\n\n| 功能 | 命令 | 说明 | 适合谁 |\n|------|------|------|--------|\n| **Markdown 转换** | `convert` | 将 Markdown 转换为微信格式 HTML | 所有用户 |\n| **风格写作** | `write` | 用创作者风格辅助写作，自动生成文章和封面提示词 | 写作小白、内容创作者 |\n| **AI 去痕** | `humanize` | 去除 AI 生成痕迹，让文章听起来更自然、像人写的 | AI 写作用户 |\n| **小绿书** 🆕 | `create_image_post` | 创建图片消息（小绿书），最多 20 张图片 | 图片内容创作者 |\n| **草稿推送** | `convert --draft` | 一键发送到微信草稿箱 | 需要频繁发布的用户 |\n\n**`write` 与 `convert` 的区别：**\n\n| 对比项 | `write` 命令 | `convert` 命令 |\n|--------|-------------|---------------|\n| **输入** | 一个想法/观点/片段 | 完整的 Markdown 文件 |\n| **输出** | 结构化提示词（AI 处理后生成文章） | 微信格式 HTML |\n| **用途** | 从零开始创作 | 格式转换已有内容 |\n| **封面** | 自动生成封面提示词 | 需要手动指定封面图 |\n\n**简单理解：**\n- `write` = 帮你写文章（从想法到完整文章）\n- `convert` = 帮你排版（从 Markdown 到微信格式）\n\n### 两种转换模式\n\n| 模式 | 适合谁 | 特点 | 样式 |\n|------|--------|------|------|\n| **API 模式** | 追求稳定、快速 | 调用 md2wechat.cn API，秒级响应 | 简洁专业 |\n| **AI 模式** ⭐ | 追求精美排版 | Claude AI 生成，样式更丰富 | 秋日暖光 / 春日清新 / 深海静谧 |\n\n### 完整工作流程\n\n```mermaid\nflowchart LR\n    A1[Markdown 写作] --> A2[插入图片]\n    A2 --> B1{选择模式}\n\n    B1 -->|API| B2[md2wechat.cn]\n    B1 -->|AI| B3[Claude AI]\n\n    B2 --> B4[HTML 生成]\n    B3 --> B4\n\n    B4 --> C1[预览效果]\n    C1 --> C2{满意吗}\n\n    C2 -->|调整| B1\n    C2 -->|OK| C3[上传图片]\n    C3 --> C4[发送草稿]\n    C4 --> C5[完成]\n\n    classDef write fill:#e3f2fd,stroke:#2196f3,color:#0d",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:54.585519"
+  },
+  {
+    "basic_info": {
+      "name": "skillshare",
+      "full_name": "runkids/skillshare",
+      "owner": "runkids",
+      "description": "📚 Sync skills across all AI CLI tools with one command and simplify team sharing. Supporting Claude Code, OpenClaw, OpenCode & more",
+      "url": "https://github.com/runkids/skillshare",
+      "clone_url": "https://github.com/runkids/skillshare.git",
+      "ssh_url": "git@github.com:runkids/skillshare.git",
+      "homepage": "https://skillshare.runkids.cc",
+      "created_at": "2026-01-14T10:07:46Z",
+      "updated_at": "2026-02-10T03:20:57Z",
+      "pushed_at": "2026-02-09T21:18:07Z"
+    },
+    "stats": {
+      "stars": 404,
+      "forks": 30,
+      "watchers": 404,
+      "open_issues": 2,
+      "size": 70576
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 817268,
+        "TypeScript": 349989,
+        "CSS": 45135,
+        "Shell": 28196,
+        "PowerShell": 3580,
+        "JavaScript": 3132,
+        "Makefile": 2925,
+        "Dockerfile": 913,
+        "HTML": 723,
+        "MDX": 512
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "antigravity",
+        "claude-code",
+        "clawdbot",
+        "cli",
+        "codex",
+        "cross-machine-sync",
+        "cursor",
+        "dotfiles",
+        "moltbot",
+        "openclaw",
+        "opencode",
+        "skills",
+        "skills-audit",
+        "skills-management",
+        "skills-ui",
+        "skillshare",
+        "team-management"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\" style=\"margin-bottom: 0;\">\n  <img src=\".github/assets/logo.png\" alt=\"skillshare\" width=\"280\">\n</p>\n\n<h1 align=\"center\" style=\"margin-top: 0.5rem; margin-bottom: 0.5rem;\">skillshare</h1>\n\n<p align=\"center\">\n  <a href=\"https://skillshare.runkids.cc\"><img src=\"https://img.shields.io/badge/Website-skillshare.runkids.cc-blue?logo=docusaurus\" alt=\"Website\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-MIT-yellow.svg\" alt=\"License: MIT\"></a>\n  <a href=\"go.mod\"><img src=\"https://img.shields.io/github/go-mod/go-version/runkids/skillshare\" alt=\"Go Version\"></a>\n  <a href=\"https://github.com/runkids/skillshare/releases\"><img src=\"https://img.shields.io/github/v/release/runkids/skillshare\" alt=\"Release\"></a>\n  <img src=\"https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue\" alt=\"Platform\">\n  <a href=\"https://goreportcard.com/report/github.com/runkids/skillshare\"><img src=\"https://goreportcard.com/badge/github.com/runkids/skillshare\" alt=\"Go Report Card\"></a>\n  <a href=\"https://deepwiki.com/runkids/skillshare\"><img src=\"https://deepwiki.com/badge.svg\" alt=\"Ask DeepWiki\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/runkids/skillshare/stargazers\"><img src=\"https://img.shields.io/github/stars/runkids/skillshare?style=social\" alt=\"Star on GitHub\"></a>\n</p>\n\n<p align=\"center\">\n  <strong>One source of truth for AI CLI skills. Sync everywhere with one command — from personal to organization-wide.</strong><br>\n  Claude Code, OpenClaw, OpenCode & 40+ more.\n</p>\n\n<p align=\"center\">\n  <img src=\".github/assets/demo.gif\" alt=\"skillshare demo\" width=\"960\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://skillshare.runkids.cc\">Website</a> •\n  <a href=\"#installation\">Install</a> •\n  <a href=\"#quick-start\">Quick Start</a> •\n  <a href=\"#cli-and-ui-preview\">Screenshots</a> •\n  <a href=\"#common-workflows\">Commands</a> •\n  <a href=\"#web-dashboard\">Web UI</a> •\n  <a href=\"#project-skills-per-repo\">Project Skills</a> •\n  <a href=\"#organization-skills-tracked-repo\">Organization Skills</a> •\n  <a href=\"https://skillshare.runkids.cc/docs\">Docs</a>\n</p>\n\n> [!NOTE]\n> **Recent Updates**\n> | Version | Highlights |\n> |---------|------------|\n> | [0.11.0](https://github.com/runkids/skillshare/releases/tag/v0.11.0) | Security Audit, Operation Log, Trash, Update Preview — full audit trail + safety net |\n> | [0.10.0](https://github.com/runkids/skillshare/releases/tag/v0.10.0) | Web Dashboard — visual skill management via `skillshare ui` |\n> | [0.9.0](https://github.com/runkids/skillshare/releases/tag/v0.9.0) | Project-level skills — scope skills to a single repo, share via git |\n\n## Why skillshare\n\nStop managing skills tool-by-tool.\n`skillshare` gives you one shared skill source and pushes it everywhere your AI agents work.\n\n- **One command, everywhere**: Sync to Claude Code, Codex, Cursor, OpenCode, and more with `skillshare sync`.\n- **Safe by default**: Non-destructive merge mode keeps CLI-local skills intact while sharing team skills.\n- **True bidirectional flow**: Pull skills back from targets with `collect` so improvements never get trapped in one tool.\n- **Cross-machine ready**: Git-native `push`/`pull` keeps all your devices aligned.\n- **Team + project friendly**: Use global skills for personal workflows and `.skillshare/` for repo-scoped collaboration.\n- **Privacy-first**: No central registry, no telemetry, no install tracking. Your skill setup stays entirely local.\n- **Built-in security audit**: Scan skills for prompt injection, data exfiltration, and other threats before they reach your AI agent.\n- **Visual control panel**: Open `skillshare ui` for browsing, install, target management, and sync status in one place.\n\n## Comparison\n\nskillshare uses a **declarative** approach: define your targets once in `config.yaml`, then `sync` handles everything — no prompts, no repeated selections.\n\n| | Imperative (install-per-command) | Declarative (skillshare) |\n|---|---|---|\n| **Config** | No config; prompts every run | `config.yaml` — set once |\n| **Agent selection** | Interactive prompt each time | Defined in config |\n| **Install method** | Choose per operation | `sync_mode` in config |\n| **Source of truth** | Skills copied independently | Single source → symlinks |\n| **Remove one agent's skill** | May break other agents' symlinks | Only that target's symlink removed |\n| **New machine setup** | Re-run every install manually | `git clone` config + `sync` |\n| **Project-scoped skills** | Global lock file only | `init -p` for per-repo skills |\n| **Cross-machine sync** | Manual | Built-in `push` / `pull` |\n| **Bidirectional** | Install only | `collect` pulls changes back |\n| **Security audit** | None | Built-in `audit` + auto-scan on install |\n| **Web dashboard** | None | `skillshare ui` |\n| **Runtime dependency** | Node.js + npm | None (single Go binary) |\n\n> [!TIP]\n> Coming from another tool? See the [Migration Guide](https://skillshare.runkids.cc/docs/guides/migration) and [det",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:55.699731"
+  },
+  {
+    "basic_info": {
+      "name": "matchlock",
+      "full_name": "jingkaihe/matchlock",
+      "owner": "jingkaihe",
+      "description": "Matchlock secures AI agent workloads with a Linux-based sandbox.",
+      "url": "https://github.com/jingkaihe/matchlock",
+      "clone_url": "https://github.com/jingkaihe/matchlock.git",
+      "ssh_url": "git@github.com:jingkaihe/matchlock.git",
+      "homepage": "",
+      "created_at": "2026-02-05T18:22:39Z",
+      "updated_at": "2026-02-10T03:29:20Z",
+      "pushed_at": "2026-02-10T00:26:32Z"
+    },
+    "stats": {
+      "stars": 353,
+      "forks": 8,
+      "watchers": 353,
+      "open_issues": 5,
+      "size": 7690
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 505005,
+        "Python": 56971,
+        "Shell": 7896,
+        "Dockerfile": 2459
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Matchlock\n\n> **Experimental:** This project is still in active development and subject to breaking changes.\n\nMatchlock is a CLI tool for running AI agents in ephemeral microVMs - with network allowlisting, secret injection via MITM proxy, and VM-level isolation. Your secrets never enter the VM.\n\n## Why Matchlock?\n\nAI agents need to run code, but giving them unrestricted access to your machine is a risk. Matchlock lets you hand an agent a full Linux environment that boots in under a second - isolated and disposable.\n\nWhen you pass `--allow-host` or `--secret`, Matchlock seals the network - only traffic to explicitly allowed hosts gets through, and everything else is blocked. When your agent calls an API the real credentials are injected in-flight by the host. The sandbox only ever sees a placeholder. Even if the agent is tricked into running something malicious your keys don't leak and there's nowhere for data to go. Inside the agent gets a full Linux environment to do whatever it needs. It can install packages and write files and make a mess. Outside your machine doesn't feel a thing. Every sandbox runs on its own copy-on-write filesystem that vanishes when you're done. Same CLI and same behaviour whether you're on a Linux server or a MacBook.\n\n## Quick Start\n\n### System Requirements\n\n- **Linux** with KVM support\n- **macOS** on Apple Silicon\n\n### Install\n\n```bash\nbrew tap jingkaihe/essentials\nbrew install matchlock\n```\n\n### Usage\n\n```bash\n# Basic\nmatchlock run --image alpine:latest cat /etc/os-release\nmatchlock run --image alpine:latest -it sh\n\n# Network allowlist\nmatchlock run --image python:3.12-alpine \\\n  --allow-host \"api.openai.com\" python agent.py\n\n# Secret injection (never enters the VM)\nexport ANTHROPIC_API_KEY=sk-xxx\nmatchlock run --image python:3.12-alpine \\\n  --secret ANTHROPIC_API_KEY@api.anthropic.com python call_api.py\n\n# Long-lived sandboxes\nmatchlock run --image alpine:latest --rm=false   # prints VM ID\nmatchlock exec vm-abc12345 -it sh                # attach to it\n\n# Lifecycle\nmatchlock list | kill | rm | prune\n\n# Build from Dockerfile (uses BuildKit-in-VM)\nmatchlock build -f Dockerfile -t myapp:latest .\n\n# Pre-build rootfs from registry image (caches for faster startup)\nmatchlock build alpine:latest\n\n# Image management\nmatchlock image ls                                           # List all images\nmatchlock image rm myapp:latest                              # Remove a local image\ndocker save myapp:latest | matchlock image import myapp:latest  # Import from tarball\n```\n\n## SDK\n\nMatchlock also ships with Go and Python SDKs for embedding sandboxes directly in your application. Allows you to programmatically launch VMs, exec commands, stream output and write files.\n\n**Go**\n\n```go\npackage main\n\nimport (\n\t\"fmt\"\n\t\"os\"\n\n\t\"github.com/jingkaihe/matchlock/pkg/sdk\"\n)\n\nfunc main() {\n\tclient, _ := sdk.NewClient(sdk.DefaultConfig())\n\tdefer client.Close()\n\n\tsandbox := sdk.New(\"alpine:latest\").\n\t\tAllowHost(\"dl-cdn.alpinelinux.org\", \"api.anthropic.com\").\n\t\tAddSecret(\"ANTHROPIC_API_KEY\", os.Getenv(\"ANTHROPIC_API_KEY\"), \"api.anthropic.com\")\n\n\tclient.Launch(sandbox)\n\tclient.Exec(\"apk add --no-cache curl\")\n\n\t// The VM only ever sees a placeholder - the real key never enters the sandbox\n\tresult, _ := client.Exec(\"echo $ANTHROPIC_API_KEY\")\n\tfmt.Print(result.Stdout) // prints \"SANDBOX_SECRET_a1b2c3d4...\"\n\n\tcurlCmd := `curl -s --no-buffer https://api.anthropic.com/v1/messages \\\n  -H \"content-type: application/json\" \\\n  -H \"x-api-key: $ANTHROPIC_API_KEY\" \\\n  -H \"anthropic-version: 2023-06-01\" \\\n  -d '{\"model\":\"claude-haiku-4-5-20251001\",\"max_tokens\":1024,\"stream\":true,\n       \"messages\":[{\"role\":\"user\",\"content\":\"Explain TCP to me\"}]}'`\n\tclient.ExecStream(curlCmd, os.Stdout, os.Stderr)\n}\n```\n\n**Python** ([PyPI](https://pypi.org/project/matchlock/))\n\n```bash\npip install matchlock\n# or\nuv add matchlock\n```\n\n```python\nimport os\nimport sys\n\nfrom matchlock import Client, Config, Sandbox\n\nsandbox = (\n    Sandbox(\"alpine:latest\")\n    .allow_host(\"dl-cdn.alpinelinux.org\", \"api.anthropic.com\")\n    .add_secret(\n        \"ANTHROPIC_API_KEY\", os.environ[\"ANTHROPIC_API_KEY\"], \"api.anthropic.com\"\n    )\n)\n\ncurl_cmd = \"\"\"curl -s --no-buffer https://api.anthropic.com/v1/messages \\\n  -H \"content-type: application/json\" \\\n  -H \"x-api-key: $ANTHROPIC_API_KEY\" \\\n  -H \"anthropic-version: 2023-06-01\" \\\n  -d '{\"model\":\"claude-haiku-4-5-20251001\",\"max_tokens\":1024,\"stream\":true,\n       \"messages\":[{\"role\":\"user\",\"content\":\"Explain TCP/IP.\"}]}'\"\"\"\n\nwith Client(Config()) as client:\n    client.launch(sandbox)\n    client.exec(\"apk add --no-cache curl\")\n    client.exec_stream(curl_cmd, stdout=sys.stdout, stderr=sys.stderr)\n```\n\nSee full examples in [`examples/go`](examples/go/main.go) and [`examples/python`](examples/python/main.py).\n\n## Architecture\n\n```mermaid\ngraph LR\n    subgraph Host\n        CLI[\"Matchlock CLI\"]\n        Policy[\"Policy Engine\"]\n        Proxy[\"Transparent Proxy + TLS MITM\"]\n        VFS[\"VFS Server\"]\n\n        CLI --> Policy\n ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:56.829016"
+  },
+  {
+    "basic_info": {
+      "name": "ralphex",
+      "full_name": "umputun/ralphex",
+      "owner": "umputun",
+      "description": "Extended Ralph loop for autonomous AI-driven plan execution",
+      "url": "https://github.com/umputun/ralphex",
+      "clone_url": "https://github.com/umputun/ralphex.git",
+      "ssh_url": "git@github.com:umputun/ralphex.git",
+      "homepage": "https://ralphex.com",
+      "created_at": "2026-01-19T22:44:35Z",
+      "updated_at": "2026-02-10T02:41:14Z",
+      "pushed_at": "2026-02-10T02:05:57Z"
+    },
+    "stats": {
+      "stars": 318,
+      "forks": 23,
+      "watchers": 318,
+      "open_issues": 1,
+      "size": 12352
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1079429,
+        "JavaScript": 80619,
+        "HTML": 60002,
+        "CSS": 39000,
+        "Python": 29751,
+        "Shell": 6700,
+        "Makefile": 3776,
+        "Dockerfile": 2040
+      },
+      "license": "MIT License",
+      "topics": [
+        "automation",
+        "claude-code",
+        "codex",
+        "ralph-loop",
+        "ralph-wiggum",
+        "review"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/ralphex-wordmark-split.png\" alt=\"ralphex\" width=\"400\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/umputun/ralphex/actions/workflows/ci.yml\"><img src=\"https://github.com/umputun/ralphex/actions/workflows/ci.yml/badge.svg\" alt=\"build\"></a>\n  <a href=\"https://coveralls.io/github/umputun/ralphex?branch=master\"><img src=\"https://coveralls.io/repos/github/umputun/ralphex/badge.svg?branch=master\" alt=\"Coverage Status\"></a>\n  <a href=\"https://goreportcard.com/report/github.com/umputun/ralphex\"><img src=\"https://goreportcard.com/badge/github.com/umputun/ralphex?v=2\" alt=\"Go Report Card\"></a>\n</p>\n\n<h2 align=\"center\">Autonomous plan execution with Claude Code</h2>\n\n*ralphex is a standalone CLI tool that runs in your terminal from the root of a git repository. It orchestrates Claude Code to execute implementation plans autonomously - no IDE plugins or cloud services required, just Claude Code and a single binary.*\n\nClaude Code is powerful but interactive - it requires you to watch, approve, and guide each step. For complex features spanning multiple tasks, this means hours of babysitting. Worse, as context fills up during long sessions, the model's quality degrades - it starts making mistakes, forgetting earlier decisions, and producing worse code.\n\nralphex solves both problems. Each task executes in a fresh Claude Code session with minimal context, keeping the model sharp throughout the entire plan. Write a plan with tasks and validation commands, start ralphex, and walk away. Come back to find your feature implemented, reviewed, and committed - or check the progress log to see what it's doing.\n\n<details markdown>\n<summary>Task Execution Screenshot</summary>\n\n![ralphex tasks](assets/ralphex-tasks.png)\n\n</details>\n\n<details markdown>\n<summary>Review Mode Screenshot</summary>\n\n![ralphex review](assets/ralphex-review.png)\n\n</details>\n\n<details markdown>\n<summary>Web Dashboard Screenshot</summary>\n\n![ralphex web dashboard](assets/ralphex-web.png)\n\n</details>\n\n## Features\n\n- **Zero setup** - works out of the box with sensible defaults, no configuration required\n- **Autonomous task execution** - executes plan tasks one at a time with automatic retry\n- **Interactive plan creation** - create plans through dialogue with Claude via `--plan` flag\n- **Multi-phase code review** - 5 agents → codex → 2 agents review pipeline\n- **Custom review agents** - configurable agents with `{{agent:name}}` template system and user defined prompts\n- **Automatic branch creation** - creates git branch from plan filename\n- **Plan completion tracking** - moves completed plans to `completed/` folder\n- **Automatic commits** - commits after each task and review fix\n- **Real-time monitoring** - streaming output with timestamps, colors, and detailed logs\n- **Web dashboard** - browser-based real-time view with `--serve` flag\n- **Docker support** - run in isolated container for safer autonomous execution\n- **Notifications** - optional alerts on completion/failure via Telegram, Email, Slack, Webhook, or custom script\n- **Multiple modes** - full execution, tasks-only, review-only, external-only, or plan creation\n\n## Quick Start\n\nMake sure ralphex is [installed](#installation) and your project is a git repository. You need a plan file in `docs/plans/`, for example:\n\n```markdown\n# Plan: My Feature\n\n## Validation Commands\n- `go test ./...`\n\n### Task 1: Implement feature\n- [ ] Add the new functionality\n- [ ] Add tests\n```\n\nThen run:\n\n```bash\nralphex docs/plans/my-feature.md\n```\n\nralphex will create a branch, execute tasks, commit results, run multi-phase reviews, and move the plan to `completed/` when done.\n\n## How It Works\n\nralphex executes plans in four phases with automated code reviews.\n\n<details markdown>\n<summary>Execution Flow Diagram</summary>\n\n![ralphex flow](assets/ralphex-flow.png)\n\n</details>\n\n### Phase 1: Task Execution\n\n1. Reads plan file and finds first incomplete task (`### Task N:` with `- [ ]` checkboxes)\n2. Sends task to Claude Code for execution\n3. Runs validation commands (tests, linters) after each task\n4. Marks checkboxes as done `[x]`, commits changes\n5. Repeats until all tasks complete or max iterations reached\n\n### Phase 2: First Code Review\n\nLaunches 5 review agents **in parallel** via Claude Code Task tool:\n\n| Agent | Purpose |\n|-------|---------|\n| `quality` | bugs, security issues, race conditions |\n| `implementation` | verifies code achieves stated goals |\n| `testing` | test coverage and quality |\n| `simplification` | detects over-engineering |\n| `documentation` | checks if docs need updates |\n\nClaude verifies findings, fixes confirmed issues, and commits.\n\n*[Default agents](https://github.com/umputun/ralphex/tree/master/pkg/config/defaults/agents) provide common, language-agnostic review steps. They can be customized and tuned for your specific needs, languages, and workflows. See [Customization](#customization) for details.*\n\n### Phase 3: External Review (optional)\n\n1. Runs exter",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-02-10T03:46:57.944830"
+  },
+  {
+    "basic_info": {
+      "name": "cdpnetool",
+      "full_name": "241x/cdpnetool",
+      "owner": "241x",
+      "description": "Chrome DevTools Protocol Network Tools",
+      "url": "https://github.com/241x/cdpnetool",
+      "clone_url": "https://github.com/241x/cdpnetool.git",
+      "ssh_url": "git@github.com:241x/cdpnetool.git",
+      "homepage": null,
+      "created_at": "2026-01-18T13:11:28Z",
+      "updated_at": "2026-02-09T04:22:31Z",
+      "pushed_at": "2026-02-09T03:15:08Z"
+    },
+    "stats": {
+      "stars": 300,
+      "forks": 49,
+      "watchers": 300,
+      "open_issues": 0,
+      "size": 32444
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 218166,
+        "TypeScript": 217103,
+        "NSIS": 12401,
+        "JavaScript": 11593,
+        "CSS": 2174,
+        "Batchfile": 934,
+        "HTML": 299
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# cdpnetool\n\n[English](./README_EN.md) | 简体中文\n\n<p align=\"center\">\n  <img src=\"./docs/assets/images/logo.png\" alt=\"cdpnetool Logo\" width=\"200\" />\n</p>\n\n> 基于 Chrome DevTools Protocol 的网络请求拦截与修改工具\n\n<p align=\"center\">\n  <img src=\"./docs/assets/images/Rules.png\" alt=\"cdpnetool 预览\" width=\"800\" />\n</p>\n\n[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)\n[![Release](https://img.shields.io/github/v/release/241x/cdpnetool)](https://github.com/241x/cdpnetool/releases)\n\n## 简介\n\ncdpnetool 是一款强大的网络请求拦截工具，通过 Chrome DevTools Protocol 实现对浏览器 HTTP/HTTPS 请求的精准控制和灵活修改。无需安装证书，无需编写代码，通过可视化界面即可完成复杂的网络调试任务。\n\n**核心特性：**\n- ✅ 实时拦截浏览器网络请求和响应\n- ✅ 可视化规则配置，支持丰富的匹配条件和修改行为\n- ✅ 配置管理：多配置保存、导入导出、快速切换\n- ✅ 事件监控：DevTools 风格的详情面板\n- ✅ 请求预览：全量流量查看，支持开启/关闭捕获\n- ✅ 系统设置：语言切换（中/英）、主题模式、浏览器配置\n- ✅ 无需证书：基于 CDP 协议直接控制浏览器\n\n## 快速开始\n\n### 安装\n\n**Windows 用户：**\n\n从 [Releases](https://github.com/241x/cdpnetool/releases) 下载最新版本的安装包并运行。\n\n**其他平台：**\n\nmacOS 和 Linux 平台需要从源码构建，详见 [文档](./docs/02-quick-start.md#从源码构建)。\n\n### 基本使用\n\n1. 启动 cdpnetool\n2. 点击「启动浏览器」按钮\n3. 点击「连接」连接到浏览器\n4. 在 Targets 面板附加要拦截的页面\n5. 在 Rules 面板创建规则并启用配置\n6. 在 Events 面板查看匹配的请求\n7. （可选）在 Network 面板开启全量流量监控\n\n## 文档\n\n- [项目介绍](./docs/01-introduction.md) - 了解 cdpnetool 的功能和适用场景\n- [快速开始](./docs/02-quick-start.md) - 5 分钟上手教程\n- [规则配置参考](./docs/03-rule-reference.md) - 完整的规则语法参考\n- [常见问题](./docs/04-faq.md) - 问题排查和解决方案\n\n## 适用场景\n\n- 🔧 **前端开发**：Mock API 数据、测试异常状态、调试跨域问题\n- 🧪 **软件测试**：边界测试、错误模拟、安全测试\n- 🔍 **接口调试**：拦截分析加密请求、修改参数探测行为\n- 🎨 **个性化定制**：广告屏蔽、网络加速、功能增强\n\n## 技术栈\n\n- 前端：React + TypeScript + Vite + TailwindCSS\n- 后端：Go + Wails v2\n- 协议：Chrome DevTools Protocol (CDP)\n- 数据库：SQLite\n- 国际化：react-i18next（支持中文/英文）\n\n## 开发\n\n```bash\n# 克隆项目\ngit clone https://github.com/241x/cdpnetool.git\ncd cdpnetool\n\n# 安装 Wails CLI\ngo install github.com/wailsapp/wails/v2/cmd/wails@latest\n\n# 开发模式运行\nwails dev\n\n# 构建生产版本\nwails build\n```\n\n详细的开发说明请参考 [快速开始 - 从源码构建](./docs/02-quick-start.md#从源码构建)。\n\n## 贡献\n\n欢迎提交 Issue 和 Pull Request！\n\n## 交流群\n\n欢迎加入 QQ 交流群[734393923](https://qm.qq.com/q/gHFneBljZ6)，交流使用问题和分享配置：\n\n<p align=\"center\">\n  <img src=\"./docs/assets/images/qrcode_group_qq.jpg\" alt=\"QQ交流群\" width=\"300\" />\n</p>\n\n## 许可证\n\n[GPL-3.0 License](LICENSE)\n\n本项目采用 GNU General Public License v3.0 协议开源。\n\n## 相关链接\n\n- [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/)\n- [Wails Framework](https://wails.io/)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:46:59.053059"
+  },
+  {
+    "basic_info": {
+      "name": "subtask",
+      "full_name": "zippoxer/subtask",
+      "owner": "zippoxer",
+      "description": "Claude Skill to do your tasks with subagents in Git worktrees",
+      "url": "https://github.com/zippoxer/subtask",
+      "clone_url": "https://github.com/zippoxer/subtask.git",
+      "ssh_url": "git@github.com:zippoxer/subtask.git",
+      "homepage": "",
+      "created_at": "2026-01-11T11:17:02Z",
+      "updated_at": "2026-02-08T18:57:18Z",
+      "pushed_at": "2026-01-29T23:32:38Z"
+    },
+    "stats": {
+      "stars": 295,
+      "forks": 25,
+      "watchers": 295,
+      "open_issues": 4,
+      "size": 444
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 955292,
+        "Shell": 5987,
+        "PowerShell": 3412
+      },
+      "license": "MIT License",
+      "topics": [
+        "claude",
+        "claude-code",
+        "codex",
+        "codex-cli"
+      ]
+    },
+    "content": {
+      "readme": "# Subtask ✨\n\nSubtask gives Claude Code a Skill and CLI to create tasks, spawn subagents, track progress, review and request changes.\n\n* Each task gets a Git worktree, so they can be **done in parallel** safely\n* **Claude can interrupt and talk with subagents**!\n* TUI shows progress, diffs & conversations\n* Tasks are persisted in folders\n* Codex subagents supported\n* Ralph not needed\n\n### Spawning Tasks\n```makefile\nYou: fix the auth bug and add API metrics with Subtask\n\nClaude:\n  ├─► Skill(Subtask)\n  ├─► Bash(subtask draft fix/auth-bug ...)\n  ├─► Bash(subtask draft feat/api-metrics ...)\n  └─⏺ Tasks are in progress! I'll get notified when they're done.\n```\n\n### Tracking & Merging\n```makefile\nYou: which tasks are open?\n\nClaude:\n  ├─► Bash(subtask list)\n  │   ┌──────────────────┬─────────┬────────────────────────┐\n  │   │ TASK             │ STATUS  │ TITLE                  │\n  │   ├──────────────────┼─────────┼────────────────────────┤\n  │   │ fix/auth-bug     │ replied │ Fix auth token refresh │\n  │   │ feat/api-metrics │ working │ Add API metrics        │\n  │   │ feat/ui-redesign │ draft   │ Redesign dashboard     │\n  │   └──────────────────┴─────────┴────────────────────────┘\n  │\n  └─⏺ ui-redesign hasn't started yet — want me to kick it off?\n\nYou: lets merge fix/auth-bug.\n```\n\n### TUI\nRun `subtask` in your terminal to see everything:\n<table>\n  <tr>\n    <td><img width=\"983\" height=\"603\" alt=\"image (2)\" src=\"https://github.com/user-attachments/assets/fcc4686a-afa1-4168-b141-e54d9286ad4c\" /></td>\n    <td><img width=\"985\" height=\"603\" alt=\"image\" src=\"https://github.com/user-attachments/assets/9d6cd9a2-ba80-4e4e-9fdc-fd0f675b124a\" />\n</td>\n  </tr>\n</table>\n\n## Setup\n\n> [!NOTE]\n> Subtask is in early development. Upcoming releases will simplify installation, solve known bugs, and improve Claude's proficiency.\n\n### Install the CLI\n\n#### Mac/Linux\n\n```bash\ncurl -fsSL https://subtask.dev/install.sh | bash\n```\n\n#### Windows (PowerShell)\n\n```powershell\nirm https://subtask.dev/install.ps1 | iex\n```\n\n<details>\n<summary>Other install methods…</summary>\n\n#### Homebrew\n\n```bash\nbrew install zippoxer/tap/subtask\n```\n\n#### Go\n\n```bash\ngo install github.com/zippoxer/subtask/cmd/subtask@latest\n```\n\n#### Binary\n\n[GitHub Releases](https://github.com/zippoxer/subtask/releases)\n\n</details>\n\n### Install the Skill\n\nTell Claude Code:\n```md\nSetup Subtask with `subtask install --guide`.\n```\nClaude will install the Subtask skill at `~/.claude/skills`, and ask you whether subagents should run Claude, Codex or OpenCode.\n\n<details>\n<summary>Or install manually…</summary>\n\n```bash\nsubtask install\n\n# Tip: Uninstall later with `subtask uninstall`.\n```\n\n</details>\n\n### Install the Plugin (Optional)\n\nIn Claude Code:\n```\n/plugin marketplace add zippoxer/subtask\n/plugin install subtask@subtask\n```\nThis reminds Claude to use the Subtask skill when it invokes the CLI.\n\n## Use\n\nTalk with Claude Code about what you want done, and then ask it to use Subtask.\n\nExamples:\n- `\"fix the login bug with Subtask\"`\n- `\"lets do these 3 features with Subtask\"`\n- `\"plan and implement the new API endpoint with Subtask\"`\n\nWhat happens next:\n1. Claude Code creates tasks and runs subagents to do them simultaneously.<br/>\n2. Claude gets notified when they're done, and reviews the code.<br/>\n3. Claude asks if you want to merge, or ask for changes.\n\n## Updating\n```bash\nsubtask update --check\nsubtask update\n```\n\n## Subtask is Built with Subtask\n- I use Claude Code to lead the development (i talk, it creates tasks and tracks everything)\n- I use Codex for subagents (just preference, Claude Code works too)\n- ~60 tasks merged in the past week\n- [Proof](https://github.com/user-attachments/assets/6c71e34f-b3c6-4372-ac25-dd3eea15932e)\n\n\n## License\n\nMIT\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:47:00.191647"
+  },
+  {
+    "basic_info": {
+      "name": "xw-cli",
+      "full_name": "TsingmaoAI/xw-cli",
+      "owner": "TsingmaoAI",
+      "description": "实现国产算力大模型零门槛部署，一键跑通 Qwen、GLM-4.7、Minimax-2.1、DeepSeek-OCR 等模型",
+      "url": "https://github.com/TsingmaoAI/xw-cli",
+      "clone_url": "https://github.com/TsingmaoAI/xw-cli.git",
+      "ssh_url": "git@github.com:TsingmaoAI/xw-cli.git",
+      "homepage": "",
+      "created_at": "2026-02-02T03:07:20Z",
+      "updated_at": "2026-02-10T01:02:39Z",
+      "pushed_at": "2026-02-09T10:30:06Z"
+    },
+    "stats": {
+      "stars": 276,
+      "forks": 29,
+      "watchers": 276,
+      "open_issues": 9,
+      "size": 8643
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 595192,
+        "Shell": 28122,
+        "Makefile": 8269
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "![](/images/xuanwu.png)\n<center> <b>玄武CLI</b>｜<b>xw-cli</b> </center>\n\n<center> 实现国产算力的大模型自由，打造国产版Ollama </center>\n\n为多元国产算力平台深度优化模型性能。告别繁琐的环境配置与算子适配，一条命令启动生产级服务，即刻释放大模型潜能。\n\n## 里程碑\n\n- **2026.02.02** 玄武CLI正式开源，并支持华为Ascend系列芯片。\n\n## ✨ 特性\n\n### 🇨🇳 国产原生\n- 深度优化国产硬件性能\n- 本地化完整支持\n\n### ⚡ 低门槛，一键启动\n- 无需复杂配置，开箱即用\n- 自动硬件检测与引擎推荐\n\n### 🔧 多引擎支持\n- 内置多个推理引擎适配与自动路由\n- 保证性能与模型覆盖广度\n\n## 📦 安装\n\n### 前置要求\n- 拥有linux系统\n- 拥有受[支持的国产卡](https://xw.tsingmao.com/hardware.html)，并确认驱动已正确安装\n\n### 极速安装\n\n```bash\ncurl -o- http://xw.tsingmao.com/install.sh | bash\n```\n\n## 🚀 快速开始\n\n### 1. 启动xw-cli server\n\n```bash\nxw serve\n```\n\n### 2. 拉取模型\n\n```bash\nxw pull qwen3-8b\n```\n\n更多模型详见 [xw 模型仓库](https://xw.tsingmao.com/models.html)。\n\n### 3. 运行模型\n\n```bash\nxw run qwen3-8b\n```\n\n开始对话，输入 `/quit` 退出。\n\n### 4. 查看本地模型\n\n```bash\n# 本地存储的模型\nxw ls\n\n# 正在运行的模型\nxw ps\n```\n\n## 📚 文档\n\n- **官网**: [xw.tsingmao.com](https://xw.tsingmao.com/)\n- **文档**: [xw.tsingmao.com/doc](https://xw.tsingmao.com/doc.html)\n- **模型仓库**: [xw.tsingmao.com/models](https://xw.tsingmao.com/models.html)\n\n## 🐛 反馈\n\n如遇到问题或有建议，欢迎 [提交 Issue](https://github.com/TsingmaoAI/xw-cli/issues)\n\n## 💬 社区交流\n\n欢迎加入 xw-cli 微信交流群，与开发者和用户一起讨论技术问题、分享使用经验：\n\n<table>\n  <tr>\n    <td align=\"center\">\n      <img src=\"images/wx_4.jpg\" width=\"200px\" alt=\"微信群4\"/><br/>\n      <sub><b>微信群 4</b></sub>\n    </td>\n    <td align=\"center\">\n      <img src=\"images/wx_5.jpg\" width=\"200px\" alt=\"微信群5\"/><br/>\n      <sub><b>微信群 5</b></sub>\n    </td>\n    <td align=\"center\">\n      <img src=\"images/wx_6.jpg\" width=\"200px\" alt=\"微信群6\"/><br/>\n      <sub><b>微信群 6</b></sub>\n    </td>\n  </tr>\n</table>\n\n*如群二维码失效，请通过 Issue 联系我们*\n\n---\n\n本项目由清昴智能团队维护。更多信息访问 [清昴智能官网](https://www.tsingmao.com/)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:47:01.399147"
+  },
+  {
+    "basic_info": {
+      "name": "difi",
+      "full_name": "oug-t/difi",
+      "owner": "oug-t",
+      "description": "Review and refine Git diffs before you push",
+      "url": "https://github.com/oug-t/difi",
+      "clone_url": "https://github.com/oug-t/difi.git",
+      "ssh_url": "git@github.com:oug-t/difi.git",
+      "homepage": "",
+      "created_at": "2026-01-28T16:12:30Z",
+      "updated_at": "2026-02-10T00:48:07Z",
+      "pushed_at": "2026-02-08T18:10:42Z"
+    },
+    "stats": {
+      "stars": 223,
+      "forks": 9,
+      "watchers": 223,
+      "open_issues": 2,
+      "size": 92
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 32664
+      },
+      "license": "MIT License",
+      "topics": [
+        "bubbletea",
+        "git"
+      ]
+    },
+    "content": {
+      "readme": "<a id=\"readme-top\"></a>\r\n\r\n<h1 align=\"center\"><code>difi</code></h1>\r\n<p align=\"center\"><em>Review and refine Git diffs before you push</em></p>\r\n\r\n<p align=\"center\">\r\n  <img src=\"https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white\" />\r\n  <img src=\"https://img.shields.io/badge/Bubble_Tea-E2386F?style=for-the-badge&logo=tea&logoColor=white\" />\r\n  <img src=\"https://img.shields.io/github/license/oug-t/difi?style=for-the-badge&color=2e3440\" />\r\n</p>\r\n\r\n<p align=\"center\">\r\n  <img src= \"https://github.com/user-attachments/assets/3695cfd2-148c-463d-9630-547d152adde0\" alt=\"difi_demo\" />\r\n</p>\r\n\r\n## Why difi?\r\n\r\n**git diff** shows changes. **difi** helps you _review_ them.\r\n\r\n- ⚡️ **Instant** — Built in Go. Launches immediately with no daemon or indexing.\r\n- 🎨 **Structured** — A clean file tree and focused diffs for fast mental parsing.\r\n- 🧠 **Editor-Aware** — Jump straight to the exact line in `nvim`/`vim` to fix issues.\r\n- ⌨️ **Keyboard-First** — Navigate everything with `h j k l`. No mouse required.\r\n\r\n<p align=\"right\">(<a href=\"#readme-top\">back to top</a>)</p>\r\n\r\n## Installation\r\n\r\n#### Homebrew (macOS & Linux)\r\n\r\n```bash\r\nbrew tap oug-t/difi\r\nbrew install difi\r\n```\r\n\r\n#### Go Install\r\n\r\n```bash\r\ngo install github.com/oug-t/difi/cmd/difi@latest\r\n```\r\n\r\n#### AUR (Arch Linux)\r\n\r\n**Binary (pre-built):**\r\n\r\n```bash\r\npikaur -S difi-bin\r\n```\r\n\r\n**Build from source:**\r\n\r\n```bash\r\npikaur -S difi\r\n```\r\n\r\n#### Manual (Linux / Windows)\r\n\r\n- Download the binary from Releases and add it to your `$PATH`.\r\n\r\n<p align=\"right\">(<a href=\"#readme-top\">back to top</a>)</p>\r\n\r\n## Workflow\r\n\r\n- Run difi in any Git repository.\r\n- By default, it compares your current branch against main.\r\n\r\n```bash\r\ncd my-project\r\ndifi\r\n```\r\n\r\n<p align=\"right\">(<a href=\"#readme-top\">back to top</a>)</p>\r\n\r\n## Controls\r\n\r\n| Key           | Action                                       |\r\n| ------------- | -------------------------------------------- |\r\n| `Tab`         | Toggle focus between File Tree and Diff View |\r\n| `j / k`       | Move cursor down / up                        |\r\n| `h / l`       | Focus Left (Tree) / Focus Right (Diff)       |\r\n| `e` / `Enter` | Edit file (opens editor at selected line)    |\r\n| `?`           | Toggle help drawer                           |\r\n| `q`           | Quit                                         |\r\n\r\n<p align=\"right\">(<a href=\"#readme-top\">back to top</a>)</p>\r\n\r\n## Integrations\r\n\r\n#### vim-fugitive\r\n\r\n- **The \"Unix philosophy\" approach:** Uses the industry-standard Git wrapper to provide a robust, side-by-side editing experience.\r\n- **Side-by-Side Editing:** Instantly opens a vertical split (:Gvdiffsplit!) against the index.\r\n- **Merge Conflicts:** Automatically detects conflicts and opens a 3-way merge view for resolution.\r\n- **Config**: Add the line below to if using **lazy.nvim**.\r\n\r\n```lua\r\n{\r\n  \"tpope/vim-fugitive\",\r\n  cmd = { \"Gvdiffsplit\", \"Git\" }, -- Add this line\r\n}\r\n```\r\n\r\n<p align=\"left\"> \r\n  <a href=\"https://github.com/tpope/vim-fugitive.git\">\r\n    <img src=\"https://img.shields.io/badge/Supports-vim--fugitive-4d4d4d?style=for-the-badge&logo=vim&logoColor=white\" alt=\"Supports vim-fugitive\" />\r\n  </a>\r\n</p>\r\n\r\n#### difi.nvim\r\n\r\nGet the ultimate review experience with **[difi.nvim](https://github.com/oug-t/difi.nvim)**.\r\n\r\n- **Auto-Open:** Instantly jumps to the file and line when you press `e` in the CLI.\r\n- **Visual Diff:** Renders diffs inline with familiar green/red highlights—just like reviewing a PR on GitHub.\r\n- **Interactive Review:** Restore a \"deleted\" line by simply removing the `-` marker. Discard an added line by deleting it entirely.\r\n- **Context Aware:** Automatically syncs with your `difi` session target.\r\n\r\n<p align=\"left\">\r\n  <a href=\"https://github.com/oug-t/difi.nvim\">\r\n    <img src=\"https://img.shields.io/badge/Get_difi.nvim-57A143?style=for-the-badge&logo=neovim&logoColor=white\" alt=\"Get difi.nvim\" />\r\n  </a>\r\n</p>\r\n\r\n<p align=\"right\">(<a href=\"#readme-top\">back to top</a>)</p>\r\n\r\n## Git Integration\r\n\r\nTo use `difi` as a native git command (e.g., `git difi`), add it as an alias in your global git config:\r\n\r\n```bash\r\ngit config --global alias.difi '!difi'\r\n```\r\n\r\nNow you can run it directly from git:\r\n\r\n```bash\r\ngit difi\r\n```\r\n\r\n<p align=\"right\">(<a href=\"#readme-top\">back to top</a>)</p>\r\n\r\n## Contributing\r\n\r\n```bash\r\ngit clone https://github.com/oug-t/difi\r\ncd difi\r\ngo run cmd/difi/main.go\r\n```\r\n\r\nContributions are especially welcome in:\r\n\r\n- diff.nvim rendering edge cases\r\n- UI polish and accessibility\r\n- Windows support\r\n\r\n<p align=\"right\">(<a href=\"#readme-top\">back to top</a>)</p>\r\n\r\n## Star History\r\n\r\n<a href=\"https://star-history.com/#oug-t/difi&Date\">\r\n    <picture>\r\n      <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/svg?repos=oug-t/difi&type=Date&theme=dark\" />\r\n      <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/svg?repos=oug-t/difi&type=Date\" />\r\n      <img alt=\"Sta",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:47:02.533780"
+  },
+  {
+    "basic_info": {
+      "name": "plumber",
+      "full_name": "getplumber/plumber",
+      "owner": "getplumber",
+      "description": "Open source CLI to check compliance of your GitLab CI/CD pipelines and repos",
+      "url": "https://github.com/getplumber/plumber",
+      "clone_url": "https://github.com/getplumber/plumber.git",
+      "ssh_url": "git@github.com:getplumber/plumber.git",
+      "homepage": "https://getplumber.io",
+      "created_at": "2026-01-19T08:20:05Z",
+      "updated_at": "2026-02-09T19:51:25Z",
+      "pushed_at": "2026-02-09T16:12:44Z"
+    },
+    "stats": {
+      "stars": 208,
+      "forks": 5,
+      "watchers": 208,
+      "open_issues": 9,
+      "size": 13869
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 290964,
+        "Dockerfile": 988,
+        "Makefile": 981
+      },
+      "license": "Mozilla Public License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/plumber.svg\" alt=\"Plumber\">\n</p>\n\n\n<p align=\"center\">\n  <b>CI/CD compliance scanner for GitLab pipelines</b>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/getplumber/plumber/actions\"><img src=\"https://img.shields.io/github/actions/workflow/status/getplumber/plumber/release.yml?label=Build\" alt=\"Build Status\"></a>\n  <a href=\"https://github.com/getplumber/plumber/releases\"><img src=\"https://img.shields.io/github/v/release/getplumber/plumber\" alt=\"Latest Release\"></a>\n  <img src=\"https://img.shields.io/github/go-mod/go-version/getplumber/plumber\" alt=\"Go Version\">\n  <a href=\"https://github.com/getplumber/plumber/releases\"><img src=\"https://img.shields.io/github/downloads/getplumber/plumber/total?label=Downloads\" alt=\"GitHub Downloads\"></a>\n  <a href=\"https://hub.docker.com/r/getplumber/plumber\"><img src=\"https://img.shields.io/docker/pulls/getplumber/plumber\" alt=\"Docker Pulls\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MPL--2.0-blue\" alt=\"License\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://getplumber.io\">Website</a> •\n  <a href=\"https://discord.gg/932xkSU24f\">Discord</a> •\n  <a href=\"https://github.com/getplumber/plumber/issues\">Issues</a>\n</p>\n\n---\n\n## 🤔 What is Plumber?\n\nPlumber is a compliance scanner for GitLab. It reads your `.gitlab-ci.yml` and repository settings, then checks for security and compliance issues like:\n\n- Container images using mutable tags (`latest`, `dev`)\n- Container images from untrusted registries\n- Unprotected branches\n- Hardcoded jobs not from includes/components\n- Outdated includes/templates\n- Forbidden version patterns (e.g., `main`, `HEAD`)\n- Missing required components or templates\n\n**How does it work?** Plumber connects to your GitLab instance via API, analyzes your pipeline configuration, and reports any issues it finds. You define what's allowed in a config file (`.plumber.yaml`), and Plumber tells you if your project complies.\n\n<p align=\"center\">\n  <img src=\"assets/component.gif\" alt=\"Plumber Demo\" width=\"700\">\n</p>\n\n> 💡 **Want to see it in action?** Check out our example projects:\n> - [go-build-test-compliant](https://gitlab.com/getplumber/examples/go-build-test-compliant/-/pipelines) - A compliant project passing all checks\n> - [go-build-test-non-compliant](https://gitlab.com/getplumber/examples/go-build-test-non-compliant/-/pipelines) - A non-compliant project showing detected issues\n\n## 🚀 Two Ways to Use Plumber\n\nChoose **one** of these methods. You don't need both:\n\n| Method | Best for | How it works |\n|--------|----------|--------------|\n| **[CLI](#option-1-cli)** | Quick evaluation, local testing, one-off scans | Install binary and run from terminal |\n| **[GitLab CI Component](#option-2-gitlab-ci-component)** | Automated checks on every pipeline run | Add 2 lines to your `.gitlab-ci.yml` |\n\n---\n\n## 📖 Table of Contents\n\n- [What is Plumber?](#-what-is-plumber)\n- [CLI](#option-1-cli)\n- [GitLab CI Component](#option-2-gitlab-ci-component)\n- [Configuration](#%EF%B8%8F-configuration)\n  - [Available Controls](#available-controls)\n  - [Outputs](#outputs)\n    - [Example Output](#example-output)\n- [Installation](#-installation)\n- [CLI Reference](#-cli-reference)\n- [Self-Hosted GitLab](#%EF%B8%8F-self-hosted-gitlab)\n- [Troubleshooting](#-troubleshooting)\n\n\n---\n\n## Option 1: CLI\n\n**Try Plumber in 2 minutes!** No commits, no CI changes, just run it.\n\n### Step 1: Install\n\nChoose **one** of the following:\n\n#### Homebrew\n\n```bash\nbrew tap getplumber/plumber\nbrew install plumber\n```\n\n#### Mise\n\n```bash\nmise use -g github:getplumber/plumber\n```\n\n> Requires [mise activation](https://mise.jdx.dev/getting-started.html#activate-mise) in your shell, or run with `mise exec -- plumber`.\n\n#### Direct Download\n\n```bash\n# For Linux/MacOs\ncurl -LO \"https://github.com/getplumber/plumber/releases/latest/download/plumber-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')\"\nchmod +x plumber-* && sudo mv plumber-* /usr/local/bin/plumber\n```\n\n> 📦 See [Installation](#-installation) for Windows, Docker, or building from source.\n\n### Step 2: Generate a Config File\n\n```bash\nplumber config generate\n```\n\nThis creates `.plumber.yaml` with [default](./.plumber.yaml) compliance rules. You can customize it later.\n\n### Step 3: Create & Set Your Token\n\n1. In GitLab, go to **User Settings → Access Tokens** ([direct link](https://gitlab.com/-/user_settings/personal_access_tokens))\n2. Create a Personal Access Token with `read_api` + `read_repository` scopes\n3. Export it in your terminal:\n\n> ⚠️ **Important:** The token must belong to a user with **Maintainer** role (or higher) on the project to access branch protection settings and other project configurations.\n\n```bash\nexport GITLAB_TOKEN=glpat-xxxx\n```\n\n### Step 4: Run Analysis\n\nPlumber auto-detects the GitLab URL and project from your git remote but requires the remote to be set to 'origin'. \n```bash\n# if in git remote with remote = o",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:47:03.699592"
+  },
+  {
+    "basic_info": {
+      "name": "cursor-tap",
+      "full_name": "burpheart/cursor-tap",
+      "owner": "burpheart",
+      "description": "Cursor gRPC 通信流量分析工具",
+      "url": "https://github.com/burpheart/cursor-tap",
+      "clone_url": "https://github.com/burpheart/cursor-tap.git",
+      "ssh_url": "git@github.com:burpheart/cursor-tap.git",
+      "homepage": "",
+      "created_at": "2026-01-31T11:51:26Z",
+      "updated_at": "2026-02-10T02:18:56Z",
+      "pushed_at": "2026-01-31T12:56:42Z"
+    },
+    "stats": {
+      "stars": 202,
+      "forks": 20,
+      "watchers": 202,
+      "open_issues": 2,
+      "size": 4271
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 218330,
+        "TypeScript": 70479,
+        "CSS": 4299,
+        "JavaScript": 559
+      },
+      "license": null,
+      "topics": [
+        "ai",
+        "cursor"
+      ]
+    },
+    "content": {
+      "readme": "# Cursor-Tap\n\n中文 | [English](./README_EN.md)\n\nCursor IDE gRPC 中间人流量分析工具。可以解密 TLS、反序列化 protobuf、实时展示 AI 对话产生的RPC请求和响应。\n\n![image-20260131181319486](images/image-20260131180724715.png)\n\n## 为什么做这个\n\nCursor 和后端的通信全是 gRPC，走的 Connect Protocol，body 是二进制 protobuf。用 Burp 或 Fiddler 抓到的都是一堆看不懂的二进制。官方也没公开 proto 定义，想看 AI 对话的具体内容很麻烦。\n\n这个工具能把流量解密成可读的 JSON，还能实时看到 streaming 的每一帧。\n\n## 相关文章\n\n[Cursor 逆向笔记 1 —— 我是如何拦截解析 Cursor 的 gRPC 通信流量的](./cursor-reverse-notes-1.md)\n\n## 原理\n\n1. **MITM 代理**：在 Cursor 和 api2.cursor.sh 之间插一层，用自签 CA 解密 TLS\n2. **Proto 提取**：从 Cursor 客户端的 JS 代码里提取出 proto 定义（藏在 `protobuf-es` 编译产物里）\n3. **实时解析**：解析 Connect Protocol 的 envelope framing，反序列化每一帧 protobuf\n4. **WebUI 展示**：用 WebSocket 实时推送到前端，四栏布局展示服务树、调用列表、帧列表、详情\n\n## 快速开始\n\n### 1. 启动代理\n\n```bash\ngo run ./cmd/proxy\n```\n\n默认监听 `localhost:8080`（HTTP 代理）和 `localhost:9090`（WebUI + WebSocket）。\n\n### 2. 配置 Cursor\n\n设置环境变量让 Cursor 走代理并信任自签 CA：\n\n```bash\n# Windows\nset HTTP_PROXY=http://localhost:8080\nset HTTPS_PROXY=http://localhost:8080\nset NODE_EXTRA_CA_CERTS=C:\\path\\to\\ca.crt\n\n# macOS/Linux\nexport HTTP_PROXY=http://localhost:8080\nexport HTTPS_PROXY=http://localhost:8080\nexport NODE_EXTRA_CA_CERTS=/path/to/ca.crt\n```\n\nCA 证书在首次启动时自动生成，位置是 `~/.cursor-tap/ca.crt`。\n\n### 3. 启动 WebUI\n\n```bash\ncd web\nnpm install\nnpm run dev\n```\n\n打开 `http://localhost:3000` 就能看到流量了。\n\n## 项目结构\n\n```\n├── cmd/proxy/          # 代理入口\n├── internal/\n│   ├── ca/             # CA 证书管理，动态签发\n│   ├── proxy/          # HTTP CONNECT 代理\n│   └── httpstream/     # gRPC 解析核心\n│       ├── grpc.go     # protobuf 反序列化\n│       ├── parser.go   # Connect Protocol 解析\n│       └── recorder.go # 流量记录\n├── cursor_proto/       # 提取出来的 proto 定义\n└── web/                # Next.js 前端\n```\n\n## 能看到什么\n\n- `AiService/RunSSE`：AI 对话的主通道，包括 AI 思考、文本生成、工具调用\n- `BidiService/BidiAppend`：用户消息和工具执行结果\n- `AiService/StreamCpp`：代码补全请求和建议\n- `CppService/RecordCppFate`：补全结果的接受/拒绝反馈\n- `AiService/Batch`：用户行为上报\n- 其他几十个 RPC 方法...\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:47:04.832762"
+  },
+  {
+    "basic_info": {
+      "name": "giztoy",
+      "full_name": "haivivi/giztoy",
+      "owner": "haivivi",
+      "description": "A toy framework for building AI-powered applications across all dimensions.",
+      "url": "https://github.com/haivivi/giztoy",
+      "clone_url": "https://github.com/haivivi/giztoy.git",
+      "ssh_url": "git@github.com:haivivi/giztoy.git",
+      "homepage": "http://giztoy.com/",
+      "created_at": "2026-01-18T18:48:33Z",
+      "updated_at": "2026-02-10T02:18:39Z",
+      "pushed_at": "2026-02-10T01:06:16Z"
+    },
+    "stats": {
+      "stars": 164,
+      "forks": 17,
+      "watchers": 164,
+      "open_issues": 8,
+      "size": 7182
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 3094260,
+        "Rust": 1831198,
+        "Starlark": 192031,
+        "Luau": 138449,
+        "HTML": 56429,
+        "Shell": 48166,
+        "JavaScript": 46308,
+        "CSS": 26474,
+        "C++": 25284,
+        "Swift": 16765,
+        "C": 15511,
+        "Java": 4388,
+        "Kotlin": 4193,
+        "Go Template": 1525,
+        "TypeScript": 468
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Giztoy\n\n<div align=\"center\">\n\n**A toy framework for building AI-powered applications across all dimensions.**\n\n*From embedded devices to cloud agents, from audio streams to video feeds,*  \n*connecting every Large Language Model the universe has to offer.*\n\n[![Build](https://github.com/haivivi/giztoy/actions/workflows/build-main.yaml/badge.svg)](https://github.com/haivivi/giztoy/actions/workflows/build-main.yaml)\n[![Docs](https://img.shields.io/github/deployments/haivivi/giztoy/github-pages?label=docs)](https://haivivi.github.io/giztoy/)\n\n[Documentation](https://haivivi.github.io/giztoy/docs/) · [Examples](./examples/) · [中文](./README-zh.md)\n\n</div>\n\n---\n\n## 📚 Documentation\n\nStart here! Preview the documentation locally:\n\n```bash\n# Clone and enter the repository\ngit clone https://github.com/haivivi/giztoy.git\ncd giztoy\n\n# Serve documentation locally (requires Bazel)\nbazel run //pages:serve-local\n\n# Then open http://localhost:3000/docs/ in your browser\n```\n\nOr visit the online documentation: [https://haivivi.github.io/giztoy/docs/](https://haivivi.github.io/giztoy/docs/)\n\n---\n\n## Overview\n\nGiztoy is a multi-language framework designed for building AI toys and intelligent applications. It provides a unified abstraction layer that spans from resource-constrained embedded systems to powerful cloud services.\n\nThink of it as a bridge — not between worlds, but between possibilities.\n\n### Key Features\n\n- **🔌 Embedded First** — Native support for ESP32, nRF, and other MCUs\n- **📱 Cross-Platform Apps** — Build for Android, iOS, and HarmonyOS\n- **🏗️ Unified Build System** — Bazel compiles everything: mobile apps, MCU firmware, Linux services\n- **🤖 Agent Framework** — GenX provides a unified interface for AI agents\n- **🎙️ Audio Processing** — Opus, MP3, PCM encoding/decoding with real-time streaming\n- **🎬 Video Support** — Coming soon\n- **🌐 Universal LLM Support** — OpenAI, Gemini, Claude, MiniMax, DashScope, Doubao, and more\n- **⚡ Realtime Models** — WebSocket-based streaming for voice and multimodal AI\n- **🔐 Secure Transport** — MQTT for IoT, Noise Protocol + KCP for real-time audio/video\n- **🔧 Multi-Language** — Go, Rust, Zig, and C/C++ implementations\n\n### Architecture\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│                    AI Application Layer                      │\n│                 GenX · Speech · ChatGear                     │\n├─────────────────────────────────────────────────────────────┤\n│                     API Client Layer                         │\n│    OpenAI · Gemini · Claude · MiniMax · DashScope · Doubao  │\n├─────────────────────────────────────────────────────────────┤\n│                   Communication Layer                        │\n│           MQTT0 · WebSocket · Noise Protocol + KCP          │\n├─────────────────────────────────────────────────────────────┤\n│                  Audio Processing Layer                      │\n│              Opus · MP3 · PCM · Resampler                   │\n├─────────────────────────────────────────────────────────────┤\n│                    Foundation Layer                          │\n│            Buffer · Encoding · Trie · CLI                    │\n└─────────────────────────────────────────────────────────────┘\n```\n\n### Quick Start\n\n```bash\n# Clone the repository\ngit clone https://github.com/haivivi/giztoy.git\ncd giztoy\n\n# Build with Bazel\nbazel build //...\n\n# Or use native toolchains\ncd go && go build ./cmd/...\ncd rust && cargo build --release\n```\n\n### Supported Platforms\n\nAll platforms built with **Bazel** — one build system to rule them all.\n\n| Platform | Status | Notes |\n|----------|--------|-------|\n| Linux | ✅ | Full support |\n| macOS | ✅ | Full support |\n| Android | ✅ | Bazel + rules_android |\n| iOS | ✅ | Bazel + rules_apple |\n| HarmonyOS | ✅ | Bazel + custom rules |\n| ESP32 | 🚧 | Bazel + esp-idf |\n| nRF / BLE MCUs | 🚧 | Coming soon |\n| Other Linux-based | ✅ | OpenWrt, Yocto, etc. |\n\n### Why Go + Rust + Zig?\n\nGo for simplicity, Rust for performance, Zig for the edge. Each has its strengths.\n\n- **Go** — Rapid prototyping, CLI tools, server applications\n- **Rust** — Embedded systems, performance-critical audio/video processing, reliability\n- **Zig** — Coming soon, for bare-metal and extreme resource constraints\n\nIn Giztoy, nearly every module provides multiple language implementations. The choice is yours.\n\n### Documentation\n\nFull documentation: [https://haivivi.github.io/giztoy/docs/](https://haivivi.github.io/giztoy/docs/)\n\n### License\n\n[Apache License 2.0](./LICENSE)\n\n---\n\n<div align=\"center\">\n\n*\"I'm just a toymaker.\"*\n\n</div>\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:47:05.982321"
+  },
+  {
+    "basic_info": {
+      "name": "dnstm",
+      "full_name": "net2share/dnstm",
+      "owner": "net2share",
+      "description": "DNS Tunnel Manager",
+      "url": "https://github.com/net2share/dnstm",
+      "clone_url": "https://github.com/net2share/dnstm.git",
+      "ssh_url": "git@github.com:net2share/dnstm.git",
+      "homepage": null,
+      "created_at": "2026-01-22T02:27:58Z",
+      "updated_at": "2026-02-09T23:01:56Z",
+      "pushed_at": "2026-02-07T00:46:51Z"
+    },
+    "stats": {
+      "stars": 158,
+      "forks": 14,
+      "watchers": 158,
+      "open_issues": 6,
+      "size": 391
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 526989,
+        "Shell": 3401,
+        "Makefile": 1887
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# DNS Tunnel Manager (dnstm)\n\nA CLI tool to deploy and manage DNS tunnel servers on Linux. Run single tunnels or scale with the built-in DNS router for multi-tunnel setups. Configure via interactive menu, CLI commands, or config files with auto-generated certificates and keys.\n\n## Supported Transports\n\n| Transport      | Description                                    |\n| -------------- | ---------------------------------------------- |\n| **Slipstream** | High-performance DNS tunnel with TLS encryption |\n| **DNSTT**      | Classic DNS tunnel using Curve25519 keys       |\n\n## Supported Backends\n\n| Backend         | Description                              | Transports       |\n| --------------- | ---------------------------------------- | ---------------- |\n| **SOCKS**       | Built-in microsocks SOCKS5 proxy         | Slipstream, DNSTT |\n| **SSH**         | Forward to local SSH server              | Slipstream, DNSTT |\n| **Shadowsocks** | Encrypted proxy via SIP003 plugin        | Slipstream only  |\n| **Custom**      | Forward to any TCP address               | Slipstream, DNSTT |\n\n## Features\n\n- Two operating modes: single-tunnel and multi-tunnel (DNS router)\n- Interactive menu and full CLI support\n- Auto-generated TLS certificates (Slipstream) and Curve25519 keys (DNSTT)\n- Firewall configuration (UFW, firewalld, iptables)\n- systemd service management with security hardening\n- SSH tunnel user management with sshd hardening\n- Integrated microsocks SOCKS5 proxy\n\n## System Overview\n\n```mermaid\nflowchart TB\n    subgraph Client\n        C[DNS Client]\n    end\n\n    subgraph \"DNS Resolver\"\n        R[Public DNS<br/>1.1.1.1 / 8.8.8.8]\n    end\n\n    subgraph Server[\"dnstm Server\"]\n        subgraph SingleMode[\"Single-Tunnel Mode\"]\n            T1[Active Transport<br/>:53]\n        end\n\n        subgraph MultiMode[\"Multi-Tunnel Mode\"]\n            DR[DNS Router<br/>:53]\n            T2[Transport 1<br/>:5310]\n            T3[Transport 2<br/>:5311]\n            T4[Transport N<br/>:531N]\n        end\n\n        subgraph Backends[\"Backends\"]\n            SSH[SSH Server<br/>:22]\n            SOCKS[microsocks<br/>SOCKS5]\n            SS[Shadowsocks]\n            CUSTOM[Custom]\n        end\n    end\n\n    C -->|DNS Queries| R\n    R -->|UDP/TCP :53| T1\n    R -->|UDP/TCP :53| DR\n\n    DR --> T2\n    DR --> T3\n    DR --> T4\n\n    T1 --> Backends\n    T2 --> Backends\n    T3 --> Backends\n    T4 --> Backends\n```\n\n## Quick Start\n\n### DNS Setup\n\nConfigure NS records pointing to your server:\n\n```\nns.example.com.  IN  A   YOUR_SERVER_IP\nt.example.com.   IN  NS  ns.example.com.\n```\n\n### Concepts\n\n- **Backend**: Where traffic goes after decapsulation (socks, ssh, shadowsocks, custom)\n- **Transport**: DNS tunnel protocol (slipstream or dnstt)\n- **Tunnel**: A transport + backend + domain combination\n\n> **Note:** Slipstream + Shadowsocks uses SIP003 plugin mode - the shadowsocks server runs as a plugin to slipstream, providing encrypted tunneling. This requires defining a shadowsocks backend instead of using the built-in socks proxy.\n\n### Install\n\n```bash\n# Download and install binary\ncurl -sSL https://raw.githubusercontent.com/net2share/dnstm/main/install.sh | sudo bash\n\n# Initialize system (creates user, services, downloads transports)\nsudo dnstm install                    # Defaults to single-tunnel mode\nsudo dnstm install --mode multi       # For multi-tunnel mode with DNS router\n```\n\n### Configuration Methods\n\n#### 1. Interactive Menu\n\n```bash\nsudo dnstm\n# Navigate: Tunnels → Add\n```\n\n#### 2. CLI Commands\n\n```bash\n# Add slipstream + socks tunnel\nsudo dnstm tunnel add -t slip-socks --transport slipstream --backend socks --domain t1.example.com\n\n# Add dnstt + ssh tunnel\nsudo dnstm tunnel add -t dnstt-ssh --transport dnstt --backend ssh --domain t2.example.com\n\n# Add slipstream + shadowsocks tunnel (creates shadowsocks backend automatically)\nsudo dnstm backend add -t my-ss --type shadowsocks --password mypass123 --method aes-256-gcm\nsudo dnstm tunnel add -t slip-ss --transport slipstream --backend my-ss --domain t3.example.com\n\n# Add slipstream + custom backend (e.g., MTProto proxy)\nsudo dnstm backend add -t mtproto --type custom --address 127.0.0.1:8443\nsudo dnstm tunnel add -t slip-mtproto --transport slipstream --backend mtproto --domain t4.example.com\n\n# Start router\nsudo dnstm router start\n```\n\n#### 3. Config File\n\n```bash\nsudo dnstm config load config.json\n```\n\nExample `config.json` (certs/keys auto-generated):\n```json\n{\n  \"backends\": [\n    {\n      \"tag\": \"my-ss\",\n      \"type\": \"shadowsocks\",\n      \"shadowsocks\": { \"password\": \"mypass123\", \"method\": \"aes-256-gcm\" }\n    },\n    {\n      \"tag\": \"mtproto\",\n      \"type\": \"custom\",\n      \"address\": \"127.0.0.1:8443\"\n    }\n  ],\n  \"tunnels\": [\n    {\n      \"tag\": \"slip-socks\",\n      \"transport\": \"slipstream\",\n      \"backend\": \"socks\",\n      \"domain\": \"t1.example.com\",\n      \"port\": 5310\n    },\n    {\n      \"tag\": \"dnstt-ssh\",\n      \"transport\": \"dnstt\",\n      \"backend\": \"ssh\",\n      \"domain\": \"t2.example.com\",\n      \"p",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:47:07.097995"
+  },
+  {
+    "basic_info": {
+      "name": "moltbotCNAPP",
+      "full_name": "wy51ai/moltbotCNAPP",
+      "owner": "wy51ai",
+      "description": null,
+      "url": "https://github.com/wy51ai/moltbotCNAPP",
+      "clone_url": "https://github.com/wy51ai/moltbotCNAPP.git",
+      "ssh_url": "git@github.com:wy51ai/moltbotCNAPP.git",
+      "homepage": null,
+      "created_at": "2026-01-28T02:23:32Z",
+      "updated_at": "2026-02-10T03:24:35Z",
+      "pushed_at": "2026-01-30T15:25:55Z"
+    },
+    "stats": {
+      "stars": 133,
+      "forks": 25,
+      "watchers": 133,
+      "open_issues": 6,
+      "size": 40
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 34234,
+        "Shell": 2239,
+        "Makefile": 1491
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ClawdBot Bridge\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?flat&logo=go)](https://go.dev/)\n\n连接飞书等国内 IM 平台与 ClawdBot AI Agent 的桥接服务。\n\n## 前置要求\n\n- ClawdBot Gateway 正在本地运行（默认端口 18789，配置在 `~/.clawdbot/clawdbot.json` 或者 `~/.openclaw/openclaw.json`）\n- 飞书企业自建应用的 App ID 和 App Secret\n\n## 安装\n\n#### 预编译二进制\n\n**Linux (amd64)**\n```bash\ncurl -sLO https://github.com/wy51ai/moltbotCNAPP/releases/latest/download/clawdbot-bridge-linux-amd64 && mv clawdbot-bridge-linux-amd64 clawdbot-bridge && chmod +x clawdbot-bridge\n```\n\n**Linux (arm64)**\n```bash\ncurl -sLO https://github.com/wy51ai/moltbotCNAPP/releases/latest/download/clawdbot-bridge-linux-arm64 && mv clawdbot-bridge-linux-arm64 clawdbot-bridge && chmod +x clawdbot-bridge\n```\n\n**macOS (arm64 / Apple Silicon)**\n```bash\ncurl -sLO https://github.com/wy51ai/moltbotCNAPP/releases/latest/download/clawdbot-bridge-darwin-arm64 && mv clawdbot-bridge-darwin-arm64 clawdbot-bridge && chmod +x clawdbot-bridge\n```\n\n**macOS (amd64 / Intel)**\n```bash\ncurl -sLO https://github.com/wy51ai/moltbotCNAPP/releases/latest/download/clawdbot-bridge-darwin-amd64 && mv clawdbot-bridge-darwin-amd64 clawdbot-bridge && chmod +x clawdbot-bridge\n```\n\n**Windows (amd64)**\n```powershell\nInvoke-WebRequest -Uri https://github.com/wy51ai/moltbotCNAPP/releases/latest/download/clawdbot-bridge-windows-amd64.exe -OutFile clawdbot-bridge.exe\n```\n\n也可以直接从 [Releases](https://github.com/wy51ai/moltbotCNAPP/releases) 页面手动下载。\n\n#### 从源码编译\n\n```bash\ngit clone https://github.com/wy51ai/moltbotCNAPP.git\ncd moltbotCNAPP\ngo build -o clawdbot-bridge ./cmd/bridge/\n```\n\n## 使用\n\n### 首次启动\n\n传入飞书凭据，会自动保存到 `~/.clawdbot/bridge.json`：\n\n```bash\n./clawdbot-bridge start fs_app_id=cli_xxx fs_app_secret=yyy\n```\n\n### 日常管理\n\n凭据保存后，直接使用：\n\n```bash\n./clawdbot-bridge start     # 后台启动\n./clawdbot-bridge stop      # 停止\n./clawdbot-bridge restart   # 重启\n./clawdbot-bridge status    # 查看状态\n./clawdbot-bridge run       # 前台运行（方便调试）\n```\n\n### 可选参数\n\n| 参数 | 说明 | 默认值 |\n|------|------|--------|\n| `fs_app_id` | 飞书 App ID | — |\n| `fs_app_secret` | 飞书 App Secret | — |\n| `agent_id` | ClawdBot Agent ID | `main` |\n| `thinking_ms` | 显示\"思考中\"延迟（毫秒），0 为禁用 | `0` |\n\n### 查看日志\n\n```bash\ntail -f ~/.clawdbot/bridge.log\n```\n\n## 开发\n\n```bash\n# 前台运行（日志直接输出到终端）\n./clawdbot-bridge run\n\n# 编译所有平台\n./scripts/build.sh\n```\n\n## 贡献\n\n欢迎提交 Issue 和 Pull Request！。\n\n## 许可证\n\nMIT License - 详见 [LICENSE](LICENSE) 文件\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-02-10T03:47:08.246442"
+  }
+]

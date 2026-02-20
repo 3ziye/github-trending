@@ -1,0 +1,231 @@
+# weathr
+
+[![Crates.io](https://img.shields.io/crates/v/weathr.svg)](https://crates.io/crates/weathr)
+[![Downloads](https://img.shields.io/crates/d/weathr.svg)](https://crates.io/crates/weathr)
+[![License](https://img.shields.io/crates/l/weathr.svg)](https://github.com/veirt/weathr/blob/main/LICENSE)
+
+A terminal weather app with ASCII animations driven by real-time weather data.
+
+Features real-time weather from Open-Meteo with animated rain, snow, thunderstorms, flying airplanes, day/night cycles, and auto-location detection.
+
+## Demo
+
+|                                    Thunderstorm Night                                     |                             Snow                              |
+| :---------------------------------------------------------------------------------------: | :-----------------------------------------------------------: |
+| <img src="docs/thunderstorm-night.gif" width="600" height="400" alt="Thunderstorm Night"> | <img src="docs/snow.gif" width="600" height="400" alt="Snow"> |
+
+## Contents
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Privacy](#privacy)
+- [Roadmap](#roadmap)
+- [License](#license)
+
+## Installation
+
+### Via Cargo
+
+```bash
+cargo install weathr
+```
+
+### Build from Source
+
+You need Rust installed.
+
+```bash
+git clone https://github.com/veirt/weathr.git
+cd weathr
+cargo install --path .
+```
+
+### Arch Linux
+
+Available in AUR:
+```bash
+yay -S weathr
+```
+or 
+```bash
+yay -S weathr-bin
+```
+
+### Nix flake (NixOS)
+
+Available as a flake:
+```nix
+inputs = {
+    weathr.url = "github:Veirt/weathr";
+};
+```
+Add to packages:
+```nix
+environment.systemPackages = [
+    inputs.weathr.packages.${system}.default
+];
+```
+or use home-manager module option:
+```nix
+imports = [
+    inputs.weathr.homeModules.weathr
+];
+
+programs.weathr = {
+    enable = true;
+    settings = {
+        hide_hud = true;
+    };
+};
+```
+
+## Configuration
+
+The config file location depends on your platform:
+
+- **Linux**: `~/.config/weathr/config.toml` (or `$XDG_CONFIG_HOME/weathr/config.toml`)
+- **macOS**: `~/Library/Application Support/weathr/config.toml`
+
+You can also place a `config.toml` in the current working directory, which takes priority over the default location.
+
+### Setup
+
+```bash
+# Linux
+mkdir -p ~/.config/weathr
+
+# macOS
+mkdir -p ~/Library/Application\ Support/weathr
+```
+
+Edit the config file at the appropriate path for your platform:
+
+```toml
+# Hide the HUD (Heads Up Display) with weather details
+hide_hud = false
+
+# Run silently without startup messages (errors still shown)
+silent = false
+
+[location]
+# Location coordinates (overridden if auto = true)
+latitude = 40.7128
+longitude = -74.0060
+
+# Auto-detect location via IP (defaults to true if config missing)
+auto = false
+
+# Hide the location name in the UI
+hide = false
+
+[units]
+# Temperature unit: "celsius" or "fahrenheit"
+temperature = "celsius"
+
+# Wind speed unit: "kmh", "ms", "mph", or "kn"
+wind_speed = "kmh"
+
+# Precipitation unit: "mm" or "inch"
+precipitation = "mm"
+```
+
+### Example Locations
+
+```toml
+# Tokyo, Japan
+latitude = 35.6762
+longitude = 139.6503
+
+# Sydney, Australia
+latitude = -33.8688
+longitude = 151.2093
+```
+
+## Usage
+
+Run with real-time weather:
+
+```bash
+weathr
+```
+
+### CLI Options
+
+Simulate weather conditions for testing:
+
+```bash
+# Simulate rain
+weathr --simulate rain
+
+# Simulate snow at night
+weathr --simulate snow --night
+
+# Clear day with falling leaves
+weathr --simulate clear --leaves
+```
+
+Available weather conditions:
+
+- Clear Skies: `clear`, `partly-cloudy`, `cloudy`, `overcast`
+- Precipitation: `fog`, `drizzle`, `rain`, `freezing-rain`, `rain-showers`
+- Snow: `snow`, `snow-grains`, `snow-showers`
+- Storms: `thunderstorm`, `thunderstorm-hail`
+
+Override configuration:
+
+```bash
+# Use imperial units (°F, mph, inch)
+weathr --imperial
+
+# Use metric units (°C, km/h, mm) - default
+weathr --metric
+
+# Auto-detect location via IP
+weathr --auto-location
+
+# Hide location coordinates
+weathr --hide-location
+
+# Hide status HUD
+weathr --hide-hud
+
+# Run silently (suppress non-error output)
+weathr --silent
+
+# Combine flags
+weathr --imperial --auto-location
+```
+
+### Keyboard Controls
+
+- `q` or `Q` - Quit
+- `Ctrl+C` - Exit
+
+### Environment Variables
+
+The application respects several environment variables:
+
+- `NO_COLOR` - When set, disables all color output (accessibility feature)
+- `COLORTERM` - Detects truecolor support (values: "truecolor", "24bit")
+- `TERM` - Used for terminal capability detection (e.g., "xterm-256color")
+
+Examples:
+
+```bash
+# Disable colors for accessibility
+NO_COLOR=1 weathr
+```
+
+## Privacy
+
+### Location Detection
+
+When using `auto = true` in config or the `--auto-location` flag, the application makes a request to `ipinfo.io` to detect your approximate location based on your IP address.
+
+This is optional. You can disable auto-location and manually specify coordinates in your config file to avoid external API calls.
+
+## Roadmap
+
+- [ ] Support for OpenWeatherMap, WeatherAPI, etc.
+- [x] Installation via

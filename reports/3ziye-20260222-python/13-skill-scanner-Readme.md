@@ -1,0 +1,82 @@
+# Skill Scanner
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://img.shields.io/pypi/v/cisco-ai-skill-scanner.svg)](https://pypi.org/project/cisco-ai-skill-scanner/)
+[![CI](https://github.com/cisco-ai-defense/skill-scanner/actions/workflows/python-tests.yml/badge.svg)](https://github.com/cisco-ai-defense/skill-scanner/actions/workflows/python-tests.yml)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289da?logo=discord&logoColor=white)](https://discord.com/invite/nKWtDcXxtx)
+[![Cisco AI Defense](https://img.shields.io/badge/Cisco-AI%20Defense-049fd9?logo=cisco&logoColor=white)](https://www.cisco.com/site/us/en/products/security/ai-defense/index.html)
+[![AI Security Framework](https://img.shields.io/badge/AI%20Security-Framework-orange)](https://learn-cloudsecurity.cisco.com/ai-security-framework)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/cisco-ai-defense/skill-scanner)
+
+A best-effort security scanner for AI Agent Skills that detects prompt injection, data exfiltration, and malicious code patterns. Combines **pattern-based detection** (YAML + YARA), **LLM-as-a-judge**, and **behavioral dataflow analysis** to maximize detection coverage of probable threats while minimizing false positives.
+
+> **Important:** This scanner provides best-effort detection, not comprehensive or complete coverage. A scan that returns no findings does not guarantee that a skill is free of all threats. See [Scope and Limitations](#scope-and-limitations) below.
+
+Supports [OpenAI Codex Skills](https://openai.github.io/codex/) and [Cursor Agent Skills](https://docs.cursor.com/context/rules) formats following the [Agent Skills specification](https://agentskills.io).
+
+---
+
+## Highlights
+
+- **Multi-Engine Detection** - Static analysis, behavioral dataflow, LLM semantic analysis, and cloud-based scanning for layered, best-effort coverage
+- **False Positive Filtering** - Meta-analyzer significantly reduces noise while preserving detection capability
+- **CI/CD Ready** - SARIF output for GitHub Code Scanning, exit codes for build failures
+- **Extensible** - Plugin architecture for custom analyzers
+
+**[Join the Cisco AI Discord](https://discord.com/invite/nKWtDcXxtx)** to discuss, share feedback, or connect with the team.
+
+---
+
+## Scope and Limitations
+
+Skill Scanner is a detection tool. It identifies known and probable risk patterns, but it does not certify security.
+
+**Key limitations:**
+
+- **No findings ≠ no risk.** A scan that returns "No findings" indicates that no known threat patterns were detected. It does not guarantee that a skill is secure, benign, or free of vulnerabilities.
+- **Coverage is inherently incomplete.** The scanner combines signature-based detection, LLM-based semantic analysis, behavioral dataflow analysis, optional cloud services, and configurable rule packs. While this approach improve coverage, no automated tool can detect every technique, especially novel or zero-day attacks.
+- **False positives and false negatives can occur.** Consensus modes and meta-analysis reduce noise, but no configuration eliminates all incorrect classifications. Tune the [scan policy](docs/scan-policy.md) to your risk tolerance.
+- **Human review remains essential.** Automated scanning is one component of a defense-in-depth strategy. High-risk or production deployments should pair scanner results with manual code review and/or  threat modeling.
+
+---
+
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Quick Start](docs/quickstart.md) | Get started in 5 minutes |
+| [Architecture](docs/architecture.md) | System design and components |
+| [Threat Taxonomy](docs/threat-taxonomy.md) | Complete AITech threat taxonomy with examples |
+| [LLM Analyzer](docs/llm-analyzer.md) | LLM configuration and usage |
+| [Meta-Analyzer](docs/meta-analyzer.md) | False positive filtering and prioritization |
+| [Behavioral Analyzer](docs/behavioral-analyzer.md) | Dataflow analysis details |
+| [Scan Policy](docs/scan-policy.md) | Custom policies, presets, and tuning guide |
+| [Policy Quick Reference](docs/POLICY.md) | Compact reference for policy sections and knobs |
+| [Rule Authoring](docs/AUTHORING.md) | How to add signature, YARA, and Python rules |
+| [API Reference](docs/api-server.md) | REST API documentation |
+| [Development Guide](docs/developing.md) | Contributing and development setup |
+
+---
+
+## Installation
+
+**Prerequisites:** Python 3.10+ and [uv](https://docs.astral.sh/uv/) (recommended) or pip
+
+```bash
+# Using uv (recommended)
+uv pip install cisco-ai-skill-scanner
+
+# Using pip
+pip install cisco-ai-skill-scanner
+```
+
+<details>
+<summary><strong>Cloud Provider Extras</strong></summary>
+
+```bash
+# AWS Bedrock support
+pip install cisco-ai-skill-scanner[bedrock]
+
+# Google Vertex AI support
+pip install cisco-ai-s

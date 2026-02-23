@@ -1,0 +1,182 @@
+<p align="center">
+  <img src="media/spheni.png" width="700">
+</p>
+
+<h2 align="center">Spheni</h2>
+
+<p align="center">
+  A tiny CPU-first, in-memory vector search library in C++ with Python bindings.
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"></a>
+  <a href="https://discord.gg/XPrAs44vdH"><img src="https://img.shields.io/discord/1463893045731921934?label=Discord&logo=discord" alt="Discord"></a>
+</p>
+
+## Index
+
+1. [Overview](#overview)
+2. [Features](#features)
+3. [Applications](#applications)
+4. [Try It Out](#try-it-out)
+5. [Getting Started](#getting-started)
+6. [Examples](#examples)
+7. [Benchmarks](#benchmarks)
+8. [Architecture](#architecture)
+9. [Status](#status)
+10. [Roadmap](#roadmap)
+11. [License](#license)
+12. [Disclosure](#disclosure)
+
+## Overview
+
+Spheni is a C++ library with Python bindings to search for points in space that are close to a given query point. The aim is to build-and-document the [architectural](docs/arch/) and [performance improvements](docs/benchmarks/benchmarks.md) over time.
+
+## Features
+
+1. Indexes: Flat, IVF
+2. Metrics: Cosine, L2
+3. Storage: F32, INT8
+4. Ops: add, search, search_batch, train, save, load
+
+Check out the API references for full details:
+
+- [Python API](docs/wiki/python_api.md)
+- [C++ API](docs/wiki/cpp_api.md)
+
+## Applications
+
+### Semantic Image Search
+
+Spheni manages the low-level indexing and storage of CLIP-generated embeddings to enable vector similarity calculations. It compares the mathematical representation of a text query against the indexed image vectors to find the best semantic matches.
+
+![demo gif](media/image_search.gif)
+
+### Semantic `grep`
+
+It retrieves relevant lines based on meaning rather than exact keywords.
+It embeds text once and uses Spheni for fast, offline vector search.
+
+![sphgrep](media/sphgrep.png)
+
+## Try It Out
+
+Run this semantic paper search demo in Google Colab:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/datavorous/ad63983c52769d2efc3c87cbdac10d72/arxiv_demo.ipynb)
+
+Searches 5000 ArXiv papers using IVF + INT8 quantization in ~25 lines of code.
+
+## Getting Started
+
+Command launcher note:
+- Linux: use `python3` if `python` is not available.
+- Windows: use `py` (for example, `py -m pip install spheni`).
+
+### Quick Start (Python package)
+
+Install from PyPI:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install spheni
+```
+
+Verify:
+
+```bash
+python -c "import spheni; print(spheni.__version__)"
+```
+
+### Build From Source (C++ / local Python module)
+
+Git clone and navigate into the root directory.
+Have CMake, pybind11 and OpenMP installed.
+
+Build from the repo root:
+
+```bash
+./build_spheni.sh --python --install ./dist
+```
+
+Check out the [full guide](docs/wiki/building.md).
+
+Build a local wheel (PEP 427):
+
+```bash
+python -m pip install --upgrade pip
+python -m pip wheel . --no-deps -w dist
+```
+
+For local-only source builds, you can enable native CPU tuning with:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSPHENI_BUILD_PYTHON=ON -DSPHENI_ENABLE_MARCH_NATIVE=ON
+cmake --build build
+```
+
+## Examples
+
+C++:
+
+```cpp
+#include "spheni/engine.h"
+#include <vector>
+
+int main() {
+    spheni::IndexSpec spec(3, spheni::Metric::L2, spheni::IndexKind::Flat, false);
+    spheni::Engine engine(spec);
+    std::vector<float> data = {1,0,0, 0,1,0, 0,0,1};
+    engine.add(data);
+    std::vector<float> query = {0.1f, 0.9f, 0.0f};
+    auto hits = engine.search(query, 1);
+}
+```
+
+Python:
+
+```python
+import numpy as np
+import spheni
+
+spec = spheni.IndexSpec(4, spheni.Metric.L2, spheni.IndexKind.Flat)
+engine = spheni.Engine(spec)
+
+base = np.random.rand(10, 4).astype(np.float32)
+engine.add(base)
+
+query = np.random.rand(4).astype(np.float32)
+results = engine.search(query, 3)
+
+for hit in results:
+    print(f"ID: {hit.id}, Score: {hit.score}")
+```
+
+## Benchmarks
+
+IVF achieves ~97% Recall@10 with ~12x higher throughput than brute force and stable tail latency.
+INT8 quantization reduces memory by ~73% with negligible accuracy loss, and OpenMP parallelism adds ~2.4x more throughput.
+
+
+Read the full [benchmark report](docs/benchmarks/benchmarks.md).
+
+## Architecture
+
+Architecture snapshot reference: [`docs/arch/v0.1.1.md`](docs/arch/v0.1.1.md).
+
+Current code is split by responsibility:
+
+- `include/spheni/`: public API (`IndexSpec`, `Engine`, enums, contracts)
+- `src/core/`: orchestration/factory (`Engine`, index dispatch)
+- `src/indexes/`: index algorithms (`FlatIndex`, `IVFIndex`)
+- `src/math/`: shared math kernels and utilities (`kernels`, `kmeans`, `TopK`)
+- `src/storage/`: storage-specific transforms (`quantization`)
+- `src/io/`: binary serialization helpers
+- `src/python/`: pybind11 bindings
+
+Contributor workflow:
+
+1. Add/modify algorithm behavior in `src/indexes/`.
+2. Add reusable scoring/math in `src/math/` (instead of duplicating in indexes).
+3. Add representation-specific behavior in `src/storage/`.
+4. Ke

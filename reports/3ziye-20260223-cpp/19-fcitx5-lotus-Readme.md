@@ -1,0 +1,184 @@
+[English](README.en.md) | [Tiếng Việt](README.md)
+
+<a id="readme-top"></a>
+
+<div align="center">
+  <a href="https://github.com/LotusInputMethod/fcitx5-lotus">
+    <img src="data/icons/scalable/apps/fcitx-lotus.svg" alt="Logo" width="80" height="80">
+  </a>
+
+<h2 align="center">Fcitx5 Lotus</h2>
+
+<p align="center">
+    <b>Bộ gõ tiếng Việt đơn giản, hiệu năng cao cho Linux</b>
+    <br />
+    <br />
+    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/releases">
+      <img src="https://img.shields.io/github/v/release/LotusInputMethod/fcitx5-lotus?style=flat&color=success" alt="Release">
+    </a>
+    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/blob/main/LICENSE">
+      <img src="https://img.shields.io/github/license/LotusInputMethod/fcitx5-lotus?style=flat&color=blue" alt="License">
+    </a>
+    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/stargazers">
+      <img src="https://img.shields.io/github/stars/LotusInputMethod/fcitx5-lotus?style=flat&color=yellow" alt="Stars">
+    </a>
+    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/network/members">
+      <img src="https://img.shields.io/github/forks/LotusInputMethod/fcitx5-lotus?style=flat&color=orange" alt="Forks">
+    </a>
+    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues">
+      <img src="https://img.shields.io/github/issues/LotusInputMethod/fcitx5-lotus?style=flat&color=red" alt="Issues">
+    </a>
+    <a href="#contributors-">
+      <img src="https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square" alt="All Contributors">
+    </a>
+  </p>
+
+<p align="center">
+    <a href="#cài-đặt"><strong>Cài đặt »</strong></a>
+    <br />
+    <br />
+    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues/new?template=bug_report.yml">Báo lỗi</a>
+    ·
+    <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues/new?template=feature_request.yml">Yêu cầu tính năng</a>
+  </p>
+</div>
+
+<br />
+
+Dự án này là bản fork được tối ưu hóa từ [bộ gõ VMK](https://github.com/thanhpy2009/VMK). Chân thành cảm ơn tác giả Thành đã đặt nền móng cho bộ gõ này.
+
+> **Lưu ý:** Gỡ và xoá cấu hình `fcitx5-vmk` trước khi cài đặt `fcitx5-lotus` để tránh phát sinh lỗi.
+>
+> <details>
+> <summary><b>Gỡ và xoá cấu hình <code>fcitx5-vmk</code></b></summary>
+>
+> <details>
+> <summary><b>Arch / Arch-based - AUR</b></summary>
+> <br>
+>
+> Bạn có thể dùng `pacman` (khuyên dùng), `yay` hoặc `paru` để gỡ cài đặt:
+>
+> ```bash
+> sudo pacman -Rns fcitx5-vmk
+> ```
+>
+> ```bash
+> yay -Rns fcitx5-vmk
+> ```
+>
+> ```bash
+> paru -Rns fcitx5-vmk
+> ```
+>
+> > **Lưu ý:** Các file config ở `$HOME` sẽ được giữ lại.
+>
+> </details>
+>
+> <details>
+> <summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
+> <br>
+>
+> - <b>Debian/Ubuntu</b>
+>
+> ```bash
+> sudo apt remove fcitx5-vmk
+> ```
+>
+> - <b>Fedora</b>
+>
+> ```bash
+> sudo dnf remove fcitx5-vmk
+> ```
+>
+> - <b>openSUSE</b>
+>
+> ```bash
+> sudo zypper remove fcitx5-vmk
+> ```
+>
+> </details>
+>
+> <details>
+> <summary><b>NixOS</b></summary>
+> <br>
+>
+> Xóa (hoặc comment) dòng `services.fcitx5-vmk` và `inputs` trong file config, sau đó rebuild lại system. NixOS sẽ tự dọn dẹp.
+>
+> </details>
+>
+> <details>
+> <summary><b>Biên dịch từ nguồn</b></summary>
+> <br>
+>
+> Vào lại thư mục source code đã build và chạy:
+>
+> ```bash
+> sudo make uninstall
+> ```
+>
+> </details>
+>
+> ---
+>
+> Xóa cấu hình `vmk` không tương thích:
+>
+> ```bash
+> rm ~/.config/fcitx5/conf/vmk-*.conf
+> ```
+>
+> </details>
+
+<details>
+  <summary><b>Mục lục</b></summary>
+  <ol>
+    <li><a href="#cài-đặt">Cài đặt</a></li>
+    <li><a href="#bật-bộ-gõ">Bật bộ gõ</a></li>
+    <li><a href="#hướng-dẫn-sử-dụng">Hướng dẫn sử dụng</a></li>
+    <li><a href="#gỡ-cài-đặt">Gỡ cài đặt</a></li>
+    <li><a href="#đóng-góp">Đóng góp</a></li>
+    <li><a href="#giấy-phép">Giấy phép</a></li>
+  </ol>
+</details>
+
+---
+
+<a id="cài-đặt"></a>
+
+## 📦 Cài đặt
+
+<details>
+<summary><b>Arch / Arch-based - AUR</b></summary>
+<br>
+
+Hiện tại AUR có 3 gói cài đặt để bạn lựa chọn:
+
+| Gói                | Mô tả                              |
+| ------------------ | ---------------------------------- |
+| `fcitx5-lotus`     | Build từ mã nguồn release ổn định  |
+| `fcitx5-lotus-bin` | Dùng binary đã build sẵn           |
+| `fcitx5-lotus-git` | Build từ danh sách commit mới nhất |
+
+Cài đặt bằng `yay`:
+
+```bash
+# Cú pháp: yay -S <tên-gói>
+yay -S fcitx5-lotus
+```
+
+Hoặc `paru`:
+
+```bash
+# Cú pháp: paru -S <tên-gói>
+paru -S fcitx5-lotus
+```
+
+</details>
+
+<details>
+<summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
+<br>
+
+Truy cập trang [Open Build Service](https://software.opensuse.org//download.html?project=home%3Aiamnanoka&package=fcitx5-lotus) để xem hướng dẫn cài đặt chi tiết cho distro của bạn.
+
+[![build result](https://build.opensuse.org/projects/home:iamnanoka/packages/fcitx5-lotus/badge.svg?type=percent)](https://build.opensuse.org/package/show/home:iamnanoka/fcitx5-lotus)
+[![build result](https://build.opensuse.org/projects/h

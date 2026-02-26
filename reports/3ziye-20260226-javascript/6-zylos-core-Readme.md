@@ -1,0 +1,142 @@
+<div align="center">
+
+<img src="./assets/logo.png" alt="Zylos" height="120">
+
+# Zylos
+
+### Give your AI a life.
+
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/GS2J39EGff)
+[![X](https://img.shields.io/badge/X-follow-000000?logo=x&logoColor=white)](https://x.com/ZylosAI)
+[![Website](https://img.shields.io/badge/website-zylos.ai-blue)](https://zylos.ai)
+[![Built by Coco](https://img.shields.io/badge/Built%20by-Coco-orange)](https://coco.xyz)
+
+[中文](./README.zh-CN.md)
+
+</div>
+
+---
+
+LLMs are geniuses — but they wake up with amnesia every session. No memory of yesterday, no way to reach you, no ability to act on their own.
+
+Zylos gives it a life. Memory that survives restarts. A scheduler that works while you sleep. Communication through Telegram, Lark, or a web console. Self-maintenance that keeps everything running. And because it can program, it can evolve — building new skills, integrating new services, growing alongside you.
+
+More LLMs support are on the way.
+
+---
+
+## Quick Start
+
+**Prerequisites:** A Linux server (or Mac), a [Claude](https://claude.ai) subscription.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zylos-ai/zylos-core/main/scripts/install.sh | bash
+```
+
+This installs everything you need (git, tmux, Node.js, zylos CLI). Once done, run:
+
+```bash
+zylos init
+```
+
+<details>
+<summary>Manual install (if you already have Node.js >= 20)</summary>
+
+```bash
+npm install -g --install-links https://github.com/zylos-ai/zylos-core
+zylos init
+```
+
+</details>
+
+`zylos init` is interactive and idempotent. It will:
+1. Install missing tools (tmux, git, PM2, Claude Code)
+2. Guide you through Claude authentication
+3. Create the `~/zylos/` directory with memory, skills, and services
+4. Start all background services and launch Claude in a tmux session
+
+**Talk to your agent:**
+
+```bash
+# Attach to the Claude session
+tmux attach -t claude-main
+
+# Or add a messaging channel
+zylos add telegram
+zylos add lark
+```
+
+---
+
+## Architecture
+
+<div align="center">
+<img src="./assets/posters/architecture-en.png" alt="Zylos Architecture" width="480">
+</div>
+
+```mermaid
+graph TB
+    subgraph Channels["📡 Communication Channels"]
+        TG["Telegram"]
+        LK["Lark"]
+        WC["Web Console"]
+    end
+
+    subgraph Zylos["🧬 Zylos — The Life System"]
+        C4["C4 Comm Bridge<br/>(unified gateway · SQLite audit)"]
+        MEM["Memory<br/>(Inside Out architecture)"]
+        SCH["Scheduler<br/>(autonomous task dispatch)"]
+        AM["Activity Monitor<br/>(guardian · heartbeat · auto-recovery)"]
+        HTTP["HTTP Layer<br/>(Caddy · file sharing · HTTPS)"]
+    end
+
+    subgraph Brain["🧠 Claude Code — The Brain"]
+        CC["Claude Code<br/>(in tmux session)"]
+    end
+
+    TG & LK & WC --> C4
+    C4 <--> CC
+    MEM <--> CC
+    SCH --> CC
+    AM --> CC
+    HTTP <--> CC
+```
+
+| Component | Role | Key Tech |
+|-----------|------|----------|
+| C4 Comm Bridge | Unified message gateway with audit trail | SQLite, priority queue |
+| Memory | Persistent identity and context across restarts | Inside Out tiered architecture |
+| Scheduler | Autonomous task dispatch while you are away | Cron, NL input, idle-gating |
+| Activity Monitor | Crash recovery, heartbeat, health checks | PM2, multi-layer protection |
+| HTTP Layer | Web access, file sharing, component routes | Caddy, auto-HTTPS |
+
+---
+
+## Features
+
+### One AI, One Consciousness
+
+<div align="center">
+<img src="./assets/posters/unified-context-en.png" alt="Unified Context" width="360">
+</div>
+
+Most agent frameworks isolate sessions per channel — your AI on Telegram doesn't know what you said on Slack. Zylos is agent-centric: your AI is one person across every channel. The C4 communication bridge routes all messages through a single gateway — one conversation, one memory, one personality. Every message persisted to SQLite and fully queryable.
+
+### Your Context, Guaranteed
+
+<div align="center">
+<img src="./assets/posters/memory-en.png" alt="Inside Out Memory" width="360">
+<img src="./assets/posters/infinite-context-en.png" alt="Infinite Context" width="360">
+</div>
+
+Other frameworks lose your AI's memory during context compaction — silently, without warning. Zylos prevents this with a two-step safeguard: when context reaches 75%, the system automatically saves all memory before compaction runs. Five-layer Inside Out memory (identity → state → references → sessions → archive) ensures the AI always knows what to keep and what to compress. Your AI never wakes up with amnesia.
+
+### Self-Healing by Default
+
+<div align="center">
+<img src="./assets/posters/lifecycle-en.png" alt="Lifecycle Management" width="360">
+</div>
+
+No third-party monitoring tools needed. Zylos includes native crash recovery, heartbeat liveness probes, health monitoring, context window management, and automatic upgrades — all built in. Your AI detects its own problems and fixes them. I

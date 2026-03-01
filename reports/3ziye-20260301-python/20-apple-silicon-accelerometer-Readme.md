@@ -1,0 +1,142 @@
+# apple-silicon-accelerometer
+
+more information: [read the article on Medium](https://medium.com/@oli.bourbonnais/your-macbook-has-an-accelerometer-and-you-can-read-it-in-real-time-in-python-28d9395fb180)
+
+it turns out modern macbook pros have an undocumented mems accelerometer + gyroscope managed by the sensor processing unit (spu).
+this project reads both via iokit hid, along with lid angle and ambient light sensors from the same interface
+
+![demo](https://raw.githubusercontent.com/olvvier/apple-silicon-accelerometer/main/assets/demo.gif)
+
+## try it
+
+    git clone https://github.com/olvvier/apple-silicon-accelerometer
+    cd apple-silicon-accelerometer
+    python3 -m venv .venv && source .venv/bin/activate
+    pip install -e .[demo]
+    sudo .venv/bin/python3 motion_live.py
+
+## what is this
+
+apple silicon chips (M2/M3/M4/M5) have a hard to find mems IMU (accelerometer + gyroscope) managed by the sensor processing unit (SPU).
+it's not exposed through any public api or framework.
+this project reads raw 3-axis acceleration and angular velocity data at ~800hz via iokit hid callbacks.
+
+only tested on macbook pro m3 pro so far - might work on other apple silicon macs but no guarantees
+
+## how it works
+
+the sensor lives under AppleSPUHIDDevice in the iokit registry, on vendor usage page 0xFF00.
+usage 3 is the accelerometer, usage 9 is the gyroscope (same physical IMU, believed to be Bosch BMI286 based on teardowns).
+the driver is AppleSPUHIDDriver which is part of the sensor processing unit.
+we open it with IOHIDDeviceCreate and register an asynchronous callback via IOHIDDeviceRegisterInputReportCallback.
+data comes as 22-byte hid reports with x/y/z as int32 little-endian at byte offsets 6, 10, 14.
+divide by 65536 to get the value in g (accel) or deg/s (gyro).
+callback rate is ~100hz (decimated from ~800hz native)
+
+orientation is computed by fusing accel + gyro with a Mahony AHRS quaternion filter and displayed as roll/pitch/yaw gauges
+
+you can verify the device exists on your machine with:
+
+    ioreg -l -w0 | grep -A5 AppleSPUHIDDevice
+
+## install (beta API)
+
+    pip install macimu
+
+if you get `externally-managed-environment` (homebrew python), use a venv:
+
+    python3 -m venv .venv && source .venv/bin/activate && pip install macimu
+
+```python
+from macimu import IMU
+
+if __name__ == '__main__':
+    with IMU() as imu:
+        accel = imu.latest_accel()       # Sample(x, y, z) in g
+        gyro = imu.latest_gyro()         # Sample(x, y, z) in deg/s
+
+        for s in imu.read_accel():       # all new samples since last call
+            print(s.x, s.y, s.z)
+```
+
+requires root (sudo) because iokit hid device access needs elevated privileges.
+note: accelerometer reads ~1g at rest (gravity). use `macimu.filters.remove_gravity()` to isolate dynamic acceleration.
+
+### check if sensor exists (no root needed)
+
+```python
+from macimu import IMU
+print(IMU.available())   # True on macbook pro m2+
+```
+
+### real-time orientation (roll / pitch / yaw)
+
+fuses accel + gyro with a mahony quaternion filter, no math needed on your side
+
+```python
+from macimu import IMU
+
+if __name__ == '__main__':
+    with IMU(orientation=True) as imu:
+        o = imu.orientation()
+        print(f"{o.roll:.1f}° {o.pitch:.1f}° {o.yaw:.1f}°")
+        print(o.qw, o.qx, o.qy, o.qz)  # raw quaternion
+```
+
+### timestamped samples (hardware timestamps from iokit)
+
+each sample includes a precise timestamp from the hid report (mach_absolute_time),
+not a python-side clock. every report gets its own unique timestamp.
+
+```python
+from macimu import IMU
+
+if __name__ == '__main__':
+    with IMU() as imu:
+        for s in imu.read_accel_timed():
+            print(f"t={s.t:.6f}  x={s.x:.3f}  y={s.y:.3f}  z={s.z:.3f}")
+```
+
+### streaming with callback
+
+```python
+import time
+from macimu import IMU
+
+def on_sample(s):
+    print(s.x, s.y, s.z)
+
+if __name__ == '__main__':
+    with IMU() as imu:
+        stop = imu.on_accel(on_sample)  # background thread
+        time.sleep(10)
+        stop()                          # unregister
+```
+
+### sample rate control
+
+```python
+IMU(sample_rate=200)  # ~200 hz (preferred way)
+IMU(sample_rate=50)   # ~50 hz
+IMU(decimation=1)     # ~800 hz (full native rate)
+IMU(decimation=8)     # ~100 hz (default)
+```
+
+### signal processing (zero-dependency biquad butterworth filters)
+
+```python
+from macimu import IMU
+from macimu.filters import magnitude, remove_gravity, high_pass, low_pass, peak_detect
+
+if __name__ == '__main__':
+    with IMU() as imu:
+        samples = imu.read_accel()
+        m = magnitude(samples[0].x, samples[0].y, samples[0].z)
+        dynamic = remove_gravity(samples)               # kalman filter gravity removal
+        smooth = low_pass(samples, 5.0, 100.0)          # 2nd-order butterworth
+        taps = high_pass(samples, 10.0, 100.0, order=4) # 4th-order, -24 dB/oct
+        mags = [magnitude(s.x, s.y, s.z) for s in samples]
+        hits = peak_detect(mags, threshold=1.2)          # detect impacts
+```
+
+### mock mode (no root ne

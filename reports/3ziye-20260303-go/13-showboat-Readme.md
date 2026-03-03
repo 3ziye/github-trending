@@ -1,0 +1,110 @@
+# Showboat
+
+[![PyPI](https://img.shields.io/pypi/v/showboat.svg)](https://pypi.org/project/showboat/)
+[![Changelog](https://img.shields.io/github/v/release/simonw/showboat?include_prereleases&label=changelog)](https://github.com/simonw/showboat/releases)
+[![Tests](https://github.com/simonw/showboat/actions/workflows/test.yml/badge.svg)](https://github.com/simonw/showboat/actions/workflows/test.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/simonw/showboat/blob/main/LICENSE)
+
+Create executable demo documents that show and prove an agent's work.
+
+Showboat helps agents build markdown documents that mix commentary, executable code blocks, and captured output. These documents serve as both readable documentation and reproducible proof of work. A verifier can re-execute all code blocks and confirm the outputs still match.
+
+## Example
+
+Here's [an example Showboat demo document](https://github.com/simonw/showboat-demos/blob/main/shot-scraper/README.md) that demonstrates [shot-scraper](https://github.com/shot-scraper). It was created by Claude Code, as shown by [this transcript](https://gisthost.github.io/?29b0d0ebef50c57e7985a6004aad01c4/page-001.html#msg-2026-02-06T07-33-41-296Z).
+
+## Installation
+
+This Go tool can be installed directly [from PyPI](https://pypi.org/project/showboat/) using `pip` or `uv`.
+
+You can run it without installing it first using `uvx`:
+
+```bash
+uvx showboat --help
+```
+Or install it like this, then run `showboat --help`:
+```bash
+uv tool install showboat
+# or
+pip install showboat
+```
+
+You can also install the Go binary directly:
+```bash
+go install github.com/simonw/showboat@latest
+```
+Or run it without installation like this:
+```bash
+go run github.com/simonw/showboat@latest --help
+```
+Compiled binaries are available [on the releases page](https://github.com/simonw/showboat/releases). On macOS you may need to [follow these extra steps](https://support.apple.com/en-us/102445) to use those.
+
+## Help
+
+<!-- [[[cog
+import cog
+import subprocess
+result = subprocess.run(["go", "run", ".", "--help"], capture_output=True, text=True)
+cog.out(
+    "````\n{}\n````\n".format(result.stdout.strip())
+)
+]]] -->
+````
+showboat - Create executable demo documents that show and prove an agent's work.
+
+Showboat helps agents build markdown documents that mix commentary, executable
+code blocks, and captured output. These documents serve as both readable
+documentation and reproducible proof of work. A verifier can re-execute all
+code blocks and confirm the outputs still match.
+
+Usage:
+  showboat init <file> <title>             Create a new demo document
+  showboat note <file> [text]              Append commentary (text or stdin)
+  showboat exec <file> <lang> [code]       Run code and capture output
+  showboat image <file> <path>             Copy image into document
+  showboat image <file> '![alt](path)'   Copy image with alt text
+  showboat pop <file>                      Remove the most recent entry
+  showboat verify <file> [--output <new>]  Re-run and diff all code blocks
+  showboat extract <file> [--filename <name>]  Emit commands to recreate file
+
+Global Options:
+  --workdir <dir>   Set working directory for code execution (default: current)
+  --version         Print version and exit
+  --help, -h        Show this help message
+
+Exec output:
+  The "exec" command prints the captured shell output to stdout and exits with
+  the same exit code as the executed command. This lets agents see what happened
+  and react to errors. The output is still appended to the document regardless
+  of exit code. Use "pop" to remove a failed entry.
+
+    $ showboat exec demo.md bash "echo hello && exit 1"
+    hello
+    $ echo $?
+    1
+
+Image:
+  The "image" command accepts a path to an image file or a markdown image
+  reference of the form ![alt text](path). The image is copied into the same
+  directory as the document with a generated filename and an image reference is
+  appended to the markdown. When a markdown reference is provided the alt text
+  is preserved; otherwise it is derived from the generated filename.
+
+Pop:
+  The "pop" command removes the most recent entry from a document. For an "exec"
+  or "image" entry this removes both the code block and its output. For a "note"
+  entry it removes the single commentary block. This is useful when a command
+  produces an error that shouldn't remain in the document.
+
+Verify:
+  Re-runs every code block (skipping image blocks) and compares actual output
+  against the recorded output. Prints diffs and exits with code 1 if any output
+  has changed; exits 0 if everything matches. Use --output <file> to write an
+  updated copy of the document with the new outputs without modifying the
+  original.
+
+Extract:
+  Parses a document and prints the sequence of showboat CLI commands (one per
+  line) that would recreate it from scratch. Output blocks are omitted since
+  they are regenerated by "exec". Use --filename <name> to substitute a
+  different filename

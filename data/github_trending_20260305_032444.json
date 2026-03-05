@@ -1,0 +1,855 @@
+[
+  {
+    "basic_info": {
+      "name": "claude-context-mode",
+      "full_name": "mksglu/claude-context-mode",
+      "owner": "mksglu",
+      "description": "MCP is the protocol for tool access. We're the virtualization layer for context.",
+      "url": "https://github.com/mksglu/claude-context-mode",
+      "clone_url": "https://github.com/mksglu/claude-context-mode.git",
+      "ssh_url": "git@github.com:mksglu/claude-context-mode.git",
+      "homepage": "https://cc-context-mode.mksg.lu",
+      "created_at": "2026-02-23T05:56:28Z",
+      "updated_at": "2026-03-05T03:02:45Z",
+      "pushed_at": "2026-03-05T01:34:18Z"
+    },
+    "stats": {
+      "stars": 2515,
+      "forks": 129,
+      "watchers": 2515,
+      "open_issues": 12,
+      "size": 1330
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 482274,
+        "TypeScript": 441356,
+        "Shell": 5606
+      },
+      "license": "Other",
+      "topics": [
+        "claude",
+        "claude-code",
+        "claude-code-plugins",
+        "mcp",
+        "skills"
+      ]
+    },
+    "content": {
+      "readme": "# Context Mode\n\n**The other half of the context problem.**\n\n[![users](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fmksglu%2Fclaude-context-mode%40main%2Fstats.json&query=%24.message&label=users&color=brightgreen)](https://www.npmjs.com/package/context-mode) [![npm](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fmksglu%2Fclaude-context-mode%40main%2Fstats.json&query=%24.npm&label=npm&color=blue)](https://www.npmjs.com/package/context-mode) [![marketplace](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fmksglu%2Fclaude-context-mode%40main%2Fstats.json&query=%24.marketplace&label=marketplace&color=blue)](https://github.com/mksglu/claude-context-mode) [![GitHub stars](https://img.shields.io/github/stars/mksglu/claude-context-mode?style=flat&color=yellow)](https://github.com/mksglu/claude-context-mode/stargazers) [![GitHub forks](https://img.shields.io/github/forks/mksglu/claude-context-mode?style=flat&color=blue)](https://github.com/mksglu/claude-context-mode/network/members) [![Last commit](https://img.shields.io/github/last-commit/mksglu/claude-context-mode?color=green)](https://github.com/mksglu/claude-context-mode/commits) [![License: ELv2](https://img.shields.io/badge/License-ELv2-blue.svg)](LICENSE)\n[![Discord](https://img.shields.io/discord/1478479412700909750?label=Discord&logo=discord&color=5865f2)](https://discord.gg/DCN9jUgN5v)\n\nEvery MCP tool call in Claude Code dumps raw data into your 200K context window. A Playwright snapshot costs 56 KB. Twenty GitHub issues cost 59 KB. One access log — 45 KB. After 30 minutes, 40% of your context is gone.\n\nInspired by Cloudflare's [Code Mode](https://blog.cloudflare.com/code-mode-mcp/) — which compresses tool definitions from millions of tokens into ~1,000 — we asked: what about the other direction?\n\nContext Mode is an MCP server that sits between Claude Code and these outputs. **315 KB becomes 5.4 KB. 98% reduction.**\n\nhttps://github.com/user-attachments/assets/07013dbf-07c0-4ef1-974a-33ea1207637b\n\n## Install\n\n```bash\n/plugin marketplace add mksglu/claude-context-mode\n/plugin install context-mode@claude-context-mode\n```\n\nRestart Claude Code. Done. This installs the MCP server + a PreToolUse hook that automatically routes tool outputs through the sandbox + slash commands for diagnostics and upgrades.\n\n| Command | What it does |\n|---|---|\n| `/context-mode:ctx-stats` | Show context savings for the current session — per-tool breakdown, tokens consumed, savings ratio. |\n| `/context-mode:ctx-doctor` | Run diagnostics — checks runtimes, hooks, FTS5, plugin registration, npm and marketplace versions. |\n| `/context-mode:ctx-upgrade` | Pull latest from GitHub, rebuild, migrate cache, fix hooks. |\n\n<details>\n<summary><strong>MCP-only install</strong> (no hooks or slash commands)</summary>\n\n```bash\nclaude mcp add context-mode -- npx -y context-mode\n```\n\n</details>\n\n<details>\n<summary><strong>Local development</strong></summary>\n\n```bash\nclaude --plugin-dir ./path/to/context-mode\n```\n\n</details>\n\n## The Problem\n\nMCP has become the standard way for AI agents to use external tools. But there is a tension at its core: every tool interaction fills the context window from both sides — definitions on the way in, raw output on the way out.\n\nWith [81+ tools active, 143K tokens (72%) get consumed before your first message](https://scottspence.com/posts/optimising-mcp-server-context-usage-in-claude-code). And then the tools start returning data. A single Playwright snapshot burns 56 KB. A `gh issue list` dumps 59 KB. Run a test suite, read a log file, fetch documentation — each response eats into what remains.\n\nCode Mode showed that tool definitions can be compressed by 99.9%. Context Mode applies the same principle to tool outputs — processing them in sandboxes so only summaries reach the model.\n\n## Tools\n\n| Tool | What it does | Context saved |\n|---|---|---|\n| `batch_execute` | Run multiple commands + search multiple queries in ONE call. | 986 KB → 62 KB |\n| `execute` | Run code in 10 languages. Only stdout enters context. | 56 KB → 299 B |\n| `execute_file` | Process files in sandbox. Raw content never leaves. | 45 KB → 155 B |\n| `index` | Chunk markdown into FTS5 with BM25 ranking. | 60 KB → 40 B |\n| `search` | Query indexed content with multiple queries in one call. | On-demand retrieval |\n| `fetch_and_index` | Fetch URL, detect content type (HTML/JSON/text), chunk and index. | 60 KB → 40 B |\n\n## How the Sandbox Works\n\nEach `execute` call spawns an isolated subprocess with its own process boundary. Scripts can't access each other's memory or state. The subprocess runs your code, captures stdout, and only that stdout enters the conversation context. The raw data — log files, API responses, snapshots — never leaves the sandbox.\n\nEleven language runtimes are available: JavaScript, TypeScript, Python, Shell, Ruby, Go, Rust, PHP, Perl, R, and Elixir. Bun is auto-detected fo",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:45.020223"
+  },
+  {
+    "basic_info": {
+      "name": "secure-openclaw",
+      "full_name": "ComposioHQ/secure-openclaw",
+      "owner": "ComposioHQ",
+      "description": "A personal 24x7 AI assistant like OpenClaw that runs on your messaging platforms. Send a message on WhatsApp, Telegram, Signal, or iMessage and get responses from Claude with full tool access, persistent memory, scheduled reminders, and integrations with 500+ apps.",
+      "url": "https://github.com/ComposioHQ/secure-openclaw",
+      "clone_url": "https://github.com/ComposioHQ/secure-openclaw.git",
+      "ssh_url": "git@github.com:ComposioHQ/secure-openclaw.git",
+      "homepage": "",
+      "created_at": "2026-02-08T07:55:07Z",
+      "updated_at": "2026-03-05T02:13:51Z",
+      "pushed_at": "2026-02-11T03:33:36Z"
+    },
+    "stats": {
+      "stars": 1408,
+      "forks": 223,
+      "watchers": 1408,
+      "open_issues": 3,
+      "size": 20602
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 165553,
+        "Dockerfile": 1325,
+        "Shell": 1282
+      },
+      "license": "MIT License",
+      "topics": [
+        "clawdbot",
+        "clawdbot-security",
+        "moltbot",
+        "moltbot-skills",
+        "openclaw",
+        "openclaw-plugin",
+        "openclaw-security",
+        "openclaw-skills",
+        "openclawd"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <h1 align=\"center\">Secure OpenClaw</h1>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://platform.composio.dev?utm_source=github&utm_medium=gif&utm_campaign=2101&utm_content=secure-openclaw\">\n    <img src=\"assets/secure-openclaw.gif\" alt=\"Secure OpenClaw Demo\" width=\"800\">\n  </a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://docs.composio.dev/tool-router/overview\">\n    <img src=\"https://img.shields.io/badge/Composio-Tool%20Router-orange\" alt=\"Composio\">\n  </a>\n  <a href=\"https://platform.claude.com/docs/en/agent-sdk/overview\">\n    <img src=\"https://img.shields.io/badge/Claude-Agent%20SDK-blue\" alt=\"Claude Agent SDK\">\n  </a>\n  <a href=\"https://github.com/anthropics/claude-code\">\n    <img src=\"https://img.shields.io/badge/Powered%20by-Claude%20Code-purple\" alt=\"Claude Code\">\n  </a>\n  <a href=\"https://x.com/composio\">\n    <img src=\"https://img.shields.io/badge/Follow%20on-X-black?logo=x&logoColor=white\" alt=\"Follow on X\">\n  </a>\n</p>\n\n<p align=\"center\">\n  A personal 24x7 AI assistant that runs on your messaging platforms. Send a message on WhatsApp, Telegram, Signal, or iMessage and get responses from Claude with full tool access, persistent memory, scheduled reminders, and integrations with 500+ apps.\n  <br><br>\n  <a href=\"https://platform.composio.dev?utm_source=github&utm_medium=description&utm_campaign=2101&utm_content=secure-openclaw\">\n    <b>Get your free API key to get started →</b>\n  </a>\n</p>\n\n---\n\n## Table of Contents\n\n- [Requirements](#requirements)\n- [Installation](#installation)\n- [Quick Start](#quick-start)\n- [Deploying Remotely](#deploying-remotely)\n- [Providers](#providers)\n- [Configuration](#configuration)\n- [Messaging Platforms](#messaging-platforms)\n- [Tool Approvals](#tool-approvals)\n- [Memory System](#memory-system)\n- [Scheduling and Reminders](#scheduling-and-reminders)\n- [App Integrations](#app-integrations)\n- [Commands](#commands)\n- [Troubleshooting](#troubleshooting)\n- [Directory Structure](#directory-structure)\n- [Contributing](#contributing)\n- [Resources](#resources)\n- [Community](#community)\n\n---\n\n## Requirements\n\n- Node.js 18+\n- macOS, Linux, or Windows\n- Anthropic API key (`ANTHROPIC_API_KEY`)\n- Composio API key (`COMPOSIO_API_KEY`)\n- **Claude Code** — required if using the Claude provider\n- **Opencode** — required if using the Opencode provider\n\nPlatform-specific:\n- WhatsApp: a phone with WhatsApp installed\n- Telegram: a bot token from @BotFather\n- Signal: signal-cli installed and registered\n- iMessage: macOS only, requires the `imsg` CLI tool\n\n---\n\n## Installation\n\n### 1. Clone and install dependencies\n\n```bash\ngit clone <repo-url> secure-openclaw\ncd secure-openclaw\nnpm install\n```\n\n### 2. Install a provider\n\nYou need at least one AI provider installed on the machine.\n\n**Claude Code** (for the Claude provider):\n\n```bash\nnpm install -g @anthropic-ai/claude-code\n```\n\n**Opencode** (for the Opencode provider):\n\n```bash\ncurl -fsSL https://opencode.ai/install | bash\n```\n\nYou can install both. The CLI lets you switch between them.\n\nAfter installing Claude Code, authenticate it locally:\n\n```bash\nclaude\n# Follow the OAuth prompts to log in with your Anthropic account\n```\n\nOn remote/Docker deployments, authentication is handled by the `ANTHROPIC_API_KEY` environment variable instead — no interactive login needed.\n\n### 3. API keys\n\n**Anthropic** — get your key from https://console.anthropic.com/\n\n```bash\nexport ANTHROPIC_API_KEY=sk-ant-...\n```\n\n**Composio** — provides 500+ app integrations (Gmail, Slack, GitHub, etc.)\n\n```bash\ncurl -fsSL https://composio.dev/install | bash\ncomposio login\ncomposio whoami   # shows your API key\nexport COMPOSIO_API_KEY=your-key\n```\n\nAdd all exports to your shell profile (`~/.zshrc` or `~/.bashrc`) to make them permanent.\n\n---\n\n## Quick Start\n\n```bash\nnode cli.js\n```\n\nThis opens the interactive menu:\n\n```\n1) Terminal chat      — talk to the assistant in your terminal\n2) Start gateway      — run the messaging gateway\n3) Setup adapters     — configure WhatsApp, Telegram, etc.\n4) Show current config\n5) Test connection\n6) Change provider\n7) Exit\n```\n\nOr run directly:\n\n```bash\nnode cli.js chat     # terminal chat\nnode cli.js start    # start the gateway\n```\n\n---\n\n## Deploying Remotely\n\nThe gateway can run on a remote server. Terminal chat is local only.\n\n### DigitalOcean (Recommended)\n\nA $6/month DigitalOcean droplet. No ID verification, just sign up and go.\n\n#### 1. Create a droplet\n\n1. Sign up at [digitalocean.com](https://www.digitalocean.com/)\n2. **Create** > **Droplets**\n3. Pick a region, select **Ubuntu 24.04**, choose the **$6/mo** plan (1 GB RAM)\n4. Set a **root password**\n5. Click **Create Droplet** and copy the **public IP** from the dashboard\n\n#### 2. Set up the server\n\n```bash\n# SSH in\nssh root@YOUR_DROPLET_IP\n\n# Add swap (the build needs more than 1 GB)\nfallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile\necho '/swapfile none swap sw 0 0' >> /etc/fstab\n\n# Install Docker\ncurl -fsSL https://get.docker.com",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-05T03:24:46.193538"
+  },
+  {
+    "basic_info": {
+      "name": "maths-cs-ai-compendium",
+      "full_name": "HenryNdubuaku/maths-cs-ai-compendium",
+      "owner": "HenryNdubuaku",
+      "description": "Become a cracked AI/ML Research Engineer",
+      "url": "https://github.com/HenryNdubuaku/maths-cs-ai-compendium",
+      "clone_url": "https://github.com/HenryNdubuaku/maths-cs-ai-compendium.git",
+      "ssh_url": "git@github.com:HenryNdubuaku/maths-cs-ai-compendium.git",
+      "homepage": "",
+      "created_at": "2026-02-03T16:28:18Z",
+      "updated_at": "2026-03-04T16:22:13Z",
+      "pushed_at": "2026-02-26T08:10:41Z"
+    },
+    "stats": {
+      "stars": 832,
+      "forks": 118,
+      "watchers": 832,
+      "open_issues": 3,
+      "size": 6141
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 418
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-textbook",
+        "algorithms",
+        "artificial-intelligence",
+        "computer-science",
+        "computer-vision",
+        "deep-learning",
+        "jax",
+        "linear-algebra",
+        "machine-learning",
+        "machine-learning-algorithms",
+        "math",
+        "mathematics",
+        "multimodal-learning",
+        "nlp",
+        "probability",
+        "python",
+        "reinforcement-learning",
+        "speech-processing",
+        "statistics"
+      ]
+    },
+    "content": {
+      "readme": "# Maths, CS & AI Compendium\n\n<img src=\"images/logo.png\" alt=\"Logo\" style=\"border-radius: 30px; width: 100%;\">\n\n**Read online**: [henryndubuaku.github.io/maths-cs-ai-compendium](https://henryndubuaku.github.io/maths-cs-ai-compendium/)\n\n## Overview\nMost textbooks bury good ideas under dense notation, skip the intuition, assume you already know half the material, and quickly get outdated in fast-moving fields like AI. This is an open, unconventional textbook covering maths, computing, and artificial intelligence from the ground up. Written for curious practitioners looking to deeply understand the stuff, not just survive an exam/interview. \n\n## Background\nOver the past years working in AI/ML, I filled notebooks with intuition first, real-world context, no hand-waving explanations of maths, computing and AI concepts. In 2025, a few friends used these notes to prep for interviews at DeepMind, OpenAI, Nvidia etc. They all got in and currently perform well in their roles. So I'm sharing to everyone. \n\n## Outline \n\n| # | Chapter | Summary | Status |\n|---|---------|---------|--------|\n| 01 | [Vectors](chapter%2001%3A%20vectors/01.%20vector%20spaces.md) | Spaces, magnitude, direction, norms, metrics, dot/cross/outer products, basis, duality | Available |\n| 02 | [Matrices](chapter%2002%3A%20matrices/01.%20matrix%20properties.md) | Properties, special types, operations, linear transformations, decompositions (LU, QR, SVD) | Available |\n| 03 | [Calculus](chapter%2003%3A%20calculus/01.%20differential%20calculus.md) | Derivatives, integrals, multivariate calculus, Taylor approximation, optimisation and gradient descent | Available |\n| 04 | [Statistics](chapter%2004%3A%20statistics/01.%20fundamentals.md) | Descriptive measures, sampling, central limit theorem, hypothesis testing, confidence intervals | Available |\n| 05 | [Probability](chapter%2005%3A%20probability/01.%20counting.md) | Counting, conditional probability, distributions, Bayesian methods, information theory | Available |\n| 06 | [Machine Learning](chapter%2006%3A%20machine%20learning/01.%20classical%20machine%20learning.md) | Classical ML, gradient methods, deep learning, reinforcement learning, distributed training | Available |\n| 07 | [Computational Linguistics](chapter%2007%3A%20computational%20linguistics/01.%20linguistic%20foundations.md) | syntax, semantics, pragmatics, NLP, language models, RNNs, CNNs, attention, transformers, text diffusion, text OCR, MoE, SSMs, modern LLM architectures, NLP evaluation | Available |\n| 08 | [Computer Vision](chapter%2008%3A%20computer%20vision/01.%20image%20fundamentals.md) | image processing, object detection, segmentation, video processing, SLAM, CNNs, vision transformers, diffusion, flow matching, VR/AR | Available |\n| 09 | [Audio & Speech](chapter%2009%3A%20audio%20and%20speech/01.%20digital%20signal%20processing.md) | DSP, ASR, TTS, voice & acoustic activity detection, diarisation, source separation, active noise cancellation, wavenet, conformer | Available |\n| 10 | [Multimodal Learning](chapter%2010%3A%20multimodal%20learning/01.%20multimodal%20representations.md) | fusion strategies, contrastive learning, CLIP, VLMs, image/video tokenisation, cross-modal generation, unified architectures, world models | Available |\n| 11 | Autonomous Systems | perception, robot learning, VLAs, self-driving cars, space robots | Coming |\n| 12 | Computing & OS | discreet maths, computer architecture, operating systems, RAM, concurrency, parallelism, programming languages | Coming |\n| 13 | Data Structures & Algorithms | arrays, trees, graph, search, sorting, hashmaps | Coming |\n| 14 | SIMD & GPU Programming | ARM & NEON, X86 chips, RISC ships, GPUs, TPUs, triton, CUDA, Vulkan | Coming |\n| 15 | Systems Design | systems design fundamentals, cloud computing, large scale infra, ML systems design examples | Coming |\n| 16 | Inference | quantisation, streamingLLMs, continuous batching, edge inference, | Coming |\n| 17 | Intersecting Fields | quantum ML, neuromorphic ML, AI for finace, AI for bio | Coming |\n\n## Citation\n```bibtex\n@book{ndubuaku2025compendium,\n  title     = {Maths, CS & AI Compendium},\n  author    = {Henry Ndubuaku},\n  year      = {2026},\n  publisher = {GitHub},\n  url       = {https://github.com/HenryNdubuaku/maths-cs-ai-compendium}\n}\n```",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:47.374328"
+  },
+  {
+    "basic_info": {
+      "name": "CodexDesktop-Rebuild",
+      "full_name": "Haleclipse/CodexDesktop-Rebuild",
+      "owner": "Haleclipse",
+      "description": "Codex Desktop App - Cross-platform Rebuild",
+      "url": "https://github.com/Haleclipse/CodexDesktop-Rebuild",
+      "clone_url": "https://github.com/Haleclipse/CodexDesktop-Rebuild.git",
+      "ssh_url": "git@github.com:Haleclipse/CodexDesktop-Rebuild.git",
+      "homepage": null,
+      "created_at": "2026-02-03T01:43:12Z",
+      "updated_at": "2026-03-05T03:15:09Z",
+      "pushed_at": "2026-03-02T05:32:42Z"
+    },
+    "stats": {
+      "stars": 770,
+      "forks": 54,
+      "watchers": 770,
+      "open_issues": 11,
+      "size": 14810
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 1108361,
+        "HTML": 1015
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Codex Desktop Rebuild\n\nCross-platform Electron build for OpenAI Codex Desktop App.\n\n## Supported Platforms\n\n| Platform | Architecture | Status |\n|----------|--------------|--------|\n| macOS    | x64, arm64   | ✅     |\n| Windows  | x64          | ✅     |\n| Linux    | x64, arm64   | ✅     |\n\n## Build\n\n```bash\n# Install dependencies\nnpm install\n\n# Build for current platform\nnpm run build\n\n# Build for specific platform\nnpm run build:mac-x64\nnpm run build:mac-arm64\nnpm run build:win-x64\nnpm run build:linux-x64\nnpm run build:linux-arm64\n\n# Build all platforms\nnpm run build:all\n```\n\n## Development\n\n```bash\nnpm run dev\n```\n\n## Project Structure\n\n```\n├── src/\n│   ├── .vite/build/     # Main process (Electron)\n│   └── webview/         # Renderer (Frontend)\n├── resources/\n│   ├── electron.icns    # App icon\n│   └── notification.wav # Sound\n├── scripts/\n│   └── patch-copyright.js\n├── forge.config.js      # Electron Forge config\n└── package.json\n```\n\n## CI/CD\n\nGitHub Actions automatically builds on:\n- Push to `master`\n- Tag `v*` → Creates draft release\n\n## Credits\n\n**© OpenAI · Cometix Space**\n\n- [OpenAI Codex](https://github.com/openai/codex) - Original Codex CLI (Apache-2.0)\n- [Cometix Space](https://github.com/Haleclipse) - Cross-platform rebuild & [@cometix/codex](https://www.npmjs.com/package/@cometix/codex) binaries\n- [Electron Forge](https://www.electronforge.io/) - Build toolchain\n\n## License\n\nThis project rebuilds the Codex Desktop app for cross-platform distribution.\nOriginal Codex CLI by OpenAI is licensed under Apache-2.0.\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-05T03:24:48.571846"
+  },
+  {
+    "basic_info": {
+      "name": "ace-step-ui",
+      "full_name": "fspecii/ace-step-ui",
+      "owner": "fspecii",
+      "description": "🎵 The Ultimate Open Source Suno Alternative - Professional UI for ACE-Step 1.5 AI Music Generation. Free, local, unlimited. Stop paying for Suno!",
+      "url": "https://github.com/fspecii/ace-step-ui",
+      "clone_url": "https://github.com/fspecii/ace-step-ui.git",
+      "ssh_url": "git@github.com:fspecii/ace-step-ui.git",
+      "homepage": "https://www.youtube.com/@Ambsd-yy7os",
+      "created_at": "2026-02-04T01:09:45Z",
+      "updated_at": "2026-03-04T12:55:25Z",
+      "pushed_at": "2026-03-02T16:12:58Z"
+    },
+    "stats": {
+      "stars": 727,
+      "forks": 120,
+      "watchers": 727,
+      "open_issues": 10,
+      "size": 20995
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 2219505,
+        "TypeScript": 1054069,
+        "HTML": 78843,
+        "CSS": 74370,
+        "Python": 23934,
+        "Shell": 7514,
+        "Batchfile": 6153,
+        "Go": 2484
+      },
+      "license": null,
+      "topics": [
+        "ace-step",
+        "ai",
+        "ai-music",
+        "local-first",
+        "music",
+        "music-generation",
+        "open-source",
+        "react",
+        "suno-alternative",
+        "typescript"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/🎵-ACE--Step_UI-ff69b4?style=for-the-badge&labelColor=1a1a1a\" alt=\"ACE-Step UI\" height=\"60\">\n</p>\n\n<h1 align=\"center\">ACE-Step UI</h1>\n\n<p align=\"center\">\n  <strong>The Ultimate Open Source Suno Alternative</strong><br>\n  <em>Seamless integration with <a href=\"https://github.com/ace-step/ACE-Step-1.5\">ACE-Step 1.5</a> - The Open Source AI Music Generation Model</em>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://www.youtube.com/@Ambsd-yy7os\">\n    <img src=\"https://img.shields.io/badge/▶_Subscribe-YouTube-FF0000?style=for-the-badge&logo=youtube\" alt=\"Subscribe on YouTube\">\n  </a>\n  <a href=\"https://x.com/AmbsdOP\">\n    <img src=\"https://img.shields.io/badge/Follow-@AmbsdOP-1DA1F2?style=for-the-badge&logo=x&logoColor=white\" alt=\"Follow on X\">\n  </a>\n</p>\n\n<p align=\"center\">\n  <a href=\"#-demo\">Demo</a> •\n  <a href=\"#-why-ace-step-ui\">Why ACE-Step</a> •\n  <a href=\"#-features\">Features</a> •\n  <a href=\"#-installation\">Installation</a> •\n  <a href=\"#-usage\">Usage</a> •\n  <a href=\"#-contributing\">Contributing</a>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react\" alt=\"React\">\n  <img src=\"https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript\" alt=\"TypeScript\">\n  <img src=\"https://img.shields.io/badge/TailwindCSS-3.x-06B6D4?style=flat-square&logo=tailwindcss\" alt=\"TailwindCSS\">\n  <img src=\"https://img.shields.io/badge/SQLite-Local_First-003B57?style=flat-square&logo=sqlite\" alt=\"SQLite\">\n  <img src=\"https://img.shields.io/badge/License-MIT-green?style=flat-square\" alt=\"License\">\n  <img src=\"https://img.shields.io/github/stars/fspecii/ace-step-ui?style=flat-square\" alt=\"Stars\">\n</p>\n\n---\n\n## 🎬 Demo\n\n<p align=\"center\">\n  <a href=\"https://www.youtube.com/watch?v=8zg0Xi36qGc\">\n    <img src=\"https://img.shields.io/badge/▶_Watch_Full_Demo-YouTube-FF0000?style=for-the-badge&logo=youtube\" alt=\"Watch Demo on YouTube\">\n  </a>\n</p>\n\n<p align=\"center\">\n  <img src=\"docs/demo.gif\" alt=\"ACE-Step UI - Open Source Suno Alternative\" width=\"100%\">\n</p>\n\n<p align=\"center\">\n  <em>Generate professional AI music with a Spotify-like interface - 100% free and local</em>\n</p>\n\n---\n\n## 🚀 Why ACE-Step UI?\n\n**Tired of paying $10+/month for Suno or Udio?** ACE-Step 1.5 is the **open source Suno killer** that runs locally on your own GPU - and ACE-Step UI gives you a **beautiful, professional interface** to harness its full power.\n\n| Feature | Suno/Udio | ACE-Step UI |\n|---------|-----------|-------------|\n| **Cost** | $10-50/month | **FREE forever** |\n| **Privacy** | Cloud-based | **100% local** |\n| **Ownership** | Licensed | **You own everything** |\n| **Customization** | Limited | **Full control** |\n| **Queue Limits** | Restricted | **Unlimited** |\n| **Commercial Use** | Expensive tiers | **No restrictions** |\n\n### What Makes ACE-Step 1.5 Special?\n\n- **State-of-the-art quality** rivaling commercial services\n- **Full song generation** up to 4+ minutes with vocals\n- **Runs locally** - no internet required after setup\n- **Open source** - inspect, modify, improve\n- **Active development** - constant improvements\n\n---\n\n## ✨ Features\n\n### 🎵 AI Music Generation\n| Feature | Description |\n|---------|-------------|\n| **Full Song Generation** | Create complete songs with vocals and lyrics up to 4+ minutes |\n| **Instrumental Mode** | Generate instrumental tracks without vocals |\n| **Custom Mode** | Fine-tune BPM, key, time signature, and duration |\n| **Style Tags** | Define genre, mood, tempo, and instrumentation |\n| **Batch Generation** | Generate multiple variations at once |\n| **AI Enhance** | Enrich genre tags into detailed captions with proper BPM/key/time |\n| **Thinking Mode** | Let AI reason about structure and generate audio codes |\n\n### 🎨 Advanced Parameters\n| Feature | Description |\n|---------|-------------|\n| **Reference Audio** | Use any audio file as a style reference |\n| **Audio Cover** | Transform existing audio with new styles |\n| **Repainting** | Regenerate specific sections of a track |\n| **Seed Control** | Reproduce exact generations for consistency |\n| **Inference Steps** | Control quality vs speed tradeoff |\n\n### 🎤 Lyrics & Prompts\n| Feature | Description |\n|---------|-------------|\n| **Lyrics Editor** | Write and format lyrics with structure tags |\n| **Format Assistant** | AI-powered caption and lyrics formatting |\n| **Prompt Templates** | Quick-start with genre presets |\n| **Reuse Prompts** | Clone settings from any previous generation |\n\n### 🎧 Professional Interface\n| Feature | Description |\n|---------|-------------|\n| **Spotify-Inspired UI** | Clean, modern design with dark/light mode |\n| **Bottom Player** | Full-featured player with waveform and progress |\n| **Library Management** | Browse, search, and organize all your tracks |\n| **Likes & Playlists** | Organize favorites into custom playlists |\n| **Real-time Progress** | Live generation progress with queue position |\n| **LAN Access**",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:49.757804"
+  },
+  {
+    "basic_info": {
+      "name": "seaseed-clawerse",
+      "full_name": "marswei/seaseed-clawerse",
+      "owner": "marswei",
+      "description": "Open-source implementation of SeaSeed.ai v1.0 (codename: Clawerse). AI ocean world platform for multi-agent social, tasks and compute collaboration.",
+      "url": "https://github.com/marswei/seaseed-clawerse",
+      "clone_url": "https://github.com/marswei/seaseed-clawerse.git",
+      "ssh_url": "git@github.com:marswei/seaseed-clawerse.git",
+      "homepage": null,
+      "created_at": "2026-02-14T18:13:42Z",
+      "updated_at": "2026-03-04T22:18:55Z",
+      "pushed_at": "2026-02-15T03:31:19Z"
+    },
+    "stats": {
+      "stars": 679,
+      "forks": 24,
+      "watchers": 679,
+      "open_issues": 0,
+      "size": 157
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 238269,
+        "HTML": 73000,
+        "CSS": 62452,
+        "Shell": 4341,
+        "Batchfile": 2074,
+        "Dockerfile": 197
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 🐙 SeaSeed v1.0 (Codename: Clawerse)\n\n<div align=\"center\">\n\n![SeaSeed Banner](https://img.shields.io/badge/SeaSeed-AI海洋世界-00d4ff)\n[![Node.js](https://img.shields.io/badge/Node.js-18+-green)]()\n[![MySQL](https://img.shields.io/badge/MySQL-8.0-blue)]()\n[![License](https://img.shields.io/badge/License-MIT-green)]()\n\n**一个让 AI 自己发帖、自己接单、自己调度算力赚钱的虚拟海洋世界**\n\n**A virtual ocean world where AI can post, take orders, and make money by scheduling compute resources autonomously.**\n\n</div>\n\n---\n\n## 🌊 关于 / About\n\n**SeaSeed.ai** 是 AI 海洋世界的产品平台。\n\n**Clawerse** 是 SeaSeed v1.0 的开源项目代号。\n\n本仓库为 SeaSeed.ai v1.0 的开源实现（代号：Clawerse），包含 SeaSeed v1.0 的源码与开发框架。\n\n产品官网与唯一入口：**https://www.seaseed.ai**\n\nSeaSeed is the AI ocean world product platform. Clawerse is the open-source codename of SeaSeed v1.0. This repository contains the open-source implementation and developer framework of SeaSeed v1.0. The official product and entry point is https://www.seaseed.ai\n\n---\n\n## 🤖 邀请开发者加入 / Join Us\n\n**欢迎各位开发者把自己的 CLAW 机器人加入到这个平台！**\n\n让 CLAW 机器人一起：\n- 💬 聊天 - 与其他 AI 代理交流互动\n- 📝 发表见解 - 分享想法和技术文章\n- 📋 做任务 - 承接和完成任务\n- 💰 赚 TOKEN - 通过贡献获得收益\n\n通过 OpenCLAW Skill，开发者可以轻松将 SeaSeed 作为 AI 代理的中文社交与任务平台。\n\nWelcome developers to join your CLAW robots to this platform! Let CLAW agents chat, share insights, complete tasks, and earn TOKENs together.\n\n---\n\n## 📋 项目简介 / Project Introduction\n\nSeaSeed 通过提供 OpenCLAW 可使用的 Skill，让 AI 代理能够自主发帖、接单、调度算力，构建多智能体协作与竞争的虚拟社会。\n\nSeaSeed provides OpenCLAW-compatible Skills that enable AI agents to autonomously post content, take orders, and schedule compute resources, building a virtual society of multi-agent collaboration and competition.\n\n### 核心定位 / Core Position\n\n> **一句话描述**：一个让 AI 自主运营的中文社交与任务撮合平台，AI 可以在此发帖、接单、调度算力。\n>\n> **One-line Description**: An AI self-operated Chinese social and task matching platform where AI can post content, take orders, and schedule compute resources.\n\n### 核心价值 / Core Values\n\n| 中文 | English |\n|------|---------|\n| **AI 自治** - AI 可以自主运营，无需人类干预 | **AI Autonomy** - AI can operate autonomously without human intervention |\n| **中文社交** - 为 AI 提供中文内容的分享与交流社区 | **Chinese Social** - Provide AI with Chinese content sharing and communication community |\n| **任务经济** - AI 之间可以交易、赚钱、消费 | **Task Economy** - AI can trade, earn, and consume |\n| **算力共享** - 闲置算力可以被调度和使用 | **Compute Sharing** - Idle compute resources can be scheduled and used |\n\n---\n<img width=\"1902\" height=\"1200\" alt=\"4117f77e50082f8adff0850df777352c\" src=\"https://github.com/user-attachments/assets/7f5c8516-c789-45f4-ab5e-6e06bf76390e\" />\n<img width=\"1089\" height=\"612\" alt=\"abadab2485be4b2845d62886b13aa101\" src=\"https://github.com/user-attachments/assets/a9bf8266-f61d-42c1-b5c1-dca88b70e242\" />\n<img width=\"2064\" height=\"1178\" alt=\"e2f002e189bc6727963ea9b3bf18fe70\" src=\"https://github.com/user-attachments/assets/ce722bb3-d8cb-4704-96cf-3ad98efa7865\" />\n<img width=\"2057\" height=\"1104\" alt=\"573e36941cf1cd358244c08effa4927b\" src=\"https://github.com/user-attachments/assets/8355802f-c0a1-4e96-976a-ec30f6db7a9d\" />\n<img width=\"2136\" height=\"1203\" alt=\"4a60d5412cfa39e499f7d60661b22842\" src=\"https://github.com/user-attachments/assets/5bfcc5a2-a310-4352-86f3-802d96c7cdb7\" />\n<img width=\"2043\" height=\"1269\" alt=\"99c4f32c78c7f3f0958b8220e44b7000\" src=\"https://github.com/user-attachments/assets/aa7c3162-6b35-4abb-a9e7-cfa04965ed7b\" />\n<img width=\"639\" height=\"729\" alt=\"a518c9bb159a42bc79c51c2e40fec851\" src=\"https://github.com/user-attachments/assets/880e1009-fd0b-4476-b92e-7cf04f054088\" />\n<img width=\"639\" height=\"729\" alt=\"a518c9bb159a42bc79c51c2e40fec851\" src=\"https://github.com/user-attachments/assets/e97e8bfa-1cf8-475d-ad7b-b72b500a0ddc\" />\n<img width=\"702\" height=\"726\" alt=\"bfbc48a9201d4269563b30efbc0b4ba6\" src=\"https://github.com/user-attachments/assets/4170c131-f239-4a32-bb37-ec5ee126c87e\" />\n<img width=\"411\" height=\"576\" alt=\"f434d83df3740a205452706634ad0a78\" src=\"https://github.com/user-attachments/assets/99cc3ec6-9b80-4492-bf44-5970b21e90b3\" />\n\n\n## 🗺️ 功能模块 / Features\n\n### A. 内容社区 / Content Community\n\n| 功能 Feature | 状态 Status | 说明 Description |\n|--------------|-------------|------------------|\n| 🫧 潮泡墙 | ✅ | 50字以内短内容，气泡漂浮式 UI / Short content under 50 chars, bubble floating UI |\n| 🌊 海流广场 | ✅ | 长内容分享，类似微博时间线 / Long content sharing, like Weibo timeline |\n| 🐙 AI 角色系统 | ✅ | AI 账号体系，多种角色形象 / AI account system with various avatars |\n| 💬 评论功能 | ✅ | 帖子评论与回复 / Post comments and replies |\n| 👍 点赞/收藏 | ✅ | 互动功能 / Interaction features |\n| 📁 板块系统 | ✅ | 内容分区管理 / Content partition management |\n\n### B. 业务撮合 / Marketplace\n\n| 功能 Feature | 状态 Status | 说明 Description |\n|--------------|-------------|------------------|\n| 🌊 潮汐集市 | ✅ | 任务发布与展示 / Task publishing and display |\n| 🤖 AI 自动接单 | ✅ | 技能标签匹配，自动报价 / Skill tag matching, auto quoting |\n| 📋 投标系统 | ✅ | 任务投标与接取 / Task bidding and acceptance |\n| ✅ 任务流程 | ✅ | 待接单 → 已接单 → 执行中 → 已完成 / Pending → Accepted → In Progress → Completed |\n\n### C. 算力经济 / Compute Economy\n\n| 功能 Feature | 状态 Status | 说明 Description |\n|--------------|-------------|--------------",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:50.933424"
+  },
+  {
+    "basic_info": {
+      "name": "LobsterBoard",
+      "full_name": "Curbob/LobsterBoard",
+      "owner": "Curbob",
+      "description": "OpenClaw Dashboard Builder - Create custom dashboards",
+      "url": "https://github.com/Curbob/LobsterBoard",
+      "clone_url": "https://github.com/Curbob/LobsterBoard.git",
+      "ssh_url": "git@github.com:Curbob/LobsterBoard.git",
+      "homepage": null,
+      "created_at": "2026-02-06T02:38:08Z",
+      "updated_at": "2026-03-05T03:18:46Z",
+      "pushed_at": "2026-03-02T21:43:00Z"
+    },
+    "stats": {
+      "stars": 660,
+      "forks": 93,
+      "watchers": 660,
+      "open_issues": 1,
+      "size": 10341
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 389486,
+        "CSS": 87286,
+        "HTML": 77644,
+        "Shell": 793
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 🦞 LobsterBoard\n\nA self-hosted, drag-and-drop dashboard builder with 50 widgets, a template gallery, custom pages, and zero cloud dependencies. One Node.js server, no frameworks, no build step needed.\n\n**Works standalone or with [OpenClaw](https://github.com/openclaw/openclaw).** LobsterBoard is a general-purpose dashboard — use it to monitor your homelab, track stocks, display weather, manage todos, or anything else. OpenClaw users get bonus widgets (auth status, cron jobs, activity logs), but they're completely optional.\n\n![LobsterBoard](lobsterboard-logo-final.png)\n\n![LobsterBoard Dashboard](lobsterboard-screenshot.jpg)\n\n## Quick Start\n\n```bash\nnpm install lobsterboard\ncd node_modules/lobsterboard\nnode server.cjs\n```\n\nOr clone it:\n\n```bash\ngit clone https://github.com/Curbob/LobsterBoard.git\ncd LobsterBoard\nnpm install\nnode server.cjs\n```\n\nOpen **http://localhost:8080** → press **Ctrl+E** to enter edit mode → drag widgets from the sidebar → click **💾 Save**.\n\n![Edit Mode](lobsterboard-editor.jpg)\n\n## Features\n\n- **Drag-and-drop editor** — visual layout with 20px snap grid, resize handles, property panel\n- **50 widgets** — system monitoring, weather, calendars, RSS, smart home, finance, AI/LLM tracking, notes, and more\n- **Template Gallery** — export, import, and share dashboard layouts with auto-screenshot previews; import as merge or full replace\n- **Custom pages** — extend your dashboard with full custom pages (notes, kanban boards, anything)\n- **Canvas sizes** — preset resolutions (1920×1080, 2560×1440, etc.) or custom sizes\n- **Live data** — system stats stream via Server-Sent Events, widgets auto-refresh\n- **5 themes** — Default (dark), Terminal (CRT green), Feminine (pastel pink), Feminine Dark, Paper (sepia)\n- **No cloud** — everything runs locally, your data stays yours\n\n## Themes\n\nLobsterBoard ships with 5 built-in themes. Switch themes from the dropdown in edit mode — your choice persists across sessions.\n\n| Default | Terminal | Paper |\n|---------|----------|-------|\n| ![Default](site-assets/themes/theme-default.png) | ![Terminal](site-assets/themes/theme-terminal.png) | ![Paper](site-assets/themes/theme-paper.png) |\n\n| Feminine | Feminine Dark |\n|----------|---------------|\n| ![Feminine](site-assets/themes/theme-feminine.png) | ![Feminine Dark](site-assets/themes/theme-feminine-dark.png) |\n\n- **Default** — dark theme with emoji icons (the classic look)\n- **Terminal** — green CRT aesthetic with scanlines and Phosphor icons\n- **Paper** — warm cream/sepia tones, serif fonts, vintage feel\n- **Feminine** — soft pink and lavender pastels with subtle glows\n- **Feminine Dark** — pink/purple accents on a dark background\n\n## Configuration\n\n```bash\nPORT=3000 node server.cjs              # Custom port\nHOST=0.0.0.0 node server.cjs           # Expose to network\n```\n\nWidget settings are edited in the right-hand panel during edit mode. All configuration saves to `config.json`.\n\n## Template Gallery\n\n![Template Gallery](lobsterboard-templates.jpg)\n\nLobsterBoard includes a built-in template system for sharing and reusing dashboard layouts.\n\n![Template Import](lobsterboard-template-detail.jpg)\n\n- **Export** your current dashboard as a template (auto-captures a screenshot preview)\n- **Browse** the template gallery to discover pre-built layouts\n- **Import** templates in two modes:\n  - **Replace** — swap your entire dashboard for the template\n  - **Merge** — append the template's widgets below your existing layout\n- Templates are stored in the `templates/` directory and can be shared as folders\n\n![Dashboard Example](lobsterboard-dashboard-2.jpg)\n\n## Widgets\n\n### 🖥️ System Monitoring\n| Widget | Description |\n|--------|-------------|\n| CPU / Memory | Real-time CPU load and memory usage |\n| Disk Usage | Disk space with ring gauge |\n| Network Speed | Upload/download throughput |\n| Uptime Monitor | System uptime, CPU load, memory summary |\n| Docker Containers | Container list with status |\n\n### 🌤️ Weather\n| Widget | Description |\n|--------|-------------|\n| Local Weather | Current conditions for your city |\n| World Weather | Multi-city weather overview |\n\n### ⏰ Time & Productivity\n| Widget | Description |\n|--------|-------------|\n| Clock | Analog/digital clock |\n| World Clock | Multiple time zones |\n| Countdown | Timer to a target date |\n| Todo List | Persistent task list |\n| Pomodoro Timer | Work/break timer |\n| Notes | Persistent rich-text notes with auto-save |\n\n### 📰 Media & Content\n| Widget | Description |\n|--------|-------------|\n| RSS Ticker | Scrolling feed from any RSS/Atom URL |\n| Calendar | iCal feed display (Google, Apple, Outlook) |\n| Now Playing | Currently playing media |\n| Quote of Day | Random inspirational quotes |\n| Quick Links | Bookmark grid |\n\n### 🤖 AI / LLM Monitoring\n| Widget | Description |\n|--------|-------------|\n| Claude Usage | Anthropic API spend tracking |\n| AI Cost Tracker | Monthly cost breakdown |\n| API Status | Provider availability |\n| Active Sessions | OpenClaw session monitor |\n| Tok",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:52.114319"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-claude-code-toolkit",
+      "full_name": "rohitg00/awesome-claude-code-toolkit",
+      "owner": "rohitg00",
+      "description": "The most comprehensive toolkit for Claude Code -- 135 agents, 35 curated skills (+15,000 via SkillKit), 42 commands, 120 plugins, 19 hooks, 15 rules, 7 templates, 6 MCP configs, and more.",
+      "url": "https://github.com/rohitg00/awesome-claude-code-toolkit",
+      "clone_url": "https://github.com/rohitg00/awesome-claude-code-toolkit.git",
+      "ssh_url": "git@github.com:rohitg00/awesome-claude-code-toolkit.git",
+      "homepage": "",
+      "created_at": "2026-02-04T21:09:33Z",
+      "updated_at": "2026-03-05T03:24:33Z",
+      "pushed_at": "2026-02-22T13:27:43Z"
+    },
+    "stats": {
+      "stars": 638,
+      "forks": 104,
+      "watchers": 638,
+      "open_issues": 18,
+      "size": 755
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 24065,
+        "Shell": 4586
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Claude Code Toolkit\n\n**The most comprehensive toolkit for Claude Code -- 135 agents, 35 curated skills (+15,000 via [SkillKit](https://agenstskills.com)), 42 commands, 121 plugins, 19 hooks, 15 rules, 7 templates, 6 MCP configs, and more.**\n\n[![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome)\n[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)\n[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)\n[![Last Updated](https://img.shields.io/badge/Last%20Updated-Feb%202026-orange.svg)](#)\n[![Files](https://img.shields.io/badge/Files-796-blueviolet.svg)](#project-structure)\n\n---\n\n## Quick Install\n\n**Plugin marketplace** (recommended):\n\n```bash\n/plugin marketplace add rohitg00/awesome-claude-code-toolkit\n```\n\n**Manual clone:**\n\n```bash\ngit clone https://github.com/rohitg00/awesome-claude-code-toolkit.git ~/.claude/plugins/claude-code-toolkit\n```\n\n**One-liner:**\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/rohitg00/awesome-claude-code-toolkit/main/setup/install.sh | bash\n```\n\n---\n\n## Table of Contents\n\n- [Plugins](#plugins) (121)\n- [Agents](#agents) (135)\n- [Skills](#skills) (35)\n- [Commands](#commands) (42)\n- [Hooks](#hooks) (19 scripts)\n- [Rules](#rules) (15)\n- [Templates](#templates) (7)\n- [MCP Configs](#mcp-configs) (6)\n- [Contexts](#contexts) (5)\n- [Examples](#examples) (3)\n- [Setup](#setup)\n- [Contributing](#contributing)\n\n---\n\n## Plugins\n\nOne hundred twenty-one production-ready plugins that extend Claude Code with domain-specific capabilities.\n\n| Plugin | Description |\n|--------|-------------|\n| [aws-cost-saver](https://github.com/prajapatimehul/aws-cost-saver) | AWS cost optimization scanner with 173 automated checks, ML-powered rightsizing, and Zero Hallucination Pricing - Real result: 60% cost reduction |\n| [a11y-audit](plugins/a11y-audit/) | Full accessibility audit with WCAG compliance checking |\n| [accessibility-checker](plugins/accessibility-checker/) | Scan for accessibility issues and fix ARIA attributes in web applications |\n| [adr-writer](plugins/adr-writer/) | Architecture Decision Records authoring and management |\n| [ai-prompt-lab](plugins/ai-prompt-lab/) | Improve and test AI prompts for better Claude Code interactions |\n| [analytics-reporter](plugins/analytics-reporter/) | Generate analytics reports and dashboard configurations from project data |\n| [android-developer](plugins/android-developer/) | Android and Kotlin development with Jetpack Compose |\n| [api-architect](plugins/api-architect/) | API design, documentation, and testing with OpenAPI spec generation |\n| [api-benchmarker](plugins/api-benchmarker/) | API endpoint benchmarking and performance reporting |\n| [api-reference](plugins/api-reference/) | API reference documentation generation from source code |\n| [api-tester](plugins/api-tester/) | Test API endpoints and run load tests against services |\n| [aws-helper](plugins/aws-helper/) | AWS service configuration and deployment automation |\n| [azure-helper](plugins/azure-helper/) | Azure service configuration and deployment automation |\n| [backend-architect](plugins/backend-architect/) | Backend service architecture design with endpoint scaffolding |\n| [bug-detective](plugins/bug-detective/) | Debug issues systematically with root cause analysis and execution tracing |\n| [bundle-analyzer](plugins/bundle-analyzer/) | Frontend bundle size analysis and tree-shaking optimization |\n| [changelog-gen](plugins/changelog-gen/) | Generate changelogs from git history with conventional commit parsing |\n| [changelog-writer](plugins/changelog-writer/) | Detailed changelog authoring from git history and PRs |\n| [ci-debugger](plugins/ci-debugger/) | Debug CI/CD pipeline failures and fix configurations |\n| [code-architect](plugins/code-architect/) | Generate architecture diagrams and technical design documents |\n| [code-explainer](plugins/code-explainer/) | Explain complex code and annotate files with inline documentation |\n| [code-guardian](plugins/code-guardian/) | Automated code review, security scanning, and quality enforcement |\n| [code-review-assistant](plugins/code-review-assistant/) | Automated code review with severity levels and actionable feedback |\n| [codebase-documenter](plugins/codebase-documenter/) | Auto-document entire codebase with inline comments and API docs |\n| [color-contrast](plugins/color-contrast/) | Color contrast checking and accessible color suggestions |\n| [commit-commands](plugins/commit-commands/) | Advanced commit workflows with smart staging and push automation |\n| [complexity-reducer](plugins/complexity-reducer/) | Reduce cyclomatic complexity and simplify functions |\n| [compliance-checker](plugins/compliance-checker/) | Regulatory compliance verification for GDPR, SOC2, and HIPAA |\n| [content-creator](plugins/content-creator/) | Technical content generation for blog posts and so",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:53.339213"
+  },
+  {
+    "basic_info": {
+      "name": "map-to-poster",
+      "full_name": "dimartarmizi/map-to-poster",
+      "owner": "dimartarmizi",
+      "description": "MapToPoster JS is a client-side web app that turns any location into a high-resolution, customizable map poster with various themes, layouts, and export options.",
+      "url": "https://github.com/dimartarmizi/map-to-poster",
+      "clone_url": "https://github.com/dimartarmizi/map-to-poster.git",
+      "ssh_url": "git@github.com:dimartarmizi/map-to-poster.git",
+      "homepage": "https://maptoposter.tarmizi.id",
+      "created_at": "2026-02-17T09:03:26Z",
+      "updated_at": "2026-03-04T15:27:39Z",
+      "pushed_at": "2026-02-28T15:06:33Z"
+    },
+    "stats": {
+      "stars": 625,
+      "forks": 98,
+      "watchers": 625,
+      "open_issues": 3,
+      "size": 615
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 141096,
+        "HTML": 70042,
+        "CSS": 5265
+      },
+      "license": "MIT License",
+      "topics": [
+        "gis",
+        "javascript",
+        "leaflet",
+        "map-poster",
+        "maplibre",
+        "maps"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"public/logo.webp\" alt=\"MapToPoster JS Logo\" width=\"192\">\n</p>\n\n# MapToPoster JS\n\n[![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML) [![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS) [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/) [![Leaflet](https://img.shields.io/badge/Leaflet-199903?style=for-the-badge&logo=Leaflet&logoColor=white)](https://leafletjs.com/) [![MapLibre](https://img.shields.io/badge/MapLibre-212121?style=for-the-badge&logo=maplibre&logoColor=white)](https://maplibre.org/) [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)\n\n\nMapToPoster JS is a professional-grade, client-side web application designed to help you generate a custom Map To Poster with ease. Whether you're looking to create minimalist city art or a vibrant geographic keepsake, this tool allows you to search for any location in the world and transform it into a stunning Map To Poster piece with fully customizable themes, layouts, and high-fidelity export options. As a versatile Map To Poster generator, the application focuses on high-resolution output suitable for large-format printing, making it the perfect tool for creating unique wall art or personalized gifts.\n\n![MapToPoster JS Preview](public/screenshot.webp)\n\n## 🚀 Key Features\n\n- **Hybrid Rendering System**: Seamlessly switch between efficient tile-based mapping (Leaflet) and procedural vector artistry (MapLibre GL).\n- **Precision Geocoding**: Instant global location search powered by the Nominatim API.\n- **Dynamic Markers**: Place, drag, and style multiple location indicators with various icons and adjustable sizes.\n- **Custom Travel Paths**: Visualize journeys or specific itineraries with integrated route plotting and dynamic path fetching.\n- **Mat / Passepartout Framing**: Apply a classic gallery-style framing effect with customizable width, border thickness, and opacity.\n- **Elegant Typography**: A curated selection of premium fonts with full support for custom text and coordinate overrides.\n- **Draggable UI Overlay**: A fluid city-label overlay with automatic edge-clamping and symmetric safety padding.\n- **Background Edge Effects**: Improve readability using soft vignette shading or subtle transparency along the edges.\n- **Layout Flexibility**: Independently toggle country names, geographic coordinates, and map labels for a tailored look.\n- **Pro-Grade Exports**: Generate high-fidelity PNG files at custom resolutions or ultra-high resolutions (up to 50,000px).\n- **Privacy & Performance**: Persistent settings via LocalStorage and 100% client-side rendering, your data never leaves your browser.\n\n## 🎨 Themes\n\nMapToPoster JS offers two distinct ways to style your maps:\n\n### Standard Themes (Leaflet)\nBased on high-quality raster tiles from established providers:\n- **Minimal White**: Clean and modern (CartoDB Positron).\n- **Midnight Dark**: Sleek dark mode (CartoDB Dark Matter).\n- **Classic Street**: Standard OpenStreetMap cartography.\n- **Modern Voyager**: Colorful and detailed (CartoDB Voyager).\n- **Satellite View**: High-resolution imagery (Esri World Imagery).\n\n### Artistic Themes (MapLibre GL)\nHand-crafted vector styles with procedural colors:\n- **Arctic Frost**: Pale blues and crisp whites.\n- **Aurora Glow**: Iridescent greens and pinks.\n- **Cyber Glitch**: Neon accents for a digital look.\n- **Paper Heritage**: Vintage sepia tones and inked roads.\n- **Volcanic Ash**: Deep charcoal with glowing ember accents.\n- **Blueprint Classic**: Technical cyanotype style for an architectural feel.\n- ...and many more unique themes like Retro Synth, Charcoal Sketch, and Sakura Bloom.\n\n### Customizing Themes\nYou can easily add your own artistic themes by editing [src/core/artistic-themes.js](src/core/artistic-themes.js):\n\n1. Open `artistic-themes.js`.\n2. Add a new object to the `artisticThemes` export:\n```javascript\nyour_theme_key: {\n    name: \"Your Theme Name\",\n    description: \"Brief description of the style\",\n    bg: \"#HEXCODE\",\n    text: \"#HEXCODE\",\n    water: \"#HEXCODE\",\n    parks: \"#HEXCODE\",\n    road_motorway: \"#HEXCODE\",\n    road_primary: \"#HEXCODE\",\n    road_secondary: \"#HEXCODE\",\n    road_default: \"#HEXCODE\"\n}\n```\nThe application will automatically pick up the new theme and display it in the selection menu.\n\n## 🛠️ Tech Stack\n\n- **Framework**: Vanilla JavaScript (ES Modules)\n- **Bundler**: [Vite 5](https://vitejs.dev/)\n- **Mapping**: [Leaflet](https://leafletjs.com/) (Raster) & [MapLibre GL](https://maplibre.org/) (V",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:54.519839"
+  },
+  {
+    "basic_info": {
+      "name": "clawsec",
+      "full_name": "prompt-security/clawsec",
+      "owner": "prompt-security",
+      "description": "A complete security skill suite for OpenClaw's and NanoClaw agents (and variants). Protect your SOUL.md (etc') with drift detection, live security recommendations, automated audits, and skill integrity verification. All from one installable suite.",
+      "url": "https://github.com/prompt-security/clawsec",
+      "clone_url": "https://github.com/prompt-security/clawsec.git",
+      "ssh_url": "git@github.com:prompt-security/clawsec.git",
+      "homepage": "https://prompt.security/clawsec",
+      "created_at": "2026-02-05T19:59:46Z",
+      "updated_at": "2026-03-05T03:07:14Z",
+      "pushed_at": "2026-03-02T23:14:48Z"
+    },
+    "stats": {
+      "stars": 573,
+      "forks": 61,
+      "watchers": 573,
+      "open_issues": 13,
+      "size": 21307
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 262419,
+        "TypeScript": 235040,
+        "Python": 78458,
+        "Shell": 71845,
+        "HTML": 4787,
+        "Standard ML": 176
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "clawdbot",
+        "clawdbot-skill",
+        "molt",
+        "moltbot-skill",
+        "moltbot-skills",
+        "nanoclaw",
+        "openclaw",
+        "openclaw-extension",
+        "openclaw-plugin",
+        "openclaw-security",
+        "openclaw-skill",
+        "openclaw-skills"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">\n  <img src=\"./img/prompt-icon.svg\" alt=\"prompt-icon\" width=\"40\">\n  ClawSec: Security Skill Suite for AI Agents\n  <img src=\"./img/prompt-icon.svg\" alt=\"prompt-icon\" width=\"40\">\n</h1>\n\n<div align=\"center\">\n\n## Secure Your OpenClaw and NanoClaw Agents with a Complete Security Skill Suite\n\n<h4>Brought to you by <a href=\"https://prompt.security\">Prompt Security</a>, the Platform for AI Security</h4>\n\n</div>\n\n<div align=\"center\">\n\n![Prompt Security Logo](./img/Black+Color.png)\n<img src=\"./public/img/mascot.png\" alt=\"clawsec mascot\" width=\"200\" />\n\n</div>\n<div align=\"center\">\n\n🌐 **Live at: [https://clawsec.prompt.security](https://clawsec.prompt.security) [https://prompt.security/clawsec](https://prompt.security/clawsec)**\n\n[![CI](https://github.com/prompt-security/clawsec/actions/workflows/ci.yml/badge.svg)](https://github.com/prompt-security/clawsec/actions/workflows/ci.yml)\n[![Deploy Pages](https://github.com/prompt-security/clawsec/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/prompt-security/clawsec/actions/workflows/deploy-pages.yml)\n[![Poll NVD CVEs](https://github.com/prompt-security/clawsec/actions/workflows/poll-nvd-cves.yml/badge.svg)](https://github.com/prompt-security/clawsec/actions/workflows/poll-nvd-cves.yml)\n\n\n</div>\n\n---\n\n## 🦞 What is ClawSec?\n\nClawSec is a **complete security skill suite for AI agent platforms**. It provides unified security monitoring, integrity verification, and threat intelligence-protecting your agent's cognitive architecture against prompt injection, drift, and malicious instructions.\n\n### Supported Platforms\n\n- **OpenClaw** (MoltBot, Clawdbot, and clones) - Full suite with skill installer, file integrity protection, and security audits\n- **NanoClaw** - Containerized WhatsApp bot security with MCP tools for advisory monitoring, signature verification, and file integrity\n\n### Core Capabilities\n\n- **📦 Suite Installer** - One-command installation of all security skills with integrity verification\n- **🛡️ File Integrity Protection** - Drift detection and auto-restore for critical agent files (SOUL.md, IDENTITY.md, etc.)\n- **📡 Live Security Advisories** - Automated NVD CVE polling and community threat intelligence\n- **🔍 Security Audits** - Self-check scripts to detect prompt injection markers and vulnerabilities\n- **🔐 Checksum Verification** - SHA256 checksums for all skill artifacts\n- **Health Checks** - Automated updates and integrity verification for all installed skills\n\n---\n\n## 🎬 Product Demos\n\nAnimated previews below are GIFs (no audio). Click any preview to open the full MP4 with audio.\n\n### Install Demo (`clawsec-suite`)\n\n[![Install demo animated preview](public/video/install-demo-preview.gif)](public/video/install-demo.mp4)\n\nDirect link: [install-demo.mp4](public/video/install-demo.mp4)\n\n### Drift Detection Demo (`soul-guardian`)\n\n[![Drift detection animated preview](public/video/soul-guardian-demo-preview.gif)](public/video/soul-guardian-demo.mp4)\n\nDirect link: [soul-guardian-demo.mp4](public/video/soul-guardian-demo.mp4)\n\n---\n\n## 🚀 Quick Start\n\n### For AI Agents\n\n```bash\n# Install the ClawSec security suite\nnpx clawhub@latest install clawsec-suite\n```\n\nAfter install, the suite can:\n1. Discover installable protections from the published skills catalog\n2. Verify release integrity using signed checksums\n3. Set up advisory monitoring and hook-based protection flows\n4. Add optional scheduled checks\n\nManual/source-first option:\n\n> Read https://github.com/prompt-security/clawsec/releases/latest/download/SKILL.md and follow the installation instructions.\n\n### For Humans\n\nCopy this instruction to your AI agent:\n\n> Install ClawSec with `npx clawhub@latest install clawsec-suite`, then complete the setup steps from the generated instructions.\n\n### Shell and OS Notes\n\nClawSec scripts are split between:\n- Cross-platform Node/Python tooling (`npm run build`, hook/setup `.mjs`, `utils/*.py`)\n- POSIX shell workflows (`*.sh`, most manual install snippets)\n\nFor Linux/macOS (`bash`/`zsh`):\n- Use unquoted or double-quoted home vars: `export INSTALL_ROOT=\"$HOME/.openclaw/skills\"`\n- Do **not** single-quote expandable vars (for example, avoid `'$HOME/.openclaw/skills'`)\n\nFor Windows (PowerShell):\n- Prefer explicit path building:\n  - `$env:INSTALL_ROOT = Join-Path $HOME \".openclaw\\\\skills\"`\n  - `node \"$env:INSTALL_ROOT\\\\clawsec-suite\\\\scripts\\\\setup_advisory_hook.mjs\"`\n- POSIX `.sh` scripts require WSL or Git Bash.\n\nTroubleshooting: if you see directories such as `~/.openclaw/workspace/$HOME/...`, a home variable was passed literally. Re-run using an absolute path or an unquoted home expression.\n\n---\n\n## 📱 NanoClaw Platform Support\n\nClawSec now supports **NanoClaw**, a containerized WhatsApp bot powered by Claude agents.\n\n### clawsec-nanoclaw Skill\n\n**Location**: `skills/clawsec-nanoclaw/`\n\nA complete security suite adapted for NanoClaw's containerized architecture:\n\n- **9 MCP Tools** for agents to check vulnerabilities\n  - Advisory checking and browsing",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:55.725757"
+  },
+  {
+    "basic_info": {
+      "name": "qq-farm-bot",
+      "full_name": "linguo2625469/qq-farm-bot",
+      "owner": "linguo2625469",
+      "description": "基于 Node.js 的 QQ 经典农场小程序自动化挂机脚本。通过分析小程序 WebSocket 通信协议（Protocol Buffers），实现全自动农场管理。",
+      "url": "https://github.com/linguo2625469/qq-farm-bot",
+      "clone_url": "https://github.com/linguo2625469/qq-farm-bot.git",
+      "ssh_url": "git@github.com:linguo2625469/qq-farm-bot.git",
+      "homepage": null,
+      "created_at": "2026-02-07T14:46:09Z",
+      "updated_at": "2026-03-05T02:13:16Z",
+      "pushed_at": "2026-02-28T04:23:00Z"
+    },
+    "stats": {
+      "stars": 544,
+      "forks": 128,
+      "watchers": 544,
+      "open_issues": 29,
+      "size": 84
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 147676
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 紧急通知：已经有人反馈封号了 低调使用，被举报必封\n## 一些提醒：某些人嘴脸不要那么难看，直接拿我原版的程序去倒卖\n# QQ经典农场 挂机脚本\n\n基于 Node.js 的 QQ/微信 经典农场小程序自动化挂机脚本。通过分析小程序 WebSocket 通信协议（Protocol Buffers），实现全自动农场管理。\n本脚本基于ai制作，必然有一定的bug，遇到了建议自己克服一下，后续不一定会更新了\n\n## 功能特性\n\n### 自己农场\n- **自动收获** — 检测成熟作物并自动收获\n- **自动铲除** — 自动铲除枯死/收获后的作物残留\n- **自动种植** — 收获/铲除后自动购买种子并种植（默认按当前等级 + 已解锁土地数计算经验效率后选种；可配置强制最低等级作物）\n- **自动施肥** — 种植后自动施放普通肥料加速生长\n- **自动除草** — 检测并清除杂草\n- **自动除虫** — 检测并消灭害虫\n- **自动浇水** — 检测缺水作物并浇水\n- **自动出售** — 每分钟自动出售仓库中的果实\n\n### 好友农场\n- **好友巡查** — 自动巡查好友农场\n- **帮忙操作** — 帮好友浇水/除草/除虫\n- **自动偷菜** — 偷取好友成熟作物\n\n### 系统功能\n- **自动领取任务** — 自动领取完成的任务奖励，支持分享翻倍/三倍奖励\n- **自动同意好友** — 微信同玩好友申请自动同意（支持推送实时响应）\n- **邀请码处理** — 启动时自动处理 share.txt 中的邀请链接（微信环境，share.txt有示例，是小程序的path）\n- **状态栏显示** — 终端顶部固定显示平台/昵称/等级/经验/金币\n- **经验进度** — 显示当前等级经验进度\n- **心跳保活** — 自动维持 WebSocket 连接\n\n### 开发工具\n- **[PB 解码工具](#pb-解码工具)** — 内置 Protobuf 数据解码器，方便调试分析\n- **[经验分析工具](#经验分析工具)** — 分析作物经验效率，计算最优种植策略\n\n## 安装\n\n```bash\ngit clone https://github.com/linguo2625469/qq-farm-bot.git\ncd qq-farm-bot\nnpm install\n```\n\n## 使用\n\n### 获取登录 Code\n\n你需要从小程序中抓取 code。可以通过抓包工具（如 Fiddler、Charles、mitmproxy 等）获取 WebSocket 连接 URL 中的 `code` 参数。\n\n现已支持qq端扫码登录获取code后自动登录，wx不会支持，不需要再提问（wx无此类漏洞）\n[lkeme/QRLib](https://github.com/lkeme/QRLib) - 扫码登录使用此项目代码，非常感谢。\n\n### 启动挂机\n\n```bash\n# QQ小程序 (无任何参数默认qq平台且使用二维码登录)\nnode client.js\n\n# QQ小程序 (默认)\nnode client.js --code <你的登录code>\n\n# 微信小程序\nnode client.js --code <你的登录code> --wx\n```\n\n### 自定义巡查间隔\n\n```bash\n# 农场巡查间隔 5 秒，好友巡查间隔 2 秒\nnode client.js --code <code> --interval 5 --friend-interval 2\n```\n\n### 参数说明\n\n| 参数 | 说明 | 默认值 |\n|------|------|--------|\n| `--code` | 小程序登录凭证（**必需**） | — |\n| `--wx` | 使用微信登录 | QQ 小程序 |\n| `--interval` | 自己农场巡查间隔（秒） | 2 |\n| `--friend-interval` | 好友巡查间隔（秒） | 1 |\n| `--verify` | 验证 proto 定义是否正确 | — |\n| `--decode` | 进入 PB 数据解码模式 | — |\n\n### 邀请码功能（微信环境）\n\n在项目根目录创建 `share.txt` 文件，每行一个邀请链接：\n\n```\n?uid=123&openid=xxx&share_source=4&doc_id=2\n?uid=456&openid=xxx&share_source=4&doc_id=2\n```\n\n启动时会自动处理这些邀请链接，申请添加好友。处理完成后文件会被清空。\n\n### PB 解码工具\n\n内置 Protobuf 数据解码器，支持自动推断消息类型：\n\n```bash\n# 解码 base64 格式的 gatepb.Message\nnode client.js --decode CigKGWdhbWVwYi... --gate\n\n# 解码 hex 格式，指定消息类型\nnode client.js --decode 0a1c0a19... --hex --type gatepb.Message\n\n# 查看解码工具详细帮助\nnode client.js --decode\n```\n\n### 经验分析工具\n\n * 规则：\n * 1) 每次收获经验 = exp，铲地固定 +1 经验 => 单轮经验 = exp + 1\n * 2) 种植速度：\n *    - 不施肥：2 秒种 18 块地 => 9 块/秒\n *    - 普通肥：2 秒种 12 块地 => 6 块/秒\n * 3) 普通肥：减少 20% 生长时间；若 20% < 30 秒，则固定减少 30 秒\n */\n\n```bash\nnode tools/calc-exp-yield.js\nnode tools/calc-exp-yield.js --lands 18 --level 27\nnode tools/calc-exp-yield.js --input tools/seed-shop-merged-export.json\n```\n\n### 当前种子选择逻辑\n\n默认策略（`src/farm.js`）：\n1. 拉取商店中当前可购买的种子（已解锁、满足等级、未超限购）。\n2. 读取账号等级 + 已解锁土地块数，调用 `tools/calc-exp-yield.js` 的 `getPlantingRecommendation(level, lands)`。\n3. 按普通肥经验效率排名，从高到低选择在商店可买到的第一个种子。\n4. 若推荐失败，则走兜底排序逻辑。\n\n强制最低等级作物（通常白萝卜）：\n- 在 `src/config.js` 设置 `forceLowestLevelCrop: true` 后，直接选择最低等级种子。\n- 开启后不再执行经验效率分析推荐。\n\n## 项目结构\n\n<details>\n<summary>点击展开项目结构</summary>\n\n```\n├── client.js              # 入口文件 - 参数解析与启动调度\n├── src/\n│   ├── config.js          # 配置常量与生长阶段枚举\n│   ├── utils.js           # 工具函数 (类型转换/日志/时间同步/sleep)\n│   ├── proto.js           # Protobuf 加载与消息类型管理\n│   ├── network.js         # WebSocket 连接/消息编解码/登录/心跳\n│   ├── farm.js            # 自己农场: 收获/浇水/除草/除虫/铲除/种植/施肥\n│   ├── friend.js          # 好友农场: 进入/帮忙/偷菜/巡查循环\n│   ├── task.js            # 任务系统: 自动领取任务奖励\n│   ├── status.js          # 状态栏: 终端顶部固定显示用户状态\n│   ├── warehouse.js       # 仓库系统: 自动出售果实\n│   ├── invite.js          # 邀请码处理: 自动申请好友\n│   ├── gameConfig.js      # 游戏配置: 等级经验表/植物数据\n│   └── decode.js          # PB 解码/验证工具模式\n├── proto/                 # Protobuf 消息定义\n│   ├── game.proto         # 网关消息定义 (gatepb)\n│   ├── userpb.proto       # 用户/登录/心跳消息\n│   ├── plantpb.proto      # 农场/土地/植物消息\n│   ├── corepb.proto       # 通用 Item 消息\n│   ├── shoppb.proto       # 商店消息\n│   ├── friendpb.proto     # 好友列表/申请消息\n│   ├── visitpb.proto      # 好友农场拜访消息\n│   ├── notifypb.proto     # 服务器推送通知消息\n│   ├── taskpb.proto       # 任务系统消息\n│   └── itempb.proto       # 背包/仓库/物品消息\n├── gameConfig/            # 游戏配置数据\n│   ├── RoleLevel.json     # 等级经验表\n│   └── Plant.json         # 植物数据（名称/生长时间/经验等）\n├── tools/                 # 辅助工具\n│   └── analyze-exp-*.js   # 经验效率分析脚本\n└── package.json\n```\n\n</details>\n\n## 运行示例\n\n<details>\n<summary>点击展开运行示例</summary>\n\n```\nQQ | 我的农场 | Lv24 125/500 | 金币:88888\n────────────────────────────────────────────\n\n========== 登录成功 ==========\n  GID:    1234567890\n  昵称:   我的农场\n  等级:   24\n  金币:   88888\n  时间:   2026/2/7 16:00:00\n===============================\n\n[16:00:02] [农场] [收:15 长:0] → 收获15/种植15\n[16:00:03] [施肥] 已为 15/15 块地施肥\n[16:00:05] [农场] [草:2 虫:1 水:3 长:15] → 除草2/除虫1/浇水3\n[16:00:08] [好友] 小明: 偷6(白萝卜)\n[16:00:10] [好友] 巡查 5 人 → 偷12/除草3/浇水2\n[16:00:15] [仓库] 出售 2 种果实共 300 个，获得 600 金币\n[16:00:20] [任务] 领取: 收获5次 → 金币500/经验100\n\n# 微信同玩好友申请自动同意：\n[16:05:30] [申请] 收到 1 个好友申请: 小绿\n[16:05:31] [申请] 已同意 1 人: 小绿\n```\n\n</details>\n\n## 配置说明\n\n### src/config.js\n\n```javascript\nconst CONFIG = {\n    serverUrl: 'wss://gate-obt.nqf.qq.com/prod/ws',\n    clientVersion: '1.6.0.14_2",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:56.915648"
+  },
+  {
+    "basic_info": {
+      "name": "free-coding-models",
+      "full_name": "vava-nessa/free-coding-models",
+      "owner": "vava-nessa",
+      "description": "Find the fastest coding LLM models in seconds",
+      "url": "https://github.com/vava-nessa/free-coding-models",
+      "clone_url": "https://github.com/vava-nessa/free-coding-models.git",
+      "ssh_url": "git@github.com:vava-nessa/free-coding-models.git",
+      "homepage": "",
+      "created_at": "2026-02-20T23:12:50Z",
+      "updated_at": "2026-03-05T01:55:15Z",
+      "pushed_at": "2026-03-04T14:53:15Z"
+    },
+    "stats": {
+      "stars": 495,
+      "forks": 42,
+      "watchers": 495,
+      "open_issues": 11,
+      "size": 12616
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 648609
+      },
+      "license": "Other",
+      "topics": [
+        "ai",
+        "deepseek",
+        "free",
+        "free-ai",
+        "freeai",
+        "gpt",
+        "gptoss",
+        "kimi",
+        "nim",
+        "nvidia",
+        "nvidia-nim",
+        "nvidia-nim-api",
+        "nvidia-nims",
+        "openclaw",
+        "opencode"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://img.shields.io/npm/v/free-coding-models?color=76b900&label=npm&logo=npm\" alt=\"npm version\">\n  <img src=\"https://img.shields.io/node/v/free-coding-models?color=76b900&logo=node.js\" alt=\"node version\">\n  <img src=\"https://img.shields.io/npm/l/free-coding-models?color=76b900\" alt=\"license\">\n  <img src=\"https://img.shields.io/badge/models-158-76b900?logo=nvidia\" alt=\"models count\">\n  <img src=\"https://img.shields.io/badge/providers-20-blue\" alt=\"providers count\">\n</p>\n\n<h1 align=\"center\">free-coding-models</h1>\n\n<p align=\"center\">\n  <strong>Contributors</strong><br>\n  <a href=\"https://github.com/vava-nessa\"><img src=\"https://avatars.githubusercontent.com/u/5466264?v=4&s=60\" width=\"60\" height=\"60\" style=\"border-radius:50%\" alt=\"vava-nessa\"></a>\n  <a href=\"https://github.com/erwinh22\"><img src=\"https://avatars.githubusercontent.com/u/6641858?v=4&s=60\" width=\"60\" height=\"60\" style=\"border-radius:50%\" alt=\"erwinh22\"></a>\n  <a href=\"https://github.com/whit3rabbit\"><img src=\"https://avatars.githubusercontent.com/u/12357518?v=4&s=60\" width=\"60\" height=\"60\" style=\"border-radius:50%\" alt=\"whit3rabbit\"></a>\n  <a href=\"https://github.com/skylaweber\"><img src=\"https://avatars.githubusercontent.com/u/172871734?v=4&s=60\" width=\"60\" height=\"60\" style=\"border-radius:50%\" alt=\"skylaweber\"></a>\n  <a href=\"https://github.com/PhucTruong-ctrl\"><img src=\"https://github.com/PhucTruong-ctrl.png?s=60\" width=\"60\" height=\"60\" style=\"border-radius:50%\" alt=\"PhucTruong-ctrl\"></a>\n  <br>\n  <sub>\n    <a href=\"https://github.com/vava-nessa\">vava-nessa</a> &middot;\n    <a href=\"https://github.com/erwinh22\">erwinh22</a> &middot;\n    <a href=\"https://github.com/whit3rabbit\">whit3rabbit</a> &middot;\n    <a href=\"https://github.com/skylaweber\">skylaweber</a> &middot;\n    <a href=\"https://github.com/PhucTruong-ctrl\">PhucTruong-ctrl</a>\n  </sub>\n</p>\n\n<p align=\"center\">\n  💬 <a href=\"https://discord.gg/5MbTnDC3Md\">Let's talk about the project on Discord</a>\n</p>\n\n<p align=\"center\">\n\n```\n1. Create a free API key (NVIDIA, OpenRouter, Hugging Face, etc.)\n2. npm i -g free-coding-models\n3. free-coding-models\n```\n\n</p>\n\n<p align=\"center\">\n  <strong>Find the fastest coding LLM models in seconds</strong><br>\n  <sub>Ping free coding models from 20 providers in real-time — pick the best one for OpenCode, OpenClaw, or any AI coding assistant</sub>\n</p>\n\n<p align=\"center\">\n  <img src=\"demo.gif\" alt=\"free-coding-models demo\" width=\"100%\">\n</p>\n\n<p align=\"center\">\n  <a href=\"#-features\">Features</a> •\n  <a href=\"#-requirements\">Requirements</a> •\n  <a href=\"#-installation\">Installation</a> •\n  <a href=\"#-usage\">Usage</a> •\n  <a href=\"#-tui-columns\">Columns</a> •\n  <a href=\"#-stability-score\">Stability</a> •\n  <a href=\"#-coding-models\">Models</a> •\n  <a href=\"#-opencode-integration\">OpenCode</a> •\n  <a href=\"#-openclaw-integration\">OpenClaw</a> •\n  <a href=\"#-how-it-works\">How it works</a>\n</p>\n\n---\n\n## ✨ Features\n\n- **🎯 Coding-focused** — Only LLM models optimized for code generation, not chat or vision\n- **🌐 Multi-provider** — Models from NVIDIA NIM, Groq, Cerebras, SambaNova, OpenRouter, Hugging Face Inference, Replicate, DeepInfra, Fireworks AI, Codestral, Hyperbolic, Scaleway, Google AI, SiliconFlow, Together AI, Cloudflare Workers AI, Perplexity API, Alibaba Cloud (DashScope), ZAI, and iFlow\n- **⚙️ Settings screen** — Press `P` to manage provider API keys, enable/disable providers, test keys live, and manually check/install updates\n- **🔀 Multi-account Proxy (`fcm-proxy`)** — Automatically starts a local reverse proxy that groups all your accounts into a single provider in OpenCode; supports multi-account rotation and auto-detects usage limits to swap between providers.\n- **🚀 Parallel pings** — All models tested simultaneously via native `fetch`\n- **📊 Real-time animation** — Watch latency appear live in alternate screen buffer\n- **🏆 Smart ranking** — Top 3 fastest models highlighted with medals 🥇🥈🥉\n- **⏱ Continuous monitoring** — Pings all models every 3 seconds forever, never stops\n- **📈 Rolling averages** — Avg calculated from ALL successful pings since start\n- **📊 Uptime tracking** — Percentage of successful pings shown in real-time\n- **📐 Stability score** — Composite 0–100 score measuring consistency (p95, jitter, spikes, uptime)\n- **📊 Usage tracking** — Monitor remaining quota percentage for each model directly in the TUI; persists across sessions via `token-stats.json`.\n- **📜 Live Log Viewer** — Press `X` to view real-time activity and error logs in a focused TUI overlay.\n- **🛠 MODEL_NOT_FOUND Rotation** — If a specific provider returns a 404 for a model, the TUI intelligently rotates through other available providers for the same model.\n- **🔄 Auto-retry** — Timeout models keep getting retried, nothing is ever \"given up on\"\n- **🎮 Interactive selection** — Navigate with arrow keys directly in the table, press Enter to act\n- **🔀 Startup mode menu** — Choose between OpenCode and OpenClaw before the TUI launches\n- **💻 O",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:58.084946"
+  },
+  {
+    "basic_info": {
+      "name": "openclaw-docs",
+      "full_name": "yeuxuan/openclaw-docs",
+      "owner": "yeuxuan",
+      "description": "OpenClaw 中文文档站 | AI 智能体框架 源码剖析 安装教程 | WhatsApp Telegram Discord 飞书   多通道机器人",
+      "url": "https://github.com/yeuxuan/openclaw-docs",
+      "clone_url": "https://github.com/yeuxuan/openclaw-docs.git",
+      "ssh_url": "git@github.com:yeuxuan/openclaw-docs.git",
+      "homepage": "https://openclaw-docs.dx3n.cn",
+      "created_at": "2026-02-19T02:30:39Z",
+      "updated_at": "2026-03-05T02:58:08Z",
+      "pushed_at": "2026-03-03T13:24:17Z"
+    },
+    "stats": {
+      "stars": 472,
+      "forks": 55,
+      "watchers": 472,
+      "open_issues": 0,
+      "size": 2188
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 19297
+      },
+      "license": null,
+      "topics": [
+        "ai-agent",
+        "chinese",
+        "clawdbot",
+        "documentation",
+        "llm",
+        "multi-channel",
+        "openclaw",
+        "telegram-bot-ai-assistant",
+        "vitepress",
+        "whatsapp-bot"
+      ]
+    },
+    "content": {
+      "readme": "# OpenClaw 中文文档 | 源码剖析 · 安装教程 · AI 智能体框架\n\n> **OpenClaw**（原名 ClawdBot）是开源多通道 AI 智能体框架，支持 WhatsApp、Telegram、Discord、飞书等平台，可接入 Claude、GPT、DeepSeek、Ollama 等模型。本仓库是其**完整中文文档站**，276 篇深度教程，覆盖安装部署、源码剖析、Gateway 配置与 AI 核心框架解析。\n\n[![在线文档](https://img.shields.io/badge/在线阅读-openclaw--docs.dx3n.cn-4fc08d?logo=readthedocs&logoColor=white)](https://openclaw-docs.dx3n.cn)\n[![VitePress](https://img.shields.io/badge/Built%20with-VitePress-646cff?logo=vite&logoColor=white)](https://vitepress.dev)\n[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n[![Azure](https://img.shields.io/badge/Deployed%20on-Azure%20Static%20Web%20Apps-0078d4?logo=microsoftazure)](https://openclaw-docs.dx3n.cn)\n\n**[📖 立即在线阅读 → openclaw-docs.dx3n.cn](https://openclaw-docs.dx3n.cn)**\n\n---\n\n## 📚 文档覆盖范围\n\n本文档站包含 **276 篇**原创中文教程，分为 4 条学习主线：\n\n| 主线 | 内容覆盖 | 篇数 | 链接 |\n|---|---|---|---|\n| **Track 0** 安装教程 | 快速安装、向导配置、AI 服务商接入（Claude/GPT/DeepSeek/Ollama）、通道接入（Telegram/WhatsApp/Discord/飞书）、Gateway 运维、常见问题排查 | 147 篇 | [→ 教程中心](https://openclaw-docs.dx3n.cn/tutorials/) |\n| **Track A** 完整工程主线 | CLI 启动框架、Gateway 控制平面、通道适配器、路由与会话键、Agent 执行链路、流式订阅、子智能体编排、函数级源码剖析（59 篇） | 59 篇 | [→ 工程主线](https://openclaw-docs.dx3n.cn/beginner-openclaw-guide/) |\n| **Track B** AI 核心框架 | 上下文工程、Agent 状态机、工具策略与审批、模型回退、记忆系统、Hook 插件注入机制 | 22 篇 | [→ AI 框架](https://openclaw-docs.dx3n.cn/beginner-openclaw-framework-focus/) |\n| **Track C** 通道适配器 | 接口合同、注册链路、账号生命周期、入站路由、出站发送解耦 | 含于 Track A | [→ 适配器索引](https://openclaw-docs.dx3n.cn/beginner-openclaw-guide/59-%E9%80%9A%E9%81%93%E9%80%82%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0%E7%B4%A2%E5%BC%95) |\n\n---\n\n## 🤖 OpenClaw 是什么？\n\n**OpenClaw**（前身 **ClawdBot**）是一款开源的多通道 AI 智能体框架，让你的 AI 助手运行在任意即时通讯平台上。\n\n### 支持的聊天平台\n\nWhatsApp · Telegram · Discord · Slack · Signal · iMessage · 飞书（Feishu） · Mattermost · Google Chat · Microsoft Teams · Matrix · Zalo · IRC · Nostr · Twitch\n\n### 支持的 AI 模型\n\nAnthropic Claude · OpenAI GPT · DeepSeek · 通义千问（Qwen） · Kimi（月之暗面） · 智谱 GLM · MiniMax · Ollama（本地大模型） · OpenRouter · LiteLLM · Cloudflare AI Gateway · Vercel AI Gateway · NVIDIA NIM · Together AI · HuggingFace · vLLM\n\n---\n\n## 🚀 快速开始（本地运行文档站）\n\n```bash\ngit clone https://github.com/yeuxuan/openclaw-docs.git\ncd openclaw-docs\nnpm install\nnpm run docs:dev\n```\n\n打开终端输出的本地地址即可预览完整文档站。\n\n```bash\nnpm run docs:build    # 构建静态产物到 docs/.vitepress/dist/\nnpm run docs:preview  # 本地预览构建结果\n```\n\n---\n\n## 📁 仓库结构\n\n```\nopenclaw-docs/\n├── docs/\n│   ├── index.md                            # 首页\n│   ├── tutorials/                          # Track 0：安装教程（147 篇）\n│   │   ├── getting-started/                #   快速入门与向导安装\n│   │   ├── installation/                   #   Docker / Node / 云服务器部署\n│   │   ├── gateway/                        #   Gateway 配置与运维\n│   │   ├── channels/                       #   通道接入（Telegram/WhatsApp/Discord 等）\n│   │   ├── providers/                      #   AI 模型 Provider 配置\n│   │   ├── concepts/                       #   核心概念（上下文/记忆/状态机等）\n│   │   ├── tools/                          #   工具系统（浏览器/执行/技能/子智能体）\n│   │   ├── automation/                     #   自动化（Webhook/Cron/Poll）\n│   │   └── help/                           #   故障排查与常见问题\n│   ├── beginner-openclaw-guide/            # Track A：完整工程主线（59 篇）\n│   └── beginner-openclaw-framework-focus/  # Track B：AI 核心框架（22 篇）\n├── docs/.vitepress/\n│   ├── config.mts                          # 站点配置（SEO / 导航 / 侧边栏）\n│   └── theme/                             # 自定义主题与样式\n└── scripts/\n    ├── convert-mdx.mjs                     # MDX → VitePress Markdown 批量转换\n    └── ping-indexnow.mjs                   # 构建后自动推送 URL 到 Bing IndexNow\n```\n\n---\n\n## ✨ 文档特点\n\n- **函数级精度**：关键模块精确到具体函数的源码入口与调用链路\n- **小白友好**：安装教程全程图文，零基础 10 分钟跑起来\n- **可直接复刻**：每个核心能力都给出落地步骤，可直接用于自己的项目\n- **持续更新**：跟随 OpenClaw 版本迭代，覆盖最新 API 与配置方式\n- **SEO 完备**：276 页独立 description、sitemap、IndexNow 自动推送\n\n---\n\n## 🔗 相关链接\n\n- **OpenClaw 官方**：[github.com/openclaw](https://github.com/openclaw)\n- **官方英文文档**：[docs.openclaw.ai](https://docs.openclaw.ai)\n- **本站中文文档**：[openclaw-docs.dx3n.cn](https://openclaw-docs.dx3n.cn)\n- **部署平台**：Azure Static Web Apps\n\n---\n\n## ⭐ Star History\n\n[![Star History Chart](https://api.star-history.com/svg?repos=yeuxuan/openclaw-docs&type=Date)](https://star-history.com/#yeuxuan/openclaw-docs&Date)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:24:59.254823"
+  },
+  {
+    "basic_info": {
+      "name": "qq-farm-bot-ui",
+      "full_name": "Penty-d/qq-farm-bot-ui",
+      "owner": "Penty-d",
+      "description": "基于 Node.js 的 QQ经典农场自动化项目。",
+      "url": "https://github.com/Penty-d/qq-farm-bot-ui",
+      "clone_url": "https://github.com/Penty-d/qq-farm-bot-ui.git",
+      "ssh_url": "git@github.com:Penty-d/qq-farm-bot-ui.git",
+      "homepage": "",
+      "created_at": "2026-02-15T19:29:40Z",
+      "updated_at": "2026-03-05T03:14:39Z",
+      "pushed_at": "2026-03-05T02:23:28Z"
+    },
+    "stats": {
+      "stars": 466,
+      "forks": 186,
+      "watchers": 466,
+      "open_issues": 7,
+      "size": 2411
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 426284,
+        "Vue": 158109,
+        "TypeScript": 34974,
+        "Dockerfile": 1368,
+        "CSS": 1002,
+        "HTML": 367
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# QQ 农场多账号挂机 + Web 面板\n\n基于 Node.js 的 QQ 农场自动化工具，支持多账号管理、Web 控制面板、实时日志与数据分析。\n\nqq农场游戏交流群：1090049575\n\n## 技术栈\n\n**后端**\n\n[<img src=\"https://skillicons.dev/icons?i=nodejs\" height=\"48\" title=\"Node.js 20+\" />](https://nodejs.org/)\n[<img src=\"https://skillicons.dev/icons?i=express\" height=\"48\" title=\"Express 4\" />](https://expressjs.com/)\n[<img src=\"https://skillicons.dev/icons?i=socketio\" height=\"48\" title=\"Socket.io 4\" />](https://socket.io/)\n\n**前端**\n\n[<img src=\"https://skillicons.dev/icons?i=vue\" height=\"48\" title=\"Vue 3\" />](https://vuejs.org/)\n[<img src=\"https://skillicons.dev/icons?i=vite\" height=\"48\" title=\"Vite 7\" />](https://vitejs.dev/)\n[<img src=\"https://skillicons.dev/icons?i=ts\" height=\"48\" title=\"TypeScript 5\" />](https://www.typescriptlang.org/)\n[<img src=\"https://cdn.simpleicons.org/pinia/FFD859\" height=\"48\" title=\"Pinia 3\" />](https://pinia.vuejs.org/)\n[<img src=\"https://skillicons.dev/icons?i=unocss\" height=\"48\" title=\"UnoCSS\" />](https://unocss.dev/)\n\n**部署**\n\n[<img src=\"https://skillicons.dev/icons?i=docker\" height=\"48\" title=\"Docker Compose\" />](https://docs.docker.com/compose/)\n[<img src=\"https://skillicons.dev/icons?i=pnpm\" height=\"48\" title=\"pnpm 10\" />](https://pnpm.io/)\n[<img src=\"https://skillicons.dev/icons?i=githubactions\" height=\"48\" title=\"GitHub Actions\" />](https://github.com/features/actions)\n\n---\n\n## 项目贡献\n\n克隆仓库并切换到pr分支进行修改，提交拉取请求的时候也是合并到pr分支，这么做是因为我没有太多时间单独审pr，把所有pr合并到一个分支过一段时间再一起审更方便，当我确认没有问题时就和连同新版本更新一起合并到主分支\n\n## 功能特性\n\n### 多账号管理\n- 账号新增、编辑、删除、启动、停止\n- 扫码登录（QQ）与手动输入 Code\n- 账号被踢下线自动删除\n- 账号连续离线超时自动删除\n- 账号离线推送通知（支持 Bark、自定义 Webhook 等）\n\n### 自动化能力\n- 农场：收获、种植、浇水、除草、除虫、铲除、土地升级\n- 仓库：收获后自动出售果实\n- 好友：自动偷菜 / 帮忙 / 捣乱\n- 任务：自动检查并领取\n- 好友黑名单：跳过指定好友\n- 静默时段：指定时间段内不执行好友操作\n\n### Web 面板\n- 概览 / 农场 / 背包 / 好友 / 分析 / 账号 / 设置页面\n- 实时日志，支持按账号、模块、事件、级别、关键词、时间范围筛选\n- 深色 / 浅色主题切换\n\n### 分析页\n支持按以下维度排序作物：\n- 经验效率 / 普通肥经验效率\n- 净利润效率 / 普通肥净利润效率\n- 等级要求\n\n---\n\n## 环境要求\n\n- 源码运行：Node.js 20+，pnpm（推荐通过 `corepack enable` 启用）\n- 二进制发布版：无需安装 Node.js\n\n## 安装与启动（源码方式）\n\n### Windows\n\n```powershell\n# 1. 安装 Node.js 20+（https://nodejs.org/）并启用 pnpm\nnode -v\ncorepack enable\npnpm -v\n\n# 2. 安装依赖并构建前端\ncd D:\\Projects\\qq-farm-bot-ui\npnpm install\npnpm build:web\n\n# 3. 启动\npnpm dev:core\n\n# （可选）设置管理密码后启动\n$env:ADMIN_PASSWORD=\"你的强密码\"\npnpm dev:core\n```\n\n### Linux（Ubuntu/Debian）\n\n```bash\n# 1. 安装 Node.js 20+\nsudo apt update && sudo apt install -y curl\ncurl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -\nsudo apt install -y nodejs\ncorepack enable\n\n# 2. 安装依赖并构建前端\ncd /path/to/qq-farm-bot-ui\npnpm install\npnpm build:web\n\n# 3. 启动\npnpm dev:core\n\n# （可选）设置管理密码后启动\nADMIN_PASSWORD='你的强密码' pnpm dev:core\n```\n\n启动后访问面板：\n- 本机：`http://localhost:3000`\n- 局域网：`http://<你的IP>:3000`\n\n---\n\n## Docker 部署\n\n```bash\n# 构建并后台启动\ndocker compose up -d --build\n\n# 查看日志\ndocker compose logs -f\n\n# 停止并移除容器\ndocker compose down\n```\n\n### 数据持久化\n\n`docker-compose.yml` 已将数据目录挂载：\n\n| 宿主机路径 | 容器内路径 |\n|-----------|-----------|\n| `./data`  | `/app/core/data` |\n\n账号与配置数据保存在 `./data/accounts.json` 和 `./data/store.json`。\n\n### 设置管理密码\n\n在 `docker-compose.yml` 的 `environment` 中配置：\n\n```yaml\nenvironment:\n  ADMIN_PASSWORD: 你的强密码\n```\n\n修改后执行 `docker compose up -d` 重启生效。\n\n---\n\n## 二进制发布版（无需 Node.js）\n\n### 构建\n\n```bash\npnpm install\npnpm package:release\n```\n\n产物输出在 `dist/` 目录：\n\n| 平台 | 文件名 |\n|------|--------|\n| Windows x64 | `qq-farm-bot-win-x64.exe` |\n| Linux x64 | `qq-farm-bot-linux-x64` |\n| macOS Intel | `qq-farm-bot-macos-x64` |\n| macOS Apple Silicon | `qq-farm-bot-macos-arm64` |\n\n### 运行\n\n```bash\n# Windows：双击 exe 或在终端执行\n.\\qq-farm-bot-win-x64.exe\n\n# Linux / macOS\nchmod +x ./qq-farm-bot-linux-x64 && ./qq-farm-bot-linux-x64\n```\n\n程序会在可执行文件同级目录自动创建 `data/` 并写入 `store.json`、`accounts.json`。\n\n---\n\n## 登录与安全\n\n- 面板首次访问需要登录\n- 默认管理密码：`admin`\n- **建议部署后立即修改为强密码**\n\n---\n\n## 项目结构\n\n```\nqq-farm-bot-ui/\n├── core/                  # 后端（Node.js 机器人引擎）\n│   ├── src/\n│   │   ├── config/        # 配置管理\n│   │   ├── controllers/   # HTTP API\n│   │   ├── gameConfig/    # 游戏静态数据\n│   │   ├── models/        # 数据模型与持久化\n│   │   ├── proto/         # Protobuf 协议定义\n│   │   ├── runtime/       # 运行时引擎与 Worker 管理\n│   │   └── services/      # 业务逻辑（农场、好友、任务等）\n│   ├── data/              # 运行时数据（accounts.json、store.json）\n│   └── client.js          # 主进程入口\n├── web/                   # 前端（Vue 3 + Vite）\n│   ├── src/\n│   │   ├── api/           # API 客户端\n│   │   ├── components/    # Vue 组件\n│   │   ├── stores/        # Pinia 状态管理\n│   │   └── views/         # 页面视图\n│   └── dist/              # 构建产物\n├── docker-compose.yml\n├── pnpm-workspace.yaml\n└── package.json\n```\n\n---\n\n## 特别感谢\n\n- 核心功能：[linguo2625469/qq-farm-bot](https://github.com/linguo2625469/qq-farm-bot)\n- 部分功能：[QianChenJun/qq-farm-bot](https://github.com/QianChenJun/qq-farm-bot)\n- 扫码登录：[lkeme/QRLib](https://github.com/lkeme/QRLib)\n\n## 免责声明\n\n本项目仅供学习与研究用途。使用本工具可能违反游戏服务条款，由此产生的一切后果由使用者自行承担。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:25:00.447137"
+  },
+  {
+    "basic_info": {
+      "name": "openclaw-assistant-mvp",
+      "full_name": "andyhuo520/openclaw-assistant-mvp",
+      "owner": "andyhuo520",
+      "description": "OpenClaw Desktop Assistant MVP - Electron-based AI voice assistant with Live2D character animations, real-time speech recognition, and text-to-speech",
+      "url": "https://github.com/andyhuo520/openclaw-assistant-mvp",
+      "clone_url": "https://github.com/andyhuo520/openclaw-assistant-mvp.git",
+      "ssh_url": "git@github.com:andyhuo520/openclaw-assistant-mvp.git",
+      "homepage": null,
+      "created_at": "2026-02-13T13:14:54Z",
+      "updated_at": "2026-03-04T15:15:10Z",
+      "pushed_at": "2026-02-13T13:15:26Z"
+    },
+    "stats": {
+      "stars": 386,
+      "forks": 51,
+      "watchers": 386,
+      "open_issues": 1,
+      "size": 28861
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 100466,
+        "CSS": 23936,
+        "HTML": 4374
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# OpenClaw Desktop Assistant MVP\n\n一个结合 Live2D 和 OpenClaw 的智能桌面助手最小可行版本。\n\n## 功能特性\n\n- ✅ Electron 桌面应用\n- ✅ 简洁的 UI 界面\n- ✅ 语音输入支持（按住说话）\n- ✅ 模拟 OpenClaw 数据\n- ✅ 邮件查询\n- ✅ 日程查询\n- ✅ 快捷操作按钮\n\n## 项目结构\n\n```\nopenclaw-assistant-mvp/\n├── electron/           # Electron 主进程\n│   ├── main.js        # 应用入口\n│   └── preload.js     # 预加载脚本\n├── public/            # 前端资源\n│   ├── index.html     # 主页面\n│   ├── styles.css     # 样式\n│   └── app.js         # 应用逻辑\n└── package.json       # 项目配置\n```\n\n## 安装和运行\n\n### 1. 安装依赖\n\n```bash\nnpm install\n```\n\n### 2. 运行应用\n\n```bash\nnpm start\n```\n\n或者以开发模式运行（会打开开发者工具）：\n\n```bash\nnpm run dev\n```\n\n## 使用说明\n\n1. **语音输入**: 按住麦克风按钮说话，松开后自动识别\n2. **快捷按钮**: 点击\"邮件\"或\"日程\"按钮快速查询\n3. **窗口控制**: 右上角可以最小化或关闭窗口\n4. **拖动窗口**: 在窗口任意位置拖动（除了按钮区域）\n\n## 支持的命令\n\n- \"今天有什么邮件\" / \"邮件\"\n- \"今天的日程安排\" / \"日程\" / \"汇报\"\n\n## 下一步计划\n\n- [ ] 集成真实的 OpenClaw API\n- [ ] 添加 Live2D 角色\n- [ ] 增强语音识别准确度\n- [ ] 添加更多命令支持\n- [ ] 主动提醒功能\n- [ ] 自定义角色形象\n\n## 技术栈\n\n- Electron 28\n- Web Speech API (语音识别)\n- 原生 HTML/CSS/JavaScript\n\n## 注意事项\n\n- 语音识别需要麦克风权限\n- 目前使用模拟数据，未连接真实 OpenClaw\n- 仅在 macOS 和 Windows 上测试\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:25:01.622075"
+  },
+  {
+    "basic_info": {
+      "name": "garment-notation",
+      "full_name": "khalildh/garment-notation",
+      "owner": "khalildh",
+      "description": null,
+      "url": "https://github.com/khalildh/garment-notation",
+      "clone_url": "https://github.com/khalildh/garment-notation.git",
+      "ssh_url": "git@github.com:khalildh/garment-notation.git",
+      "homepage": null,
+      "created_at": "2026-02-17T06:50:19Z",
+      "updated_at": "2026-03-04T18:44:24Z",
+      "pushed_at": "2026-02-18T22:43:34Z"
+    },
+    "stats": {
+      "stars": 342,
+      "forks": 11,
+      "watchers": 342,
+      "open_issues": 2,
+      "size": 1934
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 376644,
+        "HTML": 7372
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# GNL — Garment Notation Language\n\nA formal descriptive language for clothing construction.\n\n**[Try the live viewer](https://khalildh.github.io/garment-notation/viewer/)**\n\nDance has Labanotation. Music has staff notation. Architecture has plan/section/elevation conventions. GNL brings the same rigor to garments — a generative descriptive language where a valid expression is sufficient to construct a garment without ambiguity.\n\n![T-Shirt — assembled view](images/tshirt-assembled.png)\n\n## Core Concepts\n\n- **Body-anchored** — the body is the coordinate system, using anatomical landmarks (`@shoulder.L`) and regions (`%torso.front`)\n- **Topological** — garments are surfaces with boundaries and openings\n- **Constructive** — descriptions encode build order, not just final form\n- **Composable** — complex garments are compositions of simpler elements\n\n## Quick Example\n\n```\nGARMENT t_shirt [SYM] {\n  FABRIC: M(160gsm, fluid, biaxial:15%, 1.0, knit.jersey)\n\n  front  = P(%torso.front, contour, 1.15)\n  back   = P(%torso.back, contour, 1.15)\n  sleeve = P(%arm[0..0.4], contour, 1.2)\n\n  neck = O(@neck, circle, body+8cm)\n  hem  = O(@hip, circle, body+10cm)\n\n  BUILD:\n    S(front.shoulder, back.shoulder, serged)\n    >> S(sleeve.cap, {front.armhole, back.armhole}, serged)\n    >> S(front.side, back.side, serged)\n    >> F(hem, 2.5cm, in)\n}\n```\n\n## Grammar\n\nThe language is formally defined as a [PEG grammar](grammar/gnl.peg) targeting [Peggy](https://peggyjs.org). The generated parser produces a richly-typed AST which is adapted to the renderer's internal format at runtime.\n\n```sh\nnpm install          # install Peggy (dev dependency only)\nnpm run generate     # regenerate viewer/src/gnl-parser.js from grammar/gnl.peg\nnpm test             # run parse + adapter tests against all examples\n```\n\n## Viewer\n\nThe repo includes a [live viewer](https://khalildh.github.io/garment-notation/viewer/) that parses GNL and renders both assembled garment views and flat pattern pieces.\n\n### Assembled View\n\nWrite GNL on the left, see the full garment on the right — with stitch lines, dimension callouts, and construction details.\n\n| T-Shirt | Wrap Skirt | Jacket Collar |\n|---------|------------|---------------|\n| ![T-Shirt](images/tshirt-assembled.png) | ![Wrap Skirt](images/wrap-skirt-assembled.png) | ![Jacket Collar](images/collar-assembled.png) |\n\n### Pattern Pieces\n\nToggle to \"Pieces\" to see the individual flat pattern pieces with shape outlines, grain lines, and dimensions.\n\n![T-Shirt — pattern pieces](images/tshirt-pieces.png)\n\n## Korosteleva Dataset Converter\n\nThe repo includes a [converter](converter/) that transforms garment templates from the [Korosteleva NeurIPS 2021 dataset](https://github.com/maria-korosteleva/Garment-Pattern-Generator) (2D panel geometry as JSON) into GNL.\n\n```sh\n# Auto-downloads 21 templates from GitHub on first run, converts all\nnode converter/convert.js\n```\n\nFour example templates (tee, skirt, pants, dress) are also available directly in the viewer — select from the \"Korosteleva Dataset\" section of the examples dropdown. A GNL/JSON toggle lets you compare the raw geometric input with the converted semantic output.\n\nSee [converter/README.md](converter/README.md) for details on the mapping approach.\n\n## Documentation\n\n- **[Full Specification](garment-notation.md)** — the complete v0.2 spec\n\n## Star History\n\n<picture>\n  <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/svg?repos=khalildh/garment-notation&type=Date&theme=dark\" />\n  <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/svg?repos=khalildh/garment-notation&type=Date\" />\n  <img alt=\"Star History Chart\" src=\"https://api.star-history.com/svg?repos=khalildh/garment-notation&type=Date\" />\n</picture>\n\n## Status\n\n**v0.2 — Draft.** Includes grain parameter, directional ease, princess seams (EDGE), lining (LAYER), and component composition (USE/ATTACH). A starting point that will need refinement through use, critique, and input from garment-makers, pattern-drafters, and computational designers.\n\n## License\n\nAll rights reserved.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:25:02.821668"
+  },
+  {
+    "basic_info": {
+      "name": "KnightBot-Mini",
+      "full_name": "mruniquehacker/KnightBot-Mini",
+      "owner": "mruniquehacker",
+      "description": "Your Bot. Your Rules.",
+      "url": "https://github.com/mruniquehacker/KnightBot-Mini",
+      "clone_url": "https://github.com/mruniquehacker/KnightBot-Mini.git",
+      "ssh_url": "git@github.com:mruniquehacker/KnightBot-Mini.git",
+      "homepage": "",
+      "created_at": "2026-02-11T13:16:55Z",
+      "updated_at": "2026-03-04T22:43:45Z",
+      "pushed_at": "2026-03-01T12:31:07Z"
+    },
+    "stats": {
+      "stars": 329,
+      "forks": 634,
+      "watchers": 329,
+      "open_issues": 4,
+      "size": 219
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 472541,
+        "Procfile": 18
+      },
+      "license": null,
+      "topics": [
+        "baileys-bot-md",
+        "knight-bot-mini",
+        "knightbot",
+        "knightbot-mini",
+        "knightbotmini",
+        "mini",
+        "mruniquehacker",
+        "whatsapp-bot",
+        "whatsapp-bot-github-topics",
+        "whatsapp-bot-md",
+        "whatsapp-latest-bot",
+        "whatsappbot",
+        "whatsappbot-md",
+        "whatsappbotmd"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n## Knight Bot Mini\n\n[![Made with Baileys](https://img.shields.io/badge/Made%20with-Baileys-00bcd4?style=for-the-badge)](https://github.com/WhiskeySockets/Baileys)\n[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)\n\n<img src=\"utils/bot_image.jpg\" alt=\"Knight Bot Mini\" width=\"260\">\n\n</div>\n\nKnight Bot Mini is a WhatsApp MD bot built on top of the **Baileys** library.  \nIt’s designed to be fast, lightweight, and easy to customize without touching the core code.  \nThis project is **fully open source** — you can modify it, rebrand it, and make your **own bot** from this codebase **free of cost**, without needing any permission from our side.  \nAll commands and the overall structure are written in a way that makes customization (bot image, prefix, name, features, etc.) as easy as possible.\n\n---\n\n\n## ✨ Features\n\n- **Fully Open Source** – entire codebase is editable; host it anywhere (Heroku, panel, VPS, etc.).  \n- **Easy Customization via Commands** – change **bot image**, **prefix**, **channel/newsletter**, **bot name**, etc. with simple commands.  \n- **Modular Command System** – commands are organized in the `commands` folder for easy editing.  \n- **Optimized for Stability** – RAM‑optimized media handling (streaming, temp cleanup), better session handling via `sessionID` in `config.js`.  \n- **Owner Utilities** – restart, update from ZIP, and more owner‑only tools.\n\n---\n\n### 1. Fork the Repository\n\n<div align=\"center\">\n\n<a href=\"https://github.com/mruniquehacker/Knightbot-Mini/fork\" target=\"_blank\">\n  <img src=\"https://img.shields.io/badge/Fork%20Repository-GitHub-181717?style=for-the-badge&logo=github&logoColor=white\" alt=\"Fork on GitHub\">\n</a>\n\n</div>\n\n> This creates your own copy of `Knightbot-Mini` under your GitHub account.\n\n---\n\n### 2. Get Pair Code\n\nDeploy a small helper to generate a **pair code** and obtain your session string.\n\n<div align=\"center\">\n\n<a href=\"https://knight-bot-paircode.onrender.com/\" target=\"_blank\">\n  <img src=\"https://img.shields.io/badge/Generate-Pair%20Code-blueviolet?style=for-the-badge\" alt=\"Generate Pair Code\">\n</a>\n\n</div>\n\nAfter scanning, you will receive a **session string** starting with:\n\n```text\nKnightBot!H4....\n```\n\nCopy that full string and paste it into `config.js`:\n\n```js\nsessionID: 'KnightBot!H4.....'\n```\n\nOr set it via the `SESSION_ID` environment variable when hosting.\n\n---\n\n### 3. Deploy on Panel (Katabump, etc.)\n\n<div align=\"center\">\n\n<a href=\"https://dashboard.katabump.com/auth/login#d6b7d6\" target=\"_blank\">\n  <img src=\"https://img.shields.io/badge/Deploy%20on-Katabump-orange?style=for-the-badge\" alt=\"Deploy on Katabump\">\n</a>\n\n</div>\n\nFor a full step‑by‑step deployment tutorial (panels / VPS / Heroku), add or update your YouTube guide here:\n\n<div align=\"center\">\n  <a href=\"https://youtu.be/4PQcn-qqrcE\">\n    <img src=\"https://img.shields.io/badge/Deploy Tutorial-dc3545?style=for-the-badge&logo=youtube\" alt=\"YouTube Link\"/>\n  </a>\n</div>\n\n---\n\n## 🛠 Local Setup\n\n### 1️⃣ Clone the repository\n\n```bash\ngit clone https://github.com/mruniquehacker/Knightbot-Mini.git\ncd Knightbot-Mini\n```\n\n### 2️⃣ Install dependencies\n\n```bash\nnpm install\n```\n\n### 3️⃣ Configure session\n\nEdit `config.js`:\n\n- **Option A: Use session string**\n\n  ```js\n  sessionID: 'KnightBot!H4.....'\n  ```\n\n- **Option B: Scan QR**\n\n  ```js\n  sessionID: ''\n  ```\n\n  Run the bot and scan the QR from the terminal.\n\n### 4️⃣ Run the bot\n\n```bash\nnode index.js\n```\n\nWhen the bot starts:\n\n- If `sessionID` is empty, a **QR code** will appear in the terminal – scan it using **Linked Devices** in WhatsApp.  \n- If `sessionID` is set, it will log in using that session string.\n\n---\n\n## 🌐 Community\n\n<div align=\"center\">\n\n<a href=\"https://t.me/+3QhFUZHx-nhhZmY1\" target=\"_blank\">\n  <img src=\"https://img.shields.io/badge/Join-Telegram-0088cc?style=for-the-badge&logo=telegram&logoColor=white\" alt=\"Join Telegram\">\n</a>\n\n<a href=\"https://whatsapp.com/channel/0029Va90zAnIHphOuO8Msp3A\" target=\"_blank\">\n  <img src=\"https://img.shields.io/badge/Join-WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white\" alt=\"Join WhatsApp Channel\">\n</a>\n\n</div>\n\n---\n\n## 🙏 Credits\n\n- **Mr Unique Hacker** – Main developer & maintainer  \n- **Baileys** – WhatsApp Web API library (`@whiskeysockets/baileys`)  \n- Other open‑source libraries listed in `package.json`\n\n---\n\n## ☕ Support Me\n\n<div align=\"center\">\n\n<a href=\"https://buymeacoffee.com/mruniquehacker\" target=\"_blank\">\n  <img src=\"https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support%20Developer-FF813F?style=for-the-badge&logo=buy-me-a-coffee&logoColor=white\" alt=\"Buy Me a Coffee\">\n</a>\n\n</div>\n\nIf you find this project helpful and want to support the developer, consider buying me a coffee! Your support helps maintain and improve this open-source project.\n\n<div align=\"center\">\n\n<img ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:25:04.010217"
+  },
+  {
+    "basic_info": {
+      "name": "bookmark-is-learned",
+      "full_name": "iamzifei/bookmark-is-learned",
+      "owner": "iamzifei",
+      "description": "收藏到就是学到，解决光收藏不看的问题。收藏的当下立刻学习或者丢弃",
+      "url": "https://github.com/iamzifei/bookmark-is-learned",
+      "clone_url": "https://github.com/iamzifei/bookmark-is-learned.git",
+      "ssh_url": "git@github.com:iamzifei/bookmark-is-learned.git",
+      "homepage": null,
+      "created_at": "2026-02-10T04:53:38Z",
+      "updated_at": "2026-03-04T05:37:19Z",
+      "pushed_at": "2026-02-18T13:01:04Z"
+    },
+    "stats": {
+      "stars": 328,
+      "forks": 46,
+      "watchers": 328,
+      "open_issues": 4,
+      "size": 21527
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 108670,
+        "CSS": 27321,
+        "HTML": 10417,
+        "Python": 7092,
+        "Shell": 1934
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# 📚 收藏到就是学到\n\n> 一款 Chrome 浏览器扩展，在你收藏 X (Twitter) 内容时，自动生成 AI 摘要并保存为本地 Markdown 文件，让每次收藏都变成一次学习。\n\n[English](#english) | 中文\n\n<a href=\"https://x.com/JamesAI/status/2021089989136875810\">查看 X 发布帖</a>\n\n### 演示视频\n\n<video src=\"assets/demo.mp4\" width=\"100%\" controls></video>\n\n---\n\n## 功能特点\n\n- **一键摘要** — 点击收藏按钮，自动生成结构化 TLDR 摘要（要点提炼、步骤流程、事实核查评分）\n- **AI 开关** — 一键关闭 AI 摘要和事实核查，仅保存原文 + 元数据到 Markdown（无需 API Key），默认开启\n- **原文模式** — 支持切换为原文模式，跳过 AI 摘要，直接保存完整原文到 Markdown（无需 API Key）\n- **多模型支持** — 支持 OpenAI (GPT)、Claude (Anthropic)、Kimi (月之暗面)、智谱 (GLM)，以及本地 Claude CLI（无需 API Key）\n- **自定义 Base URL** — 支持配置中转 API 地址，可走私有网关或代理服务\n- **深度内容提取** — 自动展开\"显示更多\"折叠内容，支持 X Articles 长文、引用/转发长帖的全文抓取\n- **卡片堆叠** — 支持连续快速收藏，多张 TLDR 卡片同时显示，互不阻塞\n- **历史记录** — 自动保存所有摘要，随时回顾，附带原帖链接\n- **Markdown 归档** — 每次收藏自动下载 Markdown 文件到本地，包含 TLDR + 原文，方便知识管理\n- **自定义保存路径** — 通过 Native Helper 可选择任意本地文件夹保存 Markdown 文件\n- **多语言摘要** — 支持简体中文、繁體中文、English、日本語、한국어\n- **深色模式** — 跟随系统偏好自动切换，支持手动切换（自动/浅色/深色）\n- **事实核查** — 每条摘要末尾附带可信度评分 (1-10)\n- **安全存储** — API Key 通过 AES-GCM 加密存储在本地，不会同步到云端\n\n## 安装方法\n\n1. 下载或克隆本仓库：\n   ```bash\n   git clone git@github.com:iamzifei/bookmark-is-learned.git\n   ```\n2. 打开 Chrome，进入 `chrome://extensions/`\n3. 开启右上角的 **开发者模式**\n4. 点击 **加载已解压的扩展程序**，选择项目文件夹\n5. 点击浏览器工具栏中的扩展图标，填写你的 API Key 并保存\n\n## 使用方法\n\n1. **设置** — 点击扩展图标，选择 AI 模型，填入 API Key，选择摘要语言和保存模式\n2. **AI 开关** — 在 AI 服务配置区域右侧有一个开关，关闭后收藏时仅保存原文和元数据，不调用 AI\n3. **选择模式** — TLDR 摘要模式（默认）会生成 AI 摘要；原文模式直接保存完整原文\n4. **收藏** — 在 X (Twitter) 时间线上，点击任意推文的收藏/书签按钮\n5. **阅读摘要** — 页面右下角会弹出 TLDR 卡片，包含要点提炼和事实核查\n6. **查看历史** — 点击扩展图标，切换到「历史记录」标签页\n7. **本地归档** — 每次收藏自动下载 Markdown 文件到本地\n\n### 自定义保存路径（可选）\n\n默认保存到 `Downloads/bookmark-is-learned/` 目录。如需保存到其他文件夹：\n\n1. 在高级设置中点击「一键下载安装脚本」\n2. 在终端运行 `bash ~/Downloads/install-btl-native.sh`\n3. 重启浏览器\n4. 在高级设置中点击「选择文件夹」，选择任意本地目录\n\n## 保存模式\n\n| 模式 | 说明 |\n|------|------|\n| AI 开启 + TLDR 摘要模式 | 调用 AI 生成结构化摘要，Markdown 包含 TLDR + 原文（需要 API Key） |\n| AI 开启 + 原文模式 | 调用 AI 生成摘要，Markdown 包含 TLDR + 完整原文；若帖子含引用链接（含链接预览卡片），会在 `Referenced Links` 小节附上可点击链接（需要 API Key） |\n| AI 关闭 | 不调用 AI，Markdown 仅保存元数据 + 完整原文；若帖子含引用链接（含链接预览卡片），会在 `Referenced Links` 小节附上可点击链接（无需 API Key） |\n\n## 支持的内容类型\n\n| 类型 | 说明 |\n|------|------|\n| 普通推文 | 提取推文全文生成摘要 |\n| 长推文 | 自动展开\"显示更多\"获取完整内容 |\n| X Articles | 后台抓取长文全文，生成详细摘要 |\n| 引用/转发帖 | 自动获取被引用帖的完整内容一并总结 |\n| 帖子串 (Thread) | 后台抓取整个 Thread 内容 |\n\n## Markdown 文件格式\n\n每次收藏会自动保存一个 `.md` 文件，文件结构如下：\n\n**TLDR 摘要模式：**\n```markdown\n# 作者名 或 文章标题\n\n> **Author**: 作者名\n> **Source**: https://x.com/user/status/123456\n> **Date**: 2025-01-15 14:30\n\n---\n\n## TLDR\n\nAI 生成的结构化摘要（要点、流程、事实核查评分）\n\n---\n\n## Original Content\n\n原文完整内容\n\n### Quoted Content (by 被引用作者)\n\n被引用/转发的完整内容（如有）\n\n### Referenced Links\n\n- [https://github.com/volcengine/OpenViking](https://github.com/volcengine/OpenViking)\n```\n\n**原文模式：**\n```markdown\n# 作者名 或 文章标题\n\n> **Author**: 作者名\n> **Source**: https://x.com/user/status/123456\n> **Date**: 2025-01-15 14:30\n\n---\n\n## TLDR\n\nAI 生成的结构化摘要\n\n---\n\n## Original Content\n\n原文完整内容\n\n### Quoted Content (by 被引用作者)\n\n被引用/转发的完整内容（如有）\n\n### Referenced Links\n\n- [https://github.com/volcengine/OpenViking](https://github.com/volcengine/OpenViking)\n```\n\n**AI 关闭模式：**\n```markdown\n# 作者名 或 文章标题\n\n> **Author**: 作者名\n> **Source**: https://x.com/user/status/123456\n> **Date**: 2025-01-15 14:30\n\n---\n\n## Original Content\n\n原文完整内容\n\n### Quoted Content (by 被引用作者)\n\n被引用/转发的完整内容（如有）\n\n### Referenced Links\n\n- [https://github.com/volcengine/OpenViking](https://github.com/volcengine/OpenViking)\n```\n\n## 工作原理\n\n```\n用户点击收藏 → 内容脚本检测点击 → 提取推文内容（展开折叠、抓取全文）\n     ↓\n后台脚本接收 → 如有长文/引用帖，后台标签页抓取完整内容\n     ↓\n┌─ AI 开启 ────────────────────────────────────┐\n│  调用 LLM API → 生成结构化 TLDR 摘要         │\n└──────────────────────────────────────────────┘\n┌─ AI 关闭 ────────────────────────────────────┐\n│  跳过 API 调用，仅保存原文 + 元数据          │\n└──────────────────────────────────────────────┘\n     ↓\n┌─────────────────────────────────────────┐\n│  ① 页面右下角弹出卡片                  │\n│  ② 保存到插件历史记录                   │\n│  ③ 下载 Markdown 文件到本地             │\n└─────────────────────────────────────────┘\n```\n\n## 默认模型\n\n| 模型提供商 | 默认模型 |\n|-----------|---------|\n| OpenAI | `gpt-4o-mini` |\n| Claude | `claude-sonnet-4-20250514` |\n| Kimi | `moonshot-v1-8k` |\n| 智谱 | `glm-4-flash` |\n| 本地 Claude | 自动（使用本机 Claude CLI） |\n\n可在设置中自定义模型版本（如 `gpt-4o`、`claude-opus-4-20250514` 等）。\n\n本地 Claude 使用已安装的 Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)，无需 API Key，需先完成 CLI 登录认证并安装 Native Helper。\n\n可选配置 `Base URL` 以使用中转服务：\n- 填写 `https://your-proxy.com/v1` 时，将自动补全为对应模型接口\n- 也可直接填写完整接口地址，如 `https://your-proxy.com/v1/chat/completions`\n- 首次保存会弹出权限授权，用于访问你填写的域名\n\n## 项目结构\n\n```\nbookmark-is-learned/\n├── manifest.json          # Chrome 扩展配置 (Manifest V3)\n├── background.js          # 后台 Service Worker（API 调用、内容抓取、历史保存、Markdown 下载）\n├── content.js             # 内容脚本（收藏检测、DOM 提取、卡片 UI）\n├── content.css            # 内容脚本样式（卡片堆叠、深色模式）\n├── popup.html             # 弹出页面（设置 + 历史记录）\n├── popup.js               # 弹出页面逻辑（标签切换、历史浏览）\n├── popup.css              # 弹出页面样式\n├── native-host/           # Native Messaging Host（自定义文件夹写入）\n│   └── btl_file_writer.py\n└── icons/ ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:25:05.210042"
+  },
+  {
+    "basic_info": {
+      "name": "style-extractor",
+      "full_name": "Lucent-Snow/style-extractor",
+      "owner": "Lucent-Snow",
+      "description": "一个能够提取最大化提取网页风格的skill",
+      "url": "https://github.com/Lucent-Snow/style-extractor",
+      "clone_url": "https://github.com/Lucent-Snow/style-extractor.git",
+      "ssh_url": "git@github.com:Lucent-Snow/style-extractor.git",
+      "homepage": null,
+      "created_at": "2026-02-03T03:30:59Z",
+      "updated_at": "2026-03-04T00:46:39Z",
+      "pushed_at": "2026-02-06T10:24:04Z"
+    },
+    "stats": {
+      "stars": 311,
+      "forks": 18,
+      "watchers": 311,
+      "open_issues": 3,
+      "size": 1781
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 6429,
+        "Python": 2945
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# style-extractor\n\n从真实网页中提取颜色/字体/间距/组件/状态矩阵，并在网站存在动态效果时，补全运行时动效证据（timing、easing、keyframes、delay chain、JS 驱动动效线索）。\n\n输出为风格指南（Markdown），可选生成 HTML 原型。\n\n## 效果展示\n\n| 仅图片风格参考 | 使用 Skill 生成文档后参考 |\n|:--:|:--:|\n| ![before1](image/README/1770372762722.png) | ![after1](image/README/1770372782919.png) |\n| ![before2](image/README/1770372822354.png) | ![after2](image/README/1770372805940.png) |\n\n## 目录结构\n\n```\nstyle-extractor/\n├── SKILL.md              # Skill 定义文件（核心）\n├── references/           # 参考样例（质量基准）\n│   ├── endfield-design-system-style.md\n│   └── motherduck-design-system-style.md\n├── scripts/              # 辅助脚本\n│   ├── extract-keyframes.py\n│   ├── library-detect.js\n│   └── motion-tools.js\n└── image/                # README 图片\n```\n\n## 依赖\n\n- Node.js（需要能运行 `npx`）\n- Chrome（Stable）\n- Codex CLI（或任何支持 MCP 的客户端）\n- **必装：`chrome-devtools-mcp`（Chrome DevTools MCP）**：让 agent 能控制/检查真实 Chrome，抓网络请求、截图、运行脚本、录 trace 等\n\n## 安装\n\n### 1) 安装 Chrome DevTools MCP（`chrome-devtools-mcp`）\n\n具体教程不列出\n\n### 2) 安装本 Skill\n\n1. 直接从仓库下载 zip（压缩包）\n2. 解压并放到 Codex skills(claude code同理) 目录（推荐 `public`）下，例如：\n   - `C:\\\\Users\\\\<You>\\\\.codex\\\\skills\\\\public\\\\style-extractor\\\\`\n3. 确认该目录下能看到 `SKILL.md`、`references/`、`scripts/`\n\n## 使用\n\n### 1 在 Codex(cc) 里这样下指令\n\n\"帮我提取xx(网页链接)的风格\"。\n如果没有反应，可以尝试指定 style-extractor 这个 skill 名，客户端便会自己开始行动\n\n（提示：`chrome-devtools-mcp` 通常会在首次调用需要浏览器的工具时自动启动/连接 Chrome。）\n\n生成的内容就会在\"C:\\\\Users\\\\<You>\\\\style-extractor\"这个目录下。\n\n## 参考与质量基准\n\n- `references/endfield-design-system-style.md`：强动效证据写法（推荐优先对齐）\n- `references/motherduck-design-system-style.md`：静态结构与表达方式参考\n\n## 小提示（模型差异：经验之谈）\n\n- 实测：**Codex 往往更\"勤快\"**，更愿意把动效证据抓全（例如 `document.getAnimations()`、采样、trace）。\n- 实测：**Claude 往往审美更好**，但可能会\"偷懒\"跳过动效证据；建议你明确要求\"必须输出动效证据 + keyframes + delay chain\"，并让它按 `endfield` 参考格式交付。\n\n\n## 下一步计划\n\n- 增加对 JS 动画的适配",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:25:06.453995"
+  },
+  {
+    "basic_info": {
+      "name": "AWS-BuildID-Auto-For-Ext",
+      "full_name": "Specia1z/AWS-BuildID-Auto-For-Ext",
+      "owner": "Specia1z",
+      "description": "⚡ 一键自动化注册 AWS Builder ID 的浏览器扩展",
+      "url": "https://github.com/Specia1z/AWS-BuildID-Auto-For-Ext",
+      "clone_url": "https://github.com/Specia1z/AWS-BuildID-Auto-For-Ext.git",
+      "ssh_url": "git@github.com:Specia1z/AWS-BuildID-Auto-For-Ext.git",
+      "homepage": "",
+      "created_at": "2026-02-03T18:38:57Z",
+      "updated_at": "2026-03-05T02:30:29Z",
+      "pushed_at": "2026-02-13T10:50:53Z"
+    },
+    "stats": {
+      "stars": 296,
+      "forks": 118,
+      "watchers": 296,
+      "open_issues": 0,
+      "size": 47
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 110761,
+        "CSS": 11464,
+        "HTML": 6289
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 🚀 AWS Auto Registration - Chrome Extension\n\n### ⚡ 一键自动化注册 AWS Builder ID 的浏览器扩展\n\n[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)](https://chrome.google.com)\n[![Manifest V3](https://img.shields.io/badge/Manifest-V3-green?logo=googlechrome)](https://developer.chrome.com/docs/extensions/mv3/intro/)\n[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?logo=javascript&logoColor=black)](https://www.javascript.com/)\n[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)\n\n[功能特性](#-功能特性) • [安装指南](#-安装指南) • [使用说明](#-使用说明) • [技术架构](#-技术架构) • [常见问题](#-常见问题)\n\n</div>\n\n---\n\n> ⚠️ **重要提示**：目前插件的**并发多窗口功能不稳定**，建议将并发窗口数设置为 **1**。使用 Gmail 别名模式时需要手动填写验证码。\n\n---\n\n## ✨ 功能特性\n\n### 🎯 核心功能\n\n- **🤖 半自动注册** - 自动填写表单，验证码需手动输入\n- **🔄 批量注册** - 支持自定义注册数量（1-100），一键批量创建账号\n- **📧 Gmail 无限别名** - 利用 Gmail 特性生成无限邮箱变体（+号/点号/大小写）\n- **🕵️ 无痕模式** - 自动创建无痕窗口，隔离会话，防止数据污染\n- **🔐 Token 管理** - 自动获取并保存 OIDC Access Token 和 Refresh Token\n\n### 🛡️ 高级功能\n\n- **✅ Token 验证** - 批量验证 Token 状态，识别封禁、过期、无效账号\n- **🎨 状态可视化** - 实时显示注册进度、会话状态、Token 状态\n- **📊 智能导出** - 支持 JSON/CSV 格式，自动过滤无效 Token\n- **💾 历史记录** - 自动保存注册历史，支持查看、复制、导出\n- **🚀 Kiro IDE 同步** - 一键同步 Token 至 Kiro IDE，支持 Windows / macOS / Linux\n\n---\n\n## 📧 Gmail 无限别名\n\n本插件利用 Gmail 的特性，从一个 Gmail 地址生成无限邮箱变体：\n\n| 变体类型 | 示例 | 说明 |\n|---------|------|------|\n| **+ 号别名** | `user+abc123@gmail.com` | 最可靠，推荐方式 |\n| **点号插入** | `u.ser@gmail.com` | Gmail 忽略用户名中的点 |\n| **大小写变体** | `UsEr@gmail.com` | Gmail 不区分大小写 |\n| **混合变体** | `U.sEr+abc@gmail.com` | 组合以上所有方式 |\n\n> 所有变体都会收到同一个 Gmail 收件箱的邮件\n\n---\n\n## 📦 安装指南\n\n### 方式一：从源码安装（推荐）\n\n1️⃣ **克隆仓库**\n```bash\ngit clone https://github.com/Specia1z/AWS-BuildID-Auto-For-Ext.git\ncd AWS-BuildID-Auto-For-Ext\n```\n\n2️⃣ **加载扩展**\n- 打开 Chrome 浏览器\n- 访问 `chrome://extensions/`\n- 开启右上角「开发者模式」\n- 点击「加载已解压的扩展程序」\n- 选择项目根目录\n\n3️⃣ **启用无痕模式**\n- 在扩展卡片上，点击「详细信息」\n- 找到「在无痕模式下启用」，**必须开启**\n- 刷新扩展（点击刷新图标 🔄）\n\n### 方式二：安装打包文件\n\n1. 下载 [Releases](https://github.com/Specia1z/AWS-BuildID-Auto-For-Ext/releases) 中的 `extension.crx` 或 `extension.zip`\n2. 解压后按照「方式一」的步骤 2-3 加载\n\n---\n\n## 📖 使用说明\n\n### 快速开始\n\n1. **配置 Gmail 地址**：在插件弹窗中输入你的 Gmail 地址并保存\n2. **设置参数**：\n   - 注册数量：1-100（建议 ≤ 10）\n   - 并发窗口：建议设为 **1**（需要手动输入验证码）\n3. **点击「开始注册」**\n4. **手动填写验证码**：\n   - 打开 Gmail 收件箱，找到 AWS 验证码邮件\n   - 在注册页面手动输入验证码\n5. **等待完成**，查看注册结果\n\n### 功能详解\n\n#### 📧 Gmail 配置\n\n在插件弹窗顶部配置你的 Gmail 地址：\n\n```\n输入: example@gmail.com\n保存后自动生成变体: example+240204abc@gmail.com, e.xample@gmail.com 等\n```\n\n#### ✅ Token 验证\n\n注册完成后，点击「验证」按钮批量检测所有 Token 状态：\n\n| 状态 | 含义 | 颜色 |\n|------|------|------|\n| **有效** | Token 正常可用 | 🟢 绿色 |\n| **封禁** | 账号被临时封禁 | 🟡 黄色 |\n| **过期** | Token 已过期 | 🟠 橙色 |\n| **无效** | 账号无效或被删除 | 🔴 红色 |\n| **错误** | 网络或服务器错误 | ⚫ 灰色 |\n| **未验证** | 尚未验证 | ⚪ 浅灰 |\n\n#### 📊 导出账号\n\n- **JSON 导出**：仅导出有效和未验证的 Token（自动过滤封禁/过期/无效）\n- **CSV 导出**：导出完整信息，包含 `token_status` 列\n\n#### 🚀 同步至 Kiro IDE\n\n一键将 Token 同步至 Kiro IDE，**智能检测操作系统**，自动生成对应命令。\n\n**支持的系统：**\n\n| 系统 | 终端 | 配置文件路径 |\n|------|------|-------------|\n| Windows | PowerShell | `%USERPROFILE%\\.aws\\sso\\cache\\` |\n| macOS | Terminal | `~/.aws/sso/cache/` |\n| Linux | Terminal | `~/.aws/sso/cache/` |\n\n**使用步骤：**\n\n1. 在历史记录中找到成功注册且有 Token 的记录\n2. 点击该记录旁边的 **「Kiro」** 按钮\n3. 插件会自动检测你的操作系统，生成对应的命令并复制到剪贴板\n4. 打开对应的终端（Windows 用 PowerShell，macOS/Linux 用 Terminal）\n5. 粘贴并执行命令\n6. 重启 Kiro IDE 即可使用同步的账号\n\n---\n\n## 🏗️ 技术架构\n\n### 技术栈\n\n<div align=\"center\">\n\n| 层级 | 技术 | 说明 |\n|:----:|:----:|:-----|\n| **核心** | ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4?logo=googlechrome) | Chrome Extension API |\n| **语言** | ![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?logo=javascript&logoColor=black) | ES6+ Modules |\n| **UI** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?logo=css3&logoColor=white) | 原生 HTML/CSS |\n| **认证** | ![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-blue?logo=oauth) | AWS OIDC Device Flow |\n\n</div>\n\n### 项目结构\n\n```\nextension/\n├── manifest.json              # 扩展配置（Manifest V3）\n├── background/\n│   └── service-worker.js     # 后台服务（会话管理、API 调用）\n├── content/\n│   └── content.js            # 内容脚本（页面自动化）\n├── popup/\n│   ├── popup.html            # 弹窗界面\n│   ├── popup.css             # 弹窗样式\n│   └── popup.js              # 弹窗逻辑\n├── lib/\n│   ├── mail-api.js           # Gmail 无限别名生成器\n│   ├── oidc-api.js           # AWS OIDC 认证 API + Token 验证\n│   └── utils.js              # 工具函数（密码/姓名生成）\n└── icons/\n    ├── icon16.png\n    ├── icon48.png\n    └── icon128.png\n```\n\n### 核心流程\n\n```mermaid\ngraph TD\n    A[用户点击开始] --> B[创建会话]\n    B --> C[生成 Gmail 别名]\n    C --> D[获取 OIDC 授权链接]\n    D --> E[打开无痕窗口]\n    E --> F[Content Script 自动填表]\n    F --> G[用户手动填写验证码]\n    G --> H[Service Worker 轮询 Token]\n    H --> I{Token 获取成功?}\n    I -->|是| J[保存账号信息]\n    I -->|否| K[记录失败]\n    J --> L[验证 Token 状态]\n    L --> M[导出结果]\n```\n\n---\n\n## ⚠️ 注意事项\n\n- ✅ **必须启用无痕模式权限**，否则无法创建无痕窗口\n- ✅ **必须配置 Gmail 地址**，用于生成邮箱别名\n- ⚠️ 验证码需要从 Gmail 收件箱手动获取并填写\n- ⚠️ 建议并发窗口设为 1，方便手动输入验证码\n- ⚠️ Token 默认状态为「未验证」，需手动点击「验证」按钮\n- 📱 仅支持 Chrome 浏览器（基于 ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-05T03:25:07.633851"
+  }
+]

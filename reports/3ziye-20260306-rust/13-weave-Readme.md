@@ -1,0 +1,94 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="weave" width="600" />
+</p>
+
+<p align="center">
+  Resolves merge conflicts that Git can't by understanding code structure via tree-sitter.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Ataraxy-Labs/weave/releases/latest"><img src="https://img.shields.io/github/v/release/Ataraxy-Labs/weave?color=blue&label=release" alt="Release"></a>
+  <a href="https://github.com/Ataraxy-Labs/homebrew-tap"><img src="https://img.shields.io/badge/homebrew-ataraxy--labs/tap/weave-orange" alt="Homebrew"></a>
+  <img src="https://img.shields.io/badge/rust-stable-orange" alt="Rust">
+  <img src="https://img.shields.io/badge/tests-121_passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/version-0.2.0-blue" alt="Version">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
+  <img src="https://img.shields.io/badge/languages-11-blue" alt="Languages">
+</p>
+
+## The Problem
+
+Git merges by comparing **lines**. When two branches both add code to the same file — even to completely different functions — Git sees overlapping line ranges and declares a conflict:
+
+```
+<<<<<<< HEAD
+export function validateToken(token: string): boolean {
+    return token.length > 0 && token.startsWith("sk-");
+}
+=======
+export function formatDate(date: Date): string {
+    return date.toISOString().split('T')[0];
+}
+>>>>>>> feature-branch
+```
+
+These are **completely independent changes**. There's no real conflict. But someone has to manually resolve it anyway.
+
+This happens constantly when multiple AI agents work on the same codebase. Agent A adds a function, Agent B adds a different function to the same file, and Git halts everything for a human to intervene.
+
+## How Weave Fixes This
+
+Weave replaces Git's line-based merge with **entity-level merge**. Instead of diffing lines, it:
+
+1. Parses all three versions (base, ours, theirs) into semantic entities — functions, classes, JSON keys, etc. — using [tree-sitter](https://tree-sitter.github.io/)
+2. Matches entities across versions by identity (name + type + scope)
+3. Merges at the entity level:
+   - **Different entities changed** → auto-resolved, no conflict
+   - **Same entity changed by both** → attempts intra-entity merge, conflicts only if truly incompatible
+   - **One side modifies, other deletes** → flags a meaningful conflict
+
+The same scenario above? Weave merges it cleanly with zero conflicts — both functions end up in the output.
+
+## Weave vs Git Merge
+
+| Scenario | Git (line-based) | Weave (entity-level) |
+|----------|-----------------|---------------------|
+| Two agents add different functions to same file | **CONFLICT** | Auto-resolved |
+| Agent A modifies `foo()`, Agent B adds `bar()` | **CONFLICT** (adjacent lines) | Auto-resolved |
+| Both agents modify the same function differently | CONFLICT | CONFLICT (with entity-level context) |
+| One agent modifies, other deletes same function | CONFLICT (cryptic diff) | CONFLICT: `function 'validateToken' (modified in ours, deleted in theirs)` |
+| Both agents add identical function | **CONFLICT** | Auto-resolved (identical content detected) |
+| Different JSON keys modified | **CONFLICT** | Auto-resolved |
+
+The key difference: Git produces false conflicts on **independent changes** because they happen to be in the same file. Weave only conflicts on **actual semantic collisions** when two branches change the same entity incompatibly.
+
+## Real-World Benchmarks
+
+Tested on real merge commits from major open-source repositories. For each merge commit, we replay the merge with both Git and Weave, then compare against the human-authored result.
+
+- **Wins**: Merge commits where Git conflicted but Weave resolved cleanly
+- **Regressions**: Cases where Weave introduced errors (0 across all repos)
+- **Human Match**: How often Weave's output exactly matches what the human wrote
+- **Resolution Rate**: Percentage of all merge commits Weave resolved vs total attempted
+
+| Repository | Language | Merge Commits | Wins | Regressions | Human Match | Resolution |
+|------------|----------|---------------|------|-------------|-------------|------------|
+| [git/git](https://github.com/git/git) | C | 1319 | 39 | 0 | 64% | 13% |
+| [Flask](https://github.com/pallets/flask) | Python | 56 | 14 | 0 | 57% | 54% |
+| [CPython](https://github.com/python/cpython) | C/Python | 256 | 7 | 0 | 29% | 13% |
+| [Go](https://github.com/golang/go) | Go | 1247 | 19 | 0 | 58% | 28% |
+| [TypeScript](https://github.com/microsoft/TypeScript) | TypeScript | 2000 | 65 | 0 | 6% | 23% |
+
+Zero regressions across all repositories. Every "win" is a place where a developer had to manually resolve a false conflict that Weave handles automatically.
+
+## Conflict Markers
+
+When a real conflict occurs, weave gives you context that Git doesn't:
+
+```
+<<<<<<< ours — function `process` (both modified)
+export function process(data: any) {
+    return JSON.stringify(data);
+}
+=======
+export function process(da

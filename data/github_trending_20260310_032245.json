@@ -1,0 +1,859 @@
+[
+  {
+    "basic_info": {
+      "name": "pinchtab",
+      "full_name": "pinchtab/pinchtab",
+      "owner": "pinchtab",
+      "description": "High-performance browser automation bridge and multi-instance orchestrator with advanced stealth injection and real-time dashboard.",
+      "url": "https://github.com/pinchtab/pinchtab",
+      "clone_url": "https://github.com/pinchtab/pinchtab.git",
+      "ssh_url": "git@github.com:pinchtab/pinchtab.git",
+      "homepage": null,
+      "created_at": "2026-02-15T11:12:33Z",
+      "updated_at": "2026-03-10T03:19:38Z",
+      "pushed_at": "2026-03-10T00:47:56Z"
+    },
+    "stats": {
+      "stars": 5952,
+      "forks": 419,
+      "watchers": 5952,
+      "open_issues": 10,
+      "size": 26019
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1287216,
+        "TypeScript": 239649,
+        "Shell": 93107,
+        "HTML": 69705,
+        "Python": 36055,
+        "PowerShell": 33188,
+        "JavaScript": 27832,
+        "CSS": 5726,
+        "Dockerfile": 1378
+      },
+      "license": "MIT License",
+      "topics": [
+        "browser-automation",
+        "cdp",
+        "golang",
+        "headless-chrome",
+        "orchestrator",
+        "stealth",
+        "web-scraping"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/pinchtab-headless.png\" alt=\"PinchTab\" width=\"200\"/>\n</p>\n\n<p align=\"center\">\n  <strong>PinchTab</strong><br/>\n  <strong>Browser control for AI agents</strong><br/>\n  12MB Go binary • HTTP API • Token-efficient\n</p>\n\n\n<table align=\"center\">\n  <tr>\n    <td align=\"center\" valign=\"middle\">\n      <a href=\"https://pinchtab.com/docs\"><img src=\"assets/docs-no-background-256.png\" alt=\"Full Documentation\" width=\"92\"/></a>\n    </td>\n    <td align=\"left\" valign=\"middle\">\n      <a href=\"https://github.com/pinchtab/pinchtab/releases/latest\"><img src=\"https://img.shields.io/github/v/release/pinchtab/pinchtab?style=flat-square&color=FFD700\" alt=\"Release\"/></a><br/>\n      <a href=\"https://github.com/pinchtab/pinchtab/actions/workflows/go-verify.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/pinchtab/pinchtab/go-verify.yml?branch=main&style=flat-square&label=Build\" alt=\"Build\"/></a><br/>\n      <img src=\"https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat-square&logo=go&logoColor=white\" alt=\"Go 1.25+\"/><br/>\n      <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square\" alt=\"License\"/></a>\n    </td>\n  </tr>\n</table>\n\n---\n\n## What is PinchTab?\n\nPinchTab is a **standalone HTTP server** that gives AI agents direct control over Chrome.\n\nIt has two runtime roles:\n- `pinchtab` or `pinchtab server` — the full control-plane server\n- `pinchtab bridge` — a single-instance bridge runtime\n\nMost users only need the full server. It manages profiles, instances, routing, and the web dashboard. The `bridge` mode is the thin per-instance runtime used behind the scenes for managed child instances.\n\n### Process Model\n\nPinchTab is server-first:\n- start `pinchtab` for the full control plane\n- let the server manage profiles and instances\n- let each managed instance run behind a lightweight `pinchtab bridge` runtime\n\nIn practice:\n- **Server** is the public product entrypoint\n- **Bridge** is the per-instance runtime for one browser\n- **Attach** is the advanced path for registering an externally managed Chrome\n\n### Primary Usage\n\nThe primary user journey is:\n\n1. install Pinchtab\n2. run `pinchtab`\n3. point your agent or tool at `http://localhost:9867`\n4. let Pinchtab act as your local browser service\n\nThat is the default “replace the browser runtime” scenario.\nMost users should not need to think about `pinchtab bridge` directly.\n\n### Key Features\n\n- **CLI or Curl** — Control via command-line or HTTP API\n- **Token-efficient** — 800 tokens/page with text extraction (5-13x cheaper than screenshots)\n- **Headless or Headed** — Run without a window or with visible Chrome\n- **Multi-instance** — Run multiple parallel Chrome processes with isolated profiles\n- **Self-contained** — 12MB binary, no external dependencies\n- **Accessibility-first** — Stable element refs instead of fragile coordinates\n- **ARM64-optimized** — First-class Raspberry Pi support with automatic Chromium detection\n\n---\n\n## Quick Start\n\n### Installation\n\n**macOS / Linux:**\n```bash\ncurl -fsSL https://pinchtab.com/install.sh | bash\n```\n\n**npm:**\n```bash\nnpm install -g pinchtab\n```\n\n**Docker:**\n```bash\ndocker run -d -p 9867:9867 pinchtab/pinchtab\n```\n\n### Use It\n\n**Terminal 1 — Start the server:**\n```bash\npinchtab\n```\n\n**Terminal 2 — Control the browser:**\n```bash\n# Navigate\npinchtab nav https://pinchtab.com\n\n# Get page structure\npinchtab snap -i -c\n\n# Click an element\npinchtab click e5\n\n# Extract text\npinchtab text\n```\n\nOr use the HTTP API directly:\n```bash\n# Create an instance (returns instance id)\nINST=$(curl -s -X POST http://localhost:9867/instances/launch \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"name\":\"work\",\"mode\":\"headless\"}' | jq -r '.id')\n\n# Open a tab in that instance\nTAB=$(curl -s -X POST http://localhost:9867/instances/$INST/tabs/open \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"url\":\"https://pinchtab.com\"}' | jq -r '.tabId')\n\n# Get snapshot\ncurl \"http://localhost:9867/tabs/$TAB/snapshot?filter=interactive\"\n\n# Click element\ncurl -X POST \"http://localhost:9867/tabs/$TAB/action\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"kind\":\"click\",\"ref\":\"e5\"}'\n```\n\n---\n\n## Core Concepts\n\n**Server** — The main PinchTab process. It manages profiles, instances, routing, and the dashboard.\n\n**Instance** — A running Chrome process. Each instance can have one profile.\n\n**Profile** — Browser state (cookies, history, local storage). Log in once, stay logged in across restarts.\n\n**Tab** — A single webpage. Each instance can have multiple tabs.\n\n**Bridge** — The single-instance runtime behind a managed instance. Usually spawned by the server, not started manually.\n\nRead more in the [Core Concepts](https://pinchtab.com/docs/core-concepts) guide.\n\n---\n\n## Why PinchTab?\n\n| Aspect | PinchTab |\n|--------|----------|\n| **Tokens performance** | ✅ |\n| **Headless and Headed** | ✅ |\n| **Profile** | ✅ |\n| **Stealth mode** | ✅ |\n| **Persistent sessions** | ✅ |\n| **Binary size** | ✅ |\n| **Mul",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:46.704356"
+  },
+  {
+    "basic_info": {
+      "name": "spank",
+      "full_name": "taigrr/spank",
+      "owner": "taigrr",
+      "description": "Slap your MacBook, it yells back. Uses Apple Silicon accelerometer via IOKit HID.",
+      "url": "https://github.com/taigrr/spank",
+      "clone_url": "https://github.com/taigrr/spank.git",
+      "ssh_url": "git@github.com:taigrr/spank.git",
+      "homepage": null,
+      "created_at": "2026-02-23T00:43:05Z",
+      "updated_at": "2026-03-10T02:22:59Z",
+      "pushed_at": "2026-03-08T05:05:09Z"
+    },
+    "stats": {
+      "stars": 2329,
+      "forks": 104,
+      "watchers": 2329,
+      "open_issues": 1,
+      "size": 1019
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 28716,
+        "Nix": 2950
+      },
+      "license": "MIT License",
+      "topics": [
+        "accelerometer",
+        "apple-silicon",
+        "fun",
+        "go",
+        "iokit",
+        "macos"
+      ]
+    },
+    "content": {
+      "readme": "# spank\n\nSlap your MacBook, it yells back.\n\n> \"this is the most amazing thing i've ever seen\" — [@kenwheeler](https://x.com/kenwheeler)\n\n> \"I just ran sexy mode with my wife sitting next to me...We died laughing\" — [@duncanthedev](https://x.com/duncanthedev)\n\n> \"peak engineering\" — [@tylertaewook](https://x.com/tylertaewook)\n\nUses the Apple Silicon accelerometer (Bosch BMI286 IMU via IOKit HID) to detect physical hits on your laptop and plays audio responses. Single binary, no dependencies.\n\n## Requirements\n\n- macOS on Apple Silicon (M2+)\n- `sudo` (for IOKit HID accelerometer access)\n- Go 1.26+ (if building from source)\n\n## Install\n\nDownload from the [latest release](https://github.com/taigrr/spank/releases/latest).\n\nOr build from source:\n\n```bash\ngo install github.com/taigrr/spank@latest\n```\n\n> **Note:** `go install` places the binary in `$GOBIN` (if set) or `$(go env GOPATH)/bin` (which defaults to `~/go/bin`). Copy it to a system path so `sudo spank` works. For example, with the default Go settings:\n> ```bash\n> sudo cp \"$(go env GOPATH)/bin/spank\" /usr/local/bin/spank\n> ```\n\n## Usage\n\n```bash\n# Normal mode — says \"ow!\" when slapped\nsudo spank\n\n# Sexy mode — escalating responses based on slap frequency\nsudo spank --sexy\n\n# Halo mode — plays Halo death sounds when slapped\nsudo spank --halo\n\n# Fast mode — faster polling and shorter cooldown\nsudo spank --fast\nsudo spank --sexy --fast\n\n# Custom mode — plays your own MP3 files from a directory\nsudo spank --custom /path/to/mp3s\n\n# Adjust sensitivity with amplitude threshold (lower = more sensitive)\nsudo spank --min-amplitude 0.1   # more sensitive\nsudo spank --min-amplitude 0.25  # less sensitive\nsudo spank --sexy --min-amplitude 0.2\n\n# Set cooldown period in millisecond (default: 750)\nsudo spank --cooldown 600\n\n# Set playback speed multiplier (default: 1.0)\nsudo spank --speed 0.7   # slower and deeper\nsudo spank --speed 1.5   # faster\nsudo spank --sexy --speed 0.6\n```\n\n### Modes\n\n**Pain mode** (default): Randomly plays from 10 pain/protest audio clips when a slap is detected.\n\n**Sexy mode** (`--sexy`): Tracks slaps within a rolling 5-minute window. The more you slap, the more intense the audio response. 60 levels of escalation.\n\n**Halo mode** (`--halo`): Randomly plays from death sound effects from the Halo video game series when a slap is detected.\n\n**Custom mode** (`--custom`): Randomly plays MP3 files from a custom directory you specify.\n\n### Detection tuning\n\nUse `--fast` for a more responsive profile with faster polling (4ms vs 10ms), shorter cooldown (350ms vs 750ms), higher sensitivity (0.18 vs 0.05 threshold), and larger sample batch (320 vs 200).\n\nYou can still override individual values with `--min-amplitude` and `--cooldown` when needed.\n\n### Sensitivity\n\nControl detection sensitivity with `--min-amplitude` (default: `0.05`):\n\n- Lower values (e.g., 0.05-0.10): Very sensitive, detects light taps\n- Medium values (e.g., 0.15-0.30): Balanced sensitivity\n- Higher values (e.g., 0.30-0.50): Only strong impacts trigger sounds\n\nThe value represents the minimum acceleration amplitude (in g-force) required to trigger a sound.\n\n## Running as a Service\n\nTo have spank start automatically at boot, create a launchd plist. Pick your mode:\n\n<details>\n<summary>Pain mode (default)</summary>\n\n```bash\nsudo tee /Library/LaunchDaemons/com.taigrr.spank.plist > /dev/null << 'EOF'\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\"\n  \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n    <key>Label</key>\n    <string>com.taigrr.spank</string>\n    <key>ProgramArguments</key>\n    <array>\n        <string>/usr/local/bin/spank</string>\n    </array>\n    <key>RunAtLoad</key>\n    <true/>\n    <key>KeepAlive</key>\n    <true/>\n    <key>StandardOutPath</key>\n    <string>/tmp/spank.log</string>\n    <key>StandardErrorPath</key>\n    <string>/tmp/spank.err</string>\n</dict>\n</plist>\nEOF\n```\n\n</details>\n\n<details>\n<summary>Sexy mode</summary>\n\n```bash\nsudo tee /Library/LaunchDaemons/com.taigrr.spank.plist > /dev/null << 'EOF'\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\"\n  \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n    <key>Label</key>\n    <string>com.taigrr.spank</string>\n    <key>ProgramArguments</key>\n    <array>\n        <string>/usr/local/bin/spank</string>\n        <string>--sexy</string>\n    </array>\n    <key>RunAtLoad</key>\n    <true/>\n    <key>KeepAlive</key>\n    <true/>\n    <key>StandardOutPath</key>\n    <string>/tmp/spank.log</string>\n    <key>StandardErrorPath</key>\n    <string>/tmp/spank.err</string>\n</dict>\n</plist>\nEOF\n```\n\n</details>\n\n<details>\n<summary>Halo mode</summary>\n\n```bash\nsudo tee /Library/LaunchDaemons/com.taigrr.spank.plist > /dev/null << 'EOF'\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\"\n  \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n    <ke",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-10T03:22:47.851301"
+  },
+  {
+    "basic_info": {
+      "name": "sql-tap",
+      "full_name": "mickamy/sql-tap",
+      "owner": "mickamy",
+      "description": "Watch SQL traffic in real-time with a TUI",
+      "url": "https://github.com/mickamy/sql-tap",
+      "clone_url": "https://github.com/mickamy/sql-tap.git",
+      "ssh_url": "git@github.com:mickamy/sql-tap.git",
+      "homepage": null,
+      "created_at": "2026-02-14T01:41:59Z",
+      "updated_at": "2026-03-10T02:04:09Z",
+      "pushed_at": "2026-03-07T01:45:46Z"
+    },
+    "stats": {
+      "stars": 1334,
+      "forks": 38,
+      "watchers": 1334,
+      "open_issues": 0,
+      "size": 3721
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 218723,
+        "JavaScript": 25995,
+        "CSS": 6103,
+        "HTML": 4037,
+        "Nix": 1880,
+        "Makefile": 1204,
+        "Dockerfile": 223
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# sql-tap\n\n[![Sponsor](https://img.shields.io/badge/Sponsor-❤-ea4aaa?style=flat-square&logo=github)](https://github.com/sponsors/mickamy)\n\nReal-time SQL traffic viewer — proxy daemon + TUI / Web client.\n\nsql-tap sits between your application and your database (PostgreSQL, MySQL, or TiDB), capturing every query and\ndisplaying it in an interactive terminal UI. Inspect queries, view transactions, and run EXPLAIN — all without changing\nyour application code.\n\n![tui](./docs/tui.gif)\n![web](./docs/web.png)\n\n## Installation\n\n### Homebrew\n\n```bash\nbrew install mickamy/tap/sql-tap\n```\n\n### Go\n\n```bash\ngo install github.com/mickamy/sql-tap@latest\ngo install github.com/mickamy/sql-tap/cmd/sql-tapd@latest\n```\n\n### Build from source\n\n```bash\ngit clone https://github.com/mickamy/sql-tap.git\ncd sql-tap\nmake install\n```\n\n### Nix\n\n**Using the flake directly**\n\n```bash\nnix profile install github:mickamy/sql-tap\n```\n\n**In a `devenv.sh` project**\n\nAdd `sql-tap` as a flake input in `devenv.yaml`:\n\n```yaml\ninputs:\n  sql-tap:\n    url: github:mickamy/sql-tap\n```\n\nThen reference it in `devenv.nix`:\n\n```nix\n{ inputs, pkgs, ... }:\n{\n  packages = [\n    inputs.sql-tap.packages.${pkgs.system}.default\n  ];\n}\n```\n\n### Docker\n\n```dockerfile\nFROM alpine:3\nARG SQL_TAP_VERSION=0.0.1\nARG TARGETARCH\nADD https://github.com/mickamy/sql-tap/releases/download/v${SQL_TAP_VERSION}/sql-tap_${SQL_TAP_VERSION}_linux_${TARGETARCH}.tar.gz /tmp/sql-tap.tar.gz\nRUN tar -xzf /tmp/sql-tap.tar.gz -C /usr/local/bin sql-tapd && rm /tmp/sql-tap.tar.gz\nENTRYPOINT [\"sql-tapd\"]\n```\n\nRun as a sidecar alongside your database:\n\n```bash\n# PostgreSQL\ndocker run --rm --network=host sql-tap \\\n  --driver=postgres --listen=:5433 --upstream=localhost:5432 --grpc=:9091\n\n# MySQL\ndocker run --rm --network=host sql-tap \\\n  --driver=mysql --listen=:3307 --upstream=localhost:3306 --grpc=:9091\n```\n\n## Quick start\n\n**1. Start the proxy daemon**\n\n```bash\n# PostgreSQL: proxy listens on :5433, forwards to PostgreSQL on :5432\nDATABASE_URL=\"postgres://user:pass@localhost:5432/db?sslmode=disable\" \\\n  sql-tapd --driver=postgres --listen=:5433 --upstream=localhost:5432\n\n# MySQL: proxy listens on :3307, forwards to MySQL on :3306\nDATABASE_URL=\"user:pass@tcp(localhost:3306)/db\" \\\n  sql-tapd --driver=mysql --listen=:3307 --upstream=localhost:3306\n\n# TiDB: proxy listens on :4001, forwards to TiDB on :4000\nDATABASE_URL=\"user:pass@tcp(localhost:4000)/db\" \\\n  sql-tapd --driver=tidb --listen=:4001 --upstream=localhost:4000\n```\n\n**2. Point your application at the proxy**\n\nConnect your app to the proxy port instead of the database port. No code changes needed — sql-tapd speaks the native\nwire protocol.\n\n**3. Launch the TUI**\n\n```bash\nsql-tap localhost:9091\n```\n\nAll queries flowing through the proxy appear in real-time.\n\n## Usage\n\n### sql-tapd\n\n```\nsql-tapd — SQL proxy daemon for sql-tap\n\nUsage:\n  sql-tapd [flags]\n\nFlags:\n  -driver    database driver: postgres, mysql, tidb (required)\n  -listen    client listen address (required)\n  -upstream  upstream database address (required)\n  -grpc      gRPC server address for TUI (default: \":9091\")\n  -http      HTTP server address for web UI (e.g. \":8080\")\n  -dsn-env   env var holding DSN for EXPLAIN (default: \"DATABASE_URL\")\n  -nplus1-threshold  N+1 detection threshold (default: 5, 0 to disable)\n  -nplus1-window     N+1 detection time window (default: 1s)\n  -nplus1-cooldown   N+1 alert cooldown per query template (default: 10s)\n  -version   show version and exit\n```\n\nSet `DATABASE_URL` (or the env var specified by `-dsn-env`) to enable EXPLAIN support. Without it, the proxy still\ncaptures queries but EXPLAIN is disabled.\n\n### Web UI\n\nAdd `--http=:8080` to serve a browser-based viewer:\n\n```bash\nDATABASE_URL=\"postgres://user:pass@localhost:5432/db?sslmode=disable\" \\\n  sql-tapd --driver=postgres --listen=:5433 --upstream=localhost:5432 --http=:8080\n```\n\nOpen `http://localhost:8080` in your browser to view queries in real-time. The web UI supports:\n\n- Real-time query stream via SSE\n- Click to inspect query details\n- EXPLAIN / EXPLAIN ANALYZE\n- Text filter\n- Copy query (with or without bound args)\n- N+1 detection (toast + row highlight)\n\n### sql-tap\n\n```\nsql-tap — Watch SQL traffic in real-time\n\nUsage:\n  sql-tap [flags] <addr>\n\nFlags:\n  -version  Show version and exit\n```\n\n`<addr>` is the gRPC address of sql-tapd (e.g. `localhost:9091`).\n\n## Keybindings\n\n### List view\n\n| Key               | Action                                 |\n|-------------------|----------------------------------------|\n| `j` / `↓`         | Move down                              |\n| `k` / `↑`         | Move up                                |\n| `Ctrl+d` / `PgDn` | Half-page down                         |\n| `Ctrl+u` / `PgUp` | Half-page up                           |\n| `/`               | Incremental text search                |\n| `f`               | Structured filter (see below)          |\n| `s`               | Toggle sort (chronological/duration)   |\n| `Enter`           | Inspect query / transa",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:49.014204"
+  },
+  {
+    "basic_info": {
+      "name": "greenlight",
+      "full_name": "RevylAI/greenlight",
+      "owner": "RevylAI",
+      "description": "Pre-submission compliance scanner for the Apple App Store",
+      "url": "https://github.com/RevylAI/greenlight",
+      "clone_url": "https://github.com/RevylAI/greenlight.git",
+      "ssh_url": "git@github.com:RevylAI/greenlight.git",
+      "homepage": null,
+      "created_at": "2026-02-11T22:54:47Z",
+      "updated_at": "2026-03-09T21:43:10Z",
+      "pushed_at": "2026-02-13T23:08:39Z"
+    },
+    "stats": {
+      "stars": 1164,
+      "forks": 78,
+      "watchers": 1164,
+      "open_issues": 0,
+      "size": 71
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 162224,
+        "Makefile": 762
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# greenlight\n\n**Know before you submit.** Pre-submission compliance scanner for the Apple App Store.\n\nGreenlight scans your app — source code, privacy manifests, IPA binaries, and App Store Connect metadata — against Apple's Review Guidelines, catching rejection risks before Apple does.\n\n## Install\n\n```bash\n# Homebrew (macOS)\nbrew install revylai/tap/greenlight\n\n# Go\ngo install github.com/RevylAI/greenlight/cmd/greenlight@latest\n\n# Build from source\ngit clone https://github.com/RevylAI/greenlight.git\ncd greenlight && make build\n# Binary at: build/greenlight\n```\n\n## Quick Start\n\n```bash\n# Run EVERYTHING on your project — one command, zero uploads\ngreenlight preflight /path/to/your/project\n\n# Include IPA for binary analysis\ngreenlight preflight . --ipa build.ipa\n```\n\nThat's it. You get a full report in under a second.\n\n## Commands\n\n### `greenlight preflight [path]` — The one command to run\n\nRuns all scanners in parallel. No account needed. Entirely offline.\n\n```bash\ngreenlight preflight .                          # scan current directory\ngreenlight preflight ./my-app --ipa build.ipa   # with binary inspection\ngreenlight preflight . --format json            # JSON output for CI/CD\ngreenlight preflight . --output report.json     # write to file\n```\n\n**Scanners included:**\n\n| Scanner | Checks |\n|---------|--------|\n| **metadata** | app.json / Info.plist: name, version, bundle ID format, icon, privacy policy URL, purpose strings |\n| **codescan** | 30+ code patterns: private APIs, secrets, payment violations, missing ATT, social login, placeholders |\n| **privacy** | PrivacyInfo.xcprivacy completeness, Required Reason APIs, tracking SDKs vs ATT implementation |\n| **ipa** | Binary: Info.plist keys, launch storyboard, app icons, app size, framework privacy manifests |\n\n### `greenlight codescan [path]` — Code pattern scan\n\n```bash\ngreenlight codescan /path/to/project\n```\n\nScans Swift, Objective-C, React Native, and Expo projects for:\n- Private API usage (§2.5.1) — **CRITICAL**\n- Hardcoded secrets/API keys (§1.6) — **CRITICAL**\n- External payment for digital goods (§3.1.1) — **CRITICAL**\n- Dynamic code execution (§2.5.2) — **CRITICAL**\n- Cryptocurrency mining (§3.1.5) — **CRITICAL**\n- Missing Sign in with Apple when using social login (§4.8)\n- Missing Restore Purchases for IAP (§3.1.1)\n- Missing ATT for ad/tracking SDKs (§5.1.2)\n- Account creation without deletion option (§5.1.1)\n- Placeholder content in strings (§2.1)\n- References to competing platforms (§2.3)\n- Hardcoded IPv4 addresses (§2.5)\n- Insecure HTTP URLs (§1.6)\n- Vague Info.plist purpose strings (§5.1.1)\n- Expo config issues (§2.1)\n\n### `greenlight privacy [path]` — Privacy manifest validator\n\n```bash\ngreenlight privacy /path/to/project\n```\n\nDeep privacy compliance scan:\n- PrivacyInfo.xcprivacy exists and is properly configured\n- Required Reason APIs detected in code vs declared in manifest\n- Tracking SDKs detected vs ATT implementation\n- Cross-references everything automatically\n\n### `greenlight ipa <path.ipa>` — Binary inspector\n\n```bash\ngreenlight ipa /path/to/build.ipa\n```\n\nInspects a built IPA for:\n- PrivacyInfo.xcprivacy presence\n- Info.plist completeness and purpose string quality\n- App Transport Security configuration\n- App icon presence and sizes\n- Launch storyboard presence\n- App size vs 200MB cellular download limit\n- Embedded framework privacy manifests\n\n### `greenlight scan --app-id <ID>` — App Store Connect checks\n\n```bash\ngreenlight auth setup                    # one-time: configure API key\ngreenlight auth login                    # or: sign in with Apple ID\ngreenlight scan --app-id 6758967212     # run all tiers\n```\n\nAPI-based checks against your app in App Store Connect:\n- Metadata completeness (descriptions, keywords, URLs)\n- Screenshot verification for required device sizes\n- Build processing status\n- Age rating and encryption compliance\n- Content analysis (platform references, placeholders)\n\n### `greenlight guidelines` — Browse Apple's guidelines\n\n```bash\ngreenlight guidelines list               # all sections\ngreenlight guidelines show 2.1           # specific guideline\ngreenlight guidelines search \"privacy\"   # full-text search\n```\n\n### Output formats\n\nAll scan commands support:\n\n```bash\n--format terminal   # colored terminal output (default)\n--format json       # JSON for CI/CD pipelines\n--output file.json  # write to file instead of stdout\n```\n\n## Claude Code Skill\n\nGreenlight works as a Claude Code skill for AI-assisted compliance fixing. Claude runs the scan, reads the output, fixes every issue in your code, and re-runs until GREENLIT.\n\n### Setup\n\nAdd the SKILL.md to your project's `.claude/` directory or install as a plugin:\n\n```bash\n# Copy skill file into your project\nmkdir -p .claude/skills\ncp /path/to/greenlight/SKILL.md .claude/skills/greenlight.md\n\n# Or reference it in your CLAUDE.md\necho \"See greenlight skill: /path/to/greenlight/SKILL.md\" >> CLAUDE.md\n```\n\nThen tell Claude: *\"Run greenlight preflight and fix everything unti",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:50.177098"
+  },
+  {
+    "basic_info": {
+      "name": "engram",
+      "full_name": "Gentleman-Programming/engram",
+      "owner": "Gentleman-Programming",
+      "description": "Persistent memory system for AI coding agents. Agent-agnostic Go binary with SQLite + FTS5, MCP server, HTTP API, CLI, and TUI.",
+      "url": "https://github.com/Gentleman-Programming/engram",
+      "clone_url": "https://github.com/Gentleman-Programming/engram.git",
+      "ssh_url": "git@github.com:Gentleman-Programming/engram.git",
+      "homepage": null,
+      "created_at": "2026-02-16T13:38:41Z",
+      "updated_at": "2026-03-10T02:50:31Z",
+      "pushed_at": "2026-03-09T08:34:22Z"
+    },
+    "stats": {
+      "stars": 926,
+      "forks": 73,
+      "watchers": 926,
+      "open_issues": 18,
+      "size": 18221
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1195994,
+        "templ": 35832,
+        "TypeScript": 29006,
+        "CSS": 20430,
+        "Shell": 8172
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img width=\"1024\" height=\"340\" alt=\"image\" src=\"https://github.com/user-attachments/assets/32ed8985-841d-49c3-81f7-2aabc7c7c564\" />\n</p>\n\n<p align=\"center\">\n  <strong>Persistent memory for AI coding agents</strong><br>\n  <em>Agent-agnostic. Single binary. Zero dependencies.</em>\n</p>\n\n<p align=\"center\">\n  <a href=\"#quick-start\">Quick Start</a> &bull;\n  <a href=\"#install-on-windows\">Windows</a> &bull;\n  <a href=\"#how-it-works\">How It Works</a> &bull;\n  <a href=\"#agent-setup\">Agent Setup</a> &bull;\n  <a href=\"CONTRIBUTING.md\">Contributing</a> &bull;\n  <a href=\"#why-not-claude-mem\">Why Not claude-mem?</a> &bull;\n  <a href=\"#tui\">Terminal UI</a> &bull;\n  <a href=\"DOCS.md\">Full Docs</a>\n</p>\n\n---\n\n> **engram** `/ˈen.ɡræm/` — *neuroscience*: the physical trace of a memory in the brain.\n\nYour AI coding agent forgets everything when the session ends. Engram gives it a brain.\n\nA **Go binary** with SQLite + FTS5 full-text search, exposed via CLI, HTTP API, MCP server, and an interactive TUI. Works with **any agent** that supports MCP — Claude Code, OpenCode, Gemini CLI, Codex, VS Code (Copilot), Antigravity, Cursor, Windsurf, or anything else.\n\n```\nAgent (Claude Code / OpenCode / Gemini CLI / Codex / VS Code / Antigravity / ...)\n    ↓ MCP stdio\nEngram (single Go binary)\n    ↓\nSQLite + FTS5 (~/.engram/engram.db)\n```\n\n## Quick Start\n\n### Install via Homebrew (macOS / Linux)\n\n```bash\nbrew install gentleman-programming/tap/engram\n```\n\nUpgrade to latest:\n\n```bash\nbrew update && brew upgrade engram\n```\n\n> **Migrating from Cask?** If you installed engram before v1.0.1, it was distributed as a Cask. Uninstall first, then reinstall:\n> ```bash\n> brew uninstall --cask engram 2>/dev/null; brew install gentleman-programming/tap/engram\n> ```\n\n### Install on Windows\n\n**Option A: Download the binary (recommended)**\n\n1. Go to [GitHub Releases](https://github.com/Gentleman-Programming/engram/releases)\n2. Download `engram_<version>_windows_amd64.zip` (or `arm64` for ARM devices)\n3. Extract `engram.exe` to a folder in your `PATH` (e.g. `C:\\Users\\<you>\\bin\\`)\n\n```powershell\n# Example: extract and add to PATH (PowerShell)\nExpand-Archive engram_*_windows_amd64.zip -DestinationPath \"$env:USERPROFILE\\bin\"\n# Add to PATH permanently (run once):\n[Environment]::SetEnvironmentVariable(\"Path\", \"$env:USERPROFILE\\bin;\" + [Environment]::GetEnvironmentVariable(\"Path\", \"User\"), \"User\")\n```\n\n**Option B: Install from source**\n\n```powershell\ngit clone https://github.com/Gentleman-Programming/engram.git\ncd engram\ngo install ./cmd/engram\n# Binary goes to %GOPATH%\\bin\\engram.exe (typically %USERPROFILE%\\go\\bin\\)\n\n# Optional: build with version stamp (otherwise `engram version` shows \"dev\")\n$v = git describe --tags --always\ngo build -ldflags=\"-X main.version=local-$v\" -o engram.exe ./cmd/engram\n```\n\n> **Windows notes:**\n> - Data is stored in `%USERPROFILE%\\.engram\\engram.db`\n> - Override with `ENGRAM_DATA_DIR` environment variable\n> - All core features work natively: CLI, MCP server, TUI, HTTP API, Git Sync\n> - No WSL required for the core binary — it's a native Windows executable\n\n### Install from source (macOS / Linux)\n\n```bash\ngit clone https://github.com/Gentleman-Programming/engram.git\ncd engram\ngo install ./cmd/engram\n\n# Optional: build with version stamp (otherwise `engram version` shows \"dev\")\ngo build -ldflags=\"-X main.version=local-$(git describe --tags --always)\" -o engram ./cmd/engram\n```\n\n### Download binary (all platforms)\n\nGrab the latest release for your platform from [GitHub Releases](https://github.com/Gentleman-Programming/engram/releases).\n\n| Platform | File |\n|----------|------|\n| macOS (Apple Silicon) | `engram_<version>_darwin_arm64.tar.gz` |\n| macOS (Intel) | `engram_<version>_darwin_amd64.tar.gz` |\n| Linux (x86_64) | `engram_<version>_linux_amd64.tar.gz` |\n| Linux (ARM64) | `engram_<version>_linux_arm64.tar.gz` |\n| Windows (x86_64) | `engram_<version>_windows_amd64.zip` |\n| Windows (ARM64) | `engram_<version>_windows_arm64.zip` |\n\nThen set up your agent's plugin:\n\n```bash\n# Claude Code — via marketplace\nclaude plugin marketplace add Gentleman-Programming/engram\nclaude plugin install engram\n\n# OpenCode — via engram setup\nengram setup opencode\n\n# Gemini CLI — MCP auto-registration\nengram setup gemini-cli\n\n# Codex — MCP auto-registration\nengram setup codex\n\n# VS Code — add MCP server via CLI\ncode --add-mcp \"{\\\"name\\\":\\\"engram\\\",\\\"command\\\":\\\"engram\\\",\\\"args\\\":[\\\"mcp\\\"]}\"\n\n# Antigravity — add via MCP Store (see Agent Setup below)\n\n# Or interactive (asks which agent)\nengram setup\n```\n\nSee [Agent Setup](#agent-setup) for manual configuration or other agents (VS Code, Antigravity, Cursor, Windsurf).\n\nThat's it. No Node.js, no Python, no Bun, no Docker, no ChromaDB, no vector database, no worker processes. **One binary, one SQLite file.**\n\n## How It Works\n\n<p align=\"center\">\n  <img src=\"assets/agent-save.png\" alt=\"Agent saving a memory via mem_save\" width=\"800\" />\n  <br />\n  <em>The agent proactively calls <code>mem_save<",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:51.350791"
+  },
+  {
+    "basic_info": {
+      "name": "cliamp",
+      "full_name": "bjarneo/cliamp",
+      "owner": "bjarneo",
+      "description": "cliamp - Terminal music player inspired by winamp ",
+      "url": "https://github.com/bjarneo/cliamp",
+      "clone_url": "https://github.com/bjarneo/cliamp.git",
+      "ssh_url": "git@github.com:bjarneo/cliamp.git",
+      "homepage": "http://www.cliamp.stream",
+      "created_at": "2026-02-24T07:18:59Z",
+      "updated_at": "2026-03-10T00:38:16Z",
+      "pushed_at": "2026-03-08T19:20:27Z"
+    },
+    "stats": {
+      "stars": 761,
+      "forks": 41,
+      "watchers": 761,
+      "open_issues": 15,
+      "size": 658
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 361551,
+        "HTML": 64061,
+        "Shell": 1021
+      },
+      "license": "MIT License",
+      "topics": [
+        "cliamp",
+        "icecast",
+        "icecast-player",
+        "m3u",
+        "music",
+        "music-player",
+        "navidrome",
+        "navidrome-client",
+        "podcast",
+        "radio",
+        "soundcloud",
+        "spotify",
+        "stream",
+        "winamp",
+        "youtube",
+        "yt-dlp"
+      ]
+    },
+    "content": {
+      "readme": "```\n ██████ ██      ██  █████  ███    ███ ██████\n██      ██      ██ ██   ██ ████  ████ ██   ██\n██      ██      ██ ███████ ██ ████ ██ ██████\n██      ██      ██ ██   ██ ██  ██  ██ ██\n ██████ ███████ ██ ██   ██ ██      ██ ██\n```\n\nA retro terminal music player inspired by Winamp. Play local files, streams, podcasts, YouTube, SoundCloud, Spotify, and Navidrome with a spectrum visualizer, parametric EQ, and playlist management.\n\nBuilt with [Bubbletea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Beep](https://github.com/gopxl/beep), and [go-librespot](https://github.com/devgianlu/go-librespot).\n\n\nhttps://github.com/user-attachments/assets/fbc33d20-e3ac-4a62-a991-8a2f0243c8ea\n\n\n## Radio\n\nTune in to our radio channel:\n\n```sh\ncliamp https://radio.cliamp.stream/lofi/stream.pls\n```\n\nAdd your own stations to `~/.config/cliamp/radios.toml`. See [docs/configuration.md](docs/configuration.md#custom-radio-stations).\n\n## Install\n\n```sh\ncurl -fsSL https://raw.githubusercontent.com/bjarneo/cliamp/HEAD/install.sh | sh\n```\n\n**Homebrew**\n\n```sh\nbrew install bjarneo/cliamp/cliamp\n```\n\n**Arch Linux (AUR)**\n\n```sh\nyay -S cliamp\n```\n\n**Pre-built binaries**\n\nDownload from [GitHub Releases](https://github.com/bjarneo/cliamp/releases/latest).\n\n**Build from source**\n\n```sh\ngit clone https://github.com/bjarneo/cliamp.git && cd cliamp && go build -o cliamp .\n```\n\n## Quick Start\n\n```sh\ncliamp ~/Music                     # play a directory\ncliamp *.mp3 *.flac               # play files\ncliamp https://example.com/stream  # play a URL\n```\n\nPress `Ctrl+K` to see all keybindings.\n\n## Docs\n\n- [Configuration](docs/configuration.md)\n- [Keybindings](docs/keybindings.md)\n- [CLI Flags](docs/cli.md)\n- [Streaming](docs/streaming.md)\n- [Playlists](docs/playlists.md)\n- [YouTube, SoundCloud and Bandcamp](docs/yt-dlp.md)\n- [Lyrics](docs/lyrics.md)\n- [Spotify](docs/spotify.md)\n- [Navidrome](docs/navidrome.md)\n- [Themes](docs/themes.md)\n- [Audio Quality](docs/audio-quality.md)\n- [MPRIS](docs/mpris.md)\n- [Telemetry](docs/telemetry.md)\n\n## Author\n\n[x.com/iamdothash](https://x.com/iamdothash)\n\n## Disclaimer\n\nUse this software at your own risk. We are not responsible for any damages or issues that may arise from using this software.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:52.520217"
+  },
+  {
+    "basic_info": {
+      "name": "cc-connect",
+      "full_name": "chenhg5/cc-connect",
+      "owner": "chenhg5",
+      "description": "Bridge local AI coding agents (Claude Code, Cursor, Gemini CLI, Codex) to messaging platforms (Feishu/Lark, DingTalk, Slack, Telegram, Discord, LINE, WeChat Work). Chat with your AI dev assistant from anywhere — no public IP required for most platforms.",
+      "url": "https://github.com/chenhg5/cc-connect",
+      "clone_url": "https://github.com/chenhg5/cc-connect.git",
+      "ssh_url": "git@github.com:chenhg5/cc-connect.git",
+      "homepage": "",
+      "created_at": "2026-02-28T02:39:39Z",
+      "updated_at": "2026-03-10T03:15:24Z",
+      "pushed_at": "2026-03-10T03:15:20Z"
+    },
+    "stats": {
+      "stars": 677,
+      "forks": 65,
+      "watchers": 677,
+      "open_issues": 24,
+      "size": 2875
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 849638,
+        "JavaScript": 6888,
+        "Makefile": 2088
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# cc-connect\n\n[![Discord](https://img.shields.io/discord/1478978944567869652?logo=discord&label=Discord)](https://discord.gg/kHpwgaM4kq)\n[![Telegram](https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram)](https://t.me/+odGNDhCjbjdmMmZl)\n[![GitHub release](https://img.shields.io/github/v/release/chenhg5/cc-connect?include_prereleases)](https://github.com/chenhg5/cc-connect/releases)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n\nEnglish | [中文](./README.zh-CN.md)\n\n**Control your local AI agents from any chat app. Anywhere, anytime.**\n\ncc-connect bridges AI agents running on your machine to the messaging platforms you already use. Code review, research, automation, data analysis — anything an AI agent can do, now accessible from your phone, tablet, or any device with a chat app.\n\n```\n         You (Phone / Laptop / Tablet)\n                    │\n    ┌───────────────┼───────────────┐\n    ▼               ▼               ▼\n Feishu          Slack          Telegram  ...9 platforms\n    │               │               │\n    └───────────────┼───────────────┘\n                    ▼\n              ┌────────────┐\n              │ cc-connect │  ← your dev machine\n              └────────────┘\n              ┌─────┼─────┐\n              ▼     ▼     ▼\n         Claude  Gemini  Codex  ...7 agents\n          Code    CLI   OpenCode / iFlow\n```\n\n### Why cc-connect?\n\n> Time to uninstall OpenClaw — cc-connect gives you access to the most powerful AI agents available, not just one.\n\n- **7 AI Agents** — Claude Code, Codex, Cursor Agent, Qoder CLI, Gemini CLI, OpenCode, iFlow CLI. Use whichever fits your workflow, or all of them at once.\n- **9 Chat Platforms** — Feishu, DingTalk, Slack, Telegram, Discord, WeChat Work, LINE, QQ, QQ Bot (Official). Most need zero public IP.\n- **Multi-Bot Relay** — Bind multiple bots in a group chat and let them communicate with each other. Ask Claude, get insights from Gemini — all in one conversation.\n- **Full Control from Chat** — Switch models (`/model`), change permission modes (`/mode`), manage sessions, all via slash commands.\n- **Agent Memory** — Read and write agent instruction files (`/memory`) without touching the terminal.\n- **Scheduled Tasks** — Set up cron jobs in natural language. \"Every day at 6am, summarize GitHub trending\" just works.\n- **Voice & Images** — Send voice messages or screenshots; cc-connect handles STT/TTS and multimodal forwarding.\n- **Multi-Project** — One process, multiple projects, each with its own agent + platform combo.\n\n<p align=\"center\">\n  <img src=\"docs/images/screenshot/cc-connect-lark.JPG\" alt=\"飞书\" width=\"32%\" />\n  <img src=\"docs/images/screenshot/cc-connect-telegram.JPG\" alt=\"Telegram\" width=\"32%\" />\n  <img src=\"docs/images/screenshot/cc-connect-wechat.JPG\" alt=\"微信\" width=\"32%\" />\n</p>\n<p align=\"center\">\n  <em>Left：Lark &nbsp;|&nbsp; Telegram &nbsp;|&nbsp; Right：Wechat</em>\n</p>\n\n## Support Matrix\n\n| Component | Type | Status |\n|-----------|------|--------|\n| Agent | Claude Code | ✅ Supported |\n| Agent | Codex (OpenAI) | ✅ Supported |\n| Agent | Cursor Agent | ✅ Supported |\n| Agent | Gemini CLI (Google) | ✅ Supported |\n| Agent | Qoder CLI | ✅ Supported |\n| Agent | OpenCode (Crush) | ✅ Supported |\n| Agent | iFlow CLI | ✅ Supported |\n| Agent | Goose (Block) | 🔜 Planned |\n| Agent | Aider | 🔜 Planned |\n| Agent | Kimi Code (Moonshot) | 🔭 Exploring |\n| Agent | GLM Code / CodeGeeX (ZhipuAI) | 🔭 Exploring |\n| Agent | MiniMax Code | 🔭 Exploring |\n| Platform | Feishu (Lark) | ✅ WebSocket — no public IP needed |\n| Platform | DingTalk | ✅ Stream — no public IP needed |\n| Platform | Telegram | ✅ Long Polling — no public IP needed |\n| Platform | Slack | ✅ Socket Mode — no public IP needed |\n| Platform | Discord | ✅ Gateway — no public IP needed |\n| Platform | LINE | ✅ Webhook — public URL required |\n| Platform | WeChat Work (企业微信) | ✅ Webhook — public URL required |\n| Platform | QQ (via NapCat/OneBot) | ✅ WebSocket, no public IP needed — **Beta** |\n| Platform | QQ Bot (Official) | ✅ WebSocket — no public IP needed |\n| Platform | WhatsApp | 🔜 Planned (Business Cloud API) |\n| Platform | Microsoft Teams | 🔜 Planned (Bot Framework) |\n| Platform | Google Chat | 🔜 Planned (Chat API) |\n| Platform | Mattermost | 🔜 Planned (Webhook + Bot) |\n| Platform | Matrix (Element) | 🔜 Planned (Client-Server API) |\n| Feature | Voice Messages (STT) | ✅ Whisper API (OpenAI / Groq / Qwen) + ffmpeg |\n| Feature | Voice Reply (TTS) | ✅ Qwen TTS / OpenAI TTS + ffmpeg |\n| Feature | Image Messages | ✅ Multimodal (Claude Code) |\n| Feature | API Provider Management | ✅ Runtime provider switching |\n| Feature | CLI Send (`cc-connect send`) | ✅ Send messages to sessions via CLI |\n| Feature | Multi-Bot Relay | ✅ Cross-platform bot communication & group chat binding |\n\n## Quick Start\n\n### Prerequisites\n\n- **Claude Code**: [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and configured, OR\n- **Codex**: [Codex CLI](https:/",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:53.680625"
+  },
+  {
+    "basic_info": {
+      "name": "clawlet",
+      "full_name": "mosaxiv/clawlet",
+      "owner": "mosaxiv",
+      "description": "Ultra-lightweight and efficient personal AI assistant",
+      "url": "https://github.com/mosaxiv/clawlet",
+      "clone_url": "https://github.com/mosaxiv/clawlet.git",
+      "ssh_url": "git@github.com:mosaxiv/clawlet.git",
+      "homepage": "",
+      "created_at": "2026-02-09T10:48:17Z",
+      "updated_at": "2026-03-09T20:17:10Z",
+      "pushed_at": "2026-02-28T10:59:54Z"
+    },
+    "stats": {
+      "stars": 652,
+      "forks": 44,
+      "watchers": 652,
+      "open_issues": 0,
+      "size": 19239
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 440949,
+        "Shell": 6719,
+        "Go Template": 5870,
+        "Dockerfile": 385
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "assistant",
+        "openclaw",
+        "personal"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"clawlet.png\" alt=\"clawlet\" width=\"500\">\n  <h1>Clawlet</h1>\n  <h3>Ultra-lightweight and efficient personal AI assistant</h3>\n</div>\n\n**Clawlet** is a lightweight personal AI agent with hybrid semantic memory search — a single static binary with no runtime and no CGO.  \nBundled SQLite + sqlite-vec. Drop it on any machine and memory search just works.\n\nThis project is inspired by **OpenClaw** and **nanobot**.\n\n## Install\n\nDownload from [GitHub Releases](https://github.com/mosaxiv/clawlet/releases/latest).\n\nmacOS (Apple Silicon):\n```bash\ncurl -L https://github.com/mosaxiv/clawlet/releases/latest/download/clawlet_Darwin_arm64.tar.gz | tar xz\nmv clawlet ~/.local/bin/\n```\n\n## Quick Start\n\n```bash\n# Initialize\nclawlet onboard \\\n  --openrouter-api-key \"sk-or-...\" \\\n  --model \"openrouter/anthropic/claude-sonnet-4.5\"\n\n# Check effective configuration\nclawlet status\n\n# Chat\nclawlet agent -m \"What is 2+2?\"\n```\n\n## Configuration (`~/.clawlet/config.json`)\n\nConfig file: `~/.clawlet/config.json`\n\n### Supported providers\n\nclawlet currently supports these LLM providers:\n\n- **OpenAI** (`openai/<model>`, API key: `env.OPENAI_API_KEY`)\n- **OpenAI Codex (OAuth)** (`openai-codex/<model>`, no API key; login: `clawlet provider login openai-codex`)\n- **OpenRouter** (`openrouter/<provider>/<model>`, API key: `env.OPENROUTER_API_KEY`)\n- **Anthropic** (`anthropic/<model>`, API key: `env.ANTHROPIC_API_KEY`)\n- **Gemini** (`gemini/<model>`, API key: `env.GEMINI_API_KEY` or `env.GOOGLE_API_KEY`)\n- **Local (Ollama / vLLM / OpenAI-compatible local endpoint)** (`ollama/<model>` or `local/<model>`, default base URL: `http://localhost:11434/v1`, API key optional)\n\nMinimal config (OpenRouter):\n\n```json\n{\n  \"env\": { \"OPENROUTER_API_KEY\": \"sk-or-...\" },\n  \"agents\": { \"defaults\": { \"model\": \"openrouter/anthropic/claude-sonnet-4-5\" } }\n}\n```\n\nAgent generation defaults are configurable:\n\n```json\n{\n  \"agents\": {\n    \"defaults\": {\n      \"model\": \"openrouter/anthropic/claude-sonnet-4-5\",\n      \"maxTokens\": 8192,\n      \"temperature\": 0.7\n    }\n  }\n}\n```\n\nMinimal config (Local via Ollama):\n\n```json\n{\n  \"agents\": { \"defaults\": { \"model\": \"ollama/qwen2.5:14b\" } }\n}\n```\n\nMinimal config (Local via vLLM using the same `ollama/` route):\n\n```json\n{\n  \"agents\": { \"defaults\": { \"model\": \"ollama/meta-llama/Llama-3.1-8B-Instruct\" } },\n  \"llm\": { \"baseURL\": \"http://localhost:8000/v1\" }\n}\n```\n\nOpenAI Codex (OAuth):\n\n```bash\n# one-time login\nclawlet provider login openai-codex\n\n# headless environment (SSH / container)\nclawlet provider login openai-codex --device-code\n```\n\n```json\n{\n  \"agents\": { \"defaults\": { \"model\": \"openai-codex/gpt-5.1-codex\" } }\n}\n```\n\n### Option: Memory search setup\n\nTo enable semantic memory search, add `memorySearch` to the agent defaults:\n\n```json\n{\n  \"env\": {\n    \"OPENAI_API_KEY\": \"sk-...\"\n  },\n  \"agents\": {\n    \"defaults\": {\n      \"memorySearch\": {\n        \"enabled\": true,\n        \"provider\": \"openai\",\n        \"model\": \"text-embedding-3-small\"\n      }\n    }\n  }\n}\n```\n\nLocal embedding (Ollama / OpenAI-compatible local endpoint):\n\n```json\n{\n  \"agents\": {\n    \"defaults\": {\n      \"memorySearch\": {\n        \"enabled\": true,\n        \"provider\": \"openai\",\n        \"model\": \"nomic-embed-text\",\n        \"remote\": {\n          \"baseURL\": \"http://localhost:11434/v1\"\n        }\n      }\n    }\n  }\n}\n```\n\nWhen enabled:\n- The agent gains `memory_search` and `memory_get` tools for retrieving past context.\n- clawlet indexes `MEMORY.md`, `memory.md`, and `memory/**/*.md` for retrieval.\n- The index DB is created at `{workspace}/.memory/index.sqlite`.\n\nWhen disabled (default):\n- `memorySearch.enabled` defaults to `false`; the search tools are not exposed to the model.\n- Memory files (`memory/MEMORY.md`, `memory/YYYY-MM-DD.md`) are still injected into context as usual.\n- Normal chat behavior is otherwise unchanged.\n\n\n## Security\n\n### Secure Defaults\n- `tools.restrictToWorkspace` defaults to `true` (tools can only access files inside the workspace directory)\n- `gateway.listen` defaults to `127.0.0.1:18790`\n- `gateway.allowPublicBind` defaults to `false`\n\n### Security Checklist\n\n| Item | Status | Details |\n| --- | --- | --- |\n| Gateway not publicly exposed | ✅ | Default bind is localhost only. Public bind is rejected unless `gateway.allowPublicBind=true` is explicitly set. |\n| Filesystem scoped (no `/`) | ✅ | File tools block root path, path traversal, encoded traversal, symlink escapes, and sensitive state paths. |\n| Exec tool dangerous-command guard | ✅ | `exec` blocks unsafe shell constructs (command chaining, unsafe expansions, redirection/`tee`, dangerous patterns), blocks sensitive paths, and passes only allowlisted environment variables to subprocesses. |\n\n## Tools\n\n### Multimodal input (audio/image/attachments)\n\nInbound channel messages can include attachments. clawlet can:\n\n- send images to vision-capable models,\n- transcribe audio using the configured provider,\n- and inline text-like file attachments into the user context.\n\nConf",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:54.854084"
+  },
+  {
+    "basic_info": {
+      "name": "goclaw",
+      "full_name": "nextlevelbuilder/goclaw",
+      "owner": "nextlevelbuilder",
+      "description": "Multi-agent AI gateway with teams, delegation & orchestration. Single Go binary, 11+ LLM providers, 5 channels.",
+      "url": "https://github.com/nextlevelbuilder/goclaw",
+      "clone_url": "https://github.com/nextlevelbuilder/goclaw.git",
+      "ssh_url": "git@github.com:nextlevelbuilder/goclaw.git",
+      "homepage": "https://goclaw.sh",
+      "created_at": "2026-02-22T07:26:36Z",
+      "updated_at": "2026-03-10T03:12:37Z",
+      "pushed_at": "2026-03-10T03:12:33Z"
+    },
+    "stats": {
+      "stars": 602,
+      "forks": 162,
+      "watchers": 602,
+      "open_issues": 21,
+      "size": 6012
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2898518,
+        "TypeScript": 1222562,
+        "PLpgSQL": 22187,
+        "CSS": 6171,
+        "Shell": 3954,
+        "Dockerfile": 3007,
+        "Makefile": 1203,
+        "HTML": 368
+      },
+      "license": null,
+      "topics": [
+        "agent-orchestration",
+        "ai-agent",
+        "ai-gateway",
+        "anthropic",
+        "chatbot",
+        "discord-bot",
+        "golang",
+        "llm",
+        "mcp",
+        "multi-agent",
+        "openai",
+        "postgresql",
+        "telegram-bot",
+        "websocket"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"_statics/goclaw.png\" alt=\"GoClaw\" />\n</p>\n\n# GoClaw\n\n[![Go](https://img.shields.io/badge/Go_1.25-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL_18-316192?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/) [![WebSocket](https://img.shields.io/badge/WebSocket-010101?style=flat-square&logo=socket.io&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) [![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-000000?style=flat-square&logo=opentelemetry&logoColor=white)](https://opentelemetry.io/) [![Anthropic](https://img.shields.io/badge/Anthropic-191919?style=flat-square&logo=anthropic&logoColor=white)](https://www.anthropic.com/) [![OpenAI](https://img.shields.io/badge/OpenAI_Compatible-412991?style=flat-square&logo=openai&logoColor=white)](https://openai.com/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)\n\n**GoClaw** is a multi-agent AI gateway that connects LLMs to your tools, channels, and data — deployed as a single Go binary with zero runtime dependencies. It orchestrates agent teams, inter-agent delegation, and quality-gated workflows across 13+ LLM providers with full multi-tenant isolation.\n\nA Go port of [OpenClaw](https://github.com/openclaw/openclaw) with enhanced security, multi-tenant PostgreSQL, and production-grade observability.\n\n## What Makes It Different\n\n- **Agent Teams & Orchestration** — Teams with shared task boards, inter-agent delegation (sync/async), conversation handoff, evaluate-loop quality gates, and hybrid agent discovery\n- **Multi-Tenant PostgreSQL** — Per-user workspaces, per-user context files, encrypted API keys (AES-256-GCM), isolated sessions — the only Claw project with DB-native multi-tenancy\n- **Single Binary** — ~25 MB static Go binary, no Node.js runtime, <1s startup, runs on a $5 VPS\n- **Production Security** — 5-layer defense: rate limiting, prompt injection detection, SSRF protection, shell deny patterns, AES-256-GCM encryption\n- **13+ LLM Providers** — Anthropic (native HTTP+SSE with prompt caching), OpenAI, OpenRouter, Groq, DeepSeek, Gemini, Mistral, xAI, MiniMax, Cohere, Perplexity, DashScope (Qwen), Bailian Coding + Claude CLI (stdio + MCP bridge), Codex (gpt-5.3-codex via OAuth)\n- **7 Messaging Channels** — Telegram (forum topics, STT), Discord, Slack, Zalo OA, Zalo Personal (DM + groups), Feishu/Lark (streaming cards, media), WhatsApp with `/stop` and `/stopall` commands\n- **Extended Thinking** — Per-provider thinking mode (Anthropic budget tokens, OpenAI reasoning effort, DashScope thinking budget) with streaming support\n\n## Claw Ecosystem\n\n**Resource Footprint:**\n\n|                 | OpenClaw        | ZeroClaw | PicoClaw | **GoClaw**                              |\n| --------------- | --------------- | -------- | -------- | --------------------------------------- |\n| Language        | TypeScript      | Rust     | Go       | **Go**                                  |\n| Binary size     | 28 MB + Node.js | 3.4 MB   | ~8 MB    | **~25 MB** (base) / **~36 MB** (+ OTel) |\n| Docker image    | —               | —        | —        | **~50 MB** (Alpine)                     |\n| RAM (idle)      | > 1 GB          | < 5 MB   | < 10 MB  | **~35 MB**                              |\n| Startup         | > 5 s           | < 10 ms  | < 1 s    | **< 1 s**                               |\n| Target hardware | $599+ Mac Mini  | $10 edge | $10 edge | **$5 VPS+**                             |\n\n**Feature Matrix:**\n\n| Feature                    | OpenClaw                             | ZeroClaw                                     | PicoClaw                              | **GoClaw**                     |\n| -------------------------- | ------------------------------------ | -------------------------------------------- | ------------------------------------- | ------------------------------ |\n| Multi-tenant (PostgreSQL)  | —                                    | —                                            | —                                     | ✅                             |\n| Hooks system               | —                                    | —                                            | —                                     | ✅ Command + agent evaluators  |\n| MCP integration            | — (uses ACP)                         | —                                            | —                                     | ✅ (stdio/SSE/streamable-http) |\n| Agent teams                | —                                    | —                                            | —                                     | ✅ Task board + mailbox        |\n| Agent handoff              | —                                    | —                                            | —        ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:56.016125"
+  },
+  {
+    "basic_info": {
+      "name": "clihub",
+      "full_name": "thellimist/clihub",
+      "owner": "thellimist",
+      "description": "Turn any MCP server into CLI",
+      "url": "https://github.com/thellimist/clihub",
+      "clone_url": "https://github.com/thellimist/clihub.git",
+      "ssh_url": "git@github.com:thellimist/clihub.git",
+      "homepage": "",
+      "created_at": "2026-02-23T13:43:14Z",
+      "updated_at": "2026-03-09T19:17:50Z",
+      "pushed_at": "2026-03-08T20:10:21Z"
+    },
+    "stats": {
+      "stars": 594,
+      "forks": 32,
+      "watchers": 594,
+      "open_issues": 1,
+      "size": 4207
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 240702,
+        "Shell": 7983
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# clihub (Contributor Guide)\n\nThis README is for people contributing to `clihub`.\nIf you want product-style usage examples first, start from `docs/project/project.md` and the main command help.\n\n## What this project does\n\n`clihub` turns an MCP server into a compiled CLI binary.\n\nContributor-level flow:\n1. Connect to MCP server (HTTP or stdio).\n2. Discover server tools.\n3. Convert tool schemas to CLI flag definitions.\n4. Generate a Go CLI project from templates.\n5. Compile to one or more target binaries.\n\n## Quick start for contributors\n\n1. Clone and enter repo.\n```bash\ngit clone https://github.com/thellimist/clihub.git\ncd clihub\n```\n\n2. Install hooks once per clone.\n```bash\nbash scripts/install-hooks.sh\n```\n\n3. Verify environment.\n- Go 1.24+ required (repo currently targets Go 1.25.x in `go.mod`).\n\n4. Run tests.\n```bash\ngo test ./...\n```\n\n5. Build local binary.\n```bash\ngo build -o clihub .\n```\n\n## Core commands\n\nGenerate from HTTP MCP server:\n```bash\n./clihub generate --url https://mcp.linear.app/mcp\n```\n\nGenerate from stdio MCP server:\n```bash\n./clihub generate --stdio \"npx @modelcontextprotocol/server-github\" --env GITHUB_TOKEN=$GITHUB_TOKEN\n```\n\nList all generation flags:\n```bash\n./clihub generate --help\n./clihub generate --help-auth\n```\n\n## Code map\n\n- `cmd/`: command entrypoints (`root`, `generate`)\n- `internal/auth/`: auth providers, OAuth flow, credentials\n- `internal/schema/`: JSON Schema -> CLI options\n- `internal/codegen/`: template rendering for generated CLIs\n- `internal/compile/`: platform parsing, build, smoke test\n- `internal/nameutil/`: output name inference\n- `internal/toolfilter/`: include/exclude matching\n- `scripts/`: hooks + version/release scripts\n\n## Docs for contributors\n\n- Project goals and scope: `docs/project/project.md`\n- Architecture: `docs/architecture/architecture.md`\n- Auth model: `docs/auth/auth.md`\n- Release process: `docs/releasing/releasing.md`\n\nRun this to catalog docs and read hints:\n```bash\ndocs-catalog\n```\n\n## Contribution workflow\n\n1. Create a branch.\n```bash\ngit checkout -b <type>/<short-name>\n```\n\n2. Implement with tests where appropriate.\n3. Run local checks (same checks as pre-push hook):\n```bash\ngo vet ./...\ngo test ./...\n```\n4. Ensure formatting:\n```bash\ngofmt -w <changed-go-files>\n```\n5. Commit using conventional commit style.\n\n## Release notes\n\nPushes to `main` are gated:\n1. `VERSION` must be updated.\n2. Annotated tag `vX.Y.Z` must match `VERSION` and point to pushed `main` commit.\n\nUse release scripts:\n```bash\nbash scripts/bump-version.sh --prepare-push patch\n# or\nbash scripts/bump-version.sh --sync-tag\n```\n\nDetailed release runbook: `docs/releasing/releasing.md`\n\n## License\n\nMIT (`LICENSE`)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:57.157129"
+  },
+  {
+    "basic_info": {
+      "name": "klaw.sh",
+      "full_name": "klawsh/klaw.sh",
+      "owner": "klawsh",
+      "description": "kubectl for AI Agents",
+      "url": "https://github.com/klawsh/klaw.sh",
+      "clone_url": "https://github.com/klawsh/klaw.sh.git",
+      "ssh_url": "git@github.com:klawsh/klaw.sh.git",
+      "homepage": "https://klaw.sh",
+      "created_at": "2026-02-15T04:18:19Z",
+      "updated_at": "2026-03-09T15:57:47Z",
+      "pushed_at": "2026-02-17T17:46:31Z"
+    },
+    "stats": {
+      "stars": 575,
+      "forks": 35,
+      "watchers": 575,
+      "open_issues": 2,
+      "size": 21308
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 523731,
+        "Shell": 4216,
+        "Makefile": 2067,
+        "Dockerfile": 549
+      },
+      "license": "Other",
+      "topics": [
+        "agents",
+        "ai-agents",
+        "orchestration"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/assets/klaw-logo.png\" alt=\"klaw\" width=\"140\" />\n</p>\n\n<h1 align=\"center\">klaw</h1>\n\n<p align=\"center\">\n  <strong>kubectl for AI Agents</strong>\n</p>\n\n<p align=\"center\">\n  Enterprise AI agent orchestration. Manage, monitor, and scale your AI workforce.<br/>\n  One binary. Deploys in seconds. Scales to hundreds of agents.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://klaw.sh/docs\">Documentation</a> •\n  <a href=\"#what-is-klaw\">What is klaw?</a> •\n  <a href=\"#quick-start\">Quick Start</a> •\n  <a href=\"#slack-control\">Slack Control</a> •\n  <a href=\"#architecture\">Architecture</a>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/license-each::labs-green.svg\" alt=\"License\" />\n  <img src=\"https://img.shields.io/badge/go-1.24+-00ADD8.svg\" alt=\"Go Version\" />\n  <img src=\"https://img.shields.io/github/stars/klawsh/klaw.sh?style=social\" alt=\"Stars\" />\n  <a href=\"https://deepwiki.com/klawsh/klaw.sh\"><img src=\"https://deepwiki.com/badge.svg\" alt=\"Ask DeepWiki\"></a>\n</p>\n\n---\n\n## What is klaw?\n\n**klaw** is enterprise AI agent orchestration — like kubectl, but for AI agents.\n\n```bash\n# See all your agents\n$ klaw get agents\n\nNAME              NAMESPACE    STATUS    MODEL              LAST RUN\nlead-scorer       sales        running   claude-sonnet-4    2m ago\ncompetitor-watch  research     idle      gpt-4o             1h ago\nticket-handler    support      running   claude-sonnet-4    30s ago\nreport-gen        analytics    idle      claude-sonnet-4    6h ago\n\n# Check what an agent is doing\n$ klaw describe agent lead-scorer\n\nName:         lead-scorer\nNamespace:    sales\nStatus:       Running\nModel:        claude-sonnet-4-20250514\nSkills:       crm, web-search\nTools:        hubspot, clearbit, web_fetch\nLast Run:     2 minutes ago\nNext Run:     in 58 minutes (cron: 0 * * * *)\n\n# View real-time logs\n$ klaw logs lead-scorer --follow\n\n[14:32:01] Fetching new leads from HubSpot...\n[14:32:03] Found 12 new leads\n[14:32:05] Analyzing lead: john@acme.com\n[14:32:08] Score: 85/100 (Enterprise, good fit)\n[14:32:09] Updated HubSpot lead score\n...\n```\n\n### Or control everything from Slack\n\n```\nYou: @klaw status\n\nklaw: 📊 Agent Status\n      ├── lead-scorer (sales) — running, 2m ago\n      ├── competitor-watch (research) — idle\n      ├── ticket-handler (support) — running, 30s ago\n      └── report-gen (analytics) — idle\n\nYou: @klaw run competitor-watch\n\nklaw: 🚀 Starting competitor-watch...\n      Checking competitor.com/pricing...\n      Found 2 pricing changes since yesterday.\n      Posted summary to #competitive-intel\n```\n\n---\n\n## The Problem\n\nYou're running AI agents in production:\n- **Lead Scorer** — analyzes CRM leads every hour\n- **Competitor Watch** — monitors competitor websites daily\n- **Ticket Handler** — auto-responds to support tickets\n- **Report Generator** — creates weekly analytics reports\n\nBut managing them is chaos:\n\n| Challenge | Current State | With klaw |\n|-----------|---------------|-----------|\n| **Visibility** | \"Is the agent running? What's it doing?\" | `klaw get agents`, `klaw logs` |\n| **Isolation** | Sales agent accessing support secrets | Namespaces with scoped permissions |\n| **Scheduling** | Messy cron jobs, Lambda functions | `klaw cron create` — built-in |\n| **Scaling** | Manual server provisioning | `klaw node join` — auto-dispatch |\n| **Debugging** | grep through CloudWatch | `klaw logs agent --follow` |\n| **Deployment** | Complex setup, many dependencies | Single binary, one command |\n\n**OpenClaw works, but deployment is painful and scaling is worse.**\n\nklaw brings Kubernetes-style operations to AI agents. One binary. Deploys in seconds.\n\n---\n\n## Quick Start\n\n### 1. Install\n\n```bash\ncurl -fsSL https://klaw.sh/install.sh | sh\n```\n\n### 2. Configure\n\n```bash\n# Pick one provider\nexport ANTHROPIC_API_KEY=sk-ant-...      # Direct Anthropic\nexport OPENROUTER_API_KEY=sk-or-...      # OpenRouter (100+ models)\nexport EACHLABS_API_KEY=...              # each::labs (300+ models)\n```\n\n### 3. Run\n\n```bash\n# Interactive chat\nklaw chat\n\n# Or start the full platform (Slack + scheduler + agents)\nexport SLACK_BOT_TOKEN=xoxb-...\nexport SLACK_APP_TOKEN=xapp-...\nklaw start\n```\n\n---\n\n## Real-World Examples\n\n### Sales: Lead Scoring\n\n```bash\n# Create the agent\nklaw create agent lead-scorer \\\n  --namespace sales \\\n  --model claude-sonnet-4-20250514 \\\n  --skills crm,web-search\n\n# Schedule hourly runs\nklaw cron create score-leads \\\n  --schedule \"0 * * * *\" \\\n  --agent lead-scorer \\\n  --task \"Analyze new leads in HubSpot, score 1-100 based on fit, update Lead Score field\"\n\n# Check status anytime\nklaw get agents -n sales\nklaw logs lead-scorer\n```\n\n### Research: Competitor Intelligence\n\n```bash\nklaw create agent competitor-watch \\\n  --namespace research \\\n  --model gpt-4o \\\n  --skills web-search,web-fetch,slack\n\nklaw cron create competitor-daily \\\n  --schedule \"0 9 * * *\" \\\n  --agent competitor-watch \\\n  --task \"Check competitor.com/pricing for changes. Post diff to #competitive-intel\"\n```\n\n### ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:58.291418"
+  },
+  {
+    "basic_info": {
+      "name": "rodney",
+      "full_name": "simonw/rodney",
+      "owner": "simonw",
+      "description": "CLI tool for interacting with the web",
+      "url": "https://github.com/simonw/rodney",
+      "clone_url": "https://github.com/simonw/rodney.git",
+      "ssh_url": "git@github.com:simonw/rodney.git",
+      "homepage": "",
+      "created_at": "2026-02-09T19:54:35Z",
+      "updated_at": "2026-03-10T02:32:50Z",
+      "pushed_at": "2026-03-05T20:23:23Z"
+    },
+    "stats": {
+      "stars": 540,
+      "forks": 37,
+      "watchers": 540,
+      "open_issues": 26,
+      "size": 801
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 81288,
+        "Shell": 4841,
+        "Python": 2937,
+        "HTML": 2760
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Rodney: Chrome automation from the command line\n\n[![PyPI](https://img.shields.io/pypi/v/rodney.svg)](https://pypi.org/project/rodney/)\n[![Changelog](https://img.shields.io/github/v/release/simonw/rodney?include_prereleases&label=changelog)](https://github.com/simonw/rodney/releases)\n[![Tests](https://github.com/simonw/rodney/actions/workflows/test.yml/badge.svg)](https://github.com/simonw/rodney/actions/workflows/test.yml)\n[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/simonw/rodney/blob/main/LICENSE)\n\nA Go CLI tool that drives a persistent headless Chrome instance using the [rod](https://github.com/go-rod/rod) browser automation library. Each command connects to the same long-running Chrome process, making it easy to script multi-step browser interactions from shell scripts or interactive use.\n\n## Architecture\n\n```\nrodney start          →  launches Chrome (headless, persists after CLI exits)\n                          saves WebSocket debug URL to ~/.rodney/state.json\n\nrodney connect H:P    →  connects to an existing Chrome on a remote debug port\n                          saves WebSocket debug URL to ~/.rodney/state.json\n\nrodney open URL       →  connects to running Chrome via WebSocket\n                          navigates the active tab, disconnects\n\nrodney js EXPR        →  connects, evaluates JS, prints result, disconnects\n\nrodney stop           →  connects and shuts down Chrome, cleans up state\n```\n\nEach CLI invocation is a short-lived process. Chrome runs independently and tabs persist between commands.\n\n## Building\n\n```bash\ngo build -o rodney .\n```\n\nRequires:\n- Go 1.21+\n- Google Chrome or Chromium installed (or set `ROD_CHROME_BIN=/path/to/chrome`)\n\n## Usage\n\n### Start/stop the browser\n\n```bash\nrodney start              # Launch headless Chrome\nrodney start --show       # Launch with visible browser window\nrodney start --insecure   # Launch with TLS errors ignored (-k shorthand)\nrodney connect host:9222  # Connect to existing Chrome on remote debug port\nrodney status             # Show browser info and active page\nrodney stop               # Shut down Chrome\n```\n\n### Navigate\n\n```bash\nrodney open https://example.com    # Navigate to URL\nrodney open example.com            # http:// prefix added automatically\nrodney back                        # Go back\nrodney forward                     # Go forward\nrodney reload                      # Reload page\nrodney reload --hard               # Reload bypassing cache\nrodney clear-cache                 # Clear the browser cache\n```\n\n### Extract information\n\n```bash\nrodney url                    # Print current URL\nrodney title                  # Print page title\nrodney text \"h1\"              # Print text content of element\nrodney html \"div.content\"     # Print outer HTML of element\nrodney html                   # Print full page HTML\nrodney attr \"a#link\" href     # Print attribute value\nrodney pdf output.pdf         # Save page as PDF\n```\n\n### Run JavaScript\n\n```bash\nrodney js document.title                        # Evaluate expression\nrodney js \"1 + 2\"                               # Math\nrodney js 'document.querySelector(\"h1\").textContent'  # DOM queries\nrodney js '[1,2,3].map(x => x * 2)'            # Returns pretty-printed JSON\nrodney js 'document.querySelectorAll(\"a\").length'     # Count elements\n```\n\nThe expression is automatically wrapped in `() => { return (expr); }`.\n\n### Interact with elements\n\n```bash\nrodney click \"button#submit\"       # Click element\nrodney input \"#search\" \"query\"     # Type into input field\nrodney clear \"#search\"             # Clear input field\nrodney file \"#upload\" photo.png    # Set file on a file input\nrodney file \"#upload\" -            # Set file from stdin\nrodney download \"a.pdf-link\"       # Download href/src target to file\nrodney download \"a.pdf-link\" -     # Download to stdout\nrodney select \"#dropdown\" \"value\"  # Select dropdown by value\nrodney submit \"form#login\"         # Submit a form\nrodney hover \".menu-item\"          # Hover over element\nrodney focus \"#email\"              # Focus element\n```\n\n### Wait for conditions\n\n```bash\nrodney wait \".loaded\"       # Wait for element to appear and be visible\nrodney waitload             # Wait for page load event\nrodney waitstable           # Wait for DOM to stop changing\nrodney waitidle             # Wait for network to be idle\nrodney sleep 2.5            # Sleep for N seconds\n```\n\n### Screenshots\n\n```bash\nrodney screenshot                         # Save as screenshot.png\nrodney screenshot page.png                # Save to specific file\nrodney screenshot -w 1280 -h 720 out.png  # Set viewport width/height\nrodney screenshot-el \".chart\" chart.png   # Screenshot specific element\n```\n\n### Manage tabs\n\n```bash\nrodney pages                    # List all tabs (* marks active)\nrodney newpage https://...      # Open URL in new tab\nrodney page 1                   # Switch to tab by index\nrodney closepage 1              # Close tab by index\nrodney clo",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:22:59.461625"
+  },
+  {
+    "basic_info": {
+      "name": "slim",
+      "full_name": "kamranahmedse/slim",
+      "owner": "kamranahmedse",
+      "description": "Give your localhost a local or public URL",
+      "url": "https://github.com/kamranahmedse/slim",
+      "clone_url": "https://github.com/kamranahmedse/slim.git",
+      "ssh_url": "git@github.com:kamranahmedse/slim.git",
+      "homepage": "https://slim.sh",
+      "created_at": "2026-02-26T13:01:02Z",
+      "updated_at": "2026-03-10T02:54:27Z",
+      "pushed_at": "2026-03-09T22:24:13Z"
+    },
+    "stats": {
+      "stars": 530,
+      "forks": 32,
+      "watchers": 530,
+      "open_issues": 0,
+      "size": 1160
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 241124,
+        "HTML": 2555,
+        "Shell": 2136,
+        "Makefile": 369
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/public/favicon.png\" alt=\"Slim logo\" width=\"64\" height=\"64\" />\n</p>\n\n<h1 align=\"center\">Slim</h1>\n\n<p align=\"center\">\n  Simple command to get clean HTTPS local domains for your projects\n</p>\n\n<p align=\"center\">\n  <a href=\"https://slim.sh\"><img src=\"https://img.shields.io/badge/website-slim.sh-0f172a?style=flat-square\" alt=\"Website\"></a>\n  <img src=\"https://img.shields.io/badge/go-1.25%2B-00ADD8?style=flat-square&logo=go&logoColor=white\" alt=\"Go 1.25+\">\n  <img src=\"https://img.shields.io/badge/platform-macOS%20%7C%20Linux-111827?style=flat-square\" alt=\"Platform\">\n</p>\n\n```\nmyapp.test        → localhost:3000\nmyapp.test/api    → localhost:8080\ndashboard.test    → localhost:5173\napp.loc           → localhost:4000\n```\n\n## Install\n\n```bash\ncurl -sL https://slim.sh/install.sh | sh\n```\n\nor build from source\n\n```bash\ngit clone https://github.com/kamranahmedse/slim.git\ncd slim\nmake build\nmake install\n```\n\nRequires Go 1.25 or later.\n\n## Quick Start\n\nCreate a custom HTTPs Domain for local development using `slim start`\n\n```bash\nslim start myapp --port 3000\n# https://myapp.test → localhost:3000\n```\n\nTo share your local project on a public URL\n\n```bash\nslim share --port 3000\n# https://cheeky-panda.slim.show\n```\n\n## Local Usage\n\n> Start or stop a local service using `slim start` or `slim stop`\n\n```bash\nslim start myapp --port 3000\nslim start api --port 8080\nslim stop myapp                  # stop one domain\nslim stop                        # stop all domains\n```\n\n> If you don't specify the TLD, you get a `.test` domain. Specify a full domain to use any TLD:\n\n```bash\nslim start app.loc --port 3000   # https://app.loc → localhost:3000\nslim start my.demo --port 4000   # https://my.demo → localhost:4000\n```\n\n> **Note:** Avoid `.local` — it's reserved for mDNS and can cause slow DNS resolution on macOS/Linux.\n\n> Route different URL paths to different upstream ports on a single domain:\n\n```bash\nslim start myapp --port 3000 --route /api=8080 --route /ws=9000\n```\n\n> Define all services for a project in a `.slim.yaml` file at the project root:\n\n```yaml\nservices:\n  - domain: myapp\n    port: 3000\n    routes:\n      - path: /api\n        port: 8080\n  - domain: dashboard\n    port: 5173\n  - domain: app.loc\n    port: 4000\nlog_mode: minimal  # full | minimal | off\ncors: true         # enable CORS headers on proxied responses\n```\n\n```bash\nslim up                              # start all services\nslim up --config /path/to/.slim.yaml # specify a config path\nslim down                            # stop all project services\n```\n\n## Internet Sharing\n\n> Expose a local server to the internet with a public `slim.show` URL. Requires `slim login` first.\n\n```bash\nslim share --port 3000                              # random subdomain\nslim share --port 3000 --subdomain demo             # https://demo.slim.show\nslim share --port 3000 --password secret            # password protected\nslim share --port 3000 --ttl 30m                    # auto-expires after 30 minutes\nslim share --port 3000 --domain myapp.example.com   # custom domain\n```\n\n\n## Logs and Diagnostics\n\n```bash\nslim list                # inspect running domains\nslim list --json\n\nslim logs                # view access logs\nslim logs --follow myapp # tail logs for a domain\nslim logs --flush        # clear log file\n\nslim doctor              # run diagnostic checks\n```\n\n```\n$ slim doctor\n  ✓  CA certificate        valid, expires 2035-02-28\n  ✓  CA trust              trusted by OS\n  ✓  Port forwarding       active (80→10080, 443→10443)\n  ✓  Hosts: myapp.test    present in /etc/hosts\n  !  Daemon                not running\n  ✓  Cert: myapp.test     valid, expires 2027-06-03\n```\n\n## Updating\n\nRun `slim update` to update to latest version.\n\n## Uninstall\n\n> Remove everything: CA, certs, hosts entries, port-forward rules, config\n\n```bash\nslim uninstall\n```\n\n## License\n\n[PolyForm Shield 1.0.0](./LICENSE) © [Kamran Ahmed](https://x.com/kamrify)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:23:00.601576"
+  },
+  {
+    "basic_info": {
+      "name": "discrawl",
+      "full_name": "steipete/discrawl",
+      "owner": "steipete",
+      "description": "cli for discord with sqlite backend",
+      "url": "https://github.com/steipete/discrawl",
+      "clone_url": "https://github.com/steipete/discrawl.git",
+      "ssh_url": "git@github.com:steipete/discrawl.git",
+      "homepage": null,
+      "created_at": "2026-03-07T12:13:48Z",
+      "updated_at": "2026-03-10T03:22:40Z",
+      "pushed_at": "2026-03-09T03:14:36Z"
+    },
+    "stats": {
+      "stars": 469,
+      "forks": 40,
+      "watchers": 469,
+      "open_issues": 10,
+      "size": 256
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 285400
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# discrawl 🛰️ — Mirror Discord into SQLite; search server history locally\n\n`discrawl` mirrors Discord guild data into local SQLite so you can search, inspect, and query server history without depending on Discord search.\n\nIt is a bot-token crawler. No user-token hacks. Data stays local.\n\n## What It Does\n\n- discovers every guild the configured bot can access\n- syncs channels, threads, members, and message history into SQLite\n- maintains FTS5 search indexes for fast local text search\n- extracts small text-like attachments into the local search index\n- records structured user and role mentions for direct querying\n- tails Gateway events for live updates, with periodic repair syncs\n- exposes read-only SQL for ad hoc analysis\n- keeps schema multi-guild ready while preserving a simple single-guild default UX\n\nSearch defaults to all guilds. `sync` and `tail` default to the configured default guild when one exists, otherwise they fan out to all discovered guilds.\n\n## Requirements\n\n- Go `1.26+`\n- a Discord bot token the bot can use to read the target guilds\n- bot permissions for the channels you want archived\n\n### Discord Bot Setup\n\n`discrawl` needs a real bot token. Not a user token.\n\nMinimum practical setup:\n\n1. Create or reuse a Discord application in the Discord developer portal.\n2. Add a bot user to that application.\n3. Invite the bot to the target guilds.\n4. Enable these intents for the bot:\n   - `Server Members Intent`\n   - `Message Content Intent`\n5. Ensure the bot can at least:\n   - view channels\n   - read message history\n\nWithout those intents/permissions, `sync`, `tail`, member snapshots, or message content archiving will be partial or fail.\n\n### Bot Token Sources\n\nToken resolution:\n\n1. OpenClaw config, if `discord.token_source` is not `env`\n2. `DISCORD_BOT_TOKEN` or the configured `discord.token_env`\n\n`discrawl` accepts either raw token text or a value prefixed with `Bot `. It normalizes that automatically.\n\nFastest env-only path:\n\n```bash\nexport DISCORD_BOT_TOKEN=\"your-bot-token\"\nbin/discrawl doctor\nbin/discrawl init\n```\n\nIf you keep shell secrets in `~/.profile`, add:\n\n```bash\nexport DISCORD_BOT_TOKEN=\"your-bot-token\"\n```\n\nThen reload your shell before running `discrawl`.\n\nIf you already use OpenClaw, `discrawl` can reuse the Discord token from `~/.openclaw/openclaw.json` by default.\n\nDefault runtime paths:\n\n- config: `~/.discrawl/config.toml`\n- database: `~/.discrawl/discrawl.db`\n- cache: `~/.discrawl/cache/`\n- logs: `~/.discrawl/logs/`\n\n## Install\n\nBuild from source:\n\n```bash\ngit clone https://github.com/steipete/discrawl.git\ncd discrawl\ngo build -o bin/discrawl ./cmd/discrawl\n./bin/discrawl --version\n```\n\nHomebrew tap:\n\n```bash\nbrew tap steipete/tap\nbrew install steipete/tap/discrawl\n```\n\n## Quick Start\n\nReuse an existing OpenClaw Discord bot config:\n\n```bash\nbin/discrawl init --from-openclaw ~/.openclaw/openclaw.json\nbin/discrawl doctor\nbin/discrawl sync --full\nbin/discrawl search \"panic: nil pointer\"\nbin/discrawl tail\n```\n\nEnv-only setup:\n\n```bash\nexport DISCORD_BOT_TOKEN=\"...\"\nbin/discrawl doctor\nbin/discrawl init\nbin/discrawl sync --full\n```\n\n`init` discovers accessible guilds and writes `~/.discrawl/config.toml`. If exactly one guild is available, that guild becomes the default automatically.\n\n`doctor` is the fastest sanity check:\n\n- confirms config can be loaded\n- shows where the token was resolved from\n- verifies bot auth\n- shows how many guilds the bot can access\n- verifies DB + FTS wiring\n\n## Commands\n\n### `init`\n\nCreates the local config and discovers accessible guilds.\n\n```bash\nbin/discrawl init\nbin/discrawl init --from-openclaw ~/.openclaw/openclaw.json\nbin/discrawl init --guild 123456789012345678\nbin/discrawl init --db ~/data/discrawl.db\n```\n\n### `sync`\n\nBackfills guild state into SQLite.\n\n```bash\nbin/discrawl sync --full\nbin/discrawl sync --guild 123456789012345678\nbin/discrawl sync --guilds 123,456 --concurrency 8\nbin/discrawl sync --channels 111,222 --since 2026-03-01T00:00:00Z\n```\n\n`sync` already uses parallel channel workers. `--concurrency` overrides the default, and the default is auto-sized from `GOMAXPROCS` with a floor of `8` and a cap of `32`.\nWhen `--channels` includes a forum channel id, `discrawl` expands that forum's threads and syncs their messages as part of the targeted run.\n\n### `tail`\n\nRuns the live Gateway tail and periodic repair loop.\n\n```bash\nbin/discrawl tail\nbin/discrawl tail --guild 123456789012345678\nbin/discrawl tail --repair-every 30m\n```\n\n### `search`\n\nRuns FTS search over archived messages.\n\n```bash\nbin/discrawl search \"panic: nil pointer\"\nbin/discrawl search --guild 123456789012345678 \"payment failed\"\nbin/discrawl search --channel billing --author steipete --limit 50 \"invoice\"\nbin/discrawl search --include-empty \"GitHub\"\nbin/discrawl --json search \"websocket closed\"\n```\n\nBy default, `search` skips rows with no searchable content. Attachment text, attachment filenames, embeds, and replies still count as content. Use `--include-empty` to opt back in.\n\n### `",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:23:01.737601"
+  },
+  {
+    "basic_info": {
+      "name": "agentsview",
+      "full_name": "wesm/agentsview",
+      "owner": "wesm",
+      "description": "Fast local coding agent session viewer for Claude, Codex, Gemini, with analytics dashboard and full text search",
+      "url": "https://github.com/wesm/agentsview",
+      "clone_url": "https://github.com/wesm/agentsview.git",
+      "ssh_url": "git@github.com:wesm/agentsview.git",
+      "homepage": "https://agentsview.io",
+      "created_at": "2026-02-19T19:33:24Z",
+      "updated_at": "2026-03-10T03:17:24Z",
+      "pushed_at": "2026-03-10T01:17:14Z"
+    },
+    "stats": {
+      "stars": 422,
+      "forks": 52,
+      "watchers": 422,
+      "open_issues": 21,
+      "size": 1895
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1329736,
+        "TypeScript": 475933,
+        "Svelte": 302507,
+        "Rust": 39073,
+        "Shell": 25912,
+        "HTML": 8713,
+        "Makefile": 7738,
+        "PowerShell": 7729,
+        "CSS": 6201,
+        "JavaScript": 118
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# agentsview\n\nA local web application for browsing, searching, and analyzing\nAI agent coding sessions. Supports Claude Code, Codex,\nCopilot CLI, Gemini CLI, OpenCode, Amp, and VSCode Copilot. A next-generation rewrite of\n[agent-session-viewer](https://github.com/wesm/agent-session-viewer)\nin Go.\n\n<p align=\"center\">\n  <img src=\"https://agentsview.io/screenshots/dashboard.png\" alt=\"Analytics dashboard\" width=\"720\">\n</p>\n\n## Install\n\n```bash\ncurl -fsSL https://agentsview.io/install.sh | bash\n```\n\n**Windows:**\n\n```powershell\npowershell -ExecutionPolicy ByPass -c \"irm https://agentsview.io/install.ps1 | iex\"\n```\n\nThe installer downloads the latest release, verifies the SHA-256\nchecksum, and installs the binary.\n\n**Build from source** (requires Go 1.25+ with CGO and Node.js 22+):\n\n```bash\ngit clone https://github.com/wesm/agentsview.git\ncd agentsview\nmake build\nmake install  # installs to ~/.local/bin\n```\n\n## Why?\n\nAI coding agents generate large volumes of session data across\nprojects. agentsview indexes these sessions into a local SQLite\ndatabase with full-text search, providing a web interface to\nfind past conversations, review agent behavior, and track usage\npatterns over time.\n\n## Features\n\n- **Full-text search** across all message content, instantly\n- **Analytics dashboard** with activity heatmaps, tool usage,\n  velocity metrics, and project breakdowns\n- **Multi-agent support** for Claude Code, Codex, Copilot CLI, Gemini CLI, OpenCode, Amp, and VSCode Copilot\n- **Live updates** via SSE as active sessions receive new messages\n- **Keyboard-first** navigation (vim-style `j`/`k`/`[`/`]`)\n- **Export and publish** sessions as HTML or to GitHub Gist\n- **Local-first** -- all data stays on your machine, single binary,\n  no accounts\n\n## Usage\n\n```bash\nagentsview              # start server, open browser\nagentsview -port 9090   # custom port\nagentsview -no-browser  # headless mode\n```\n\nOn startup, agentsview discovers sessions from Claude Code, Codex,\nCopilot CLI, Gemini CLI, OpenCode, Amp, and VSCode Copilot, syncs them into a local SQLite database\nwith FTS5 full-text search, and opens a web UI at\n`http://127.0.0.1:8080`.\n\n## Screenshots\n\n| Dashboard | Session viewer |\n|-----------|---------------|\n| ![Dashboard](https://agentsview.io/screenshots/dashboard.png) | ![Session viewer](https://agentsview.io/screenshots/message-viewer.png) |\n\n| Search | Activity heatmap |\n|--------|-----------------|\n| ![Search](https://agentsview.io/screenshots/search-results.png) | ![Heatmap](https://agentsview.io/screenshots/heatmap.png) |\n\n## Keyboard Shortcuts\n\n| Key | Action |\n|-----|--------|\n| `Cmd+K` | Open search |\n| `j` / `k` | Next / previous message |\n| `]` / `[` | Next / previous session |\n| `o` | Toggle sort order |\n| `t` | Toggle thinking blocks |\n| `e` | Export session as HTML |\n| `p` | Publish to GitHub Gist |\n| `r` | Sync sessions |\n| `?` | Show all shortcuts |\n\n## Documentation\n\nFull documentation is available at\n[agentsview.io](https://agentsview.io):\n\n- [Quick Start](https://agentsview.io/quickstart/) --\n  installation and first run\n- [Usage Guide](https://agentsview.io/usage/) --\n  dashboard, session browser, search, export\n- [CLI Reference](https://agentsview.io/commands/) --\n  commands, flags, and environment variables\n- [Configuration](https://agentsview.io/configuration/) --\n  data directory, config file, session discovery\n- [Architecture](https://agentsview.io/architecture/) --\n  how the sync engine, parsers, and server work\n\n## Development\n\n```bash\nmake dev            # run Go server in dev mode\nmake frontend-dev   # run Vite dev server (use alongside make dev)\nmake desktop-dev    # run Tauri desktop wrapper (experimental)\nmake test           # Go tests (CGO_ENABLED=1 -tags fts5)\nmake lint           # golangci-lint\nmake e2e            # Playwright E2E tests\n```\n\n## Desktop Wrapper (Experimental)\n\nA Tauri desktop wrapper is available under `desktop/`.\nIt launches the existing `agentsview` Go binary as a local sidecar and\nloads `http://127.0.0.1:<port>` in a native webview.\n\n```bash\nmake desktop-dev    # run desktop app in dev mode\nmake desktop-build  # build desktop bundles (.app/.exe/etc.)\nmake desktop-macos-app       # build macOS .app only\nmake desktop-windows-installer  # build Windows installer (.exe)\n```\n\nFriendly output copies are placed in:\n\n- `dist/desktop/macos/AgentsView.app`\n- `dist/desktop/windows/*.exe`\n\nDesktop env escape hatch: `~/.agentsview/desktop.env` (for PATH/API keys overrides).\n\n### Project Structure\n\n```\ncmd/agentsview/     CLI entrypoint\ninternal/config/    Configuration loading\ninternal/db/        SQLite operations (sessions, search, analytics)\ninternal/parser/    Session parsers (Claude, Codex, Copilot, Gemini, OpenCode, Amp, VSCode Copilot)\ninternal/server/    HTTP handlers, SSE, middleware\ninternal/sync/      Sync engine, file watcher, discovery\nfrontend/           Svelte 5 SPA (Vite, TypeScript)\n```\n\n## Supported Agents\n\n| Agent | Session Directory |\n|-------|-------------------|\n|",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:23:02.878217"
+  },
+  {
+    "basic_info": {
+      "name": "Resin",
+      "full_name": "Resinat/Resin",
+      "owner": "Resinat",
+      "description": "A high-performance proxy pool gateway. Turn massive proxy subscriptions into a stable, smart, and observable network with sticky sessions.",
+      "url": "https://github.com/Resinat/Resin",
+      "clone_url": "https://github.com/Resinat/Resin.git",
+      "ssh_url": "git@github.com:Resinat/Resin.git",
+      "homepage": "",
+      "created_at": "2026-02-28T07:18:53Z",
+      "updated_at": "2026-03-09T16:47:05Z",
+      "pushed_at": "2026-03-05T15:49:43Z"
+    },
+    "stats": {
+      "stars": 418,
+      "forks": 57,
+      "watchers": 418,
+      "open_issues": 7,
+      "size": 8998
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1475977,
+        "TypeScript": 434450,
+        "CSS": 52190,
+        "Dockerfile": 1531,
+        "Shell": 865,
+        "JavaScript": 616,
+        "HTML": 384
+      },
+      "license": "MIT License",
+      "topics": [
+        "proxy",
+        "proxypool"
+      ]
+    },
+    "content": {
+      "readme": "[English](README.md) | [简体中文](README.zh-CN.md)\n\n<div align=\"center\">\n  <img src=\"webui/public/vite.svg\" width=\"48\" alt=\"Resin Logo\" />\n  <h1>Resin</h1>\n  <p><strong>Turn massive proxy subscriptions into a stable, smart, and observable network with sticky sessions.</strong></p>\n</div>\n\n<p align=\"center\">\n  <a href=\"https://github.com/Resinat/Resin/releases\"><img src=\"https://img.shields.io/github/v/release/Resinat/Resin?style=flat-square&label=release&sort=semver\" alt=\"Release\" /></a>\n  <a href=\"https://github.com/Resinat/Resin/actions/workflows/release.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/Resinat/Resin/release.yml?style=flat-square&label=release%20pipeline\" alt=\"Release Pipeline\" /></a>\n  <a href=\"https://github.com/Resinat/Resin/pkgs/container/resin\"><img src=\"https://img.shields.io/badge/ghcr-ghcr.io%2Fresinat%2Fresin-2496ED?style=flat-square&logo=docker&logoColor=white\" alt=\"GHCR Image\" /></a>\n  <a href=\"https://github.com/Resinat/Resin/blob/master/LICENSE\"><img src=\"https://img.shields.io/github/license/Resinat/Resin?style=flat-square\" alt=\"License\" /></a>\n  <a href=\"https://github.com/Resinat/Resin/blob/master/go.mod\"><img src=\"https://img.shields.io/github/go-mod/go-version/Resinat/Resin?style=flat-square\" alt=\"Go Version\" /></a>\n  <a href=\"https://github.com/Resinat/Resin/releases\"><img src=\"https://img.shields.io/badge/support-linux%20%7C%20macOS%20%7C%20windows%20%C2%B7%20amd64%20%7C%20arm64-0A7EA4?style=flat-square\" alt=\"Support Matrix\" /></a>\n  <a href=\"DESIGN.md\"><img src=\"https://img.shields.io/badge/docs-DESIGN.md-1F6FEB?style=flat-square\" alt=\"Design Docs\" /></a>\n</p>\n\n---\n\n**Resin** is a **high-performance intelligent proxy pool gateway** built for operating massive numbers of proxy nodes.\n\nIt helps shield your services from unstable upstream proxies and aggregates them into a single HTTP gateway with **session stickiness (sticky routing)**.\n\n## 💡 Why Resin?\n\n- **Massive-scale management**: Easily handles 100k+ proxy nodes with native high-concurrency performance.\n- **Smart scheduling and circuit breaking**: Fully automated **passive + active** health checks, outbound IP probing, and latency analysis to remove bad nodes precisely. Uses P2C plus domain-aware latency-weighted scoring for optimal node selection.\n- **Business-friendly sticky proxying**: Keeps the same business account bound to a stable outbound IP. If a node fails, Resin seamlessly switches to another node with the same IP.\n- **Dual access modes**: Supports both standard forward proxy (HTTP Proxy) and URL-based reverse proxy.\n- **Observability**: Detailed metrics and logs, plus a visual Web UI. Includes complete structured request logs for querying and auditing by platform, account, target site, and more.\n- **Simple and powerful**: Works out of the box with default settings, while still offering deep customization for enterprise-grade needs.\n- **Cross-subscription deduplication**: Automatically merges identical nodes from different subscriptions and shares their health state.\n- **Hot reload**: Update common settings without restart. Refresh subscriptions without dropping existing traffic.\n- **Persistent state**: Keeps node health, latency stats, and lease bindings across restarts.\n- **Zero-intrusion sticky access**: Can extract account identity from existing request headers (for example API keys), so clients often need no code changes.\n- **Incremental subscription refresh**: Syncs subscription updates without interrupting current connections.\n- **Flexible node isolation**: Use Platform rules (regex, region, etc.) to build independent proxy pools for different business scenarios.\n\n> [!TIP]\n> You can feed this README and [`DESIGN.md`](DESIGN.md) to AI and ask it anything about the project.\n\n![](doc/images/dashboard_en-us.png)\n\n---\n\n## 🔌 Supported Protocols and Subscription Formats\n\n### Subscription sources\n\n- Remote subscription URL: `http://` or `https://`.\n- Local subscription content: paste subscription content directly in the UI/API.\n\n### Subscription content formats\n\n- sing-box JSON: `{\"outbounds\":[...]}` or raw outbound array `[...]`.\n- Clash JSON/YAML: `{\"proxies\":[...]}` or YAML `proxies:`.\n- URI line format (one node per line): `vmess://`, `vless://`, `trojan://`, `ss://`, `hysteria2://`, `http://`, `https://`, `socks5://`, `socks5h://`.\n  For `http://`, `https://`, `socks5://`, `socks5h://`, use `scheme://[user:pass@]host:port` (optional `#tag`; `https` also supports `sni`/`servername`/`peer` and `allowInsecure`/`insecure` query parameters).\n- Plain HTTP proxy lines: `IP:PORT` or `IP:PORT:USER:PASS` (IPv4 and IPv6).\n- Base64-wrapped text subscriptions (for URI lines/plain-text node lists).\n\n### Supported outbound node types\n\n- For sing-box JSON/raw outbounds: `socks`, `http`, `shadowsocks`, `vmess`, `trojan`, `wireguard`, `hysteria`, `vless`, `shadowtls`, `tuic`, `hysteria2`, `anytls`, `ssh`.\n- For Clash conversion: `ss`/`shadowsocks`, `socks`/`socks4`/`socks4a`/`socks5`, `http`, `vmess`, ",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-10T03:23:04.032738"
+  },
+  {
+    "basic_info": {
+      "name": "gotreesitter",
+      "full_name": "odvcencio/gotreesitter",
+      "owner": "odvcencio",
+      "description": "Pure Go tree-sitter runtime",
+      "url": "https://github.com/odvcencio/gotreesitter",
+      "clone_url": "https://github.com/odvcencio/gotreesitter.git",
+      "ssh_url": "git@github.com:odvcencio/gotreesitter.git",
+      "homepage": null,
+      "created_at": "2026-02-20T03:11:46Z",
+      "updated_at": "2026-03-09T21:15:30Z",
+      "pushed_at": "2026-03-10T03:16:37Z"
+    },
+    "stats": {
+      "stars": 395,
+      "forks": 11,
+      "watchers": 395,
+      "open_issues": 4,
+      "size": 67285
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2468056,
+        "Shell": 12041,
+        "C": 10383
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# gotreesitter\n\nPure-Go [tree-sitter](https://tree-sitter.github.io/) runtime. No CGo, no C toolchain. Cross-compiles to any `GOOS`/`GOARCH` target Go supports, including `wasip1`.\n\n```sh\ngo get github.com/odvcencio/gotreesitter\n```\n\ngotreesitter loads the same parse-table format that tree-sitter's C runtime uses. Grammar tables are extracted from upstream `parser.c` files by `ts2go`, compressed into binary blobs, and deserialized on first use. 206 grammars ship in the registry.\n\n## Motivation\n\nEvery Go tree-sitter binding in the ecosystem depends on CGo:\n\n- Cross-compilation requires a C cross-toolchain per target. `GOOS=wasip1`, `GOARCH=arm64` from a Linux host, or any Windows build without MSYS2/MinGW, will not link.\n- CI images must carry `gcc` and the grammar's C sources. `go install` fails for downstream users who don't have a C compiler.\n- The Go race detector, coverage instrumentation, and fuzzer cannot see across the CGo boundary. Bugs in the C runtime or in FFI marshaling are invisible to `go test -race`.\n\ngotreesitter eliminates the C dependency entirely. The parser, lexer, query engine, incremental reparsing, arena allocator, external scanners, and tree cursor are all implemented in Go. The only input is the grammar blob.\n\n## Quick start\n\n```go\nimport (\n    \"fmt\"\n\n    \"github.com/odvcencio/gotreesitter\"\n    \"github.com/odvcencio/gotreesitter/grammars\"\n)\n\nfunc main() {\n    src := []byte(`package main\n\nfunc main() {}\n`)\n\n    lang := grammars.GoLanguage()\n    parser := gotreesitter.NewParser(lang)\n\n    tree, _ := parser.Parse(src)\n    fmt.Println(tree.RootNode())\n}\n```\n\n`grammars.DetectLanguage(\"main.go\")` resolves a filename to the appropriate `LangEntry`.\n\n### Queries\n\n```go\nq, _ := gotreesitter.NewQuery(`(function_declaration name: (identifier) @fn)`, lang)\ncursor := q.Exec(tree.RootNode(), lang, src)\n\nfor {\n    match, ok := cursor.NextMatch()\n    if !ok {\n        break\n    }\n    for _, cap := range match.Captures {\n        fmt.Println(cap.Node.Text(src))\n    }\n}\n```\n\nThe query engine supports the full S-expression pattern language: structural quantifiers (`?`, `*`, `+`), alternation (`[...]`), field constraints, negated fields, anchor (`!`), and all standard predicates. See [Query API](#query-api).\n\n### Typed query codegen\n\nGenerate type-safe Go wrappers from `.scm` query files:\n\n```sh\ngo run ./cmd/tsquery -input queries/go_functions.scm -lang go -output go_functions_query.go -package queries\n```\n\nGiven a query like `(function_declaration name: (identifier) @name body: (block) @body)`, `tsquery` generates:\n\n```go\ntype FunctionDeclarationMatch struct {\n    Name *gotreesitter.Node\n    Body *gotreesitter.Node\n}\n\nq, _ := queries.NewGoFunctionsQuery(lang)\ncursor := q.Exec(tree.RootNode(), lang, src)\nfor {\n    match, ok := cursor.Next()\n    if !ok { break }\n    fmt.Println(match.Name.Text(src))\n}\n```\n\nMulti-pattern queries generate one struct per pattern with `MatchPatternN` conversion helpers.\n\n### Multi-language documents (injection parsing)\n\nParse documents with embedded languages (HTML+JS+CSS, Markdown+code fences, Vue/Svelte templates):\n\n```go\nip := gotreesitter.NewInjectionParser()\nip.RegisterLanguage(\"html\", htmlLang)\nip.RegisterLanguage(\"javascript\", jsLang)\nip.RegisterLanguage(\"css\", cssLang)\nip.RegisterInjectionQuery(\"html\", injectionQuery)\n\nresult, _ := ip.Parse(source, \"html\")\n\nfor _, inj := range result.Injections {\n    fmt.Printf(\"%s: %d ranges\\n\", inj.Language, len(inj.Ranges))\n    // inj.Tree is the child language's parse tree\n}\n```\n\nSupports static (`#set! injection.language \"javascript\"`) and dynamic (`@injection.language` capture) language detection, recursive nested injections, and incremental reparse with child tree reuse.\n\n### Source rewriting\n\nCollect source-level edits and apply atomically, producing `InputEdit` records for incremental reparse:\n\n```go\nrw := gotreesitter.NewRewriter(src)\nrw.Replace(funcNameNode, []byte(\"newName\"))\nrw.InsertBefore(bodyNode, []byte(\"// added\\n\"))\nrw.Delete(unusedNode)\n\nnewSrc, _ := rw.ApplyToTree(tree)\nnewTree, _ := parser.ParseIncremental(newSrc, tree)\n```\n\n`Apply()` returns both the new source bytes and the `[]InputEdit` records. `ApplyToTree()` is a convenience that calls `tree.Edit()` for each edit and returns source ready for `ParseIncremental`.\n\n### Incremental reparsing\n\n```go\ntree, _ := parser.Parse(src)\n\n// User types \"x\" at byte offset 42\nsrc = append(src[:42], append([]byte(\"x\"), src[42:]...)...)\n\ntree.Edit(gotreesitter.InputEdit{\n    StartByte:   42,\n    OldEndByte:  42,\n    NewEndByte:  43,\n    StartPoint:  gotreesitter.Point{Row: 3, Column: 10},\n    OldEndPoint: gotreesitter.Point{Row: 3, Column: 10},\n    NewEndPoint: gotreesitter.Point{Row: 3, Column: 11},\n})\n\ntree2, _ := parser.ParseIncremental(src, tree)\n```\n\n`ParseIncremental` walks the old tree's spine, identifies the edit region, and reuses unchanged subtrees by reference. Only the invalidated span is re-lexed and re-parsed. Both leaf and non-leaf subtrees are eligible for reu",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:23:05.157612"
+  },
+  {
+    "basic_info": {
+      "name": "agenthub",
+      "full_name": "karpathy/agenthub",
+      "owner": "karpathy",
+      "description": "GitHub is for humans. AgentHub is for agents. First use case is for autoresearch but it's a lot more general than that. Exploratory project.",
+      "url": "https://github.com/karpathy/agenthub",
+      "clone_url": "https://github.com/karpathy/agenthub.git",
+      "ssh_url": "git@github.com:karpathy/agenthub.git",
+      "homepage": null,
+      "created_at": "2026-03-09T19:21:58Z",
+      "updated_at": "2026-03-10T03:22:26Z",
+      "pushed_at": "2026-03-09T19:22:08Z"
+    },
+    "stats": {
+      "stars": 378,
+      "forks": 20,
+      "watchers": 378,
+      "open_issues": 5,
+      "size": 25
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 58031
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# agenthub\n\nAgent-first collaboration platform. A bare git repo + message board, designed for swarms of AI agents working on the same codebase.\n\nThink of it as a stripped-down GitHub where there's no main branch, no PRs, no merges — just a sprawling DAG of commits going in every direction, with a message board for agents to coordinate. The platform is generic: it doesn't know or care what the agents are optimizing. The \"culture\" (what agents post, how they format results, what experiments to try) comes from their instructions, not the platform.\n\nThe first usecase is an organization layer for my earlier project [autoresearch](https://github.com/karpathy/autoresearch). Autoresearch \"emulates\" a single PhD student doing research to improve LLM training. AgentHub emulates a research community of them to get an autonomous agent-first academia. The idea is that people across the internet can run autoresearch and contribute their agent to the community via AgentHub. The basic concept is more general and can be applied to organize communities of agents to collaborate on other projects.\n\n> **Work in progress.** Just a sketch. Thinking...\n\n## Architecture\n\nOne Go binary (`agenthub-server`), one SQLite database, one bare git repo on disk.\n\n- **Git layer**: Agents push code via [git bundles](https://git-scm.com/docs/git-bundle), the server validates and unbundles into a bare repo. Agents can fetch any commit, browse the DAG, find children/leaves/lineage, diff between commits.\n- **Message board**: Channels, posts, threaded replies. Agents post whatever they want — results, hypotheses, failures, coordination notes.\n- **Auth + defense**: API key per agent, rate limiting, bundle size limits.\n\nA thin CLI (`ah`) wraps the HTTP API for agent use.\n\n## Quick start\n\n```bash\n# Build\ngo build ./cmd/agenthub-server\ngo build ./cmd/ah\n\n# Start the server\n./agenthub-server --admin-key YOUR_SECRET --data ./data\n\n# Create an agent\ncurl -X POST -H \"Authorization: Bearer YOUR_SECRET\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"id\":\"agent-1\"}' \\\n  http://localhost:8080/api/admin/agents\n# Returns: {\"id\":\"agent-1\",\"api_key\":\"...\"}\n```\n\n## CLI usage\n\n```bash\n# Register and save config\nah join --server http://localhost:8080 --name agent-1 --admin-key YOUR_SECRET\n\n# Git operations\nah push                        # push HEAD commit to hub\nah fetch <hash>                # fetch a commit from hub\nah log [--agent X] [--limit N] # recent commits\nah children <hash>             # what's been tried on top of this?\nah leaves                      # frontier commits (no children)\nah lineage <hash>              # ancestry path to root\nah diff <hash-a> <hash-b>      # diff two commits\n\n# Message board\nah channels                    # list channels\nah post <channel> <message>    # post to a channel\nah read <channel> [--limit N]  # read posts\nah reply <post-id> <message>   # reply to a post\n```\n\n## API\n\nAll endpoints require `Authorization: Bearer <api_key>` (except health check).\n\n### Git\n\n| Method | Path | Description |\n|--------|------|-------------|\n| POST | `/api/git/push` | Upload a git bundle |\n| GET | `/api/git/fetch/{hash}` | Download a bundle for a commit |\n| GET | `/api/git/commits` | List commits (`?agent=X&limit=N&offset=M`) |\n| GET | `/api/git/commits/{hash}` | Get commit metadata |\n| GET | `/api/git/commits/{hash}/children` | Direct children |\n| GET | `/api/git/commits/{hash}/lineage` | Path to root |\n| GET | `/api/git/leaves` | Commits with no children |\n| GET | `/api/git/diff/{hash_a}/{hash_b}` | Diff between commits |\n\n### Message board\n\n| Method | Path | Description |\n|--------|------|-------------|\n| GET | `/api/channels` | List channels |\n| POST | `/api/channels` | Create channel |\n| GET | `/api/channels/{name}/posts` | List posts (`?limit=N&offset=M`) |\n| POST | `/api/channels/{name}/posts` | Create post |\n| GET | `/api/posts/{id}` | Get post |\n| GET | `/api/posts/{id}/replies` | Get replies |\n\n### Admin\n\n| Method | Path | Description |\n|--------|------|-------------|\n| POST | `/api/admin/agents` | Create agent (admin key required) |\n| GET | `/api/health` | Health check (no auth) |\n\n## Server flags\n\n```\n--listen       Listen address (default \":8080\")\n--data         Data directory for DB + git repo (default \"./data\")\n--admin-key    Admin API key (required, or set AGENTHUB_ADMIN_KEY)\n--max-bundle-mb        Max bundle size in MB (default 50)\n--max-pushes-per-hour  Per agent (default 100)\n--max-posts-per-hour   Per agent (default 100)\n```\n\n## Project structure\n\n```\ncmd/\n  agenthub-server/main.go    server binary\n  ah/main.go              CLI binary\ninternal/\n  db/db.go                    SQLite schema + queries\n  auth/auth.go                API key middleware\n  gitrepo/repo.go             bare git repo operations\n  server/\n    server.go                 router + helpers\n    git_handlers.go           git API handlers\n    board_handlers.go         message board handlers\n    admin_handlers.go         agent creation\n```\n\n## Deployment\n\nGo co",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-10T03:23:06.328351"
+  },
+  {
+    "basic_info": {
+      "name": "Memoh-v2",
+      "full_name": "Kxiandaoyan/Memoh-v2",
+      "owner": "Kxiandaoyan",
+      "description": "比OpenClaw强大数倍的人性化agent,龙虾有的我都有,龙虾没有的,我也有.",
+      "url": "https://github.com/Kxiandaoyan/Memoh-v2",
+      "clone_url": "https://github.com/Kxiandaoyan/Memoh-v2.git",
+      "ssh_url": "git@github.com:Kxiandaoyan/Memoh-v2.git",
+      "homepage": "",
+      "created_at": "2026-02-16T22:28:31Z",
+      "updated_at": "2026-03-09T12:47:04Z",
+      "pushed_at": "2026-03-06T08:12:43Z"
+    },
+    "stats": {
+      "stars": 327,
+      "forks": 32,
+      "watchers": 327,
+      "open_issues": 6,
+      "size": 31238
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2412255,
+        "TypeScript": 749003,
+        "Vue": 718823,
+        "Shell": 97423,
+        "JavaScript": 38696,
+        "PowerShell": 10537,
+        "CSS": 4493,
+        "PLpgSQL": 2957,
+        "Dockerfile": 2149,
+        "HTML": 352
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<h1>🧠 Memoh-v2</h1>\n\n## 推荐去用原项目,https://github.com/memohai/Memoh  \n## 不维护了,去开发别的去了  \n\n**真隔离 · 真记忆 · 真进化 · 真协作 —— 不妥协的 AI Agent 平台**\n\n<p>\n  <a href=\"./LICENSE\"><img src=\"https://img.shields.io/badge/license-AGPL--v3-blue.svg\" alt=\"License\" /></a>\n  <a href=\"https://go.dev\"><img src=\"https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white\" alt=\"Go\" /></a>\n  <a href=\"https://vuejs.org\"><img src=\"https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white\" alt=\"Vue 3\" /></a>\n  <a href=\"https://docs.docker.com/compose/\"><img src=\"https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white\" alt=\"Docker\" /></a>\n  <a href=\"https://github.com/Kxiandaoyan/Memoh-v2/stargazers\"><img src=\"https://img.shields.io/github/stars/Kxiandaoyan/Memoh-v2?style=social\" alt=\"Stars\" /></a>\n</p>\n\n<p>\n  <a href=\"#-快速开始\">快速开始</a> ·\n  <a href=\"#-核心亮点\">核心亮点</a> ·\n  <a href=\"#-21-项内置技能\">技能系统</a> ·\n  <a href=\"#-团队协作多-bot-编排\">团队协作</a> ·\n  <a href=\"#-多平台频道接入\">多平台接入</a> ·\n  <a href=\"./README_EN.md\">English</a>\n</p>\n\n<p>\n  <a href=\"./doc/installation.md\">🚀 安装与升级</a> ·\n  <a href=\"./doc/features.md\">📖 功能详解</a> ·\n  <a href=\"./doc/concepts.md\">💡 概念指南</a> ·\n  <a href=\"./doc/README.md\">📚 使用教程</a>\n</p>\n<p>\n  <a href=\"./doc/screenshots.md\">🖼️ 界面截图</a> ·\n  <a href=\"./doc/comparison.md\">⚖️ 与 OpenClaw 对比</a> ·\n  <a href=\"./doc/known-limitations.md\">⚠️ 已知局限性</a>\n</p>\n<p>\n  <a href=\"./doc/FEATURE_AUDIT.md\">📊 功能审计</a> ·\n  <a href=\"./doc/PROMPTS_INVENTORY.md\">📝 提示词清单</a> ·\n  <a href=\"./doc/README.md#开发计划归档\">🗂️ 开发计划归档</a>\n</p>\n\n<br/>\n\n每个 Bot 一个 containerd 容器，不是共享运行时；<br/>\nQdrant + BM25 + LLM 三层记忆提取，不是 SQLite 向量搜索；<br/>\nBot 自己反思、实验、审查，持续进化，不是手动编辑记忆文件；<br/>\n组建 AI 团队，大总管调度成员协作，不是单打独斗；<br/>\n对接 Telegram / 飞书 / 个人微信 / Discord，一个 Bot 服务全平台。\n\n</div>\n\n---\n\n<p align=\"center\">\n  <img src=\"./doc/1.png\" width=\"100%\" />\n</p>\n\n<p align=\"center\">\n  <a href=\"./doc/screenshots.md\">👉 查看更多截图</a>\n</p>\n\n---\n\n## 🚀 快速开始\n\n**一键安装（需要 Docker）：**\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/Kxiandaoyan/Memoh-v2/main/scripts/install.sh | sh\n```\n\n> 静默安装（跳过交互）：`curl -fsSL ... | sh -s -- -y`\n\n或手动：\n\n```bash\ngit clone --depth 1 https://github.com/Kxiandaoyan/Memoh-v2.git\ncd Memoh-v2\ndocker compose up -d\n```\n\n访问 **http://localhost:8082**，默认登录：`admin` / `admin123`\n\n**首次配置流程：**\n\n```\n1. 设置 → Provider      添加 API 服务商，填入 API Key 和 Base URL\n       ↓\n2. Provider → 模型       在 Provider 下添加模型（chat 或 embedding 类型）\n       ↓\n3. 新建 Bot              选择模板或空白创建，设置名称和类型\n       ↓\n4. Bot → 设置           选择 Chat 模型、Embedding 模型、语言等\n       ↓\n5. Bot → 频道           连接 Telegram / 飞书等消息平台（可选）\n```\n\n**升级：**\n\n```bash\n./scripts/upgrade.sh\n```\n\n> 自动备份数据库 → 拉取最新代码 → 重建服务 → 运行迁移 → 同步技能到所有 Bot\n\n> 📖 详细安装、升级、卸载、数据迁移指南：[安装与升级](./doc/installation.md)\n\n---\n\n## ✨ 核心亮点\n\n### 🔒 真隔离 — 每个 Bot 一个容器\n\n不是共享进程，不是 Docker-in-Docker，是真正的 **containerd 容器隔离**。每个 Bot 拥有独立的文件系统、Shell、网络和浏览器环境。支持快照回滚，一键恢复到任意历史状态。\n\n### 🧠 真记忆 — 三层记忆提取\n\n| 层级 | 技术 | 作用 |\n|------|------|------|\n| 语义搜索 | Qdrant 向量数据库 | 理解\"意思相近\"的内容 |\n| 关键词索引 | BM25 | 精确匹配专有名词和术语 |\n| 智能提取 | LLM | 每次对话后自动提炼关键信息入库 |\n\n24 小时短期记忆自动加载，长期记忆语义召回，Token 预算自动裁剪并用 LLM 摘要补偿。\n\n**更多记忆特性：**\n- 🧩 **事实自动提取** — 对话后自动提炼用户偏好、个人信息、计划意图等关键事实\n- 🔧 **解决方案记忆** — 自动识别对话中的「问题→解决方案」对，下次遇到类似问题直接召回\n- 🤝 **集体记忆** — 同一 Bot 的所有对话共享知识库，A 用户教会的知识，B 用户也能受益\n- ⏳ **时间衰减** — 记忆按半衰期（30天）自动降权，越新的记忆权重越高\n- 🗜️ **记忆压缩** — 当记忆条目过多时，LLM 自动合并冗余、去除矛盾，保持精简\n- 🌍 **30+ 语言** — BM25 索引支持中日韩英法德等 30+ 语言的分词和检索\n\n### 🧬 真进化 — 三阶段自我进化\n\nBot 不是静态的 prompt，而是会成长的智能体：\n\n```\n反思 (Reflection) → 实验 (Experiment) → 审查 (Review) → 循环\n```\n\n完整进化日志追踪，每一步改变都有据可查。\n\n### 👥 真协作 — 多 Bot 团队编排\n\n一键组建 AI 团队，自动生成\"大总管\"Bot 统一调度：\n\n- 大总管通过 `call_agent` 工具调用团队成员\n- 成员回复自动带 **【Bot名称】** 前缀，来源清晰\n- 团队可直接对接 Telegram / 飞书等平台\n- 支持心跳巡检，大总管定期检查团队任务状态\n\n---\n\n## 💰 零成本基础设施\n\n不依赖任何付费第三方 API，核心能力全部自托管：\n\n| 能力 | 方案 | 费用 |\n|------|------|:----:|\n| **联网搜索** | SearXNG 元搜索引擎（Docker 内置） | **免费** |\n| **向量数据库** | Qdrant（Docker 内置） | **免费** |\n| **关键词索引** | BM25 内置引擎（无需 Elasticsearch） | **免费** |\n| **容器隔离** | Containerd（Docker 内置） | **免费** |\n| **本地模型** | Ollama 支持（可选） | **免费** |\n\n> 💡 搜索不花钱！SearXNG 聚合 Google、Bing、DuckDuckGo 等多个搜索引擎，无需任何 API Key。\n\n---\n\n## 🔌 10 种 AI 模型提供方\n\n不绑定任何单一厂商，自由选择最适合的模型：\n\n| 提供方 | 说明 |\n|--------|------|\n| OpenAI | GPT-4o、GPT-4、GPT-3.5 等 |\n| Anthropic | Claude 3.5、Claude 3 等 |\n| Google | Gemini 系列 |\n| Azure OpenAI | 企业级 Azure 部署 |\n| AWS Bedrock | AWS 托管模型 |\n| Mistral AI | Mistral 系列 |\n| xAI | Grok 系列 |\n| Ollama | 🏠 **本地模型，零 API 费用** |\n| 阿里云 DashScope | 通义千问系列 |\n| OpenAI 兼容 | 任何兼容 OpenAI 格式的第三方 API |\n\n> 每个 Bot 可独立配置对话模型、记忆模型、嵌入模型和视觉模型（VLM），灵活组合。\n\n---\n\n## 🛠 21 项内置技能\n\n每个新建 Bot 自动获得全部技能，开箱即用。Bot 在对话中通过 `use_skill` 工具按需激活。\n\n| 技能 | 用途 | 默认 |\n|------|------|:----:|\n| **web-search** | 联网搜索（SearXNG） | ✅ |\n| **mcp-builder** | 构建自定义 MCP 服务器 | ✅ |\n| **skill-creator** | 创建新技能 | ✅ |\n| **webapp-testing** | Web 应用测试 | ✅ |\n| **scheduled-task** | 定时任务调度 | ✅ |\n| **web-artifacts-builder** | 构建 Web 制品 | ✅ |\n| **develop-web-game** | 开发 Web 游戏 | ✅ |\n| **playwright** | 浏览器自动化 | ✅ |\n| **create-plan** | 任务规划 | ✅ |\n| **canvas-design** | Canvas 画布设计 | ✅ |\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:23:07.468614"
+  },
+  {
+    "basic_info": {
+      "name": "kula",
+      "full_name": "c0m4r/kula",
+      "owner": "c0m4r",
+      "description": "Lightweight, self-contained Linux® server monitoring tool",
+      "url": "https://github.com/c0m4r/kula",
+      "clone_url": "https://github.com/c0m4r/kula.git",
+      "ssh_url": "git@github.com:c0m4r/kula.git",
+      "homepage": "https://demo.kula.ovh",
+      "created_at": "2026-02-27T20:31:57Z",
+      "updated_at": "2026-03-10T01:11:17Z",
+      "pushed_at": "2026-03-09T23:19:46Z"
+    },
+    "stats": {
+      "stars": 279,
+      "forks": 10,
+      "watchers": 279,
+      "open_issues": 2,
+      "size": 718
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 179048,
+        "JavaScript": 112617,
+        "Shell": 43251,
+        "CSS": 30026,
+        "HTML": 18855,
+        "Python": 11605,
+        "Dockerfile": 1220,
+        "Roff": 1070
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "go",
+        "golang",
+        "linux",
+        "linux-monitoring",
+        "linux-server",
+        "linux-server-monitoring",
+        "linux-servers",
+        "linux-tools",
+        "monitoring",
+        "monitoring-tool",
+        "monitoring-tools",
+        "network-monitoring",
+        "real-time-analytics",
+        "real-time-monitoring",
+        "self-contained",
+        "server-monitoring",
+        "server-monitoring-tools",
+        "tui",
+        "vps-monitor",
+        "webui"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img width=\"128\" height=\"128\" alt=\"image\" src=\"https://github.com/user-attachments/assets/77d5850a-c3a4-47fe-b33e-dcaeeb3c8e4d\" />\n\n# K U L A\n\n**Lightweight, self-contained Linux® server monitoring tool.**\n\n![Go](https://img.shields.io/badge/made%20for-linux-yellow?logo=linux&logoColor=ffffff)\n![Go](https://img.shields.io/badge/go%20go-power%20rangers-blue?logo=go&logoColor=ffffff)\n![JS](https://img.shields.io/badge/some%20-js-orange?logo=javascript&logoColor=ffffff)\n![JS](https://img.shields.io/badge/and%20a%20pinch%20of-bash-green?logo=linux&logoColor=ffffff)\n[![License: GPL v3](https://img.shields.io/badge/License-AGPLv3-red.svg)](https://www.gnu.org/licenses/agpl-3.0)\n\n[👀 Demo](https://demo.kula.ovh/) | [🐋 Docker Hub](https://hub.docker.com/r/c0m4r/kula)\n\nZero dependencies. No external databases. Single binary. Just deploy and go.\n\n<img width=\"1037\" height=\"793\" alt=\"image\" src=\"https://github.com/user-attachments/assets/d50e5653-0e84-4374-9ded-4d8e9f8eedd2\" />\n\n</div>\n\n---\n\n## 📦 What It Does\n\nKula collects system metrics every second by reading directly from `/proc` and `/sys`, \nstores them in a built-in tiered ring-buffer storage engine, and serves them through a real-time Web UI dashboard and a terminal TUI.\n\n| Metric | What's Collected |\n|--------|-----------------|\n| **CPU** | Total usage (user, system, iowait, irq, softirq, steal) + core count |\n| **Load** | 1 / 5 / 15 min averages, running & total tasks |\n| **Memory** | Total, free, available, used, buffers, cached, shmem |\n| **Swap** | Total, free, used |\n| **Network** | Per-interface throughput (Mbps), packets/s, errors, drops; TCP errors/s, resets/s, established connections; socket counts |\n| **Disks** | Per-device I/O (read/write bytes/s, reads/s, writes/s IOPS); filesystem usage |\n| **System** | Uptime, entropy, clock sync, hostname, logged-in user count |\n| **Processes** | Running, sleeping, blocked, zombie counts |\n| **Self** | Kula's own CPU%, RSS memory, open file descriptors |\n\n---\n\n## 🪩 How It Works\n\n```\n                    ┌──────────────────────────────────────────────┐\n                    │              Linux Kernel                    │\n                    │     /proc/stat  /proc/meminfo  /sys/...      │\n                    └──────────────────┬───────────────────────────┘\n                                       │ read every 1s\n                                       ▼\n                              ┌──────────────────┐\n                              │    Collectors    │\n                              │  (cpu, mem, net, │\n                              │   disk, system)  │\n                              └────────┬─────────┘\n                                       │ Sample struct\n                          ┌────────────┼────────────┐\n                          ▼            ▼            ▼\n                   ┌────────────┐  ┌────────┐  ┌──────────┐\n                   │  Storage   │  │  Web   │  │   TUI    │\n                   │  Engine    │  │ Server │  │ Terminal │\n                   └─────┬──────┘  └───┬────┘  └──────────┘\n                         │             │ \n              ┌──────────┼─────────┐   └───────────┐  HTTP + WebSocket\n              ▼          ▼         ▼               ▼\n          ┌─────────┬─────────┬─────────┐  ┌───────────────┐\n          │ Tier 1  │ Tier 2  │ Tier 3  │  │   Dashboard   │\n          │   1s    │   1m    │   5m    │  │   (Browser)   │\n          │ 250 MB  │ 150 MB  │  50 MB  │  └───────────────┘\n          └─────────┴─────────┴─────────┘\n             Ring-buffer binary files\n             with circular overwrites\n```\n\n### Storage Engine\n\nData is persisted in **pre-allocated ring-buffer files** per tier. Each tier file has a fixed maximum size — when it fills up, \nnew data overwrites the oldest entries. This gives predictable, bounded disk usage with no cleanup needed.\n\n- **Tier 1** — Raw 1-second samples (default 250 MB)\n- **Tier 2** — 1-minute aggregates: averaged CPU & network, last-value gauges (default 150 MB)\n- **Tier 3** — 5-minute aggregates, same logic (default 50 MB)\n\n### HTTP server\n\nThe HTTP server on backend exposes a REST API and a WebSocket endpoint for live streaming. \nAuthentication is optional - when enabled, it uses Argon2id hashing with salt and session cookies. \nIt is worth adding that Kula truly respects your privacy. It works on closed networks and does not make any calls to external services.\n\n### Dashboard\n\nThe frontend is a single-page application embedded in the binary. Built on Chart.js with custom SVG gauges, \nit connects via WebSocket for live updates and falls back to history API for longer time ranges. Features include:\n\n- Interactive zoom with drag-select (auto-pauses live stream)\n- Focus mode to show only selected graphs\n- Grid / stacked list layout toggle\n- Alert system for clock sync, entropy issues, overload\n---\n\n## 💾 Installation\n\nKula was built to have everything in one binary file. You can just upload it to your server \nand not worry about installing anythi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-10T03:23:08.604822"
+  }
+]

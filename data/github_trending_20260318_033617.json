@@ -1,0 +1,801 @@
+[
+  {
+    "basic_info": {
+      "name": "grimmory",
+      "full_name": "grimmory-tools/grimmory",
+      "owner": "grimmory-tools",
+      "description": "Grimmory is the successor of booklore.",
+      "url": "https://github.com/grimmory-tools/grimmory",
+      "clone_url": "https://github.com/grimmory-tools/grimmory.git",
+      "ssh_url": "git@github.com:grimmory-tools/grimmory.git",
+      "homepage": "",
+      "created_at": "2026-03-12T21:32:38Z",
+      "updated_at": "2026-03-18T03:25:19Z",
+      "pushed_at": "2026-03-17T19:10:08Z"
+    },
+    "stats": {
+      "stars": 649,
+      "forks": 35,
+      "watchers": 649,
+      "open_issues": 30,
+      "size": 51643
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 6128330,
+        "TypeScript": 2379707,
+        "HTML": 1003847,
+        "SCSS": 755888,
+        "JavaScript": 241426,
+        "Shell": 15391,
+        "FreeMarker": 7472,
+        "Dockerfile": 3524,
+        "Go Template": 1792,
+        "CSS": 651
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "> [!NOTE]\n> This project is in early development. Some links (website, documentation, demo, repositories) are not yet active and will come online as infrastructure is set up.\n\n> [!NOTE]\n> Grimmory is the successor of booklore.\n\n\nGrimmory is a self-hosted application for managing your entire book collection in one place.\nOrganize, read, annotate, sync across devices, and share without relying on third-party services.\n\n[![Release](https://img.shields.io/github/v/release/grimmory-tools/grimmory?color=818CF8&style=flat-square&logo=github)](https://github.com/grimmory-tools/grimmory/releases)\n[![License](https://img.shields.io/github/license/grimmory-tools/grimmory?color=fab005&style=flat-square)](LICENSE)\n[![Docker Pulls](https://img.shields.io/docker/pulls/grimmory/grimmory?color=2496ED&style=flat-square&logo=docker&logoColor=white)](https://hub.docker.com/r/grimmory/grimmory)\n[![Discord](https://img.shields.io/badge/Discord-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/FwqHeFWk)\n\n\n[Website](https://grimmory.org/) | [Documentation](https://grimmory.org/docs/getting-started) | [Quick Start](#quick-start) | [Discord](https://discord.gg/FwqHeFWk)\n\n![Grimmory Demo](assets/demo.gif)\n\n---\n\n## Features\n\n| Feature | Description |\n| :--- | :--- |\n| **Smart Shelves** | Custom and dynamic shelves with rule-based filtering, tagging, and full-text search |\n| **Metadata Lookup** | Covers, descriptions, reviews, and ratings pulled from Google Books, Open Library, and Amazon, all editable |\n| **Built-in Reader** | Read PDFs, EPUBs, and comics in the browser with annotations, highlights, and reading progress tracking |\n| **Device Sync** | Connect a Kobo, use any OPDS-compatible app, or sync progress with KOReader |\n| **Multi-User** | Separate shelves, progress, and preferences per user with local or OIDC authentication |\n| **BookDrop** | Drop files into a watched folder and Grimmory detects, enriches, and queues them for import automatically |\n| **One-Click Sharing** | Send any book to a Kindle, an email address, or another user directly from the interface |\n\n### Supported Formats\n\n| Category | Formats |\n| :--- | :--- |\n| eBooks | EPUB, MOBI, AZW, AZW3 |\n| Documents | PDF |\n| Comics | CBZ, CBR, CB7 |\n\n---\n\n## Quick Start\n\n> [!TIP]\n> For OIDC setup, advanced configuration, or upgrade guides, see the [full documentation](https://grimmory.org/docs/getting-started).\n\nRequirements: [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).\n\n<details>\n<summary><strong>Image Repositories</strong></summary>\n\n| Registry | Image |\n| --- | --- |\n| Docker Hub | `grimmory/grimmory` |\n| GitHub Container Registry | `ghcr.io/grimmory-tools/grimmory` |\n\n</details>\n\n### Step 1: Environment Configuration\n\nCreate a `.env` file:\n\n```ini\n# Application\nAPP_USER_ID=1000\nAPP_GROUP_ID=1000\nTZ=Etc/UTC\n\n# Database\nDATABASE_URL=jdbc:mariadb://mariadb:3306/grimmory\nDB_USER=grimmory\nDB_PASSWORD=ChangeMe_Grimmory_2025!\n\n# Storage: LOCAL (default) or NETWORK (disables file operations; see Network Storage section)\nDISK_TYPE=LOCAL\n\n# MariaDB\nDB_USER_ID=1000\nDB_GROUP_ID=1000\nMYSQL_ROOT_PASSWORD=ChangeMe_MariaDBRoot_2025!\nMYSQL_DATABASE=grimmory\n```\n\n### Step 2: Docker Compose\n\nCreate a `docker-compose.yml`:\n\n```yaml\nservices:\n  grimmory:\n    image: grimmory/grimmory:latest\n    # Alternative: ghcr.io/grimmory-tools/grimmory:latest\n    # To build from source instead: comment out 'image' and uncomment below\n    # build: .\n    container_name: grimmory\n    environment:\n      - USER_ID=${APP_USER_ID}\n      - GROUP_ID=${APP_GROUP_ID}\n      - TZ=${TZ}\n      - DATABASE_URL=${DATABASE_URL}\n      - DATABASE_USERNAME=${DB_USER}\n      - DATABASE_PASSWORD=${DB_PASSWORD}\n    depends_on:\n      mariadb:\n        condition: service_healthy\n    ports:\n      - \"6060:6060\"\n    volumes:\n      - ./data:/app/data\n      - ./books:/books\n      - ./bookdrop:/bookdrop\n    healthcheck:\n      test: wget -q -O - http://localhost:6060/api/v1/healthcheck\n      interval: 60s\n      retries: 5\n      start_period: 60s\n      timeout: 10s\n    restart: unless-stopped\n\n  mariadb:\n    image: lscr.io/linuxserver/mariadb:11.4.5\n    container_name: mariadb\n    environment:\n      - PUID=${DB_USER_ID}\n      - PGID=${DB_GROUP_ID}\n      - TZ=${TZ}\n      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}\n      - MYSQL_DATABASE=${MYSQL_DATABASE}\n      - MYSQL_USER=${DB_USER}\n      - MYSQL_PASSWORD=${DB_PASSWORD}\n    volumes:\n      - ./mariadb/config:/config\n    restart: unless-stopped\n    healthcheck:\n      test: [\"CMD\", \"mariadb-admin\", \"ping\", \"-h\", \"localhost\"]\n      interval: 5s\n      timeout: 5s\n      retries: 10\n```\n\n### Step 3: Launch\n\n```bash\ndocker compose up -d\n```\n\nOpen http://localhost:6060, create your admin account, and start building your library.\n\n---\n\n## BookDrop\n\nDrop book files into a watched folder. Grimmory picks them up, pulls metadata, and queues them for your review.\n\n```mermaid\ngraph LR\n    A[Drop Files] --> B[Auto-",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:18.967050"
+  },
+  {
+    "basic_info": {
+      "name": "skillhub",
+      "full_name": "iflytek/skillhub",
+      "owner": "iflytek",
+      "description": "Self-hosted, open-source agent skill registry for enterprises. Publish & version skill packages, govern with RBAC and audit logs, deploy   on-premise with Docker or Kubernetes.",
+      "url": "https://github.com/iflytek/skillhub",
+      "clone_url": "https://github.com/iflytek/skillhub.git",
+      "ssh_url": "git@github.com:iflytek/skillhub.git",
+      "homepage": "",
+      "created_at": "2026-03-11T12:17:05Z",
+      "updated_at": "2026-03-18T03:31:15Z",
+      "pushed_at": "2026-03-18T03:34:40Z"
+    },
+    "stats": {
+      "stars": 296,
+      "forks": 114,
+      "watchers": 296,
+      "open_issues": 3,
+      "size": 2446
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 1374994,
+        "TypeScript": 489905,
+        "Shell": 48624,
+        "CSS": 14590,
+        "Makefile": 11636,
+        "JavaScript": 8472,
+        "Dockerfile": 1637,
+        "PLpgSQL": 1597,
+        "HTML": 1100,
+        "Lua": 679
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "openclaw",
+        "openclaw-skills",
+        "skill"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"./skillhub-logo.svg\" alt=\"SkillHub Logo\" width=\"120\" height=\"120\" />\n  <h1>SkillHub</h1>\n  <p>An enterprise-grade, open-source agent skill registry — publish, discover, and manage reusable skill packages across your organization.</p>\n</div>\n\n<div align=\"center\">\n\n[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iflytek/skillhub)\n[![Docs](https://img.shields.io/badge/docs-zread.ai-4A90E2?logo=gitbook&logoColor=white)](https://zread.ai/iflytek/skillhub)\n[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)\n[![Build](https://github.com/iflytek/skillhub/actions/workflows/publish-images.yml/badge.svg)](https://github.com/iflytek/skillhub/actions/workflows/publish-images.yml)\n[![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED?logo=docker&logoColor=white)](https://ghcr.io/iflytek/skillhub)\n[![Java](https://img.shields.io/badge/java-21-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)\n[![React](https://img.shields.io/badge/react-19-61DAFB?logo=react&logoColor=black)](https://react.dev)\n\n</div>\n\n<div align=\"center\">\n\n[English](./README.md) | [中文](./README_zh.md)\n\n</div>\n\n---\n\nSkillHub is a self-hosted platform that gives teams a private,\ngoverned place to share agent skills. Publish a skill package, push\nit to a namespace, and let others find it through search or\ninstall it via CLI. Built for on-premise deployment behind your\nfirewall, with the same polish you'd expect from a public registry.\n\n📖 **[Full Documentation →](https://zread.ai/iflytek/skillhub)**\n\n## Highlights\n\n- **Self-Hosted & Private** — Deploy on your own infrastructure.\n  Keep proprietary skills behind your firewall with full data\n  sovereignty. One `make dev-all` command to get running locally.\n- **Publish & Version** — Upload agent skill packages with semantic\n  versioning, custom tags (`beta`, `stable`), and automatic\n  `latest` tracking.\n- **Discover** — Full-text search with filters by namespace,\n  downloads, ratings, and recency. Visibility rules ensure\n  users only see what they're authorized to.\n- **Team Namespaces** — Organize skills under team or global scopes.\n  Each namespace has its own members, roles (Owner / Admin /\n  Member), and publishing policies.\n- **Review & Governance** — Team admins review within their namespace;\n  platform admins gate promotions to the global scope. Governance\n  actions are audit-logged for compliance.\n- **Social Features** — Star skills, rate them, and track downloads.\n  Build a community around your organization's best practices.\n- **Account Merging** — Consolidate multiple OAuth identities and\n  API tokens under a single user account.\n- **API Token Management** — Generate scoped tokens for CLI and\n  programmatic access with prefix-based secure hashing.\n- **CLI-First** — Native REST API plus a compatibility layer for\n  existing ClawHub-style registry clients. Native CLI APIs are the\n  primary supported path while protocol compatibility continues to\n  expand.\n- **Pluggable Storage** — Local filesystem for development, S3 /\n  MinIO for production. Swap via config.\n- **Internationalization** — Multi-language support with i18next.\n\n## Quick Start\n\nStart the full local stack with one of the following commands:\n\nOfficial images:\n```bash\nrm -rf /tmp/skillhub-runtime\ncurl -fsSL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh | sh -s -- up\n```\n\nAliyun mirror shortcut:\n```bash\nrm -rf /tmp/skillhub-aliyun\ncurl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up --home /tmp/skillhub-aliyun --aliyun --version edge\n```\n\nIf deployment runs into problems, clear the existing runtime home and retry.\n\n### Prerequisites\n\n- Docker & Docker Compose\n\n### Local Development\n\n```bash\nmake dev-all\n```\n\nThen open:\n\n- Web UI: `http://localhost:3000`\n- Backend API: `http://localhost:8080`\n\nLocal profile seeds two mock-auth users automatically:\n\n- `local-user` for normal publishing and namespace operations\n- `local-admin` with `SUPER_ADMIN` for review and admin flows\n\nUse them with the `X-Mock-User-Id` header in local development.\n\nThe backend can bootstrap a local-login super admin for first-time access\nwhen you explicitly set `BOOTSTRAP_ADMIN_ENABLED=true`:\n\n- username: `BOOTSTRAP_ADMIN_USERNAME` (`admin` by default)\n- password: `BOOTSTRAP_ADMIN_PASSWORD` (`ChangeMe!2026` by default)\n\nStop everything with:\n\n```bash\nmake dev-all-down\n```\n\nReset local dependencies and start from a clean slate with:\n\n```bash\nmake dev-all-reset\n```\n\nRun `make help` to see all available commands.\n\nFor the full development workflow (local dev → staging → PR), see [docs/dev-workflow.md](docs/dev-workflow.md).\n\n### API Contract Sync\n\nOpenAPI types for the web client are checked into the repository.\nWhen backend API contracts change, regenerate the SDK and commit the\nupdated generated file:\n\n```bash\nmake generate-api\n```\n\nFor a stricter end-to-end drift check, run:\n\n```bash\n./scripts/check-opena",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:20.160516"
+  },
+  {
+    "basic_info": {
+      "name": "javaevolved.github.io",
+      "full_name": "javaevolved/javaevolved.github.io",
+      "owner": "javaevolved",
+      "description": "Java Evolved. Your Code Can Evolve Too!",
+      "url": "https://github.com/javaevolved/javaevolved.github.io",
+      "clone_url": "https://github.com/javaevolved/javaevolved.github.io.git",
+      "ssh_url": "git@github.com:javaevolved/javaevolved.github.io.git",
+      "homepage": "https://javaevolved.github.io/",
+      "created_at": "2026-02-16T17:55:20Z",
+      "updated_at": "2026-03-17T09:29:19Z",
+      "pushed_at": "2026-03-07T17:34:40Z"
+    },
+    "stats": {
+      "stars": 279,
+      "forks": 20,
+      "watchers": 279,
+      "open_issues": 6,
+      "size": 18055
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 108872,
+        "HTML": 39535,
+        "Python": 37770,
+        "CSS": 35356,
+        "JavaScript": 29045,
+        "Shell": 11452
+      },
+      "license": "MIT License",
+      "topics": [
+        "copilot",
+        "java",
+        "modernized"
+      ]
+    },
+    "content": {
+      "readme": "# java.evolved\n\n**Java has evolved. Your code can too.**\n\nA collection of side-by-side code comparisons showing old Java patterns next to their clean, modern replacements — from Java 8 all the way to Java 25.\n\n🔗 **[javaevolved.github.io](https://javaevolved.github.io)**\n\n[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-live-brightgreen)](https://javaevolved.github.io)\n[![Snippets](https://img.shields.io/badge/snippets-112-blue)](#categories)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange)](#contributing)\n\n> **Note:** Update the snippet count badge above when adding new patterns.\n\n---\n\n## What is this?\n\nEvery snippet shows two panels:\n\n- **✕ Old** — the traditional way (Java 7/8 era)\n- **✓ Modern** — the clean, idiomatic replacement (Java 9–25)\n\nEach comparison includes an explanation of *why* the modern approach is better, which JDK version introduced it, and links to related patterns.\n\n## Categories\n\n| Category | Examples |\n|---|---|\n| **Language** | Records, sealed classes, pattern matching, switch expressions, var, unnamed variables |\n| **Collections** | Immutable factories, sequenced collections, unmodifiable collectors |\n| **Strings** | Text blocks, `isBlank()`, `strip()`, `repeat()`, `formatted()`, `indent()` |\n| **Streams** | `toList()`, `mapMulti()`, `takeWhile()`/`dropWhile()`, gatherers |\n| **Concurrency** | Virtual threads, structured concurrency, scoped values, `ExecutorService` as `AutoCloseable` |\n| **I/O** | `Files.readString()`, `writeString()`, `Path.of()`, `transferTo()`, HTTP Client |\n| **Errors** | `requireNonNullElse()`, record-based errors, deserialization filters |\n| **Date/Time** | `java.time` basics, `Duration`/`Period`, `DateTimeFormatter`, instant precision |\n| **Security** | TLS defaults, `SecureRandom`, PEM encoding, key derivation functions |\n| **Tooling** | JShell, single-file execution, JFR profiling, compact source files, AOT |\n| **Enterprise** | EJB → CDI, JDBC → JPA/Jakarta Data, JNDI → injection, MDB → reactive messaging, REST |\n\n## Architecture\n\nThis site uses a **JSON/YAML-first** build pipeline:\n\n- **Source of truth**: Individual `content/category/slug.json` files (112 patterns across 11 category folders)\n- **Templates**: `templates/` — shared HTML templates with `{{placeholder}}` tokens for content and UI strings\n- **Generator**: `html-generators/generate.java` — JBang script that produces all HTML pages, localized variants, and `data/snippets.json`\n- **Translations**: `translations/strings/{locale}.yaml` for UI strings, `translations/content/{locale}/` for pattern content (YAML)\n- **Deploy**: GitHub Actions runs the generator and deploys to GitHub Pages\n\nGenerated files (`site/category/*.html`, `site/{locale}/`, and `site/data/snippets.json`) are in `.gitignore` — never edit them directly.\n\n### Internationalization\n\nThe site supports 11 languages: English, Deutsch, Español, Português (Brasil), 中文 (简体), العربية, Français, 日本語, 한국어, Italian and Polski. See [`specs/i18n/i18n-spec.md`](specs/i18n/i18n-spec.md) for the full specification.\n\n## Build & run locally\n\n### Prerequisites\n\n- **Java 25+** (e.g. [Temurin](https://adoptium.net/))\n- **JBang** ([Jbang](https://www.jbang.dev/))\n\n### Generate and serve\n\n```bash\n# Generate all HTML pages and data/snippets.json into site/\njbang html-generators/generate.java\n\n# Serve locally need to replace path with absolute path to site folder \njwebserver -b 0.0.0.0 -d path/to/site -p 8090\n# Open http://localhost:8090\n```\n\nThe fat JAR is a self-contained ~2.2 MB file with all dependencies bundled. [JBang](https://jbang.dev) is needed to run the generator.\n\nFor development on the generator itself, you can use JBang or Python — see [html-generators/README.md](html-generators/README.md) for details.\n\n## Contributing\n\nContributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details on adding patterns and translating the site.\n\n## Tech stack\n\n- Plain HTML, CSS, and JavaScript — no frontend frameworks\n- [JBang](https://jbang.dev) + [Jackson](https://github.com/FasterXML/jackson) for build-time generation\n- Hosted on GitHub Pages via GitHub Actions\n\n## Author\n\n**Bruno Borges**\n\n- GitHub: [@brunoborges](https://github.com/brunoborges)\n- X/Twitter: [@brunoborges](https://x.com/brunoborges)\n- LinkedIn: [brunocborges](https://www.linkedin.com/in/brunocborges)\n\n## License\n\nThis project is licensed under the [MIT License](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:21.361764"
+  },
+  {
+    "basic_info": {
+      "name": "Andclaw",
+      "full_name": "andforce/Andclaw",
+      "owner": "andforce",
+      "description": "无需ROOT，无需连电脑，像Openclaw控制电脑一样，让Andclaw控制你的安卓手机",
+      "url": "https://github.com/andforce/Andclaw",
+      "clone_url": "https://github.com/andforce/Andclaw.git",
+      "ssh_url": "git@github.com:andforce/Andclaw.git",
+      "homepage": "https://andclaw.app",
+      "created_at": "2026-03-14T08:24:55Z",
+      "updated_at": "2026-03-18T03:27:04Z",
+      "pushed_at": "2026-03-18T03:27:17Z"
+    },
+    "stats": {
+      "stars": 226,
+      "forks": 39,
+      "watchers": 226,
+      "open_issues": 2,
+      "size": 5593
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 2208260,
+        "Kotlin": 210618,
+        "TypeScript": 54282,
+        "AIDL": 12951,
+        "CSS": 3180,
+        "HTML": 870,
+        "JavaScript": 616,
+        "Shell": 174
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Andclaw 🤖\n\n<p align=\"center\">\n  <img src=\"./icon.png\" alt=\"Andclaw Logo\" width=\"120\">\n</p>\n\n[![Android](https://img.shields.io/badge/Android-12%2B-brightgreen?logo=android)](https://www.android.com/)\n[![Kotlin](https://img.shields.io/badge/Kotlin-2.3.10-blue?logo=kotlin)](https://kotlinlang.org/)\n[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Website](https://img.shields.io/badge/官网-andclaw.app-blue?logo=googlechrome&logoColor=white)](https://andclaw.app/)\n[![Install](https://img.shields.io/badge/在线安装-立即下载-green?logo=android&logoColor=white)](https://andclaw.app/#/install)\n\n> **让 AI 像人类一样使用你的手机** —— 完全在设备上运行，无需 Root，无需电脑。\n\n<p align=\"center\">\n  <a href=\"https://andclaw.app/\"><b>🌐 官方网站</b></a> &nbsp;|&nbsp;\n  <a href=\"https://andclaw.app/#/install\"><b>📲 在线安装 APK</b></a>\n</p>\n\n---\n\n## 🌟 核心亮点\n\n| 特性 | 说明 |\n|------|------|\n| **🚫 无需 Root** | 纯无障碍服务实现，不依赖系统权限 |\n| **💻 无需电脑** | 完全在手机上独立运行，无需 ADB 或 PC 端配合 |\n| **🧠 AI 驱动** | 支持 Kimi Code（Anthropic 格式）、Moonshot 和任意 OpenAI 兼容 API |\n| **👁️ 屏幕感知** | 实时读取 UI 层次结构 + WebView/浏览器场景自动截图辅助视觉分析 |\n| **🤏 拟人操作** | 模拟点击、滑动、长按、文本输入等手势操作 |\n| **📸 多媒体能力** | 拍照、录像、录屏、截图、音量控制 |\n| **📱 设备管控** | Device Owner 模式下支持企业级设备管理（静默装卸、Kiosk 等） |\n| **🤖 Telegram 远程控制** | 通过 Telegram Bot 远程下发指令、接收截图/录像 |\n\n## 📋 与其他方案对比\n\n| 特性 | Andclaw | [Open-AutoGLM](https://github.com/zai-org/Open-AutoGLM) | [肉包 Roubao](https://github.com/Turbo1123/roubao) | 豆包手机 |\n|-----|:-------:|:--------:|:-------:|:-------:|\n| 无需电脑 | ✅ | ❌ 需 PC 运行 Python | ✅ | ✅ |\n| 无需专用硬件 | ✅ | ✅ | ✅ | ❌ 需购买 3499 元工程机 |\n| 无需 Shizuku / ADB | ✅ 无障碍服务 | ❌ ADB 控制 | ❌ 依赖 Shizuku | ✅ |\n| 远程控制 | ✅ Telegram Bot | ❌ | ❌ | ❌ |\n| 自定义模型 | ✅ 多 Provider | ✅ | ✅ | ❌ 仅豆包 |\n| 开源 | ✅ | ✅ | ✅ | ❌ |\n| 原生 Android | ✅ Kotlin | ❌ Python | ✅ Kotlin | ✅ |\n\n\n**Andclaw 的核心差异**：\n- **零外部依赖**：基于 Android 无障碍服务，无需 Shizuku 初始化、无需 ADB 连接、无需电脑\n- **远程控制**：通过 Telegram Bot 远程下发指令、接收截图和录像，适合无人值守场景\n- **UI 层级 + 视觉双模感知**：优先解析 Accessibility 节点树，WebView/浏览器场景自动切换截图分析\n- **循环检测 + 截图重试**：同一动作重复 5 次自动截图视觉重试，避免 Agent 死循环\n\n---\n\n## 📱 演示\n\n[![演示视频](docs/demo_cover.png)](https://www.bilibili.com/video/BV1k8w4zeEL7)  \n[![演示视频](docs/ScreenShot_2026-03-17_202610_426.png)](https://www.bilibili.com/video/BV1WtwKzLEXd)\n\n---\n\n## 🚀 快速开始\n\n### 环境要求\n\n- **Android 版本**: Android 12 (API 31) 或更高\n- **无障碍服务**: 需要在 `设置 > 无障碍` 中手动启用\n- **悬浮窗权限**: 用于显示紧急停止按钮\n- **API Key**: 从 [Kimi Code](https://www.kimi.com/code/console)、[Moonshot 开放平台](https://platform.moonshot.cn/) 或任意 OpenAI 兼容 API 提供商获取\n\n### 安装方式\n\n**方式一：在线安装使用Chrome浏览器（推荐）**\n\n使用Chrome浏览器直接访问 [andclaw.app/#/install](https://andclaw.app/#/install)，然后按提示操作即可。\n\n**方式二：从源码编译**\n\n1. **克隆仓库**\n   ```bash\n   git clone https://github.com/andforce/Andclaw.git\n   cd Andclaw\n   ```\n\n2. **编译安装**\n   ```bash\n   ./gradlew :app:installDebug\n   ```\n\n3. **授予权限**\n   - 打开应用后，按提示启用**无障碍服务**\n   - 授予**显示在其他应用上层**权限\n\n4. **激活 Device Owner**\n\n   通过 ADB 激活（仅首次设置需要），激活后 Andclaw 获得企业级设备管理能力：\n\n   > ⚠️ **重要**：由于 Android 安全限制，设备必须先**恢复出厂设置**才能启用 Device Owner 模式。不启用 Device Owner 模式，AI操作手机的权限将大幅受限。\n\n   ```bash\n   adb shell dpm set-device-owner com.andforce.andclaw/.DeviceAdminReceiver\n   ```\n\n   - ✅ **应用管理**：静默安装/卸载应用、隐藏/显示/挂起应用、阻止卸载、自动授予权限、查询已安装应用列表\n   - ✅ **设备控制**：远程锁屏、重启、恢复出厂设置、禁用摄像头/状态栏/锁屏、USB 数据传输控制、定位开关\n   - ✅ **Kiosk 模式**：单应用锁定（Lock Task）、替换默认桌面、禁止安全模式/恢复出厂\n\n   > 详细能力清单见 [ACTIONS.md](./ACTIONS.md)\n\n6. **创建 Telegram 机器人**\n\n   1. 在 Telegram 中搜索并打开 **@BotFather**\n   2. 发送 `/newbot` 创建新机器人\n   3. 按提示设置机器人名称和用户名（用户名必须以 `bot` 结尾）\n   4. 创建成功后，复制提供的 **Bot Token**（格式如：`123456789:ABCdefGHIjklMNOpqrsTUVwxyz`）\n   5. 在 Andclaw 设置页面中填入 Bot Token\n\n---\n\n## 🎯 使用方式\n\n### 1. 文字指令\n\n直接告诉 Andclaw 你想做什么：\n\n| 指令示例 | AI 执行过程 |\n|---------|------------|\n| \"打开bilibili，搜索AI学习相关的视频，并播放\" | 识别B站图标 → 点击 → 进入搜索页 → 输入\"AI学习\" → 点击搜索 → 选择视频 → 播放 |\n\n### 2. AI Agent 工作循环\n\n```\n用户指令\n    ↓\n[1.5s] → 捕获屏幕 UI 树（无障碍服务）\n    ↓\n浏览器/WebView？──是──→ 自动截图（视觉分析辅助）\n    ↓                          ↓\n发送给 LLM（系统提示 + 最近 12 条历史 + 屏幕数据 [+ 截图]）\n    ↓\nAI 返回 JSON 操作决策\n    ↓\n解析失败？──是──→ 纠正提示重试（1 次）\n    ↓\n执行操作（点击/滑动/输入/Intent/DPM/拍照/录屏/...）\n    ↓\n[2.5s] → 重新捕获屏幕  ←──────────────┐\n    ↓                                   │\n循环检测（同一操作连续 5 次？）             │\n    ↓是                                  │\n截图 + 视觉重试（最多 3 轮，15 次后停止）    │\n    ↓否                                  │\n任务完成？──否──────────────────────────-─┘\n    ↓\n是 → 结束\n```\n\n### 3. 支持的操作类型\n\n| 类型 | 说明 |\n|------|------|\n| `intent` | 启动应用/Activity，打开网页、拨号、发短信、设置闹钟等系统 Intent |\n| `click` | 在屏幕坐标 (x, y) 模拟点击 |\n| `swipe` | 滑动手势（滚动、翻页），支持自定义时长 |\n| `long_press` | 长按，支持自定义时长 |\n| `text_input` | 向当前焦点输入框注入文本（SET_TEXT → 剪贴板粘贴 fallback） |\n| `global_action` | 系统级操作：返回、Home、最近任务、通知栏、快捷设置 |\n| `screenshot` | 截图并保存到 `Pictures/Andclaw/`，通过 Telegram 自动发送 |\n| `download` | 通过 DownloadManager 直接下载文件（无需打开浏览器） |\n| `wait` | 等待页面加载/UI 过渡完成后重新检查屏幕（最长 10 秒） |\n| `camera` | 拍照（`take_photo`）、开始录像（`start_video`）、停止录像（`stop_video`） |\n| `screen_record` | 录屏（`start_record` / `stop_record`），保存到 `Movies/Andclaw/` |\n| `volume` | 音量控制：设置、调高/调低、静音/取消静音、查询当前音量 |\n| `dpm` | Device Policy Manager 操作（仅 Device Owner 模式） |\n| `finish` | 任务",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:22.545562"
+  },
+  {
+    "basic_info": {
+      "name": "AndroHunter",
+      "full_name": "ynsmroztas/AndroHunter",
+      "owner": "ynsmroztas",
+      "description": "AndroHunter",
+      "url": "https://github.com/ynsmroztas/AndroHunter",
+      "clone_url": "https://github.com/ynsmroztas/AndroHunter.git",
+      "ssh_url": "git@github.com:ynsmroztas/AndroHunter.git",
+      "homepage": null,
+      "created_at": "2026-03-08T11:31:38Z",
+      "updated_at": "2026-03-16T15:40:38Z",
+      "pushed_at": "2026-03-08T17:04:26Z"
+    },
+    "stats": {
+      "stars": 221,
+      "forks": 44,
+      "watchers": 221,
+      "open_issues": 1,
+      "size": 53678
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 357363,
+        "Kotlin": 282083,
+        "HTML": 138198,
+        "Assembly": 60
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "![AndroHunter](images/banner.png)\n\n# AndroHunter\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/Platform-Android-brightgreen?style=for-the-badge&logo=android\"/>\n  <img src=\"https://img.shields.io/badge/Language-Kotlin-purple?style=for-the-badge&logo=kotlin\"/>\n  <img src=\"https://img.shields.io/badge/Min_SDK-29_(Android_10)-blue?style=for-the-badge\"/>\n  <img src=\"https://img.shields.io/badge/Version-4.0-00FF88?style=for-the-badge\"/>\n  <img src=\"https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge\"/>\n</p>\n\n<p align=\"center\">\n  <b>A comprehensive Android security research toolkit for bug bounty hunters and mobile penetration testers.</b><br/>\n  Built with Jetpack Compose · Dark terminal UI · On-device analysis\n</p>\n\n---\n\n## ⚠️ Legal Disclaimer\n\n> **AndroHunter is intended for authorized security research, bug bounty programs, and educational purposes only.**\n> You must have explicit permission from the application owner before testing any target.\n> The developer assumes no responsibility for misuse. Always comply with your bug bounty program's scope and rules of engagement.\n\n---\n\n## Overview\n\nAndroHunter is a native Android application that provides a full suite of mobile security testing tools — all running directly on the device without requiring a rooted phone for most features. It is designed for security researchers participating in bug bounty programs (HackerOne, Yes We Hack, Intigriti, etc.) who need to analyze Android applications quickly and efficiently.\n\nThe tool covers the entire Android attack surface: static analysis (APK, DEX, Manifest), dynamic testing (Intent fuzzing, ContentProvider probing, Broadcast injection), runtime analysis (Frida script generation, SSL bypass), and network interception (HTTP proxy).\n\n---\n\n## Features\n\n### 📱 App Explorer\n- Lists all installed applications with metadata (package name, version, permissions, target SDK)\n- Filter by system/user apps\n- Quick navigation to any analysis module from the app detail view\n\n### 🔍 DEX Analyzer\n- Extracts and analyzes `.dex` files from APKs\n- Scans for hardcoded secrets: API keys, tokens, passwords, URLs, private keys\n- String pattern matching with severity classification (`VULN` / `SUSP` / `SAFE`)\n- Class and method enumeration with popup viewer\n- Supports multi-dex APKs — each DEX file analyzed separately\n\n### 📄 Manifest Viewer\n- Parses `AndroidManifest.xml` directly from the APK (no decompiler needed)\n- Three-tab view: **Components**, **Permissions**, **Raw XML**\n- Highlights exported components, dangerous permissions, and deep link schemes\n- Identifies potential attack surface (exported Activities, Services, Receivers, Providers)\n\n### 🎯 Intent Fuzzer\n- Lists all exported Activities, Services, and Broadcast Receivers of the target app\n- Sends crafted Intents with custom extras, data URIs, and categories\n- Supports path traversal payloads via Intent data (`file:///data/...`)\n- Integrates with Payload Engine for automated testing\n\n### 💥 Payload Engine\n- Logcat-based real-time result monitoring\n- Automated payload delivery to target components\n- Visual result classification: `VULN` (red) / `SUSP` (yellow) / `SAFE` (green)\n- Supports deeplink exploitation, OAuth redirect hijacking, file URI leaks\n\n### 🗄️ Content Provider Fuzzer\n- Enumerates all exported ContentProviders of the target application\n- Tests 9 SQL injection payloads per provider (Error-based, Boolean, UNION, Time-based)\n- Detects readable/writable providers and schema exposure\n- One-tap navigation from APK Analyzer findings to Provider Fuzzer with pre-filled target\n\n### 📁 FileProvider Path Analyzer\n- Parses `res/xml/` configuration files from APK to extract FileProvider path definitions\n- Risk classification per path type:\n  - `root-path` with empty path → **CRITICAL** (full filesystem access)\n  - `external-path` with empty path → **HIGH**\n  - `cache-path` / `external-cache-path` → **MEDIUM**\n- **Path Traversal Tester**: automated testing with 9 traversal payloads\n- Attempts actual file reads via `ContentResolver` and reports file contents on success\n- **ADB Commands tab**: ready-to-use `adb shell content read --uri '...'` commands\n\n### 🏃 Activity Launcher\n- Lists all Activities of any installed app with exported status badge\n- One-tap launch with optional extra data / deep link injection\n- ADB command generator: `adb shell am start -n pkg/activity --es data \"payload\"`\n- Filter by exported-only for quick attack surface identification\n\n### 📡 Broadcast Fuzzer\n- 10 pre-built broadcast payloads across 6 categories:\n  - **Auth**: Login bypass, Session hijack\n  - **SQLi**: SQL injection via Intent extras\n  - **LFI**: Path traversal via file path extras\n  - **Redirect**: Open redirect, Deep link hijack\n  - **PrivEsc**: Privilege escalation, Component enable\n  - **Exfil**: Data exfiltration via backup intent\n- Custom broadcast sender: specify action + key=value extras\n- ADB command copy for each payload\n\n### 🔑 Shared Preferences Reader\n- Reads `shared_p",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:23.737891"
+  },
+  {
+    "basic_info": {
+      "name": "fetcharr",
+      "full_name": "egg82/fetcharr",
+      "owner": "egg82",
+      "description": "hunts for missing or upgradable media in your *arr stack",
+      "url": "https://github.com/egg82/fetcharr",
+      "clone_url": "https://github.com/egg82/fetcharr.git",
+      "ssh_url": "git@github.com:egg82/fetcharr.git",
+      "homepage": "",
+      "created_at": "2026-02-28T03:23:42Z",
+      "updated_at": "2026-03-18T03:35:14Z",
+      "pushed_at": "2026-03-18T03:35:11Z"
+    },
+    "stats": {
+      "stars": 220,
+      "forks": 1,
+      "watchers": 220,
+      "open_issues": 3,
+      "size": 551
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 383395,
+        "Shell": 4073,
+        "Dockerfile": 1604
+      },
+      "license": "MIT License",
+      "topics": [
+        "fetcharr",
+        "media-management",
+        "radarr",
+        "sonarr",
+        "whisparr"
+      ]
+    },
+    "content": {
+      "readme": "# Fetcharr\n\n<img src=\"fetcharr-temp-icon.png\" width=\"60\"/>\n\n###### Icon is LLM-generated and temporary until one from an artist can be sourced.\n\n## What is it?\n\nSince Huntarr died, I still needed an application that scanned and upgraded my media.\nI tried a few different projects but I didn't like any of them for various reasons.\n\nSince vibe-coding is a big deal these days, I decided to brush off my Java rust and try my hand at\na containerized project that used configuration similar to Unpackerr and did one thing and did it well.\nThe few portions with LLM assistance have been noted (search `ChatGPT`) and generated code was read and verified before use.\n\nNo use of opencode, claude code, cursor, etc in this project. Any LLM assistance was done via web UI.\nLargely to ask questions about design, errors, or specific details I've forgotten since touching Java.\nReadme also written by hand.\n\nI think I hit that nail on the head.\n\nCurrently supports the following:\n- Radarr\n- Sonarr\n- Lidarr\n- Whisparr\n\n### Huntarr? What?\n\n[The Huntarr saga](https://www.reddit.com/r/selfhosted/comments/1rckopd/huntarr_your_passwords_and_your_entire_arr_stacks/) is an interesting one\nif you're curious, but if you're not familiar with the history then here's the short of what Fetcharr does:\n\nThe idea is that you’ll occasionally want to go through all your media and make sure it’s the best quality available and that nothing’s missing.\nNew releases get published, remuxes sometimes fix issues, etc. This little CLI container goes through and periodically searches every *arr app you connect\nit to, so you don’t have to sacrifice hours of your weekend doing (as much) manual hunting.\n\nNow, it's worth mentioning that Sonarr, Radarr, etc have had a built-in system that does this for a while now, but I've never gotten\nthem to work reliably. Maybe it's just bad luck or some strange misconfiguration, but I've always had a need for apps like\nScoutarr (Upgradinatorr), Huntarr, etc. Considering the popularity of these apps it feels like I am not the only one.\n\nIf the concept sounds interesting to you, give Fetcharr a try. See if it finds anything. If my experience while developing this is anything\nto go by, you'll get some results almost immediately. Likely within a few hours, and maybe even within a few seconds. See if it helps\nand if you want to add it to your stack.\n\n## How do I use it?\n\nDocker, kubernetes, whatever container system you currently use.\n\n```bash\ndocker run egg82/fetcharr:latest \\\n  -e VERIFY_CERTS=true \\\n  -e SSL_PATH=/etc/ssl/certs/ca-bundle.crt \\\n  -e SEARCH_AMOUNT=5 \\\n  -e SEARCH_INTERVAL=1hour \\\n  -e RADARR_0_URL=https://radarr.home.lab \\\n  -e RADARR_0_API_KEY=e8ea891d72ff973fa6db0d34369a60a7 \\\n  -e SONARR_0_URL=https://sonarr.home.lab \\\n  -e SONARR_0_API_KEY=71730b5dfaa4293fe0c050844c10df66 \\\n  -e SONARR_1_URL=https://anime.home.lab \\\n  -e SONARR_1_API_KEY=bdb84dc8e4b787c76be8aae2dfe9bd19 \\\n```\n\nOr by immutable tag: https://hub.docker.com/r/egg82/fetcharr/tags\n\n## Environment variables\n\n### Common\n\n- LOG_MODE: Logging mode\n  - string: trace, debug, info, warn, error\n  - default: info\n- PROXY_HOST: HTTP proxy host\n  - string: \\<URL\\>\n  - default: null\n- PROXY_PORT: HTTP proxy port\n  - int: \\<port\\>\n  - default: 0\n- CONNECT_TIMEOUT: HTTP connection timeout in milliseconds\n  - int: \\<ms\\>\n  - default: 10,000\n- REQUEST_TIMEOUT: HTTP request timeout in milliseconds\n  - int: \\<ms\\>\n  - default: 10,000\n- CONNECT_TTL: HTTP connection TTL in milliseconds\n  - int: \\<ms\\>\n  - default: 10,000\n- VERIFY_CERTS: Verify SSL certificates\n  - bool: \\<value\\>\n  - default: true\n- USE_CACHE: Use internal caching mechanisms\n  - bool: \\<value\\>\n  - default: true\n- SHORT_CACHE_TIME: Expiration time for short-lived cached values\n  - string: \\<time\\>\n  - default: 65minutes\n- LONG_CACHE_TIME: Expiration time for long-lived cached values\n  - string: \\<time\\>\n  - default: 6hours\n- DATA_DIR: Data storage directory\n  - string: \\<file\\>\n  - default: /data\n- CACHE_DIR: Cache storage directory\n  - string: \\<file\\>\n  - default: /cache\n- SSL_PATH: File path containing custom SSL certs\n  - string: \\<file\\>\n  - default: /etc/ssl/certs/ca-bundle.crt\n- SEARCH_AMOUNT: Number of items to search at each run\n  - int: \\<amount\\>\n  - default: 5\n- SEARCH_INTERVAL: How often to search\n  - string: \\<time\\>\n  - 1hour\n- MONITORED_ONLY: True to select only monitored items, false to select all\n  - bool: \\<value\\>\n  - default: true\n- MISSING_ONLY: True to select only missing items, false to select upgrades as well\n  - bool: \\<value\\>\n  - default: false\n- SKIP_TAGS: Comma-separated list of tags to skip searching\n  - string: \\<tags\\>\n  - default: \\<none\\>\n- DRY_RUN: True to run in dry-run mode, which doesn't perform searches\n  - boolean: \\<value\\>\n  - default: false\n- USE_CUTOFF: Skip items that have their profile cutoff met\n  - boolean: \\<value\\>\n  - default: false\n\n### Radarr\n\nReplace `X` with a number. This allows for up to 100 instances to be configured.\n\n- RADARR_X_URL: Base URL\n  ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:24.932855"
+  },
+  {
+    "basic_info": {
+      "name": "spring-initializr-tui",
+      "full_name": "danvega/spring-initializr-tui",
+      "owner": "danvega",
+      "description": "Spring Initializr Terminal UI",
+      "url": "https://github.com/danvega/spring-initializr-tui",
+      "clone_url": "https://github.com/danvega/spring-initializr-tui.git",
+      "ssh_url": "git@github.com:danvega/spring-initializr-tui.git",
+      "homepage": "",
+      "created_at": "2026-02-19T15:17:14Z",
+      "updated_at": "2026-03-17T14:38:57Z",
+      "pushed_at": "2026-03-16T19:46:59Z"
+    },
+    "stats": {
+      "stars": 119,
+      "forks": 25,
+      "watchers": 119,
+      "open_issues": 4,
+      "size": 8499
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 134037
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Spring Initializr TUI\n\n[![Release Native Binaries](https://github.com/danvega/spring-initializr-tui/actions/workflows/release.yml/badge.svg)](https://github.com/danvega/spring-initializr-tui/actions/workflows/release.yml)\n\nAn interactive terminal UI for scaffolding Spring Boot projects, powered by the [start.spring.io](https://start.spring.io) API. Built with [TamboUI](https://tamboui.dev), a declarative Java TUI framework.\n\nI had an idea to improve my personal workflow for scaffolding Spring Boot projects, so I made a [video](https://youtu.be/J9C2MiQTIYs) about it. This is the code that goes along with that video.\n\n## Table of Contents\n\n- [Screenshots](#screenshots)\n- [Features](#features)\n- [Supported Platforms](#supported-platforms)\n- [Requirements](#requirements)\n- [Build & Run](#build--run)\n- [Setting Up Shell Access](#setting-up-shell-access)\n- [Keyboard Shortcuts](#keyboard-shortcuts)\n- [Themes](#themes)\n- [Open in Terminal](#open-in-terminal)\n- [Post-Generate Hook](#post-generate-hook)\n- [About TamboUI](#about-tamboui)\n- [Project Structure](#project-structure)\n- [Tech Stack](#tech-stack)\n- [Contributing](#contributing)\n- [License](#license)\n\n## Screenshots\n\n### Splash Screen\nThe app launches with a Spring-styled ASCII art logo and a progress bar while it fetches metadata from the start.spring.io API.\n![Splash Screen](screenshots/splash_screen.png)\n\n### Main Screen\nThe main configuration form lets you set your project type, language, Spring Boot version, group, artifact, description, packaging, Java version, and more. Below the form is a searchable, categorized dependency picker where you can browse and toggle dependencies.\n![Main Screen](screenshots/main_screen.png)\n\n### Explore Build Files\nPreview your generated build file before downloading. Switch between `pom.xml`, `build.gradle`, and `build.gradle.kts` with syntax-highlighted content and line numbers. Your current project settings are displayed at the top for reference.\n![Explore](screenshots/explore.png)\n\n### Generate & Open in IDE\nAfter generation, the project is extracted to your chosen directory. The app auto-detects installed IDEs (IntelliJ IDEA, VS Code, etc.) and lets you open the project directly, open in your terminal, generate another, or quit.\n![Generate](screenshots/generate.png)\n\n### Help\nA quick-reference help overlay showing all keyboard shortcuts organized by screen — Main Screen, Explore Screen, and Generate Screen.\n![Help](screenshots/help.png)\n\n## Features\n\n- Configure Spring Boot projects entirely from your terminal (group, artifact, Boot version, Java version, packaging, language)\n- Search and select dependencies with a categorized picker and fuzzy search\n- Filter dependencies by category and surface recently used dependencies\n- Explore generated build files with syntax highlighting before downloading\n- Switch between `pom.xml`, `build.gradle`, and `build.gradle.kts` previews\n- Generate and extract projects to the current working directory\n- Auto-detect and launch IDEs (IntelliJ IDEA, VS Code, Cursor, Eclipse, NetBeans)\n- \"Open in Terminal\" option prints the project path and a ready-to-copy `cd` command\n- Cross-platform support (macOS, Linux, Windows)\n- Remembers your preferences between sessions\n\n## Supported Platforms\n\n- macOS (aarch64)\n- Linux (x86_64)\n- Windows (x86_64)\n\n## Requirements\n\n- **JDK 25** (LTS)\n- **Maven 3.9+**\n- **GraalVM 25** (optional, for native image)\n\n## Build & Run\n\n### JVM\n\n```bash\nmvn compile exec:java\n```\n\n### JAR\n\n```bash\nmvn package -DskipTests\njava --enable-preview -jar target/spring-initializr-tui-0.1.1.jar\n```\n\n### Fat JAR (Shade)\n\nBuild a self-contained JAR with all dependencies bundled:\n\n```bash\nmvn package -Pshade -DskipTests\njava --enable-preview -jar target/spring-initializr-tui-0.1.1.jar\n```\n\n### Native Image (GraalVM)\n\nCompile to a standalone native binary for instant startup:\n\n```bash\nmvn clean -Pnative package -DskipTests\n./target/spring-initializr-tui\n```\n\n> Requires GraalVM 25 as your `JAVA_HOME`. If using SDKMAN: `sdk use java 25.0.2-graalce`\n\n## Setting Up Shell Access\n\nFor quick access from any directory, set up an alias or add the binary to your PATH.\n\n### macOS / Linux\n\nAdd an alias to `~/.zshrc` or `~/.bashrc`:\n\n```bash\nalias spring='/path/to/spring-initializr-tui'\n```\n\nThen reload your shell:\n\n```bash\nsource ~/.zshrc\n```\n\n### Windows\n\nAdd the directory containing `spring-initializr-tui.exe` to your PATH, or create a doskey alias:\n\n```cmd\ndoskey spring=\"C:\\path\\to\\spring-initializr-tui.exe\" $*\n```\n\nTo make it permanent, add the binary's directory to your system PATH via **Settings > System > About > Advanced system settings > Environment Variables**, or use PowerShell:\n\n```powershell\n$binDir = \"C:\\path\\to\"\n$path = [Environment]::GetEnvironmentVariable(\"Path\", \"User\")\n[Environment]::SetEnvironmentVariable(\"Path\", \"$path;$binDir\", \"User\")\n```\n\n### Usage\n\nOnce configured, create a new project from anywhere:\n\n```bash\nmkdir my-project && cd my-project\nspring\n```\n\nThe generated pr",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-18T03:36:26.097750"
+  },
+  {
+    "basic_info": {
+      "name": "Android-CamSwap-OpenSource",
+      "full_name": "zensu357/Android-CamSwap-OpenSource",
+      "owner": "zensu357",
+      "description": "Android-CamSwap - Open Source Version 基于xposed的安卓虚拟摄像头app",
+      "url": "https://github.com/zensu357/Android-CamSwap-OpenSource",
+      "clone_url": "https://github.com/zensu357/Android-CamSwap-OpenSource.git",
+      "ssh_url": "git@github.com:zensu357/Android-CamSwap-OpenSource.git",
+      "homepage": "",
+      "created_at": "2026-02-16T02:53:39Z",
+      "updated_at": "2026-03-18T02:13:17Z",
+      "pushed_at": "2026-03-15T13:56:58Z"
+    },
+    "stats": {
+      "stars": 114,
+      "forks": 14,
+      "watchers": 114,
+      "open_issues": 5,
+      "size": 444
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 306280,
+        "Kotlin": 95825,
+        "C++": 38168,
+        "CMake": 911,
+        "C": 438
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Android CamSwap (Open Source)\n感谢项目 [android_virtual_cam](https://github.com/w2016561536/android_virtual_cam) 为本项目提供的灵感和代码基础。\n\nAndroid CamSwap 是一个基于 Xposed 框架的虚拟摄像头模块。它能够拦截 Android 系统相机的预览和拍照请求，并将预览画面替换为用户指定的视频。\n\n本项目采用现代化的 Android 开发技术栈（Kotlin, Jetpack Compose）重构，并引入了基于 ContentProvider 的跨进程数据传输机制，兼容高版本 Android (11+) 的文件权限隔离。\n\n具体实现方式查看仓库中的 `code description.md` 文件（仅适用v2.0及前版本）。\n\n## ✨ 主要功能\n\n*   **全 API 支持**：同时支持 Camera1 (Camera) 和 Camera2 (CameraDevice) API。\n*   **视频替换预览** 🎥：将相机预览画面无缝替换为指定的 MP4 视频。\n*   **音频替换** 🎤：可选择播放自定义 MP3 音频文件，或与替换视频同步。\n*   **通知栏实时控制**：\n    *   ⏭ 切换到下一个 / 上一个视频。\n    *   🔄 快速调整视频旋转方向（+90° / -90°）。\n    *   🎲 随机播放模式。\n*   **自动旋转处理**：读取视频元数据中的旋转角度，通过 OpenGL ES 正确渲染，无需手动处理。\n*   **跨进程配置同步**：\n    *   主路径：ContentProvider IPC（无需目标应用存储权限）。\n    *   回退路径：直接文件读取 + Application 冷启动预热，彻底解决冷启动时配置未就绪问题。\n*   **目标应用过滤**：可指定模块仅在特定应用中生效。\n*   **现代化 UI**：基于 Material Design 3 和 Jetpack Compose 构建的管理界面。\n\n## 📱 环境要求\n\n*   **Android 版本**：Android 8.0 (API 26) 及以上（推荐 Android 11+）\n*   **Root 权限**：必须\n*   **Xposed 框架**：推荐使用 [LSPosed](https://github.com/LSPosed/LSPosed)（Zygisk / Riru 版本均可）\n\n## 🚀 安装与使用\n\n### 1. 安装模块\n1. 下载最新版本的 Release APK。\n2. 安装到你的 Android 设备。\n3. 在 **LSPosed 管理器**中启用该模块。\n4. **作用域勾选**：\n    *   **强烈建议**：勾选「系统框架 (System Framework)」以获得最佳兼容性。\n    *   或者：仅勾选你需要进行替换的**目标应用**（如相机、微信、抖音等）。\n5. 重启手机（或重启目标应用的进程）。\n\n### 2. 配置素材\n1. 打开 **CamSwap** 应用，授予必要的文件读写权限。\n2. 在「管理」页面导入你的 MP4 视频素材。\n3. 在「设置」页面选择默认视频、配置音频替换、开启通知栏控制等选项。\n\n### 3. 开始使用\n打开任意调用相机的应用，预览画面将被替换为你选择的视频。\n\n> **提示**：若视频画面方向不正确，可在通知栏使用旋转按钮微调，或在设置中手动填写旋转偏移角度。\n\n## 📁 配置文件\n\n模块的配置存储在以下路径（JSON 格式）：\n```\n/sdcard/DCIM/Camera1/cs_config.json\n```\n\n目标视频文件也应放置在该目录下。模块重启后会自动读取。\n\n## 🏗️ 项目架构\n\nHook 层（Xposed 模块核心）采用模块化设计：\n\n| 模块 | 文件 | 职责 |\n|------|------|------|\n| **入口** | `HookMain.java` | Xposed 入口 + 共享状态 + 委托分发 |\n| **播放器管理** | `MediaPlayerManager.java` | 6 组 MediaPlayer/GLVideoRenderer/SurfaceRelay 的生命周期 |\n| **配置监听** | `ConfigWatcher.java` | ContentObserver + FileObserver + BroadcastReceiver |\n| **Camera2 拦截** | `Camera2SessionHook.java` | Camera2 session 创建拦截 + 虚拟 Surface 管理 |\n| **Camera2 Hook** | `Camera2Handler.java` | Camera2 CaptureRequest.Builder + Surface 替换 |\n| **Camera1 Hook** | `Camera1Handler.java` | Camera1 预览 Hook + onPreviewFrame 帧替换 |\n| **音频 Hook** | `MicrophoneHandler.java` | AudioRecord 拦截 + MP3 音频替换 |\n\n\n## 🛠️ 编译指南\n\n### 准备环境\n*   JDK 17+\n*   Android SDK Platform 34\n\n### 克隆仓库\n```bash\ngit clone https://github.com/zensu357/Android-CamSwap-OpenSource.git\ncd Android-CamSwap-OpenSource\n```\n\n### 配置签名（可选）\n编译 Debug 包无需任何签名配置，直接运行：\n```bash\n./gradlew assembleDebug\n```\n\n如需编译已签名的 Release 包，在项目根目录创建 `local.properties`（勿提交到版本控制）并填写：\n```properties\nsdk.dir=/path/to/your/android/sdk\nstoreFile=../camswap_release.jks\nstorePassword=your_password\nkeyAlias=your_alias\nkeyPassword=your_key_password\n```\n\n若未配置签名，Release 构建会**自动回退到 Debug 密钥签名**，仍可正常安装。\n\n```bash\n# 编译 Release 包\n./gradlew assembleRelease\n```\n\n编译产物位于 `app/build/outputs/apk/` 目录下。\n\n## 🤝 贡献\n\n欢迎提交 Issue 和 Pull Request！\n\n1. Fork 本仓库。\n2. 创建特性分支：`git checkout -b feature/AmazingFeature`\n3. 提交更改：`git commit -m 'Add some AmazingFeature'`\n4. 推送分支：`git push origin feature/AmazingFeature`\n5. 开启 Pull Request。\n\n## ⚠️ 免责声明\n\n本项目仅供**安全研究、软件测试和教育目的**使用。  \n请勿将本项目用于任何非法用途（包括但不限于人脸识别绕过、身份欺诈等）。  \n使用者需自行承担因使用本项目而产生的一切法律责任。\n\n## ❤️ 支持\n\n如果本项目对你有帮助，请点 ⭐ Star 支持！\n\n![Star History](https://api.star-history.com/svg?repos=zensu357/Android-CamSwap-OpenSource&type=20260219)\n\n## 📄 许可证\n\n本项目基于 [GPL-3.0 license](LICENSE) 开源。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:27.275620"
+  },
+  {
+    "basic_info": {
+      "name": "mdqq",
+      "full_name": "paditianxiu/mdqq",
+      "owner": "paditianxiu",
+      "description": "这是一个QQ美化模块",
+      "url": "https://github.com/paditianxiu/mdqq",
+      "clone_url": "https://github.com/paditianxiu/mdqq.git",
+      "ssh_url": "git@github.com:paditianxiu/mdqq.git",
+      "homepage": null,
+      "created_at": "2026-02-21T06:12:00Z",
+      "updated_at": "2026-03-16T15:24:27Z",
+      "pushed_at": "2026-03-04T14:44:22Z"
+    },
+    "stats": {
+      "stars": 96,
+      "forks": 16,
+      "watchers": 96,
+      "open_issues": 10,
+      "size": 3962
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 96784,
+        "Kotlin": 69058
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"images/mdqq.png\" width=\"160\" height=\"160\" style=\"display: block; margin: 0 auto; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); border-radius: 20%;\" alt=\"icon\" />\n\n# MaterialDesignQQ\n\n### 一款 [QQ](https://im.qq.com) MaterialDesign2 美化包\n\n![Gitea Stars](https://img.shields.io/github/stars/paditianxiu/mdqq?style=flat)\n![GitHub top language](https://img.shields.io/github/languages/top/paditianxiu/mdqq)\n[![群](https://img.shields.io/badge/%E4%BC%81%E9%B9%85%E7%BE%A4-630563733-ff69b4)](https://qm.qq.com/q/UfgR6JT3GM)\n</div>\n\n## 🧩 项目图片\n\n![项目图片](./images/3B135332F817AFEA79A9CDEE96C3DDF4.jpg)\n\n## 编译\n\n1.克隆仓库\n\n```bash\ngit clone https://github.com/paditianxiu/mdqq.git\n```\n\n2.初始化并更新子模块\n\n```bash\ngit submodule update --init --recursive\n```\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-18T03:36:28.472731"
+  },
+  {
+    "basic_info": {
+      "name": "Yihen-Drama",
+      "full_name": "CszYihen/Yihen-Drama",
+      "owner": "CszYihen",
+      "description": "AI短剧生成平台，包含前端、后端与一键Docker部署（MySQL/Redis/RabbitMQ/MinIO/Elasticsearch/Kibana），支持角色场景资产、分镜与视频任务流程。",
+      "url": "https://github.com/CszYihen/Yihen-Drama",
+      "clone_url": "https://github.com/CszYihen/Yihen-Drama.git",
+      "ssh_url": "git@github.com:CszYihen/Yihen-Drama.git",
+      "homepage": null,
+      "created_at": "2026-02-22T07:44:41Z",
+      "updated_at": "2026-03-18T02:50:52Z",
+      "pushed_at": "2026-03-13T07:30:07Z"
+    },
+    "stats": {
+      "stars": 90,
+      "forks": 24,
+      "watchers": 90,
+      "open_issues": 0,
+      "size": 3874
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 500944,
+        "Vue": 435918,
+        "JavaScript": 45297,
+        "SCSS": 8299,
+        "Dockerfile": 1197,
+        "HTML": 544,
+        "Batchfile": 244,
+        "PowerShell": 224
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Yihen-Drama（AI 短剧生成平台）\n\n![系统首页](./assets/image-20260224191748119.png)\n\nYihen-Drama 是一个面向短剧创作的全流程平台，覆盖：\n\n**文本输入 → 信息提取 → 角色/场景资产生成 → 分镜管理 → 视频生成 → 视频编辑**\n\n仓库包含：\n- 后端：`yihen-drama`（Spring Boot）\n- 前端：`yihen-ai-short-drama-front-end/frontend`（Vue 3 + Vite）\n- 容器编排：支持**本地开发模式**与**一键全容器部署模式**\n\n---\n\n## 目录\n\n- [1. 快速开始](#1-快速开始)\n- [2. 支持的功能（完整）](#2-支持的功能完整)\n- [3. 使用流程](#3-使用流程)\n- [4. 运行模式](#4-运行模式)\n- [5. 访问地址](#5-访问地址)\n- [6. 数据与中间件说明](#6-数据与中间件说明)\n- [7. 配置说明](#7-配置说明)\n- [8. 常见问题](#8-常见问题)\n- [9. 子模块文档](#9-子模块文档)\n\n---\n\n## 1. 快速开始\n\n### 1.1 先做这件事：配置模型 API Key\n\n在“模型管理”中为默认模型实例填写可用 API Key（至少文本、图像、视频模型）。\n\n![模型管理](./assets/image-20260224191924589.png)\n![填写默认模型](./assets/image-20260224192126991.png)\n\n---\n\n## 2. 支持的功能（完整）\n\n> 以下为当前系统已支持的核心能力清单。\n\n### 2.1 项目管理\n\n- 创建/编辑/删除项目\n- 项目列表分页（支持页码导航）\n- 项目关键词搜索（Elasticsearch）\n- 项目搜索补全建议（suggest）\n- 项目状态筛选（草稿/处理中/已完成）\n- 项目封面自动占位图\n\n### 2.2 章节管理\n\n- 创建章节（支持空内容创建）\n- 更新章节（名称、内容等）\n- 删除章节（主题风格确认弹窗）\n- 章节步骤状态维护（current_step）\n- 步骤条可点击跳转（受步骤进度约束）\n\n### 2.3 信息提取\n\n- 从章节文本提取角色与场景\n- 支持“开始提取/重新提取”\n- 提取结果回写章节资产\n- 支持手动选择文本模型（默认自动选中默认模型）\n- 结果页实时展示人数/场景数\n\n![信息提取](./assets/image-20260224192636477.png)\n\n### 2.4 生成图片（角色与场景）\n\n- 角色图生成、重生、下载、删除、上传替换\n- 场景图生成、重生、下载、删除、上传替换\n- 名称与描述可编辑，支持防抖更新\n- 新增角色/新增场景（抽屉表单）\n- 角色/场景卡片统一主题样式\n- 无图时自动首字占位图\n- 图片支持单击放大预览\n- 操作提示统一消息风格（成功/失败/警告）\n\n![资产生成](./assets/image-20260224193009811.png)\n\n### 2.5 资产管理（独立模块）\n\n- 按项目统一管理角色和场景\n- 角色/场景切换 Tab\n- 角色/场景增删改查\n- 按项目内搜索（Elasticsearch）\n- 搜索补全建议（suggest）\n- 卡片固定尺寸，超长内容滚动显示\n- 每页最多 8 条，超出后分页\n- 统一主题弹窗与消息提示\n\n![资产管理](./assets/image-20260224193210593.png)\n\n### 2.6 分镜管理\n\n- 生成分镜（按章节）\n- 分镜描述可编辑并保存\n- 删除单条分镜（确认弹窗）\n- 分镜关联角色（可搜索，可多选，限制最多 3 个）\n- 分镜关联场景（可搜索，限制必须且仅 1 个）\n- 关联结果保存后在后续步骤保持一致\n- 分镜列表与镜头配置联动展示\n\n![分镜管理](./assets/image-20260224193400719.png)\n![角色选择弹窗](./assets/image-20260224193549438.png)\n\n### 2.7 视频生成（分镜级）\n\n- 生成首帧提示词（可编辑、可保存）\n- 生成首帧图片（thumbnail 回显）\n- 生成分镜视频提示词\n- 生成分镜视频任务提交\n- 时长参数可调，并以数字传入 `params.duration`\n- 支持默认视频模型与手动切换视频模型\n- 视频生成成功后自动切换预览\n- 任务状态通过 WebSocket 回传\n- 失败状态展示后端错误信息（`errorMessage`）\n\n![视频生成](./assets/image-20260224193646820.png)\n\n### 2.8 模型管理\n\n- 厂商管理（分页）\n- 模型实例管理（按类型分页）\n- 文本/文生图/视频/语音多类型管理\n- 设置默认实例（按类型）\n- 默认实例通过后端默认接口回显（不依赖前端临时字段）\n- 新增/更新实例参数映射（如 `max_token`）\n\n![模型管理](./assets/image-20260224193838368.png)\n\n### 2.9 提示词管理\n\n- 多场景提示词模板管理\n- 新增/编辑/删除提示词\n- 设置默认提示词\n- 场景枚举对齐后端 `SceneCode`\n- 分镜/视频流程中调用与保存对应提示词\n\n![提示词管理](./assets/image-20260224194051566.png)\n\n### 2.10 实时通信与任务流转\n\n- 进入项目后建立项目级 WebSocket 连接\n- 后端轮询第三方任务状态并推送到前端\n- 前端按 `targetId + taskType` 精准更新对应实体\n- 支持多任务并发状态跟踪，按钮独立 loading\n\n---\n\n## 3. 使用流程\n\n1. 创建项目与章节  \n2. 在模型管理中确认默认模型与 API Key  \n3. 提交章节文本，执行信息提取  \n4. 在“生成图片”中完善角色/场景资产  \n5. 在“生成分镜”中调整镜头描述及关联关系  \n6. 在“生成视频”中生成提示词、首帧和分镜视频  \n7. 在“视频编辑”中完成拼接与导出（持续迭代中）\n\n---\n\n## 4. 运行模式\n\n### A. 本地开发模式（推荐）\n\n前后端本机运行；中间件容器运行。\n\n#### 1) 启动中间件\n```powershell\n.\\infra-up.ps1\n```\n或\n```bat\ninfra-up.bat\n```\n等价：\n```bash\ndocker compose -f docker-compose.infra.yml up -d --build\n```\n\n#### 2) 启动后端\n```bash\ncd yihen-drama\nmvn spring-boot:run\n```\n\n#### 3) 启动前端\n```bash\ncd yihen-ai-short-drama-front-end/frontend\nnpm install\nnpm run dev\n```\n\n说明：\n- 前端已配置开发代理：`/api`、`/webSocket` 自动转发到 `localhost:8080`\n- 不需要手工改前端请求端口\n\n---\n\n### B. 一键全容器模式（部署/演示）\n\n```powershell\n.\\deploy.ps1\n```\n或\n```bat\ndeploy.bat\n```\n等价：\n```bash\ndocker compose -f docker-compose.full.yml up -d --build\n```\n\n---\n\n## 5. 访问地址\n\n- 前端：`http://localhost:3000`\n- 后端：`http://localhost:8080`\n- API 文档：`http://localhost:8080/doc.html`\n- MinIO Console：`http://localhost:9001`\n- RabbitMQ Console：`http://localhost:15672`\n- Elasticsearch：`http://localhost:9200`\n- Kibana：`http://localhost:5601`\n\n---\n\n## 6. 数据与中间件说明\n\n### 6.1 MySQL 初始化\n\n- 初始化脚本：`yihen-drama/sql/init_schema.sql`\n- MySQL 数据卷为空时自动执行\n- 若要重置：\n```bash\ndocker compose -f docker-compose.full.yml down -v\ndocker compose -f docker-compose.full.yml up -d --build\n```\n\n### 6.2 Elasticsearch 中文插件\n\nES 镜像已集成 IK + pinyin 插件（构建自动安装）。\n\n验证：\n```bash\ndocker compose -f docker-compose.full.yml exec es elasticsearch-plugin list\n```\n\n---\n\n## 7. 配置说明\n\n后端配置文件：`yihen-drama/src/main/resources/application.yml`  \n已支持“环境变量优先 + 本地默认值回退”。\n\n核心变量：\n- `SPRING_DATASOURCE_URL/USERNAME/PASSWORD`\n- `SPRING_DATA_REDIS_HOST/PORT/PASSWORD`\n- `SPRING_RABBITMQ_HOST/PORT/USERNAME/PASSWORD`\n- `SPRING_ELASTICSEARCH_URIS`\n- `MINIO_END_POINT/MINIO_ACCESS_KEY/MINIO_SECRET_KEY`\n\n---\n\n## 8. 常见问题\n\n### Q1：后端报 Redis 连接失败\n- 检查 `docker compose -f docker-compose.infra.yml ps`\n- 确认 `redis` 服务健康后再启动后端\n\n### Q2：前端看到请求是 3000，不是 8080\n- 本地开发下这是 Vite 代理行为，属于正常\n- 实际后端仍在 `8080`\n\n### Q3：Docker 拉镜像超时\n- 可切换镜像源\n- 建议先手工 `docker pull` 关键镜像再构建\n\n---\n\n## 9. 子模块文档\n\n- 后端：`yihen-drama/README.md`\n- 前端：`yihen-ai-short-drama-front-end/frontend/README.md`\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:29.654859"
+  },
+  {
+    "basic_info": {
+      "name": "job-interview",
+      "full_name": "kmigiet/job-interview",
+      "owner": "kmigiet",
+      "description": "Everything you need to know to get the job.",
+      "url": "https://github.com/kmigiet/job-interview",
+      "clone_url": "https://github.com/kmigiet/job-interview.git",
+      "ssh_url": "git@github.com:kmigiet/job-interview.git",
+      "homepage": "https://www.youtube.com/channel/UCKvwPt6BifPP54yzH99ff1g?view_as=subscriber",
+      "created_at": "2026-02-18T15:53:20Z",
+      "updated_at": "2026-03-02T16:27:32Z",
+      "pushed_at": "2025-05-12T12:56:04Z"
+    },
+    "stats": {
+      "stars": 80,
+      "forks": 9,
+      "watchers": 80,
+      "open_issues": 0,
+      "size": 24462
+    },
+    "tech_info": {
+      "language": null,
+      "languages": {
+        "Java": 674404
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Interviews\n> Pass your coding interviews with [The Daily Byte](https://thedailybyte.dev/?ref=kevin)  \n> [30,000+ Software Engineers have trusted us with their interview prep](https://thedailybyte.dev/?ref=kevin).\n<a href=\"\" style=\"display:block;\"><img src=\"/images/the-daily-byte.png?raw=true\"></a>\n>\n> Maintainer - [Kevin Naughton Jr.](https://github.com/kdn251)\n\n## Translations\n\n- [简体中文](./README-zh-cn.md)\n\n## Table of Contents\n- [YouTube](#youtube)\n- [The Daily Byte](#the-daily-byte)\n- [Instagram](#instagram)\n- [Articles](#articles)\n- [Online Judges](#online-judges)\n- [Live Coding Practice](#live-coding-practice)\n- [Data Structures](#data-structures)\n- [Algorithms](#algorithms)\n- [Greedy Algorithms](#greedy-algorithms)\n- [Bitmasks](#bitmasks)\n- [Runtime Analysis](#runtime-analysis)\n- [Video Lectures](#video-lectures)\n- [Interview Books](#interview-books)\n- [Computer Science News](#computer-science-news)\n- [Directory Tree](#directory-tree)\n\n## YouTube\n* [Kevin Naughton Jr.](https://www.youtube.com/channel/UCKvwPt6BifPP54yzH99ff1g)\n\n## The Daily Byte\n* [FAANG Interview Prep](https://thedailybyte.dev/?ref=kevin)\n\n## Instagram \n* [Kevin Naughton Jr.](https://www.instagram.com/kevinnaughtonjr)\n\n## Online Judges\n* [LeetCode](https://leetcode.com/)\n* [Virtual Judge](https://vjudge.net/)\n* [CareerCup](https://www.careercup.com/)\n* [HackerRank](https://www.hackerrank.com/)\n* [CodeFights](https://codefights.com/)\n* [Kattis](https://open.kattis.com/)\n* [HackerEarth](https://www.hackerearth.com)\n* [Codility](https://codility.com/programmers/lessons/1-iterations/)\n* [Code Forces](http://codeforces.com/)\n* [Code Chef](https://www.codechef.com/)\n* [Sphere Online Judge - SPOJ](http://www.spoj.com/)\n* [InterviewBit](https://www.interviewbit.com/)\n\n## Live Mock Interviews\n* [The Daily Byte](https://thedailybyte.dev/mock-interview)\n\n## Live Coding Practice\n* [The Daily Byte](https://thedailybyte.dev/?ref=kevin)\n* [Pramp](https://www.pramp.com/ref/gt4)\n* [Gainlo](http://www.gainlo.co/#!/)\n* [Refdash](https://refdash.com/)\n* [Interviewing.io](https://www.interviewing.io/)\n\n## Data Structures\n### Linked List\n * A *Linked List* is a linear collection of data elements, called nodes, each\n   pointing to the next node by means of a pointer. It is a data structure\n   consisting of a group of nodes which together represent a sequence.\n * **Singly-linked list**: linked list in which each node points to the next node and the last node points to null\n * **Doubly-linked list**: linked list in which each node has two pointers, p and n, such that p points to the previous node and n points to the next node; the last node's n pointer points to null\n * **Circular-linked list**: linked list in which each node points to the next node and the last node points back to the first node\n * Time Complexity:\n   * Access: `O(n)`\n   * Search: `O(n)`\n   * Insert: `O(1)`\n   * Remove: `O(1)`\n\n### Stack\n * A *Stack* is a collection of elements, with two principle operations: *push*, which adds to the collection, and\n   *pop*, which removes the most recently added element\n * **Last in, first out data structure (LIFO)**: the most recently added object is the first to be removed\n * Time Complexity:\n   * Access: `O(n)`\n   * Search: `O(n)`\n   * Insert: `O(1)`\n   * Remove: `O(1)`\n\n### Queue\n * A *Queue* is a collection of elements, supporting two principle operations: *enqueue*, which inserts an element\n   into the queue, and *dequeue*, which removes an element from the queue\n * **First in, first out data structure (FIFO)**: the oldest added object is the first to be removed\n * Time Complexity:\n   * Access: `O(n)`\n   * Search: `O(n)`\n   * Insert: `O(1)`\n   * Remove: `O(1)`\n\n### Tree\n * A *Tree* is an undirected, connected, acyclic graph\n\n### Binary Tree\n * A *Binary Tree* is a tree data structure in which each node has at most two children, which are referred to as\n   the *left child* and *right child*\n * **Full Tree**: a tree in which every node has either 0 or 2 children\n * **Perfect Binary Tree**: a binary tree in which all interior nodes have two children and all leave have the same depth\n * **Complete Tree**: a binary tree in which every level *except possibly the last* is full and all nodes in the last\n   level are as far left as possible\n\n### Binary Search Tree\n * A binary search tree, sometimes called BST, is a type of binary tree which maintains the property that the value in each\n   node must be greater than or equal to any value stored in the left sub-tree, and less than or equal to any value stored\n   in the right sub-tree\n * Time Complexity:\n   * Access: `O(log(n))`\n   * Search: `O(log(n))`\n   * Insert: `O(log(n))`\n   * Remove: `O(log(n))`\n\n<img src=\"/images/BST.png?raw=true\" alt=\"Binary Search Tree\" width=\"400\" height=\"500\">\n\n### Trie\n* A trie, sometimes called a radix or prefix tree, is a kind of search tree that is used to store a dynamic set or associative\n  array where the keys are usually Strings. No node in the tree stores the key associated ",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-18T03:36:30.871766"
+  },
+  {
+    "basic_info": {
+      "name": "MeowHub",
+      "full_name": "zhaojiaqi/MeowHub",
+      "owner": "zhaojiaqi",
+      "description": "AI Phone Avatar - Create your own phone automation skills with AI | AI 手机分身 - 让每个人都能制作自己的手机 AI 自动化技能",
+      "url": "https://github.com/zhaojiaqi/MeowHub",
+      "clone_url": "https://github.com/zhaojiaqi/MeowHub.git",
+      "ssh_url": "git@github.com:zhaojiaqi/MeowHub.git",
+      "homepage": null,
+      "created_at": "2026-03-04T06:24:14Z",
+      "updated_at": "2026-03-18T02:32:50Z",
+      "pushed_at": "2026-03-15T11:55:10Z"
+    },
+    "stats": {
+      "stars": 60,
+      "forks": 11,
+      "watchers": 60,
+      "open_issues": 6,
+      "size": 2151
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 1733508,
+        "Kotlin": 814083,
+        "JavaScript": 31949,
+        "C++": 31763,
+        "C": 7918,
+        "Shell": 1232,
+        "CMake": 1198,
+        "Makefile": 504,
+        "Assembly": 385
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/assets/logo_banner.png\" alt=\"MeowHub\" width=\"560\" />\n</p>\n\n<p align=\"center\">\n  <b>TUTU Smart Control · AI Phone Control Hub</b>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://github.com/openclaw.png?size=200\" alt=\"OpenClaw\" width=\"88\" />\n  <br/>\n  <code>SUB-BRAND · OpenClaw / MeowClaw</code>\n  <br/>\n  <b>Built-in Full OpenClaw Runtime (2026.3.13)</b>\n  <br/>\n  <span>The lobster way 🦞</span>\n</p>\n\n<p align=\"center\">\n  <b>AI Phone Avatar — Create Your Own Phone Automation Skills with AI</b>\n</p>\n\n<p align=\"center\">\n  <b>MeowHub × OpenClaw (The lobster way 🦞)</b><br/>\n  Built-in Full OpenClaw, One-Tap Install on Android.\n</p>\n\n<p align=\"center\">\n  No manual Termux setup, no git clone on phone, no npm install, no fragile shell scripts.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://tutuai.me\">Official Website</a> •\n  <a href=\"README_CN.md\">中文文档</a> •\n  <a href=\"docs/skill-development-guide.md\">Skill Development Guide</a> •\n  <a href=\"skills/\">Skill Gallery</a> •\n  <a href=\"CONTRIBUTING.md\">Contributing</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-GPL%20v3-blue.svg\" alt=\"License: GPL v3\" /></a>\n  <img src=\"https://img.shields.io/badge/Android-9%2B-green.svg\" alt=\"Android 9+\" />\n  <img src=\"https://img.shields.io/badge/Kotlin-2.3-purple.svg\" alt=\"Kotlin\" />\n  <img src=\"https://img.shields.io/badge/Jetpack%20Compose-Material%203-blue.svg\" alt=\"Compose\" />\n  <a href=\"https://github.com/zhaojiaqi/MeowHub/stargazers\"><img src=\"https://img.shields.io/github/stars/zhaojiaqi/MeowHub?style=social\" alt=\"Stars\" /></a>\n  <a href=\"https://github.com/zhaojiaqi/MeowHub/network/members\"><img src=\"https://img.shields.io/github/forks/zhaojiaqi/MeowHub?style=social\" alt=\"Forks\" /></a>\n  <a href=\"https://github.com/zhaojiaqi/MeowHub/issues\"><img src=\"https://img.shields.io/github/issues/zhaojiaqi/MeowHub\" alt=\"Issues\" /></a>\n</p>\n\n---\n\n## What is MeowHub?\n\nMeowHub is an open-source Android app that turns your phone into an **AI-powered automation agent**. It serves as **the hands and feet of AI in the physical world** — enabling AI to truly \"see\" your screen, \"tap\" buttons, and \"swipe\" through apps to accomplish any task on your phone. MeowHub runs entirely on your device, is fully open-source, and uses a declarative **Skill Engine** so you can create and share automation skills in JSON — no coding required.\n\n### Built-in OpenClaw, Not a Separate DIY Install\n\nMeowHub now ships with a **fully integrated OpenClaw runtime** inside the app. This is not a \"go install Termux, then run a few commands, then hope npm works\" experience. Instead, MeowHub bundles the **complete OpenClaw-based MeowClaw stack** and can install it for users with **one tap**.\n\n- **Built-in full OpenClaw** — bundled runtime, workspace, terminal, console, and Android bridge\n- **One-tap install** — bootstrap, Node.js, npm, OpenClaw, workspace assets, and gateway are prepared automatically\n- **No phone-side dependency hell** — no manual `git clone`, `npm install`, or package chasing on-device\n- **More stable in bad network conditions** — key runtime assets are pre-packaged in the APK instead of fetched during first launch\n- **Ready-to-use AI console** — terminal + web console are embedded directly in MeowHub\n\nThis matters because phone-side package installs are often the most fragile part of mobile AI-agent deployment: flaky network, broken mirrors, missing binaries, Android linker quirks, and inconsistent shell environments. MeowHub hides that complexity and delivers a **near out-of-box OpenClaw experience on Android**.\n\n**Our vision:** Everyone can create and share their own phone AI avatar skills — giving AI the power to interact with the physical world.\n\n### Why MeowHub? — A Fundamental Difference from Accessibility-Based Solutions\n\nMost phone automation tools (Auto.js, Hamibot, etc.) rely on Android's **AccessibilityService**. This approach has critical flaws. MeowHub uses the **system-level ADB protocol**, solving these problems by design:\n\n> **System-Level, Undetectable**\n> Accessibility-based solutions run at the application layer. Major apps like WeChat, TikTok, Taobao, and Alipay actively detect Accessibility Services — triggering risk controls or even **account bans**. MeowHub operates through ADB at the system level, completely transparent to target apps, equivalent to real finger touches, **undetectable by any application**.\n\n> **Stable & Reliable, One-Time Pairing**\n> Accessibility permissions are fragile — broken by OS updates, inconsistent across OEM ROMs, auto-revoked or interrupted by system prompts. MeowHub uses the standard ADB protocol for consistent and stable behavior. Pair once, use permanently — no repeated authorization needed.\n\n> **No Blind Spots**\n> Accessibility can only interact with UI elements that have Accessibility nodes — games, Canvas, and WebView are out of reach. MeowHub supports touch, swipe, and key input at any screen position, completely framewo",
+      "default_branch": "MeowClaw"
+    },
+    "fetched_at": "2026-03-18T03:36:32.061824"
+  },
+  {
+    "basic_info": {
+      "name": "monogram",
+      "full_name": "monogram-android/monogram",
+      "owner": "monogram-android",
+      "description": "Telegram client for Android",
+      "url": "https://github.com/monogram-android/monogram",
+      "clone_url": "https://github.com/monogram-android/monogram.git",
+      "ssh_url": "git@github.com:monogram-android/monogram.git",
+      "homepage": "https://t.me/monogram_android",
+      "created_at": "2026-03-04T15:52:02Z",
+      "updated_at": "2026-03-17T03:27:13Z",
+      "pushed_at": "2026-03-17T15:24:03Z"
+    },
+    "stats": {
+      "stars": 57,
+      "forks": 1,
+      "watchers": 57,
+      "open_issues": 11,
+      "size": 68590
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 4794039,
+        "Kotlin": 3914637,
+        "C++": 28985,
+        "Shell": 2727,
+        "CMake": 1103
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Monogram\n\n**Read this in other languages:** [Русский](README_RU.md)\n\n![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-blue.svg?logo=kotlin)\n![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?logo=android)\n![TDLib](https://img.shields.io/badge/TDLib-1.8.62-blue)\n![Status](https://img.shields.io/badge/Status-Active_Development-orange)\n\n**Monogram** is a modern, lightning-fast, and elegant unofficial Telegram client for Android. Built with **Jetpack\nCompose** and **Material Design 3**, it aims to provide a native and fluid experience while leveraging the power of the\nofficial **TDLib**.\n\n> **Note:** Monogram is currently in **active development**. Expect frequent updates, architectural changes, and the\n> occasional bug.\n\n---\n\n## Key Features\n\n* **Material Design 3**: A beautiful, adaptive UI that looks great on phones, tablets, and foldables.\n* **Clean Architecture**: Separation of concerns with Domain, Data, and Presentation layers.\n* **MVI Pattern**: Predictable state management using MVIKotlin.\n* **Secure**: Built-in biometric locking and encrypted local storage.\n* **Media Rich**: High-performance media playback with ExoPlayer and Coil 3.\n* **Fast & Efficient**: Powered by Kotlin Coroutines and optimized for performance.\n\n---\n\n## Tech Stack\n\nMonogram leverages the latest Android development tools and libraries:\n\n| Category                 | Libraries                                                                                                             |\n|:-------------------------|:----------------------------------------------------------------------------------------------------------------------|\n| **Language**             | [Kotlin](https://kotlinlang.org/)                                                                                     |\n| **UI Toolkit**           | [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material 3)                                         |\n| **Architecture**         | [Decompose](https://github.com/arkivanov/Decompose) (Navigation), [MVIKotlin](https://github.com/arkivanov/MVIKotlin) |\n| **Dependency Injection** | [Koin](https://insert-koin.io/)                                                                                       |\n| **Async**                | Coroutines & Flow                                                                                                     |\n| **Telegram Core**        | [TDLib](https://core.telegram.org/tdlib) (Telegram Database Library)                                                  |\n| **Image Loading**        | [Coil 3](https://coil-kt.github.io/coil/)                                                                             |\n| **Media**                | Media3 (ExoPlayer)                                                                                                    |\n| **Maps**                 | [MapLibre](https://maplibre.org/)                                                                                     |\n| **Local DB**             | Room                                                                                                                  |\n\n---\n\n## Project Structure\n\nThe project follows a multi-module structure to ensure separation of concerns and scalability:\n\n* **:app** - The main Android application module.\n* **:domain** - Pure Kotlin module containing business logic, use cases, and repository interfaces.\n* **:data** - Implementation of repositories, data sources, and TDLib integration.\n* **:presentation** - UI components, screens, and view models (MVI Stores).\n* **:core** - Common utility classes and extensions used across modules.\n* **:baselineprofile** - Baseline Profiles for optimizing app startup and performance.\n\n---\n\n## Getting Started\n\nFollow these steps to set up the project locally.\n\n### Prerequisites\n\n* **Android Studio**: Ladybug or newer (recommended).\n* **JDK**: Java 17 or newer.\n\n### 1. Clone the Repository\n```bash\ngit clone https://github.com/monogram-android/monogram.git\ncd monogram\n```\n\n### 2. Configure Telegram API Keys\n\nTo connect to Telegram servers, you need your own API credentials.\n\n1. Log in to [my.telegram.org](https://my.telegram.org/).\n2. Go to **API development tools**.\n3. Create a new application to get your `App api_id` and `App api_hash`.\n4. Create a file named `local.properties` in the root directory of the project (if it doesn't exist).\n5. Add the following lines:\n\n```properties\nAPI_ID=12345678\nAPI_HASH=your_api_hash_here\n```\n\n### 3. Build and Run\n\n1. Open the project in **Android Studio**.\n2. Sync Gradle.\n3. Select the `app` run configuration.\n4. Connect a device or start an emulator.\n5. Click **Run**.\n\n---\n\n## Contributing\n\nWe welcome contributions! Whether it's fixing bugs, improving documentation, or suggesting new features.\n\n1. **Check the Issues**: Look for open issues or create a new one to discuss your ideas.\n2. **Fork & Branch**: Fork the repo and create a feature branch.\n3. **Code Style**: Please foll",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-18T03:36:33.304747"
+  },
+  {
+    "basic_info": {
+      "name": "SunFavorite",
+      "full_name": "KXJ-WQL/SunFavorite",
+      "owner": "KXJ-WQL",
+      "description": "SunFavorite🌟空想家网页收藏夹",
+      "url": "https://github.com/KXJ-WQL/SunFavorite",
+      "clone_url": "https://github.com/KXJ-WQL/SunFavorite.git",
+      "ssh_url": "git@github.com:KXJ-WQL/SunFavorite.git",
+      "homepage": "",
+      "created_at": "2026-02-27T05:55:24Z",
+      "updated_at": "2026-03-11T12:57:41Z",
+      "pushed_at": "2026-02-27T06:13:31Z"
+    },
+    "stats": {
+      "stars": 57,
+      "forks": 4,
+      "watchers": 57,
+      "open_issues": 0,
+      "size": 1330
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 56629,
+        "CSS": 25065,
+        "FreeMarker": 18367,
+        "JavaScript": 271
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "bootstrap",
+        "elasticsearch",
+        "freemarker",
+        "mysql",
+        "redis",
+        "springboot"
+      ]
+    },
+    "content": {
+      "readme": "# SunFavorite🌟空想家网页收藏夹\n## 1. 主要功能是🌍\n- 微信公众号验证码登录\n- 个人网页收藏(公开收藏/私有收藏)\n- 收藏广场，显示其他用户公开收藏\n- 网页收藏搜索\n- 个人中心(个人名称+头像)\n## 2. 技术的选型和基础环境搭建配置是🪐\n**技术的选型🛩：**\n1. 数据库使用MySQL\n2. 缓存使用Redis\n3. 使用WXJava对接微信公众号\n4. 搜索功能使用ElasticSearch，分词使用IK分词器\n5. MySQL和ElasticSearch的数据同步使用Canal，这个Canal包含Canal-Server和Canal-Adapter\n6. 持久层框架使用SpringData JPA(如果有复杂的查询不推荐)\n7. 基础框架使用SpringBoot\n8. 模板引擎使用FreeMarker\n9. 前端使用BootStrap做布局，也使用到了Layui部分组件\n\n**Docker基础环境的搭建博客🚀：**[点击进入](https://wql.luoqin.ltd/2022/10/29/sunfavorite%e9%a1%b9%e7%9b%ae%e5%9f%ba%e7%a1%80%e7%8e%af%e5%a2%83%e6%90%ad%e5%bb%ba/)\n\n## 3. 拉下项目如何运行是🛰\n**步骤🧭：**\n1. 注册个人公众号\n2. 修改application.yml文件中的配置\n3. 使用Natapp做内网穿透进行测试\n4. 修改前端的二维码\n\n**Natapp内网穿透和公众号设置博客🚕：**[点击进入](https://wql.luoqin.ltd/2022/10/29/sunfavorite%e9%a1%b9%e7%9b%ae%e8%bf%90%e8%a1%8c/)\n\n**修改application.yml：只列非常规设置，连接信息省略**\n```yml\nserver:\n  #设置为服务的IP地址或者内网穿透域名\n  domain: http://u58e5j.natappfree.cc\nwx:\n  mp:\n    #设置微信公众开发者ID和Token信息\n    app-id: wxxx\n    secret: wxxx\n    token: wxxx\nfile:\n  #文件上传映射地址\n  staticAccessPath: /api/file/**\n  #在指定地址创建目录\n  uploadFolder: F:\\KXJPageCollect\\static\\teamImages\\\n#其他就是redis,mysql,ES地址，这里省略\n``` \n## 4. 项目演示图🌌\n1, 登录页\n\n![登录页](https://raw.githubusercontent.com/KXJ-WQL/SunFavorite/refs/heads/master/ProjectCaseImages/%E7%99%BB%E5%BD%95.png#pic_center \"登录页\")\n\n2, 公众号获取验证码\n\n![公众号获取验证码](https://raw.githubusercontent.com/KXJ-WQL/SunFavorite/refs/heads/master/ProjectCaseImages/SunFavorite6.png#pic_center \"公众号获取验证码\")\n\n3, 个人收藏\n\n![个人收藏](https://raw.githubusercontent.com/KXJ-WQL/SunFavorite/refs/heads/master/ProjectCaseImages/SunFavorite3.png#pic_center \"个人收藏\")\n\n4, 公共收藏(点击他人名称可以进入他的收藏空间，但只显示公开的收藏目录)\n\n![公共收藏](https://raw.githubusercontent.com/KXJ-WQL/SunFavorite/refs/heads/master/ProjectCaseImages/SunFavorite5.png#pic_center \"公共收藏\")\n\n5, 新建收藏\n\n![新建收藏](https://raw.githubusercontent.com/KXJ-WQL/SunFavorite/refs/heads/master/ProjectCaseImages/SunFavorite4.png#pic_center \"新建收藏\")\n\n6, 收藏搜索(收藏名称和收藏备注都可以)\n\n![收藏搜索](https://raw.githubusercontent.com/KXJ-WQL/SunFavorite/refs/heads/master/ProjectCaseImages/SunFavorite8.png#pic_center \"收藏搜索\")\n\n7, 个人中心\n\n![个人中心](https://raw.githubusercontent.com/KXJ-WQL/SunFavorite/refs/heads/master/ProjectCaseImages/SunFavorite7.png#pic_center \"个人中心\")\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-18T03:36:34.546122"
+  },
+  {
+    "basic_info": {
+      "name": "Bluetooth-headset-location-software",
+      "full_name": "dawdadsd/Bluetooth-headset-location-software",
+      "owner": "dawdadsd",
+      "description": "因为本人蓝牙耳机比较小，也没买保护壳，导致蓝牙耳机总是莫名其妙忘记带或者遗落，所以做了一个关于这个蓝牙和耳机的定位扫描器，因为各个厂商其实对于贵的耳机都是能有相应的APP定位的，但是本人的耳机是华为Freeclip2，但是本人手机是小米17Pro。无法找到，所以做了这个App，用于监听蓝牙断开时间，记录断开蓝牙时耳机的最后已知的位置，然后在家以外的地方弹出遗落提醒，回到现场之后可以通过蓝牙做近距离搜索",
+      "url": "https://github.com/dawdadsd/Bluetooth-headset-location-software",
+      "clone_url": "https://github.com/dawdadsd/Bluetooth-headset-location-software.git",
+      "ssh_url": "git@github.com:dawdadsd/Bluetooth-headset-location-software.git",
+      "homepage": null,
+      "created_at": "2026-03-10T03:56:02Z",
+      "updated_at": "2026-03-17T19:25:50Z",
+      "pushed_at": "2026-03-11T03:30:02Z"
+    },
+    "stats": {
+      "stars": 57,
+      "forks": 0,
+      "watchers": 57,
+      "open_issues": 0,
+      "size": 15022
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 104968
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# FreeClip Guard Android\n\n用于 `耳机 + 非华为的安卓手机` 的防丢提醒、最后位置记录、附近搜索。\n\n## 目标\n\n- 绑定你已经配对过的耳机\n- 监听蓝牙断开事件\n- 记录断开时手机的最后已知位置\n- 在“家”以外场景弹出遗落提醒\n- 回到现场后通过经典蓝牙扫描做近距离搜索\n- 提供首次设置向导，集中处理权限、后台定位和伴生设备增强\n- 首次进入会先展示 4 页产品边界与隐私说明引导，再进入设置向导\n- 在支持的 Android 12+ 机型上启用 Companion Device 增强存在感知\n- 首页显示耳机连接/听歌状态，前台打开 App 时会持续刷新\n- 遗落通知和历史记录支持优先拉起高德地图查看最后位置，不安装高德时回退系统地图\n- 支持自定义耳机断开提示词，并可通过悬浮弹窗在其他界面上直接提醒\n\n## 为什么用 Java\n\n- 我对 Java 更熟悉，维护成本更低\n- Android 蓝牙、位置、通知、Room 都可以直接用 Java 实现\n- UI 选 `XML + AppCompat`，避免 Kotlin/Compose 学习成本\n\n## 当前实现边界\n\n- 适合做“最后看到位置 + 断连提醒 + 近距离搜索”\n- 不包含华为 `离线查找网络`、`星闪精确查找`、`查找设备` 能力\n- `附近搜索` 依赖耳机仍可被扫描到；如果耳机关机、没电、放进盒子或停止广播，搜索可能失败\n- 背景检测目前依赖系统蓝牙连接广播；后续可再接入 `CompanionDeviceManager` 强化后台存在感知\n- `CompanionDeviceManager` 增强目前要求 `Android 12 (API 31)+` 且系统开放相关功能；不同厂商 ROM 的表现可能不同\n- 由于 Google Play 对后台定位权限审核较严，正式上架前需要补充清晰的权限说明与隐私政策\n\n## 工程结构\n\n- `app/src/main/java/com/example/freeclipguard/MainActivity.java`：主页，总览绑定设备、家位置、最后事件\n- `app/src/main/java/com/example/freeclipguard/OnboardingActivity.java`：首次设置向导，负责权限、后台定位、伴生增强\n- `app/src/main/java/com/example/freeclipguard/BindDeviceActivity.java`：从已配对设备中绑定目标耳机\n- `app/src/main/java/com/example/freeclipguard/NearbySearchActivity.java`：附近搜索与 RSSI 热度提示\n- `app/src/main/java/com/example/freeclipguard/EventHistoryActivity.java`：查看最近遗落事件\n- `app/src/main/java/com/example/freeclipguard/companion/CompanionAssociationManager.java`：伴生设备关联与存在观察\n- `app/src/main/java/com/example/freeclipguard/companion/FreeClipCompanionService.java`：伴生设备离开范围时的系统回调\n- `app/src/main/java/com/example/freeclipguard/receiver/BluetoothStateReceiver.java`：监听蓝牙连接/断开\n- `app/src/main/java/com/example/freeclipguard/data`：Room 数据库与配置存储\n\n## 应用截图说明\n\n下面这些截图按用户真实使用流程排列，方便你快速理解这个 App 的定位和交互设计。\n\n### 1. 首次进入的产品边界说明\n\n这 4 页不是功能介绍，而是先把产品边界讲清楚：\n\n- 它不能替代官方离线查找网络\n- 就算有蓝牙，定位耳机也并不轻松\n- 它真正解决的是“忘了放哪”的问题\n- 数据静默运行、全部保存在本地，不上传个人信息\n\n| 第 1 页：做不到什么 | 第 2 页：蓝牙定位不容易 |\n| --- | --- |\n| ![首次引导第1页：先说清楚它做不到什么](耳机演示App截图/20260310-170620.png) | ![首次引导第2页：就算有蓝牙，找位置也很费劲](耳机演示App截图/20260310-170648.png) |\n\n| 第 3 页：真正解决“记不住” | 第 4 页：静默运行与本地隐私 |\n| --- | --- |\n| ![首次引导第3页：它真正帮你解决的是记不住](耳机演示App截图/20260310-170653.png) | ![首次引导第4页：静默运行，不上传任何信息](耳机演示App截图/20260310-170658.png) |\n\n### 2. 首次设置向导\n\n引导页结束后，会进入首次设置向导。这里把权限、后台定位、设备绑定、伴生设备增强集中放在一起，避免用户在系统设置里来回找。\n\n| 向导上半部分：基础权限与后台定位 | 向导下半部分：绑定耳机与伴生增强 |\n| --- | --- |\n| ![首次设置向导上半部分](耳机演示App截图/20260310-170703.png) | ![首次设置向导下半部分](耳机演示App截图/20260310-170709.png) |\n\n如果想让后台自动记录位置更可靠，系统里建议把定位权限设置成“始终允许”，并打开精确位置：\n\n![系统定位权限页：始终允许 + 精确位置](耳机演示App截图/20260310-170714.png)\n\n### 3. 首页总览与日常使用\n\n首页是这个 App 的核心工作台。它会集中展示：\n\n- 当前绑定的耳机和最近连接时间\n- 当前播放状态\n- 手动填写的“耳机放哪了”记录\n- 家位置、最近事件、伴生增强状态\n- 进入设置、绑定、搜索、历史记录等所有主要入口\n\n| 首页上半部分：状态总览与手动记录 | 首页下半部分：常用操作入口 |\n| --- | --- |\n| ![首页上半部分：设备状态和放置记录](耳机演示App截图/20260310-170719.png) | ![首页下半部分：设置、绑定、搜索和历史入口](耳机演示App截图/20260310-170723.png) |\n\n## 导入方式\n\n1. 用 Android Studio 打开 `freeclip-guard-android`\n2. 使用 IDE 自带的 Gradle/JDK 17 同步项目\n3. 安装到 Android 真机后，首次启动先走 `安装向导 / 权限设置`\n4. 先去系统蓝牙把 `FreeClip 2` 配对好，再在 App 中绑定\n5. 如果你的手机是 Android 12+，在向导里再点一次 `启用伴生设备增强`\n\n## 建议真机验证清单\n\n- 在家里设置一次“当前地点为家”\n- 戴着耳机出门，关掉耳机或让耳机离开连接范围，确认是否收到提醒\n- 在耳机播放音乐时打开首页，确认状态会显示“正在通过 xxx 听歌”\n- 在楼道、房间、车内分别测试一次 `附近搜索`\n- 点开遗落通知，确认会优先打开高德地图并落在最后位置点上\n- 打开“断连提醒配置”，修改提示词并开启悬浮弹窗权限；随后断开耳机，确认在其他界面上也能弹出自定义提醒\n- 验证不同机型上 `ACTION_ACL_DISCONNECTED` 是否稳定触发\n- 如果手机支持 Companion Device，再测一次“耳机离开范围但系统蓝牙广播不稳定”时能否仍记录事件\n\n## 后台定位提醒\n\n- 如果你希望耳机在后台断开时也尽量记住最后位置，系统里最好把定位权限调成“始终允许”\n- 这个 MVP 当前不会自动走完整的后台定位授权引导；如果后台权限没开，断连事件仍会保存，但位置可能为空\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:35.804426"
+  },
+  {
+    "basic_info": {
+      "name": "Java-Full-Course",
+      "full_name": "adityatandon15/Java-Full-Course",
+      "owner": "adityatandon15",
+      "description": "Java Basics to Advance",
+      "url": "https://github.com/adityatandon15/Java-Full-Course",
+      "clone_url": "https://github.com/adityatandon15/Java-Full-Course.git",
+      "ssh_url": "git@github.com:adityatandon15/Java-Full-Course.git",
+      "homepage": null,
+      "created_at": "2026-02-16T03:50:17Z",
+      "updated_at": "2026-03-17T12:19:55Z",
+      "pushed_at": "2026-03-12T12:54:54Z"
+    },
+    "stats": {
+      "stars": 57,
+      "forks": 21,
+      "watchers": 57,
+      "open_issues": 0,
+      "size": 34565
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 38647
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "All Codes and Notes for Java Playlist of Coder Army. Absolutely Free on Coder Army Youtube Channel.\n\nPlaylist Link : https://youtube.com/playlist?list=PLQEaRBV9gAFsR15tNo2QLF9d2qc-c018p&si=XxQM5yJi93JBLQs1\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:36.967020"
+  },
+  {
+    "basic_info": {
+      "name": "md-serve",
+      "full_name": "nikolassv/md-serve",
+      "owner": "nikolassv",
+      "description": " Serve a directory of Markdown files as rendered HTML - with directory listings, YAML front matter, breadcrumb navigation, and customisable Handlebars templates.",
+      "url": "https://github.com/nikolassv/md-serve",
+      "clone_url": "https://github.com/nikolassv/md-serve.git",
+      "ssh_url": "git@github.com:nikolassv/md-serve.git",
+      "homepage": null,
+      "created_at": "2026-03-06T15:03:41Z",
+      "updated_at": "2026-03-18T03:30:19Z",
+      "pushed_at": "2026-03-13T14:09:08Z"
+    },
+    "stats": {
+      "stars": 48,
+      "forks": 1,
+      "watchers": 48,
+      "open_issues": 0,
+      "size": 218
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 65843,
+        "Handlebars": 13904
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# md-serve\n\nA Quarkus-based HTTP server that serves Markdown files from a configured directory as rendered HTML.\n\nYou have a folder full of Markdown files — notes, project docs, a personal wiki — and you want to read them in a browser without uploading them anywhere or wrestling with a static-site generator. md-serve is a single binary you drop into a directory and run: it turns your `.md` files into clean HTML pages, complete with navigation, breadcrumbs, and templating, and serves them locally over HTTP. No build step, no cloud account, no configuration required to get started.\n\nIt's the right tool when you want a lightweight, private, local web view of your Markdown without committing to a full documentation platform. Developers reach for it to browse their own notes or internal team wikis during development; it also works well as a small self-hosted docs server for projects that don't need the weight of GitBook or MkDocs.\n\n## Features\n\n- Serves `.md` files as styled HTML pages via Handlebars templates\n- Directory listings with automatic navigation\n- YAML front matter support (title override, template selection, custom metadata)\n- Breadcrumb navigation\n- Three role-based templates (`default`, `directory`, `error`) with bundled defaults; override any or all by placing `.hbs` files in `<source-dir>/.md-serve/templates/`\n- Per-file template selection via `template:` front matter key\n- 404 and 500 error pages rendered through the template pipeline\n- Path traversal protection\n\n## Installation\n\n### Manual download\n\nDownload a pre-built release from the [GitHub Releases page](https://github.com/nikolassv/md-serve/releases).\n\n**Uber JAR** (any platform with Java 21):\n\n```sh\njava -jar md-serve.jar\n```\n\n**Native executables** (no JVM required):\n\n| Archive | Platform | Contains |\n|---|---|---|\n| `md-serve-linux-x86_64.tar.gz` | Linux x86_64 | `md-serve` |\n| `md-serve-macos-x86_64.tar.gz` | macOS Intel | `md-serve` |\n| `md-serve-macos-aarch64.tar.gz` | macOS Apple Silicon | `md-serve` |\n| `md-serve-windows-x86_64.zip` | Windows x86_64 | `md-serve.exe` |\n\n```sh\n# Linux / macOS\ntar -xzf md-serve-linux-x86_64.tar.gz\nchmod +x md-serve\n./md-serve\n```\n\n### jbang\n\nInstall [jbang](https://www.jbang.dev/download/) once, then run md-serve directly — no manual download needed:\n\n```sh\njbang md-serve@nikolassv/md-serve\n```\n\nTo install as a named command available system-wide:\n\n```sh\njbang app install md-serve@nikolassv/md-serve\nmd-serve\n```\nTo upgrade from the latest release JAR on Github:\n\n```sh\njbang app install --force md-serve@nikolassv/md-serve\n```\n\n## Quick start\n\n```sh\n./mvnw quarkus:dev\n```\n\nOpen `http://localhost:8080`. Serves the current working directory by default.\n\n## Configuration\n\n| Property | Default | Description |\n|---|---|---|\n| `md-serve.source-dir` | `.` | Directory of Markdown files to serve |\n| `md-serve.max-tree-depth` | `20` | Maximum directory depth for the navigation tree |\n| `md-serve.port` | `int` | `8080` | TCP port the HTTP server listens on. |\n\nSet properties in `src/main/resources/application.properties` or on the command line with `-D<property>=<value>`.\n\nTo customise templates, place `.hbs` files in `<source-dir>/.md-serve/templates/` — see [Configuration Reference](docs/user/configuration.md).\n\n## Front matter\n\nFiles may include a YAML front matter block:\n\n```markdown\n---\ntitle: My Page\nauthor: Ada Lovelace\n---\n\nContent here.\n```\n\nThe `title` key overrides the H1-derived title. The `template` key selects a named template from `.md-serve/templates/`. All keys are accessible in templates as `{{frontmatter.key}}`.\n\n## Documentation\n\n- [Getting Started](docs/user/getting-started.md)\n- [Configuration Reference](docs/user/configuration.md)\n- [Development Guide](docs/dev/development.md)\n- [Architecture](docs/dev/architecture.md)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:38.188912"
+  },
+  {
+    "basic_info": {
+      "name": "Sift",
+      "full_name": "Mirkoddd/Sift",
+      "owner": "Mirkoddd",
+      "description": "A Fluent Regex Builder for Java",
+      "url": "https://github.com/Mirkoddd/Sift",
+      "clone_url": "https://github.com/Mirkoddd/Sift.git",
+      "ssh_url": "git@github.com:Mirkoddd/Sift.git",
+      "homepage": "",
+      "created_at": "2026-02-18T15:52:59Z",
+      "updated_at": "2026-03-17T17:52:07Z",
+      "pushed_at": "2026-03-17T17:52:13Z"
+    },
+    "stats": {
+      "stars": 47,
+      "forks": 1,
+      "watchers": 47,
+      "open_issues": 0,
+      "size": 678
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 505920
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "android-library",
+        "builder-pattern",
+        "fluent-api",
+        "hibernate-validator",
+        "jakarta-validation",
+        "java",
+        "java-library",
+        "regex",
+        "regex-builder",
+        "regex-dsl",
+        "regular-expressions",
+        "thread-safe",
+        "type-safe",
+        "validation"
+      ]
+    },
+    "content": {
+      "readme": "# Sift\n<img referrerpolicy=\"no-referrer-when-downgrade\" src=\"https://static.scarf.sh/a.png?x-pxid=e931dfa9-02e9-406d-bde7-56f9e0000464\" alt=\"\"/>[![Java 8+](https://img.shields.io/badge/Java-8+-blue.svg)](https://adoptium.net/)\n[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)\n\n[![Tests](https://github.com/mirkoddd/Sift/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/mirkoddd/Sift/actions)\n[![Coverage](https://raw.githubusercontent.com/mirkoddd/Sift/main/.github/badges/jacoco.svg)](https://github.com/mirkoddd/Sift/actions)\n\n**The Type-Safe Regex Builder for Java. If it compiles, it works.**\n\n---\n\n## The Problem\n\nYou've seen this before. Someone writes a regex, it works, and six months later nobody — including the author — can read it:\n\n```java\n// What does this even do?\nPattern p = Pattern.compile(\"^(?=[\\\\p{Lu}])[\\\\p{L}\\\\p{Nd}_]{3,15}+[0-9]?$\");\n```\n\nYou add a character class, break the balance of brackets, and find out at runtime. You copy a regex from Stack Overflow, miss an escape, and watch it fail silently in production. You duplicate the same validation pattern across DTOs and forget to update one of them.\n\n**There is a better way.**\n\n---\n\n## The Solution\n\nSift is a fluent DSL that turns regex construction into readable, self-documenting Java code. Its state machine enforces grammatical correctness at **compile time** — if your pattern compiles, it is structurally valid.\n\n```java\n// The same pattern, written with Sift:\nString regex = Sift.fromStart()\n                .exactly(1).upperCaseLettersUnicode()   // Must start with an uppercase letter\n                .then()\n                .between(3, 15).wordCharactersUnicode().withoutBacktracking() // ReDoS-safe\n                .then()\n                .optional().digits()                    // May end with a digit\n                .andNothingElse()\n                .shake();\n\n// Result: ^[\\p{Lu}][\\p{L}\\p{Nd}_]{3,15}+[0-9]?$\n```\n\nYour IDE guides every step. Wrong transitions simply do not exist as methods.\n\n---\n\n## Installation\n[![sift-core](https://img.shields.io/maven-central/v/com.mirkoddd/sift-core?label=sift-core)](https://central.sonatype.com/artifact/com.mirkoddd/sift-core)\n[![sift-annotations](https://img.shields.io/maven-central/v/com.mirkoddd/sift-annotations?label=sift-annotations)](https://central.sonatype.com/artifact/com.mirkoddd/sift-annotations)\n\n[![sift-engine-re2j](https://img.shields.io/maven-central/v/com.mirkoddd/sift-engine-re2j?label=sift-engine-re2j)](https://central.sonatype.com/artifact/com.mirkoddd/sift-engine-re2j)\n[![sift-engine-graalvm](https://img.shields.io/maven-central/v/com.mirkoddd/sift-engine-graalvm?label=sift-engine-graalvm)](https://central.sonatype.com/artifact/com.mirkoddd/sift-engine-graalvm)\n\n**Gradle:**\n```groovy\n// Core engine — zero external dependencies\nimplementation 'com.mirkoddd:sift-core:<latest>'\n\n// Optional: Jakarta Validation / Hibernate Validator integration\nimplementation 'com.mirkoddd:sift-annotations:<latest>'\n\n\n// Optional: Engine RE2J\nimplementation 'com.mirkoddd:sift-engine-re2j:<latest>'\n\n\n// Optional: Engine GraalVM\nimplementation 'com.mirkoddd:sift-engine-graalvm:<latest>'\n```\n\n**Maven:**\n```xml\n<dependency>\n    <groupId>com.mirkoddd</groupId>\n    <artifactId>sift-core</artifactId>\n    <version>latest</version>\n</dependency>\n\n<!-- Optional: Jakarta Validation / Hibernate Validator integration -->\n<dependency>\n    <groupId>com.mirkoddd</groupId>\n    <artifactId>sift-annotations</artifactId>\n    <version>latest</version>\n</dependency>\n\n\n<!-- Optional: Engine GraalVM -->\n<dependency>\n    <groupId>com.mirkoddd</groupId>\n    <artifactId>sift-engine-graalvm</artifactId>\n    <version>latest</version>\n</dependency>\n\n\n<!-- Optional: Engine RE2J -->\n<dependency>\n    <groupId>com.mirkoddd</groupId>\n    <artifactId>sift-engine-re2j</artifactId>\n    <version>latest</version>\n</dependency>\n```\n\n> Sift targets **Java 8 bytecode** for maximum compatibility — including legacy Spring Boot 2.x and Android.\n\n---\n\n## Core Concepts\n\n### Entry Points\n\n| Method | Generates | Use when |\n|---|---|---|\n| `Sift.fromStart()` | `^...` | Validating an entire string |\n| `Sift.fromAnywhere()` | `...` | Building reusable fragments or searching within text |\n| `Sift.fromWordBoundary()` | `\\b...` | Matching whole words |\n| `Sift.fromPreviousMatchEnd()` | `\\G...` | Iterative parsing |\n| `Sift.filteringWith(flag)` | `(?i)...` | Global flags (case-insensitive, multiline, dotall) |\n\n### Terminal Methods\n\n| Method | Effect |\n|---|---|\n| `.shake()` | Returns the raw regex `String` |\n| `.sieve()` | Compiles with the default JDK engine → `SiftCompiledPattern` |\n| `.sieveWith(engine)` | Compiles with a custom engine → `SiftCompiledPattern` |\n| `.andNothingElse()` | Appends `$` and seals the pattern |\n\n---\n\n## Examples\n\n### 1. Modular Composition — The LEGO Brick Approach\n\nThe real power of Sift is the ability to name your building blocks and compose them. Every `Sift.fromAnywhere()` ca",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:39.377067"
+  },
+  {
+    "basic_info": {
+      "name": "notPipe",
+      "full_name": "gohoski/notPipe",
+      "owner": "gohoski",
+      "description": "A working YouTube client for Android 1.5+ utilizing multiple APIs and instances. Made with ❤ and longevity in mind.",
+      "url": "https://github.com/gohoski/notPipe",
+      "clone_url": "https://github.com/gohoski/notPipe.git",
+      "ssh_url": "git@github.com:gohoski/notPipe.git",
+      "homepage": null,
+      "created_at": "2026-03-07T12:47:14Z",
+      "updated_at": "2026-03-17T16:18:07Z",
+      "pushed_at": "2026-03-11T16:14:52Z"
+    },
+    "stats": {
+      "stars": 41,
+      "forks": 2,
+      "watchers": 41,
+      "open_issues": 0,
+      "size": 1450
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 261358
+      },
+      "license": "Do What The F*ck You Want To Public License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# notPipe\n**English** / [русский](README.ru.md) \n\nA working YouTube client for **Android 1.5+** utilizing [YtAPILegacy](http://yt.modyleprojects.ru), [Invidious](https://invidious.io) and [yt2009](https://github.com/ftde0/yt2009) APIs. Made with ❤ and longevity in mind. Instead of using a single instance, the app uses multiple instances at the same time for reliability.\n* **Telegram channel with updates**: [@AppDataApps](https://t.me/AppDataApps)\n* **[Retro Android Group](https://t.me/retroandroidgroup)** on Telegram\n\n![notPipe](img/logo.png \"Working YouTube for legacy Android devices\")\n\n<img src=\"img/scr1.png\" alt=\"Screenshot\" width=\"200\"/> <img src=\"img/scr2.png\" alt=\"Screenshot\" width=\"200\"/> <img src=\"img/scr3.png\" alt=\"Screenshot\" width=\"200\"/> <img src=\"img/scr4.png\" alt=\"Screenshot\" width=\"200\"/> <img src=\"img/scr5.png\" alt=\"Screenshot\" width=\"200\"/> <img src=\"img/scr6.png\" alt=\"Screenshot\" width=\"200\"/>\n\n## 📥 Download\n* [GitHub Releases](https://github.com/gohoski/notPipe/releases)\n* [OldMarket](http://oldmarket.store/app.php?id=536)\n* [Market Reborn](http://market.lyano.ovh/details/?id=io.github.gohoski.notpipe)\n* Telegram (link at the top of the README)\n\n## Features\n> [!NOTE]  \n> Due to various limitations, the app does not connect to YouTube directly. Instead it connects to various instances of YtAPILegacy, Invidious and yt2009. See [\"Why and how\"](#why-and-how) for more information.\n* Trending, search\n* Videos, related videos, comments\n* Video playback\n* Video conversion for devices that do not support H.264\n* Automatic updates of the list of instances from a URL\n### TODO\n* Landscape, tablet layout (it works on tablets but doesn't look usable)\n* Channels\n* Playlists\n* Authorization via YtAPILegacy\n\n## Solving issues on Android ≤2.3\n*(videos lag or do not play at all)*\n\nIf videos do not play, first try typical diagnostics:\n1. **Switch an instance.** Click the \"Playback via … >\" button. Some instances might be temporarily unavailable.\n2. Make sure your **network is stable.** notPipe may not work properly on a slow Internet connection.\n\nIf this does not help, then your device does not support the H.264 codec. Its support depends heavily on the device. There are two ways to solve this problem in notPipe:\n1. **Use [MX Player](https://archive.org/details/mx-player-1.7.39)** (Android 2.1+) and switch to the **external player** in settings. However, on unpowerful devices, it's likely that the player will lag on most videos. You can only try.\n2. **Enable conversion** in settings. This converts the video to the MPEG-4 Visual codec server-side while using the system player. Requires an SD card. This will unfortunately make a delay when playing a video, but it should last no more than 3–5 minutes.\n\n## Why and how\nExisting methods for watching YouTube on legacy Android suffer from two fatal flaws—poor usability and an inability to survive YouTube’s current anti-bot measures. Current workarounds generally have the following issues:\n* **Single point of failure.** Current *(and previous)* ways of watching YouTube rely on a single specific API instance. The moment an instance gets a noticeable amount of traffic, YouTube automatically bans its IP address. A single instance may also be heavily overloaded, rendering it unusable.\n* **Poor usability.** Web wrappers like S60Tube lack a native feel and require constantly switching between a browser and a video player. yt2009 patched APKs require tedious, per-instance patching—furthermore, they often suffer from heavy server-side video transcoding overhead, crippling in endless buffering. The old mobile YouTube design also isn't always practical. Everything feels clunky.\n\nThis project was built from the ground up to solve these exact issues. Instead of relying on a single point of failure, this client **utilizes multiple APIs and instances** simultaneously, randomly selecting a new instance for each activity. This decentralized approach provides critical advantages:\n1. **Ban evasion.** Requests are distributed across a big enough pool of servers. Because no single server generates massive traffic, the chances of YouTube triggering an IP ban are drastically reduced.\n2. **Performance.** Server bandwidth is load-balanced naturally, preventing the crippling slowdowns seen in single-instance patched APKs.\n3. **It just works.** You get a native Android interface without needing to patch your own APKs or configure private servers.\n4. **No single point of failure.** Because this is exactly how previous YouTube clients died, everything is decentralized and open for anyone to contribute.\n5. **Automatic updates of the instances.** The list of the instances is automatically updated and by default loads from http://144.31.189.129/notPipe.json, requiring as less actions from the user as possible.\n\n## Reporting bugs\n**Report bugs in the [Issues](https://github.com/gohoski/numAi/issues) tab!** Don't forget to specify which version of Android you encountered the bug on.\n\n## Build\nThe pr",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:40.579019"
+  },
+  {
+    "basic_info": {
+      "name": "archetypes",
+      "full_name": "Archetypy-Oprogramowania/archetypes",
+      "owner": "Archetypy-Oprogramowania",
+      "description": "Repozytorium kodu z przykładami wykorzystywanymi podczas szkolenia archetypyoprogramowania.pl",
+      "url": "https://github.com/Archetypy-Oprogramowania/archetypes",
+      "clone_url": "https://github.com/Archetypy-Oprogramowania/archetypes.git",
+      "ssh_url": "git@github.com:Archetypy-Oprogramowania/archetypes.git",
+      "homepage": null,
+      "created_at": "2026-02-19T13:55:23Z",
+      "updated_at": "2026-03-17T22:15:59Z",
+      "pushed_at": "2026-02-20T00:01:02Z"
+    },
+    "stats": {
+      "stars": 37,
+      "forks": 9,
+      "watchers": 37,
+      "open_issues": 0,
+      "size": 667
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 2345596
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Archetypy Oprogramowania\n\n[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)\n\n## Licencja\n\nTen projekt jest dostępny na licencji **CC BY-NC-SA 4.0** (Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International).\n\n✅ Możesz używać kodu do nauki i projektów niekomercyjnych\n❌ Użycie komercyjne wymaga kontaktu z autorami\n\nWięcej informacji w pliku [LICENSE](LICENSE).\n\n## Autorzy\n\n- Bartłomiej Słota\n- Jakub Pilimon\n- Sławomir Sobótka",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-18T03:36:41.751119"
+  }
+]

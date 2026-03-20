@@ -1,0 +1,846 @@
+[
+  {
+    "basic_info": {
+      "name": "cli",
+      "full_name": "googleworkspace/cli",
+      "owner": "googleworkspace",
+      "description": "Google Workspace CLI — one command-line tool for Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin, and more. Dynamically built from Google Discovery Service. Includes AI agent skills.",
+      "url": "https://github.com/googleworkspace/cli",
+      "clone_url": "https://github.com/googleworkspace/cli.git",
+      "ssh_url": "git@github.com:googleworkspace/cli.git",
+      "homepage": "https://developers.google.com/workspace",
+      "created_at": "2026-03-02T19:46:06Z",
+      "updated_at": "2026-03-20T03:25:43Z",
+      "pushed_at": "2026-03-18T20:56:36Z"
+    },
+    "stats": {
+      "stars": 21670,
+      "forks": 1018,
+      "watchers": 21670,
+      "open_issues": 81,
+      "size": 10289
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1044396,
+        "Shell": 3244,
+        "Nix": 2126
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-skills",
+        "ai-agent",
+        "automation",
+        "cli",
+        "discovery-api",
+        "gemini-cli-extension",
+        "google-admin",
+        "google-api",
+        "google-calendar",
+        "google-chat",
+        "google-docs",
+        "google-drive",
+        "google-sheets",
+        "google-workspace",
+        "oauth2",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">gws</h1>\n\n**One CLI for all of Google Workspace — built for humans and AI agents.**<br>\nDrive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JSON output. 40+ agent skills included.\n\n> [!NOTE]\n> This is **not** an officially supported Google product.\n\n<p>\n  <a href=\"https://www.npmjs.com/package/@googleworkspace/cli\"><img src=\"https://img.shields.io/npm/v/@googleworkspace/cli\" alt=\"npm version\"></a>\n  <a href=\"https://github.com/googleworkspace/cli/blob/main/LICENSE\"><img src=\"https://img.shields.io/github/license/googleworkspace/cli\" alt=\"license\"></a>\n  <a href=\"https://github.com/googleworkspace/cli/actions/workflows/ci.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/googleworkspace/cli/ci.yml?branch=main&label=CI\" alt=\"CI status\"></a>\n  <a href=\"https://www.npmjs.com/package/@googleworkspace/cli\"><img src=\"https://img.shields.io/npm/unpacked-size/@googleworkspace/cli\" alt=\"install size\"></a>\n</p>\n<br>\n\n```bash\nnpm install -g @googleworkspace/cli\n```\n\n`gws` doesn't ship a static list of commands. It reads Google's own [Discovery Service](https://developers.google.com/discovery) at runtime and builds its entire command surface dynamically. When Google Workspace adds an API endpoint or method, `gws` picks it up automatically.\n\n> [!IMPORTANT]\n> This project is under active development. Expect breaking changes as we march toward v1.0.\n\n## Contents\n\n- [Prerequisites](#prerequisites)\n- [Installation](#installation)\n- [Quick Start](#quick-start)\n- [Why gws?](#why-gws)\n- [Authentication](#authentication)\n- [AI Agent Skills](#ai-agent-skills)\n- [Advanced Usage](#advanced-usage)\n- [Environment Variables](#environment-variables)\n- [Exit Codes](#exit-codes)\n- [Architecture](#architecture)\n- [Troubleshooting](#troubleshooting)\n- [Development](#development)\n\n## Prerequisites\n\n- **Node.js 18+** — for `npm install` (or download a pre-built binary from [GitHub Releases](https://github.com/googleworkspace/cli/releases))\n- **A Google Cloud project** — required for OAuth credentials. You can create one via the [Google Cloud Console](https://console.cloud.google.com/) or with the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) or with the `gws auth setup` command.\n- **A Google account** with access to Google Workspace\n\n## Installation\n\n```bash\nnpm install -g @googleworkspace/cli\n```\n\n> The npm package bundles pre-built native binaries for your OS and architecture.\n> No Rust toolchain required.\n\nPre-built binaries are also available on the [GitHub Releases](https://github.com/googleworkspace/cli/releases) page.\n\nOr build from source:\n\n```bash\ncargo install --git https://github.com/googleworkspace/cli --locked\n```\n\nA Nix flake is also available at `github:googleworkspace/cli`\n\n```bash\nnix run github:googleworkspace/cli\n```\n\nOn macOS and Linux, you can also install via [Homebrew](https://brew.sh/):\n\n```bash\nbrew install googleworkspace-cli\n```\n\n## Quick Start\n\n```bash\ngws auth setup     # walks you through Google Cloud project config\ngws auth login     # subsequent OAuth login\ngws drive files list --params '{\"pageSize\": 5}'\n```\n\n## Why gws?\n\n**For humans** — stop writing `curl` calls against REST docs. `gws` gives you `--help` on every resource, `--dry-run` to preview requests, and auto‑pagination.\n\n**For AI agents** — every response is structured JSON. Pair it with the included agent skills and your LLM can manage Workspace without custom tooling.\n\n```bash\n# List the 10 most recent files\ngws drive files list --params '{\"pageSize\": 10}'\n\n# Create a spreadsheet\ngws sheets spreadsheets create --json '{\"properties\": {\"title\": \"Q1 Budget\"}}'\n\n# Send a Chat message\ngws chat spaces messages create \\\n  --params '{\"parent\": \"spaces/xyz\"}' \\\n  --json '{\"text\": \"Deploy complete.\"}' \\\n  --dry-run\n\n# Introspect any method's request/response schema\ngws schema drive.files.list\n\n# Stream paginated results as NDJSON\ngws drive files list --params '{\"pageSize\": 100}' --page-all | jq -r '.files[].name'\n```\n\n## Authentication\n\nThe CLI supports multiple auth workflows so it works on your laptop, in CI, and on a server.\n\n### Which setup should I use?\n\n| I have… | Use |\n|---|---|\n| `gcloud` installed and authenticated | [`gws auth setup`](#interactive-local-desktop) (fastest) |\n| A GCP project but no `gcloud` | [Manual OAuth setup](#manual-oauth-setup-google-cloud-console) |\n| An existing OAuth access token | [`GOOGLE_WORKSPACE_CLI_TOKEN`](#pre-obtained-access-token) |\n| Existing Credentials | [`GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE`](#service-account-server-to-server) |\n\n### Interactive (local desktop)\n\nCredentials are encrypted at rest (AES-256-GCM) with the key stored in your OS keyring (or `~/.config/gws/.encryption_key` when `GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=file`).\n\n```bash\ngws auth setup       # one-time: creates a Cloud project, enables APIs, logs you in\ngws auth login       # subsequent scope selection and login\n```\n\n> `gws auth setup` requires the [`gcloud` CLI](h",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:35.026294"
+  },
+  {
+    "basic_info": {
+      "name": "openfang",
+      "full_name": "RightNow-AI/openfang",
+      "owner": "RightNow-AI",
+      "description": "Open-source Agent Operating System",
+      "url": "https://github.com/RightNow-AI/openfang",
+      "clone_url": "https://github.com/RightNow-AI/openfang.git",
+      "ssh_url": "git@github.com:RightNow-AI/openfang.git",
+      "homepage": "https://www.openfang.sh/",
+      "created_at": "2026-02-24T23:12:38Z",
+      "updated_at": "2026-03-20T03:01:51Z",
+      "pushed_at": "2026-03-20T00:50:11Z"
+    },
+    "stats": {
+      "stars": 15008,
+      "forks": 1789,
+      "watchers": 15008,
+      "open_issues": 56,
+      "size": 8376
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 6102355,
+        "HTML": 350705,
+        "JavaScript": 335767,
+        "CSS": 98861,
+        "Python": 20380,
+        "Shell": 7018,
+        "PowerShell": 6955,
+        "Dockerfile": 2910,
+        "Nix": 1625
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-framework",
+        "ai-agents",
+        "llm",
+        "mcp",
+        "open-source",
+        "openclaw",
+        "operating-system",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"public/assets/openfang-logo.png\" width=\"160\" alt=\"OpenFang Logo\" />\n</p>\n\n<h1 align=\"center\">OpenFang</h1>\n<h3 align=\"center\">The Agent Operating System</h3>\n\n<p align=\"center\">\n  Open-source Agent OS built in Rust. 137K LOC. 14 crates. 1,767+ tests. Zero clippy warnings.<br/>\n  <strong>One binary. Battle-tested. Agents that actually work for you.</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://openfang.sh/docs\">Documentation</a> &bull;\n  <a href=\"https://openfang.sh/docs/getting-started\">Quick Start</a> &bull;\n  <a href=\"https://x.com/openfangg\">Twitter / X</a>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/language-Rust-orange?style=flat-square\" alt=\"Rust\" />\n  <img src=\"https://img.shields.io/badge/license-MIT-blue?style=flat-square\" alt=\"MIT\" />\n  <img src=\"https://img.shields.io/badge/version-0.3.30-green?style=flat-square\" alt=\"v0.3.30\" />\n  <img src=\"https://img.shields.io/badge/tests-1,767%2B%20passing-brightgreen?style=flat-square\" alt=\"Tests\" />\n  <img src=\"https://img.shields.io/badge/clippy-0%20warnings-brightgreen?style=flat-square\" alt=\"Clippy\" />\n  <a href=\"https://www.buymeacoffee.com/openfang\" target=\"_blank\"><img src=\"https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black\" alt=\"Buy Me A Coffee\" /></a>\n</p>\n\n---\n\n> **v0.3.30 — Security Hardening Release (March 2026)**\n>\n> OpenFang is feature-complete but still pre-1.0. You may encounter rough edges or breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/RightNow-AI/openfang/issues)\n\n---\n\n## What is OpenFang?\n\nOpenFang is an **open-source Agent Operating System** — not a chatbot framework, not a Python wrapper around an LLM, not a \"multi-agent orchestrator.\" It is a full operating system for autonomous agents, built from scratch in Rust.\n\nTraditional agent frameworks wait for you to type something. OpenFang runs **autonomous agents that work for you** — on schedules, 24/7, building knowledge graphs, monitoring targets, generating leads, managing your social media, and reporting results to your dashboard.\n\nThe entire system compiles to a **single ~32MB binary**. One install, one command, your agents are live.\n\n```bash\ncurl -fsSL https://openfang.sh/install | sh\nopenfang init\nopenfang start\n# Dashboard live at http://localhost:4200\n```\n\n<details>\n<summary><strong>Windows</strong></summary>\n\n```powershell\nirm https://openfang.sh/install.ps1 | iex\nopenfang init\nopenfang start\n```\n\n</details>\n\n---\n\n## Hands: Agents That Actually Do Things\n\n<p align=\"center\"><em>\"Traditional agents wait for you to type. Hands work <strong>for</strong> you.\"</em></p>\n\n**Hands** are OpenFang's core innovation — pre-built autonomous capability packages that run independently, on schedules, without you having to prompt them. This is not a chatbot. This is an agent that wakes up at 6 AM, researches your competitors, builds a knowledge graph, scores the findings, and delivers a report to your Telegram before you've had coffee.\n\nEach Hand bundles:\n- **HAND.toml** — Manifest declaring tools, settings, requirements, and dashboard metrics\n- **System Prompt** — Multi-phase operational playbook (not a one-liner — these are 500+ word expert procedures)\n- **SKILL.md** — Domain expertise reference injected into context at runtime\n- **Guardrails** — Approval gates for sensitive actions (e.g. Browser Hand requires approval before any purchase)\n\nAll compiled into the binary. No downloading, no pip install, no Docker pull.\n\n### The 7 Bundled Hands\n\n| Hand | What It Actually Does |\n|------|----------------------|\n| **Clip** | Takes a YouTube URL, downloads it, identifies the best moments, cuts them into vertical shorts with captions and thumbnails, optionally adds AI voice-over, and publishes to Telegram and WhatsApp. 8-phase pipeline. FFmpeg + yt-dlp + 5 STT backends. |\n| **Lead** | Runs daily. Discovers prospects matching your ICP, enriches them with web research, scores 0-100, deduplicates against your existing database, and delivers qualified leads in CSV/JSON/Markdown. Builds ICP profiles over time. |\n| **Collector** | OSINT-grade intelligence. You give it a target (company, person, topic). It monitors continuously — change detection, sentiment tracking, knowledge graph construction, and critical alerts when something important shifts. |\n| **Predictor** | Superforecasting engine. Collects signals from multiple sources, builds calibrated reasoning chains, makes predictions with confidence intervals, and tracks its own accuracy using Brier scores. Has a contrarian mode that deliberately argues against consensus. |\n| **Researcher** | Deep autonomous researcher. Cross-references multiple sources, evaluates credibility using CRAAP criteria (Currency, Relevance, Authority, Accuracy, Purpose), generates cited reports with APA formatting, supports multiple languages",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:36.200730"
+  },
+  {
+    "basic_info": {
+      "name": "OpenShell",
+      "full_name": "NVIDIA/OpenShell",
+      "owner": "NVIDIA",
+      "description": "OpenShell is the safe, private runtime for autonomous AI agents.",
+      "url": "https://github.com/NVIDIA/OpenShell",
+      "clone_url": "https://github.com/NVIDIA/OpenShell.git",
+      "ssh_url": "git@github.com:NVIDIA/OpenShell.git",
+      "homepage": "https://docs.nvidia.com/openshell/latest/",
+      "created_at": "2026-02-24T22:52:22Z",
+      "updated_at": "2026-03-20T03:18:27Z",
+      "pushed_at": "2026-03-20T03:21:40Z"
+    },
+    "stats": {
+      "stars": 2471,
+      "forks": 240,
+      "watchers": 2471,
+      "open_issues": 68,
+      "size": 28880
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2349131,
+        "Python": 190714,
+        "Shell": 143370,
+        "Open Policy Agent": 8710,
+        "Go Template": 1628
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# OpenShell\n\n[![License](https://img.shields.io/badge/License-Apache_2.0-blue)](https://github.com/NVIDIA/OpenShell/blob/main/LICENSE)\n[![PyPI](https://img.shields.io/badge/PyPI-openshell-orange?logo=pypi)](https://pypi.org/project/openshell/)\n[![Security Policy](https://img.shields.io/badge/Security-Report%20a%20Vulnerability-red)](SECURITY.md)\n[![Documentation](https://img.shields.io/badge/docs-latest-brightgreen)](https://docs.nvidia.com/openshell/latest/index.html)\n[![Project Status](https://img.shields.io/badge/status-alpha-orange)](https://docs.nvidia.com/openshell/latest/about/release-notes.html)\n\nOpenShell is the safe, private runtime for autonomous AI agents. It provides sandboxed execution environments that protect your data, credentials, and infrastructure — governed by declarative YAML policies that prevent unauthorized file access, data exfiltration, and uncontrolled network activity.\n\nOpenShell is built agent-first. The project ships with agent skills for everything from cluster debugging to policy generation, and we expect contributors to use them.\n\n> **Alpha software — single-player mode.** OpenShell is proof-of-life: one developer, one environment, one gateway. We are building toward multi-tenant enterprise deployments, but the starting point is getting your own environment up and running. Expect rough edges. Bring your agent.\n\n## Quickstart\n\n\n### Prerequisites\n\n- **Docker** — Docker Desktop (or a Docker daemon) must be running.\n\n### Install\n\n**Binary (recommended):**\n\n```bash\ncurl -LsSf https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh | sh\n```\n\n**From PyPI (requires [uv](https://docs.astral.sh/uv/)):**\n\n```bash\nuv tool install -U openshell\n```\n\n### Create a sandbox\n\n```bash\nopenshell sandbox create -- claude  # or opencode, codex, ollama\n```\n\nA gateway is created automatically on first use. To deploy on a remote host instead, pass `--remote user@host` to the create command.\n\nThe sandbox container includes the following tools by default:\n\n| Category   | Tools                                                    |\n| ---------- | -------------------------------------------------------- |\n| Agent      | `claude`, `opencode`, `codex`                            |\n| Language   | `python` (3.13), `node` (22)                             |\n| Developer  | `gh`, `git`, `vim`, `nano`                               |\n| Networking | `ping`, `dig`, `nslookup`, `nc`, `traceroute`, `netstat` |\n\nFor more details see https://github.com/NVIDIA/OpenShell-Community/tree/main/sandboxes/base.\n\n### See network policy in action\n\nEvery sandbox starts with **minimal outbound access**. You open additional access with a short YAML policy that the proxy enforces at the HTTP method and path level, without restarting anything.\n\n```bash\n# 1. Create a sandbox (starts with minimal outbound access)\nopenshell sandbox create\n\n# 2. Inside the sandbox — blocked\nsandbox$ curl -sS https://api.github.com/zen\ncurl: (56) Received HTTP code 403 from proxy after CONNECT\n\n# 3. Back on the host — apply a read-only GitHub API policy\nsandbox$ exit\nopenshell policy set demo --policy examples/sandbox-policy-quickstart/policy.yaml --wait\n\n# 4. Reconnect — GET allowed, POST blocked by L7\nopenshell sandbox connect demo\nsandbox$ curl -sS https://api.github.com/zen\nAnything added dilutes everything else.\n\nsandbox$ curl -sS -X POST https://api.github.com/repos/octocat/hello-world/issues -d '{\"title\":\"oops\"}'\n{\"error\":\"policy_denied\",\"detail\":\"POST /repos/octocat/hello-world/issues not permitted by policy\"}\n```\n\nSee the [full walkthrough](examples/sandbox-policy-quickstart/) or run the automated demo:\n\n```bash\nbash examples/sandbox-policy-quickstart/demo.sh\n```\n\n## How It Works\n\nOpenShell isolates each sandbox in its own container with policy-enforced egress routing. A lightweight gateway coordinates sandbox lifecycle, and every outbound connection is intercepted by the policy engine, which does one of three things:\n\n- **Allows** — the destination and binary match a policy block.\n- **Routes for inference** — strips caller credentials, injects backend credentials, and forwards to the managed model.\n- **Denies** — blocks the request and logs it.\n\n| Component          | Role                                                                                         |\n| ------------------ | -------------------------------------------------------------------------------------------- |\n| **Gateway**        | Control-plane API that coordinates sandbox lifecycle and acts as the auth boundary.          |\n| **Sandbox**        | Isolated runtime with container supervision and policy-enforced egress routing.              |\n| **Policy Engine**  | Enforces filesystem, network, and process constraints from application layer down to kernel. |\n| **Privacy Router** | Privacy-aware LLM routing that keeps sensitive context on sandbox compute.                   |\n\nUnder the hood, all these components run as a [K3s](https://k3s.io/) Kubernetes cluster inside a ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:37.371929"
+  },
+  {
+    "basic_info": {
+      "name": "polymarket-cli",
+      "full_name": "Polymarket/polymarket-cli",
+      "owner": "Polymarket",
+      "description": null,
+      "url": "https://github.com/Polymarket/polymarket-cli",
+      "clone_url": "https://github.com/Polymarket/polymarket-cli.git",
+      "ssh_url": "git@github.com:Polymarket/polymarket-cli.git",
+      "homepage": null,
+      "created_at": "2026-02-24T13:41:46Z",
+      "updated_at": "2026-03-20T02:57:10Z",
+      "pushed_at": "2026-03-10T00:59:00Z"
+    },
+    "stats": {
+      "stars": 1781,
+      "forks": 177,
+      "watchers": 1781,
+      "open_issues": 38,
+      "size": 126
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 259771,
+        "Shell": 4848,
+        "Ruby": 1357
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Polymarket CLI\n\nRust CLI for Polymarket. Browse markets, place orders, manage positions, and interact with onchain contracts — from a terminal or as a JSON API for scripts and agents.\n\n> **Warning:** This is early, experimental software. Use at your own risk and do not use with large amounts of funds. APIs, commands, and behavior may change without notice. Always verify transactions before confirming.\n\n## Install\n\n### Homebrew (macOS / Linux)\n\n```bash\nbrew tap Polymarket/polymarket-cli https://github.com/Polymarket/polymarket-cli\nbrew install polymarket\n```\n\n### Shell script\n\n```bash\ncurl -sSL https://raw.githubusercontent.com/Polymarket/polymarket-cli/main/install.sh | sh\n```\n\n### Build from source\n\n```bash\ngit clone https://github.com/Polymarket/polymarket-cli\ncd polymarket-cli\ncargo install --path .\n```\n\n## Quick Start\n\n```bash\n# No wallet needed — browse markets immediately\npolymarket markets list --limit 5\npolymarket markets search \"election\"\npolymarket events list --tag politics\n\n# Check a specific market\npolymarket markets get will-trump-win-the-2024-election\n\n# JSON output for scripts\npolymarket -o json markets list --limit 3\n```\n\nTo trade, set up a wallet:\n\n```bash\npolymarket setup\n# Or manually:\npolymarket wallet create\npolymarket approve set\n```\n\n## Configuration\n\n### Wallet Setup\n\nThe CLI needs a private key to sign orders and on-chain transactions. Three ways to provide it (checked in this order):\n\n1. **CLI flag**: `--private-key 0xabc...`\n2. **Environment variable**: `POLYMARKET_PRIVATE_KEY=0xabc...`\n3. **Config file**: `~/.config/polymarket/config.json`\n\n```bash\n# Create a new wallet (generates random key, saves to config)\npolymarket wallet create\n\n# Import an existing key\npolymarket wallet import 0xabc123...\n\n# Check what's configured\npolymarket wallet show\n```\n\nThe config file (`~/.config/polymarket/config.json`):\n\n```json\n{\n  \"private_key\": \"0x...\",\n  \"chain_id\": 137,\n  \"signature_type\": \"proxy\"\n}\n```\n\n### Signature Types\n\n- `proxy` (default) — uses Polymarket's proxy wallet system\n- `eoa` — signs directly with your key\n- `gnosis-safe` — for multisig wallets\n\nOverride per-command with `--signature-type eoa` or via `POLYMARKET_SIGNATURE_TYPE`.\n\n### What Needs a Wallet\n\nMost commands work without a wallet — browsing markets, viewing order books, checking prices. You only need a wallet for:\n\n- Placing and canceling orders (`clob create-order`, `clob market-order`, `clob cancel-*`)\n- Checking your balances and trades (`clob balance`, `clob trades`, `clob orders`)\n- On-chain operations (`approve set`, `ctf split/merge/redeem`)\n- Reward and API key management (`clob rewards`, `clob create-api-key`)\n\n## Output Formats\n\nEvery command supports `--output table` (default) and `--output json`.\n\n```bash\n# Human-readable table (default)\npolymarket markets list --limit 2\n```\n\n```\n Question                            Price (Yes)  Volume   Liquidity  Status\n Will Trump win the 2024 election?   52.00¢       $145.2M  $1.2M      Active\n Will BTC hit $100k by Dec 2024?     67.30¢       $89.4M   $430.5K    Active\n```\n\n```bash\n# Machine-readable JSON\npolymarket -o json markets list --limit 2\n```\n\n```json\n[\n  { \"id\": \"12345\", \"question\": \"Will Trump win the 2024 election?\", \"outcomePrices\": [\"0.52\", \"0.48\"], ... },\n  { \"id\": \"67890\", \"question\": \"Will BTC hit $100k by Dec 2024?\", ... }\n]\n```\n\nShort form: `-o json` or `-o table`.\n\nErrors follow the same pattern — table mode prints `Error: ...` to stderr, JSON mode prints `{\"error\": \"...\"}` to stdout. Non-zero exit code either way.\n\n## Commands\n\n### Markets\n\n```bash\n# List markets with filters\npolymarket markets list --limit 10\npolymarket markets list --active true --order volume_num\npolymarket markets list --closed false --limit 50 --offset 25\n\n# Get a single market by ID or slug\npolymarket markets get 12345\npolymarket markets get will-trump-win\n\n# Search\npolymarket markets search \"bitcoin\" --limit 5\n\n# Get tags for a market\npolymarket markets tags 12345\n```\n\n**Flags for `markets list`**: `--limit`, `--offset`, `--order`, `--ascending`, `--active`, `--closed`\n\n### Events\n\nEvents group related markets (e.g. \"2024 Election\" contains multiple yes/no markets).\n\n```bash\npolymarket events list --limit 10\npolymarket events list --tag politics --active true\npolymarket events get 500\npolymarket events tags 500\n```\n\n**Flags for `events list`**: `--limit`, `--offset`, `--order`, `--ascending`, `--active`, `--closed`, `--tag`\n\n### Tags, Series, Comments, Profiles, Sports\n\n```bash\n# Tags\npolymarket tags list\npolymarket tags get politics\npolymarket tags related politics\npolymarket tags related-tags politics\n\n# Series (recurring events)\npolymarket series list --limit 10\npolymarket series get 42\n\n# Comments on an entity\npolymarket comments list --entity-type event --entity-id 500\npolymarket comments get abc123\npolymarket comments by-user 0xf5E6...\n\n# Public profiles\npolymarket profiles get 0xf5E6...\n\n# Sports metadata\npolymarket sports list\npolymarket sports market-types\npolyma",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:38.553246"
+  },
+  {
+    "basic_info": {
+      "name": "OpenSquirrel",
+      "full_name": "Infatoshi/OpenSquirrel",
+      "owner": "Infatoshi",
+      "description": "For people who get distracted by agents. A native Rust/GPUI control plane for running Claude Code, Codex, Cursor, and OpenCode side by side — because if you're going to be squirrely, you might as well optimize for it.",
+      "url": "https://github.com/Infatoshi/OpenSquirrel",
+      "clone_url": "https://github.com/Infatoshi/OpenSquirrel.git",
+      "ssh_url": "git@github.com:Infatoshi/OpenSquirrel.git",
+      "homepage": null,
+      "created_at": "2026-03-15T21:54:35Z",
+      "updated_at": "2026-03-20T01:59:25Z",
+      "pushed_at": "2026-03-18T22:26:14Z"
+    },
+    "stats": {
+      "stars": 1137,
+      "forks": 71,
+      "watchers": 1137,
+      "open_issues": 4,
+      "size": 48861
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 511392
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/logo.png\" width=\"128\" alt=\"OpenSquirrel\">\n</p>\n\n<h1 align=\"center\">OpenSquirrel</h1>\n\n<p align=\"center\">Native, GPU-rendered control plane for AI coding agents. Rust + GPUI. No Electron.</p>\n\nRun Claude Code, Codex, Cursor, and OpenCode side by side with automatic sub-agent delegation, remote machine targeting via SSH, and persistent multi-turn sessions.\n\n## What it does\n\n- **Multi-agent grid** — Run multiple agents simultaneously in a responsive tiled layout. Agents auto-arrange based on count (1=full, 2=split, 4=2×2, etc).\n- **Coordinator/worker delegation** — A primary agent (Opus) can automatically spawn sub-agents for focused tasks. Workers return condensed results, not full transcripts.\n- **Remote machine targeting** — Agents can target local or remote machines via SSH + tmux. Configure machines in `~/.osq/config.toml`.\n- **MCP integration** — MCP servers (Playwright, browser-use, etc.) are wired directly to agent CLI args. Select per-agent during setup.\n- **Persistent sessions** — Agent state, transcripts, scroll positions, and pending prompts survive app restarts. Interrupted turns can be resumed.\n- **Structured output parsing** — Parses `stream-json` output from all runtimes. Custom markdown rendering with code blocks, diffs, headings, bullets.\n\n## Supported runtimes\n\n| Runtime | Mode | Permission bypass |\n|---------|------|-------------------|\n| Claude Code | Persistent stdin (multi-turn) | `--dangerously-skip-permissions` |\n| Codex | One-shot per prompt | `--dangerously-bypass-approvals-and-sandbox` |\n| Cursor Agent | One-shot per prompt | `--yolo` |\n| OpenCode | One-shot per prompt | Auto-approved in `run` mode |\n\n## Build & run\n\n```bash\ncargo build --release\n./target/release/opensquirrel\n```\n\nRequires Rust toolchain and macOS (Metal GPU).\n\nTo run as a proper macOS `.app` bundle with the squirrel icon:\n\n```bash\n# Build\ncargo build --release\n\n# Create .app bundle\nmkdir -p dist/OpenSquirrel.app/Contents/{MacOS,Resources}\ncp target/release/opensquirrel dist/OpenSquirrel.app/Contents/MacOS/OpenSquirrel\ncp assets/OpenSquirrel.icns dist/OpenSquirrel.app/Contents/Resources/\n\n# Launch\nopen dist/OpenSquirrel.app\n```\n\nNote: macOS `.app` bundles don't inherit your shell PATH. If agents like `claude` or `npx` aren't found, run the binary directly instead of via the `.app` bundle.\n\n## Keybinds\n\nNo vim modes — text input is always active. All actions use standard Cmd- keybinds.\n\n| Key | Action |\n|-----|--------|\n| `Enter` | Send prompt |\n| `Escape` | Dismiss overlay (palette, setup wizard, search) |\n| `Cmd-N` | New agent (opens setup wizard) |\n| `Cmd-K` | Command palette (themes, settings, compact context, kill, views) |\n| `Cmd-F` | Search transcripts |\n| `Cmd-]` / `Cmd-[` | Next / prev pane within group |\n| `Cmd-}` / `Cmd-{` | Next / prev group |\n| `Cmd-V` | Paste from clipboard |\n| `Cmd-=` / `Cmd--` | Zoom in / out |\n\n**Setup wizard:** Arrow keys to navigate, `Enter` to drill into directories, `Backspace` to go up, `Tab` to advance step, `Shift-Tab` to go back.\n\n## Configuration\n\nConfig lives at `~/.osq/config.toml`. Defines runtimes, models, MCP servers, machines, themes, and settings.\n\nState is persisted at `~/.osq/state.json` (agents, transcripts, scroll positions).\n\n## Architecture\n\n~7,200 lines of Rust across 3 files:\n- `src/main.rs` — UI, agent lifecycle, rendering, keybinds, persistence\n- `src/lib.rs` — Line classification, markdown parsing, diff summarization, helpers\n- `tests/state_tests.rs` — 30 integration tests covering navigation, scrolling, themes, search, agent lifecycle\n\nBuilt on [GPUI](https://crates.io/crates/gpui) (the UI framework from Zed, used as a standalone crate). GPU-rendered via Metal on macOS.\n\n## Themes\n\nmidnight, charcoal, gruvbox, solarized-dark, light, solarized-light, ops, monokai-pro\n\n## License\n\nMIT\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:39.726520"
+  },
+  {
+    "basic_info": {
+      "name": "zeroboot",
+      "full_name": "zerobootdev/zeroboot",
+      "owner": "zerobootdev",
+      "description": "Sub-millisecond VM sandboxes for AI agents via copy-on-write forking",
+      "url": "https://github.com/zerobootdev/zeroboot",
+      "clone_url": "https://github.com/zerobootdev/zeroboot.git",
+      "ssh_url": "git@github.com:zerobootdev/zeroboot.git",
+      "homepage": "https://tally.so/r/aQGkpb",
+      "created_at": "2026-03-15T21:49:32Z",
+      "updated_at": "2026-03-20T03:25:54Z",
+      "pushed_at": "2026-03-19T09:15:00Z"
+    },
+    "stats": {
+      "stars": 835,
+      "forks": 31,
+      "watchers": 835,
+      "open_issues": 0,
+      "size": 1017
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 68374,
+        "Shell": 9104,
+        "Python": 2669,
+        "C": 2559,
+        "TypeScript": 1892,
+        "Makefile": 290
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-agents",
+        "code-execution",
+        "copy-on-write",
+        "firecracker",
+        "kvm",
+        "rust",
+        "sandbox",
+        "virtual-machine",
+        "vm"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"assets/logo-dark.svg\">\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"assets/logo-light.svg\">\n    <img alt=\"Zeroboot\" src=\"assets/logo-light.svg\" width=\"500\">\n  </picture>\n</p>\n\n<p align=\"center\">\n  <strong>Sub-millisecond VM sandboxes for AI agents via copy-on-write forking</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-Apache--2.0-blue\" alt=\"License\"></a>\n  <a href=\"https://www.rust-lang.org\"><img src=\"https://img.shields.io/badge/rust-2021_edition-orange\" alt=\"Rust\"></a>\n  <a href=\"https://api.zeroboot.dev/v1/health\"><img src=\"https://img.shields.io/badge/api-live-brightgreen\" alt=\"API Status\"></a>\n</p>\n\n---\n\n![demo](demo/demo.gif)\n\n## Try it\n\n```bash\ncurl -X POST https://api.zeroboot.dev/v1/exec \\\n  -H 'Content-Type: application/json' \\\n  -H 'Authorization: Bearer zb_demo_hn2026' \\\n  -d '{\"code\":\"import numpy as np; print(np.random.rand(3))\"}'\n```\n\n## Benchmarks\n\n| Metric | Zeroboot | E2B | microsandbox | Daytona |\n|---|---|---|---|---|\n| Spawn latency p50 | **0.79ms** | ~150ms | ~200ms | ~27ms |\n| Spawn latency p99 | 1.74ms | ~300ms | ~400ms | ~90ms |\n| Memory per sandbox | ~265KB | ~128MB | ~50MB | ~50MB |\n| Fork + exec (Python) | **~8ms** | - | - | - |\n| 1000 concurrent forks | 815ms | - | - | - |\n\nEach sandbox is a real KVM virtual machine with hardware-enforced memory isolation.\n\n## How it works\n\n```\n  Firecracker snapshot ──► mmap(MAP_PRIVATE) ──► KVM VM + restored CPU state\n                              (copy-on-write)         (~0.8ms)\n```\n\n1. **Template** (one-time): Firecracker boots a VM, pre-loads your runtime, and snapshots memory + CPU state\n2. **Fork** (~0.8ms): Creates a new KVM VM, maps snapshot memory as CoW, restores all CPU state\n3. **Isolation**: Each fork is a separate KVM VM with hardware-enforced memory isolation\n\n## SDKs\n\n**Python** &mdash; [sdk/python](sdk/python/)\n\n```python\nfrom zeroboot import Sandbox\nsb = Sandbox(\"zb_live_your_key\")\nresult = sb.run(\"print(1 + 1)\")\n```\n\n**TypeScript** &mdash; [sdk/node](sdk/node/)\n\n```typescript\nimport { Sandbox } from \"@zeroboot/sdk\";\nconst result = await new Sandbox(\"zb_live_your_key\").run(\"console.log(1+1)\");\n```\n\n## Docs\n\n- [API Reference](docs/API.md)\n- [Deployment Guide](docs/DEPLOYMENT.md)\n- [Architecture](docs/ARCHITECTURE.md)\n\n## Status\n\nWorking prototype. The fork primitive, benchmarks, and API are real, but not production-hardened yet. [Open an issue](https://github.com/adammiribyan/zeroboot/issues) if you're interested.\n\n## Self-host or managed\n\nZeroboot is open source. Self-host it on any Linux box with KVM, or use the managed API:\n\n    curl -X POST https://api.zeroboot.dev/v1/exec \\\n      -H 'Content-Type: application/json' \\\n      -H 'Authorization: Bearer zb_demo_hn2026' \\\n      -d '{\"code\":\"import numpy as np; print(np.random.rand(3))\"}'\n\nBuilding the managed service for teams that don't want to run their own infra. Sign up for early access: https://tally.so/r/aQGkpb\n\n## Known limitations\n\n- Forks share CSPRNG state from the snapshot. Kernel entropy is reseeded via RNDADDENTROPY but userspace PRNGs (numpy, OpenSSL) need explicit reseeding per fork. See [Firecracker's guidance](https://github.com/firecracker-microvm/firecracker/blob/main/docs/snapshotting/random-for-clones.md).\n- Single vCPU per fork. Multi-vCPU is architecturally possible but not implemented.\n- No networking inside forks. Sandboxes communicate via serial I/O only.\n- Template updates require a full re-snapshot (~15s). No incremental patching.\n\n## License\n\n[Apache-2.0](LICENSE)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:40.882139"
+  },
+  {
+    "basic_info": {
+      "name": "novalclaw",
+      "full_name": "Superagentsys/novalclaw",
+      "owner": "Superagentsys",
+      "description": "novalclaw is next generation AI format",
+      "url": "https://github.com/Superagentsys/novalclaw",
+      "clone_url": "https://github.com/Superagentsys/novalclaw.git",
+      "ssh_url": "git@github.com:Superagentsys/novalclaw.git",
+      "homepage": null,
+      "created_at": "2026-03-04T14:23:13Z",
+      "updated_at": "2026-03-20T03:24:18Z",
+      "pushed_at": "2026-03-18T13:22:41Z"
+    },
+    "stats": {
+      "stars": 730,
+      "forks": 33,
+      "watchers": 730,
+      "open_issues": 0,
+      "size": 29891
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 444254,
+        "TypeScript": 125157,
+        "CSS": 21068,
+        "JavaScript": 20550,
+        "HTML": 368
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# OmniNova Claw\n\n<div align=\"center\">\n  <img src=\"apps/omninova-tauri/public/omninoval-logo.png\" alt=\"OmniNova Claw Logo\" width=\"200\" height=\"200\" />\n  <p><strong>A Next-Gen AI Agent Platform & Desktop Control Plane</strong></p>\n  <p>\n    <a href=\"README_zh.md\">中文文档</a> | \n    <a href=\"#features\">Features</a> | \n    <a href=\"#getting-started\">Getting Started</a> | \n    <a href=\"#architecture\">Architecture</a>\n  </p>\n</div>\n\n---\n\n**OmniNova Claw** is a powerful, local-first AI agent platform built on the **Novalclaw** architecture. It combines a high-performance Rust core runtime with a modern Tauri + React desktop interface, giving you complete control over your AI agents, skills, and model providers.\n\nWhether you're building complex agent workflows, managing multiple LLM providers (OpenAI, Anthropic, Gemini, DeepSeek, etc.), or deploying bots across various channels (Slack, Discord, WeChat, etc.), OmniNova Claw provides a unified, secure, and extensible foundation.\n\n## ✨ Features\n\n### 👻 Soul System (Agent Persona & MBTI)\nThe **Soul System** gives your agent a unique identity and behavioral framework, deeply integrated with **MBTI** psychology.\n- **MBTI-Driven Personality**: Architect your agent's cognition using MBTI types (e.g., **INTJ** for logical strategy, **ENFP** for creative empathy). The system translates these types into distinct reasoning patterns and communication styles.\n- **System Prompt**: Define the core personality, tone, and constraints of your agent.\n- **Behavioral Control**: Fine-tune interaction styles, context handling (`compact_context`), and tool usage limits.\n- **Adaptive Persona**: Switch between different \"Souls\" (e.g., Coder, Researcher, Assistant) based on the task or channel.\n\n### 🧠 Three-Layer Memory System\nOmniNova Claw implements a sophisticated cognitive architecture with three distinct memory layers:\n1.  **Working Memory (Short-term)**: Manages the immediate conversation context with intelligent token compression and sliding windows to maintain focus.\n2.  **Episodic Memory (Long-term)**: Stores and retrieves past interaction history, preserving the lineage of sessions and enabling the agent to recall previous contexts.\n3.  **Semantic/Skill Memory (Knowledge)**: A persistent knowledge base derived from loaded Skills (`SKILL.md`) and external documents, allowing the agent to utilize specialized domain knowledge.\n\n### 🛠️ Powerful Tools & Capabilities\n- **Built-in Tools**: File operations, Web Search, PDF reading, Git operations, Shell execution (sandboxed).\n- **Skills System**: Extensible capability system compatible with OpenClaw skills. Load skills from `SKILL.md` or local directories.\n- **ACP Protocol**: Implements the Agent Control Protocol for standardized agent-tool interaction.\n- **Safety First**: E-stop mechanism, tool policy enforcement, and dangerous command filtering.\n\n### 🔌 Universal Connectivity\n- **Multi-Provider Support**: Seamlessly switch between OpenAI, Anthropic, Gemini, DeepSeek, Qwen, Ollama, and more.\n- **Omni-Channel**: Connect your agents to Slack, Discord, Telegram, WeChat, Feishu, Lark, DingTalk, WhatsApp, Email, and Webhooks.\n- **Declarative Routing**: Route messages to specific agents based on channel, user, or metadata without writing code.\n\n### 🖥️ Modern Desktop Experience\n- **Cross-Platform**: Native apps for **macOS** (Apple Silicon/Intel), **Windows**, and **Linux**.\n- **Visual Configuration**: Configure providers, channels, and skills through an intuitive React-based UI.\n- **Local Gateway**: Run the entire stack locally with a built-in HTTP gateway and daemon management.\n\n## 🚀 Getting Started\n\n### Prerequisites\n- **Rust**: Latest stable version (`rustup update`)\n- **Node.js**: Version 22+ (`node -v`)\n- **System Dependencies**:\n  - **Linux**: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`\n  - **Windows**: Microsoft Visual Studio C++ Build Tools\n\n### Installation\n\n1.  **Clone the repository**\n    ```bash\n    git clone https://github.com/omninova/claw.git\n    cd claw/omninovalclaw\n    ```\n\n2.  **Install dependencies**\n    ```bash\n    # Install frontend dependencies\n    cd apps/omninova-tauri\n    npm install\n    ```\n\n3.  **Run in Development Mode**\n    ```bash\n    # Run Tauri app (Frontend + Rust Backend)\n    npm run tauri dev\n    ```\n\n4.  **Build for Production**\n    \n    You can build optimized binaries for specific platforms using the following commands:\n\n    ```bash\n    # Windows (x64)\n    npm run build:windows\n\n    # macOS (Apple Silicon / M1/M2/M3)\n    npm run build:macos:apple\n\n    # macOS (Intel)\n    npm run build:macos:intel\n\n    # Linux (x64)\n    npm run build:linux\n    ```\n    \n    Artifacts will be generated in `apps/omninova-tauri/src-tauri/target/release/bundle/`.\n\n## 🏗️ Architecture\n\nOmniNova Claw follows a modular workspace structure:\n\n```text\nomninovalclaw/\n├── apps/\n│   └── omninova-tauri/      # Desktop Frontend (React 19 + TypeScript) & Tauri Config\n│       ├── src/             # UI Components (Setup, Chat, Co",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:42.041306"
+  },
+  {
+    "basic_info": {
+      "name": "nightingale",
+      "full_name": "rzru/nightingale",
+      "owner": "rzru",
+      "description": "Machine learning powered Karaoke app (with scores!) ",
+      "url": "https://github.com/rzru/nightingale",
+      "clone_url": "https://github.com/rzru/nightingale.git",
+      "ssh_url": "git@github.com:rzru/nightingale.git",
+      "homepage": "https://nightingale.cafe",
+      "created_at": "2026-03-15T14:48:09Z",
+      "updated_at": "2026-03-20T03:19:22Z",
+      "pushed_at": "2026-03-19T12:35:18Z"
+    },
+    "stats": {
+      "stars": 660,
+      "forks": 31,
+      "watchers": 660,
+      "open_issues": 15,
+      "size": 155729
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 397319,
+        "Python": 53032,
+        "Astro": 30008,
+        "WGSL": 6947,
+        "Shell": 4285,
+        "PowerShell": 1396,
+        "CSS": 1203,
+        "JavaScript": 975
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "ai",
+        "bevy",
+        "bevy-engine",
+        "demucs",
+        "karaoke",
+        "karaoke-application",
+        "karaoke-game",
+        "machine-learning",
+        "machine-learning-algorithms",
+        "ml",
+        "party",
+        "rust",
+        "whisper",
+        "whisper-ai",
+        "whisperx"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/images/logo.png\" alt=\"Nightingale\" width=\"400\">\n</p>\n\n<p align=\"center\">\n  Karaoke from any song in your music library, powered by neural networks.\n</p>\n\n---\n\nNightingale scans your music folder, separates lead vocals from instrumentals using the [UVR Karaoke model](https://github.com/Anjok07/ultimatevocalremovergui) (or [Demucs](https://github.com/facebookresearch/demucs)), transcribes lyrics with word-level timestamps via [WhisperX](https://github.com/m-bain/whisperX), and plays it all back with synchronized highlighting, pitch scoring, profiles, and dynamic backgrounds.\n\nShips as a single binary. No manual installation of Python, ffmpeg, or ML models required — everything is downloaded and bootstrapped automatically on first launch.\n\n## Features\n\n🎤 **Stem Separation** — isolates lead vocals from instrumentals using the UVR Karaoke model (default) or Demucs, with adjustable guide vocal volume. The karaoke model preserves backing vocals in the instrumental for a more natural sound\n\n📝 **Word-Level Lyrics** — automatic transcription with alignment, or fetched from [LRCLIB](https://lrclib.net) when available\n\n🎯 **Pitch Scoring** — real-time microphone input with pitch detection, star ratings, and per-song scoreboards\n\n👤 **Profiles** — create and switch between player profiles; scores are tracked per profile\n\n🎬 **Video Files** — drop video files (`.mp4`, `.mkv`, etc.) into your music folder; vocals are separated from the audio track and the original video plays as a synchronized background\n\n🌌 **7 Background Themes** — 5 GPU shader backgrounds (Plasma, Aurora, Waves, Nebula, Starfield), Pixabay video backgrounds with 5 flavors (Nature, Underwater, Space, City, Countryside), plus automatic source video playback for video files\n\n🎮 **Gamepad Support** — full navigation and control via gamepad (D-pad, sticks, face buttons)\n\n📺 **Adaptive UI Scaling** — scales to any resolution including 4K TVs\n\n📦 **Self-Contained** — ffmpeg, uv, Python, PyTorch, and ML packages are all downloaded to `~/.nightingale/vendor/` on first run. Video backgrounds are pre-downloaded during setup so the first session is ready to go\n\n## Quick start\n\nDownload the latest release for your platform from the [Releases](../../releases) page and run it. On first launch, Nightingale will set up its Python environment and download ML models — this takes a few minutes and shows a progress screen.\n\n### macOS\n\nmacOS quarantines files downloaded from the internet. Since Nightingale isn't signed with an Apple Developer ID, Gatekeeper will block it with a message like *\"app is damaged and can't be opened\"*. To fix this, remove the quarantine attribute after extracting:\n\n```bash\nxattr -cr Nightingale.app\n```\n\n### Supported formats\n\nAudio: `.mp3`, `.flac`, `.ogg`, `.wav`, `.m4a`, `.aac`, `.wma`. Video: `.mp4`, `.mkv`, `.avi`, `.webm`, `.mov`, `.m4v`.\n\n## Controls\n\n### Navigation\n\n| Action | Keyboard | Gamepad |\n|---|---|---|\n| Move | Arrow keys | D-pad / Left stick |\n| Confirm / Select | Enter | A (South) |\n| Back / Cancel | Escape | B (East) / Start |\n| Switch panel | Tab | — |\n| Search songs | Type to filter | — |\n\n### Playback\n\n| Action | Keyboard | Gamepad |\n|---|---|---|\n| Pause / Resume | Space | Start |\n| Exit to menu | Escape | B (East) |\n| Toggle guide vocals | G | — |\n| Guide volume up/down | + / - | — |\n| Cycle background theme | T | — |\n| Cycle video flavor | F | — |\n| Toggle microphone | M | — |\n| Next microphone | N | — |\n| Toggle fullscreen | F11 | — |\n| Skip Intro / Skip Outro | On-screen buttons | A (South) |\n\n## How it works\n\n```\nAudio or video file\n        │\n        ▼\n  ┌─────────────────┐\n  │  UVR Karaoke /   │  ──▶  vocals.ogg + instrumental.ogg\n  │  Demucs          │       (extracts audio track from videos)\n  └─────────────────┘\n        │\n        ▼\n  ┌─────────────────┐\n  │  LRCLIB          │  ──▶  Fetches synced lyrics if available\n  └─────────────────┘\n        │\n        ▼\n  ┌─────────────────┐\n  │  WhisperX        │  ──▶  Transcription + word-level alignment\n  │  (large-v3)      │\n  └─────────────────┘\n        │\n        ▼\n  ┌─────────────────┐\n  │  Bevy App        │  ──▶  Plays instrumental + synced lyrics\n  │  (Rust)          │       with pitch scoring & backgrounds\n  └─────────────────┘       (video files use source video as background)\n```\n\nAnalysis results are cached at `~/.nightingale/cache/` using blake3 file hashes. Re-analysis only happens if the source file changes or is manually triggered.\n\n## Hardware\n\nThe Python analyzer uses PyTorch and auto-detects the best backend:\n\n| Backend | Device | Notes |\n|---|---|---|\n| CUDA | NVIDIA GPU | Fastest |\n| MPS | Apple Silicon | macOS; WhisperX alignment falls back to CPU |\n| CPU | Any | Slowest but always works |\n\nThe UVR Karaoke model uses ONNX Runtime and enables CUDA acceleration automatically on NVIDIA GPUs, or CoreML on Apple Silicon.\n\nA song typically takes 2–5 minutes on GPU, 10–20 minutes on CPU.\n\n## Data storage\n\nEverything lives under `~/.",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-20T03:26:43.183642"
+  },
+  {
+    "basic_info": {
+      "name": "yoyo-evolve",
+      "full_name": "yologdev/yoyo-evolve",
+      "owner": "yologdev",
+      "description": "A coding agent that evolves itself. One commit per day.",
+      "url": "https://github.com/yologdev/yoyo-evolve",
+      "clone_url": "https://github.com/yologdev/yoyo-evolve.git",
+      "ssh_url": "git@github.com:yologdev/yoyo-evolve.git",
+      "homepage": "https://yologdev.github.io/yoyo-evolve/",
+      "created_at": "2026-03-01T00:25:19Z",
+      "updated_at": "2026-03-20T02:10:32Z",
+      "pushed_at": "2026-03-20T02:10:29Z"
+    },
+    "stats": {
+      "stars": 649,
+      "forks": 46,
+      "watchers": 649,
+      "open_issues": 5,
+      "size": 2860
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 729975,
+        "Shell": 70158,
+        "Python": 31307,
+        "PowerShell": 5752
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/banner.png\" alt=\"yoyo — a coding agent that evolves itself\" width=\"100%\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://yologdev.github.io/yoyo-evolve\">Website</a> ·\n  <a href=\"https://yologdev.github.io/yoyo-evolve/book/\">Documentation</a> ·\n  <a href=\"https://github.com/yologdev/yoyo-evolve\">GitHub</a> ·\n  <a href=\"https://deepwiki.com/yologdev/yoyo-evolve\">DeepWiki</a> ·\n  <a href=\"https://github.com/yologdev/yoyo-evolve/issues\">Issues</a> ·\n  <a href=\"https://x.com/yuanhao\">Follow on X</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://crates.io/crates/yoyo-agent\"><img src=\"https://img.shields.io/crates/v/yoyo-agent\" alt=\"crates.io\"></a>\n  <a href=\"https://github.com/yologdev/yoyo-evolve/actions\"><img src=\"https://img.shields.io/github/actions/workflow/status/yologdev/yoyo-evolve/evolve.yml?label=evolution&logo=github\" alt=\"evolution\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-blue\" alt=\"license MIT\"></a>\n  <a href=\"https://github.com/yologdev/yoyo-evolve/commits/main\"><img src=\"https://img.shields.io/github/last-commit/yologdev/yoyo-evolve\" alt=\"last commit\"></a>\n</p>\n\n---\n\n# yoyo: A Coding Agent That Evolves Itself\n\n**yoyo** is a free, open-source coding agent for your terminal. It navigates codebases, makes multi-file edits, runs tests, manages git, understands project context, and recovers from failures — all from a streaming REPL with 44 slash commands.\n\nIt started as a ~200-line CLI example. Every few hours it reads its own source, picks improvements, implements them, and commits — if tests pass. 19 days of autonomous evolution later: **18,000+ lines of Rust, 832 tests, 12 modules**.\n\nNo human writes its code. No roadmap tells it what to do. It decides for itself.\n\n## Features\n\n### 🐙 Agent Core\n- **Streaming output** — tokens arrive as they're generated, not after completion\n- **Multi-turn conversation** with full history tracking\n- **Extended thinking** — adjustable reasoning depth (off / minimal / low / medium / high)\n- **Subagent spawning** — `/spawn` delegates focused tasks to a child agent\n- **Parallel tool execution** — multiple tool calls run simultaneously\n- **Automatic retry** with exponential backoff and rate-limit awareness\n\n### 🛠️ Tools\n| Tool | What it does |\n|------|-------------|\n| `bash` | Run shell commands with interactive confirmation |\n| `read_file` | Read files with optional offset/limit |\n| `write_file` | Create or overwrite files with content preview |\n| `edit_file` | Surgical text replacement with colored inline diffs |\n| `search` | Regex-powered grep across files |\n| `list_files` | Directory listing with glob filtering |\n\n### 🔌 Multi-Provider Support\nWorks with **11 providers** out of the box — switch mid-session with `/provider`:\n\nAnthropic · OpenAI · Google · Ollama · OpenRouter · xAI · Groq · DeepSeek · Mistral · Cerebras · Custom (any OpenAI-compatible endpoint)\n\n### 📂 Git Integration\n- `/diff` — full status + diff with insertion/deletion summary\n- `/commit` — AI-generated commit messages from staged changes\n- `/undo` — revert last commit, clean up untracked files\n- `/git` — shortcuts for `status`, `log`, `diff`, `branch`, `stash`\n- `/pr` — full PR workflow: `list`, `view`, `create [--draft]`, `diff`, `comment`, `checkout`\n- `/review` — AI-powered code review of staged/unstaged changes\n\n### 🏗️ Project Tooling\n- `/health` — run build/test/clippy/fmt diagnostics (auto-detects Rust, Node, Python, Go, Make)\n- `/fix` — run checks and auto-apply fixes for failures\n- `/test` — detect project type and run the right test command\n- `/lint` — detect project type and run the right linter\n- `/init` — scan project and generate a starter YOYO.md context file\n- `/index` — build a codebase index: file counts, language breakdown, key files\n- `/docs` — look up docs.rs documentation for any Rust crate\n- `/tree` — project structure visualization\n- `/find` — fuzzy file search with scoring and ranked results\n\n### 💾 Session Management\n- `/save` and `/load` — persist and restore sessions as JSON\n- `--continue/-c` — resume last session on startup\n- **Auto-save on exit** — sessions saved automatically, including crash recovery\n- **Auto-compaction** at 80% context usage, plus manual `/compact`\n- `/tokens` — visual token usage bar with percentage\n- `/cost` — per-model input/output/cache pricing breakdown\n\n### 🧠 Context & Memory\n- **Project context files** — auto-loads YOYO.md, CLAUDE.md, or `.yoyo/instructions.md`\n- **Git-aware context** — recently changed files injected into system prompt\n- **Project memories** — `/remember`, `/memories`, `/forget` for persistent cross-session notes\n\n### 🔐 Permission System\n- **Interactive tool approval** — confirm prompts for bash, write_file, and edit_file with preview\n- **\"Always\" option** — approve once per session\n- `--yes/-y` — auto-approve all executions\n- `--allow` / `--deny` — glob-based allowlist/blocklist for commands\n- `--allow-dir` / `--deny-dir` — directory restrictions with path trav",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:44.353020"
+  },
+  {
+    "basic_info": {
+      "name": "VMkatz",
+      "full_name": "nikaiw/VMkatz",
+      "owner": "nikaiw",
+      "description": "Extract Windows credentials directly from VM memory snapshots and virtual disks",
+      "url": "https://github.com/nikaiw/VMkatz",
+      "clone_url": "https://github.com/nikaiw/VMkatz.git",
+      "ssh_url": "git@github.com:nikaiw/VMkatz.git",
+      "homepage": "",
+      "created_at": "2026-02-19T12:46:06Z",
+      "updated_at": "2026-03-20T02:27:04Z",
+      "pushed_at": "2026-03-18T22:26:07Z"
+    },
+    "stats": {
+      "stars": 592,
+      "forks": 45,
+      "watchers": 592,
+      "open_issues": 2,
+      "size": 614
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1277707,
+        "Makefile": 3605
+      },
+      "license": "MIT License",
+      "topics": [
+        "esxi",
+        "lsass",
+        "mimikatz",
+        "ntlm",
+        "offensive-security",
+        "post-exploitation",
+        "qcow2",
+        "vdi",
+        "vhdx",
+        "virtualbox",
+        "vmdk",
+        "vmware"
+      ]
+    },
+    "content": {
+      "readme": "# VMkatz\n\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n[![Build](https://github.com/nikaiw/VMkatz/actions/workflows/release.yml/badge.svg)](https://github.com/nikaiw/VMkatz/actions/workflows/release.yml)\n[![Clippy](https://github.com/nikaiw/VMkatz/actions/workflows/clippy.yml/badge.svg)](https://github.com/nikaiw/VMkatz/actions/workflows/clippy.yml)\n[![Platform](https://img.shields.io/badge/platform-linux%20|%20windows%20|%20macos%20|%20esxi-lightgrey)]()\n\n## Too Big to Steal\n\nYou are three weeks into a red team engagement. Your traffic crawls through a VPN, then bounces across four SOCKS proxies chained through compromised jump boxes before it touches the target network. Every packet takes the scenic route.\n\nAfter days of lateral movement you land on a NAS attached to the virtualization cluster and the directory listing hits different: rows upon rows of `.vmdk`, `.vmsn`, `.sav`. Hundreds of gigabytes of virtual machines - domain controllers, admin workstations, the crown jewels - sitting right there.\n\nBut your link wheezes at 200 KB/s. Pulling a single 100 GB disk image would take **six days**, and every hour of sustained exfil is another chance the SOC spots the anomaly, burns your tunnel, and the whole chain collapses.\n\nWithout VMkatz, the traditional workflow looks like this: exfiltrate the entire VM disk or memory snapshot, mount it locally, install a full Windows analysis stack, load the snapshot into a debugger or use mimikatz on a booted copy, and manually piece together credentials from each VM - one at a time. Multiply that by a dozen VMs on the cluster and you are looking at days of bandwidth, tooling, and post-processing.\n\nVMkatz exists because you shouldn't have to exfiltrate what you can read in place. It extracts Windows secrets - NTLM hashes, DPAPI master keys, Kerberos tickets, cached domain credentials, LSA secrets, NTDS.dit - directly from VM memory snapshots and virtual disks, **on the NAS, the hypervisor, wherever the VM files are**.\n\nA single static binary, ~2.5 MB. Drop it on the ESXi host, the Proxmox node, or the NAS. Point it at a `.vmsn`, `.vmdk`, or an entire VM folder. Walk away with credentials, not disk images.\n\n## What It Extracts\n\n### From memory snapshots (LSASS)\nAll 9 SSP credential providers that mimikatz implements:\n\n| Provider | Data | Notes |\n| --- | --- | --- |\n| MSV1_0 | NT/LM hashes, SHA1 | Physical-scan fallback for paged entries |\n| WDigest | Plaintext passwords | Linked-list walk + `.data` fallback |\n| Kerberos | AES/RC4/DES keys, tickets (`.kirbi`/`.ccache`) | AVL tree walk, often paged in VM snapshots |\n| TsPkg | Plaintext passwords | RDP sessions only |\n| DPAPI | Master key cache (GUID + decrypted key) | SHA1 masterkey for offline DPAPI decrypt |\n| SSP | Plaintext credentials | `SspCredentialList` in `msv1_0.dll` |\n| LiveSSP | Plaintext credentials | Requires `livessp.dll` (rare post-Win8) |\n| Credman | Stored credentials | Hash-table + single-list enumeration |\n| CloudAP | Azure AD tokens | Typically empty for local-only logon |\n\n### From virtual disks (offline)\n- **SAM hashes**: Local account NT/LM hashes\n- **LSA secrets**: Service account passwords, auto-logon credentials, machine account keys\n- **Cached domain credentials**: DCC2 hashes (last N domain logons)\n- **DPAPI master keys**: Hashcat-ready hashes from user master key files (`$DPAPImk$` — modes 15300/15900)\n- **NTDS.dit**: Full Active Directory hash extraction from domain controller disks, natively from the ESE database - no impacket or external tools needed\n\n## Supported Inputs\n\n| Format | Extensions | Source | Status |\n| --- | --- | --- | --- |\n| VMware snapshots | `.vmsn` + `.vmem` | Workstation, ESXi | Tested |\n| VirtualBox saved states | `.sav` | VirtualBox | Tested |\n| QEMU/KVM ELF core dumps | `.elf` | `virsh dump`, `dump-guest-memory` | Untested |\n| Hyper-V saved states | `.vmrs` | Hyper-V 2016+ (native parser) | Untested |\n| Hyper-V memory dumps | `.bin`, `.raw` | Legacy saved states, raw dumps | Untested |\n| VMware virtual disks | `.vmdk` (sparse + flat) | Workstation, ESXi | Tested |\n| VirtualBox virtual disks | `.vdi` | VirtualBox | Tested |\n| QEMU/KVM virtual disks | `.qcow2` | QEMU, Proxmox | Tested |\n| Hyper-V virtual disks | `.vhdx`, `.vhd` | Hyper-V | Untested |\n| VMFS-6 raw SCSI devices | `/dev/disks/...` | ESXi datastores (bypasses file locks) | Tested |\n| LVM block devices | `/dev/...` | Proxmox LVM-thin, raw LVs | Tested |\n| Raw registry hives | `SAM`, `SYSTEM`, `SECURITY` | Exported from disk or `reg save` | Tested |\n| Raw NTDS.dit | `ntds.dit` + `SYSTEM` | Copied from domain controller | Tested |\n| LSASS minidump | `.dmp` | `--dump lsass`, procdump, Task Manager | Tested |\n| VM directories | any folder | Auto-discovers all processable files | Tested |\n\n**Target OS**: Windows XP SP3 through Windows Server 2025 (x86 PAE + x64, auto-detected).\n\n## Quick Start\n\n```bash\n# Build (default features: all hypervisors + disk + NTDS)\ncargo build --release\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:45.506530"
+  },
+  {
+    "basic_info": {
+      "name": "babyshark",
+      "full_name": "vignesh07/babyshark",
+      "owner": "vignesh07",
+      "description": "Flows-first PCAP TUI (case files, gorgeous UX). Do do do do.",
+      "url": "https://github.com/vignesh07/babyshark",
+      "clone_url": "https://github.com/vignesh07/babyshark.git",
+      "ssh_url": "git@github.com:vignesh07/babyshark.git",
+      "homepage": "",
+      "created_at": "2026-02-21T02:21:31Z",
+      "updated_at": "2026-03-20T01:27:45Z",
+      "pushed_at": "2026-02-25T20:12:55Z"
+    },
+    "stats": {
+      "stars": 548,
+      "forks": 13,
+      "watchers": 548,
+      "open_issues": 2,
+      "size": 58937
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 371878
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# babyshark\n\n**Wireshark made easy (in your terminal).**\n\nBabyshark is a PCAP TUI that helps you answer:\n- What’s using the network?\n- What looks broken/weird?\n- What should I select next?\n\n**Status:** v0.3.0 (alpha).\n- Offline `.pcap` / `.pcapng` viewing works without Wireshark\n- Live capture requires `tshark` (Wireshark CLI)\n\n\n### Overview\n![DB99A3F0-4AB7-461C-A40F-496F9C950AFC](https://github.com/user-attachments/assets/8dfb277c-a081-4feb-987e-6fc404e39f7e)\n\n**Overview is the “start here” dashboard.** It summarizes the capture and suggests what to do next.\n\n- Shows quick totals (packets/flows), a traffic mix, and “top” tables (ports/hosts/flows).\n- In live mode it shows capture status (pps + a last status/error line from `tshark`).\n\n**How to use it:**\n- Press `D` to jump to **Domains** (hostnames-first).\n- Press `W` to jump to **What’s weird?** (curated detectors).\n- Press `F` (or `f`) to jump to **Flows** (raw).\n- Many rows are drill-down entry points: select a row and press **Enter**.\n\n### Domains\n![5E1633E3-0E53-4085-AE98-6656121EAF8B](https://github.com/user-attachments/assets/7f4691cb-b930-46c6-85d8-6facfe9acfcd)\n\n**Domains groups traffic by hostname** so you can start from names instead of 5‑tuples.\n\n- Shows per-domain rollups (connections/bytes + query/response/failure-style counters).\n- The details pane shows “IP hints”. When DNS answers aren’t visible (DoH/DoT/caching), it can still show **Observed IPs (from flows)** using TLS SNI / HTTP Host hints.\n\n**How to use it:**\n- Select a domain and press **Enter** to drill into the relevant **Flows**.\n- Press `s` to change the sort mode.\n- Press `c` to clear an active subset filter.\n\n### What's weird?\n![B401B8AA-4EE7-42BE-A53A-DC4F6DFC562A](https://github.com/user-attachments/assets/bf8b8c1d-8c45-47a8-b9ec-17bc29a925d5)\n\n**What’s weird? is a curated set of detectors** meant to answer “what looks broken/slow?” without needing deep Wireshark knowledge.\n\n- Each detector includes a short “why it matters”.\n- Pressing **Enter** on a detector filters down to the affected flows so you can drill into packets/streams.\n\n**How to use it:**\n- Select a detector (you can also press `1`–`9` to jump-select) and press **Enter**.\n- Press `c` to clear an active subset filter.\n\n### Expand\n![Screenshot 2026-02-23 at 12 09 07 PM](https://github.com/user-attachments/assets/68cdf767-426b-41b0-85d4-b2e44fe12eac)\n\n**Expand / Explain (`?`) gives plain-English context** for what you’re looking at.\n\n- From **Flows**, press **Enter** to open **Packets**, then press `?` to open **Explain**.\n- Explain is best-effort: it tries to classify the flow and show “why I think that” + “next steps”.\n\nTip: press `h` for help and `g` for glossary.\n\n\n---\n\n## Quickstart\n\n### Download a release (recommended)\n\nGrab a binary from GitHub Releases:\n- https://github.com/vignesh07/babyshark/releases\n\n### Or build from source\n\n```bash\ngit clone https://github.com/vignesh07/babyshark\ncd babyshark/rust\ncargo install --path . --force\nbabyshark --help\n```\n\n---\n\n## Features\n\n- Offline: open `.pcap` / `.pcapng` and browse:\n  - flows list → packets list → follow stream\n  - stream search with highlighting + `n` / `N` navigation\n- Live: capture and inspect traffic in the TUI:\n  - list capture interfaces\n  - live capture with optional display filter\n  - optional write-to-file while capturing\n- Per-flow analysis:\n  - **Health badges** — colored dot (green/yellow/red) on each flow based on RST, incomplete handshakes, retransmissions\n  - **Asymmetry labels** — `DL/UL` suffix in flow list + `download-heavy/upload-heavy/balanced` in details (falls back to `A>B/B>A` when local side is ambiguous)\n  - **TCP timing** — handshake RTT, server think time, data transfer duration in the details pane\n  - **TLS version display** — shows negotiated version from ServerHello when visible, flags deprecated versions (<= TLS 1.1)\n- Weird detectors:\n  - TCP resets, handshake-not-completed, DNS failures, retransmit/OOO hints, high-latency flows\n  - **Deprecated TLS** — flags flows using TLS 1.0 or 1.1\n  - **Chatty hosts** — flags ≥10 flows to the same destination within 60 seconds\n- Timeline view (`T`):\n  - **Gantt** — phase-colored horizontal bars (handshake / TLS / data / close) with hostname labels\n  - **Scatter** — per-packet direction/retransmit dot plot\n  - Color legends, pattern callouts, and plain-English narrative in details\n- Notes/export:\n  - bookmark flows\n  - export markdown report (latest + timestamped copies)\n\n---\n\n## Install\n\n### Option A: GitHub Release (recommended)\n\nDownload a prebuilt binary:\n- https://github.com/vignesh07/babyshark/releases\n\n### Option B: build from source\n\nPrereqs:\n- Rust toolchain (stable)\n- (Live mode only) `tshark`\n\n```bash\ngit clone https://github.com/vignesh07/babyshark\ncd babyshark/rust\ncargo install --path . --force\nbabyshark --help\n```\n\n### Option C: cargo install (dev-friendly)\n\n```bash\ncargo install --git https://github.com/vignesh07/babyshark --bin babyshark\n```\n\n---\n\n## Install `tshark` (re",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:46.671974"
+  },
+  {
+    "basic_info": {
+      "name": "deff",
+      "full_name": "flamestro/deff",
+      "owner": "flamestro",
+      "description": "interactive, side-by-side file review for git diffs with per-file navigation, vertical and horizontal scrolling, syntax highlighting, and added/deleted line tinting",
+      "url": "https://github.com/flamestro/deff",
+      "clone_url": "https://github.com/flamestro/deff.git",
+      "ssh_url": "git@github.com:flamestro/deff.git",
+      "homepage": null,
+      "created_at": "2026-02-25T14:39:39Z",
+      "updated_at": "2026-03-19T20:15:38Z",
+      "pushed_at": "2026-03-06T02:21:09Z"
+    },
+    "stats": {
+      "stars": 547,
+      "forks": 13,
+      "watchers": 547,
+      "open_issues": 0,
+      "size": 992
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 94832,
+        "Shell": 789
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "My name is deff\n\n# deff\n\n`deff` is a Rust TUI: interactive, side-by-side file review for git diffs with per-file navigation, vertical and horizontal scrolling, syntax highlighting, and added/deleted line tinting.\n\n## Quickstart\n\nChoose one install method:\n\n1. Install from crates.io with Cargo:\n\n```bash\ncargo install deff\n```\n\n2. Run the installer script from this repository:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/flamestro/deff/main/install.sh | bash\n```\n\nInstaller script source: https://github.com/flamestro/deff/blob/main/install.sh\n\nThe script checks for `cargo`, clones this project into a temporary directory, installs it, and removes the temporary checkout.\nBundled syntax grammars are compiled into the binary, so removing the checkout does not affect highlighting.\n\nIf you have local edits (including untracked files) and want to review them before committing, run:\n\n```bash\ndeff --include-uncommitted\n```\n\nThis opens the side-by-side review so you can check exactly what changed in your working tree.\n\n## Features\n\n- `upstream-ahead` strategy (default) to compare local branch changes against its upstream\n- `range` strategy for explicit `--base` / `--head` comparison\n- Optional `--include-uncommitted` mode to include working tree and untracked files\n- Side-by-side panes with independent horizontal scroll offsets\n- Keyboard and mouse navigation (including wheel + shift-wheel)\n- Vim-like motion navigation (`h`/`j`/`k`/`l`, `g`/`G`, `Ctrl+u`/`Ctrl+d`)\n- In-diff search (`/` + Enter, then `n` / `N` to navigate matches)\n- Per-file reviewed toggles (`r`) with local persistence under `.git`\n- Language-aware syntax highlighting and line-level add/delete tinting\n\n## Examples\n\nSingle-line change view:\n\n![Single-line change example](docs/example_01.png)\n\nMulti-line change view:\n\n![Multi-line change example](docs/example_02.png)\n\n## Usage\n\n```bash\ndeff\ndeff --strategy upstream-ahead\ndeff --strategy range --base origin/main --head HEAD\ndeff --strategy range --base origin/main --include-uncommitted\ndeff --theme dark\n```\n\nShow help:\n\n```bash\ndeff --help\n```\n\n## Local Build and Usage Flow\n\nPrerequisites:\n\n- Rust toolchain (`cargo`)\n- `git`\n- Interactive terminal (TTY)\n\n1. Build locally:\n\n   ```bash\n   cargo build --release --locked\n   ./target/release/deff --help\n   ```\n\n2. Optionally install it to your local Cargo bin path:\n\n   ```bash\n   cargo install --path .\n   deff --help\n   ```\n\n3. Run it inside any git repository you want to review:\n\n   ```bash\n   cd /path/to/your/repo\n\n   # default: compare local branch commits vs upstream\n   deff\n\n   # explicit range\n   deff --base origin/main --head HEAD\n\n   # include uncommitted + untracked files\n   deff --base origin/main --include-uncommitted\n   ```\n\nIf your branch has no upstream configured, use the explicit `--base` flow.\n\nTheme selection:\n\n- By default, `deff` prefers a dark syntax theme (better for black/dark terminals).\n- Use `--theme auto|dark|light` to control rendering for your terminal.\n- `--theme` takes precedence over `DEFF_THEME=dark|light`.\n\nCustom syntax grammars:\n\n- `deff` loads syntect defaults, bundled deff grammars, plus any extra `.sublime-syntax` files found in:\n  - `assets/syntaxes` (current working directory)\n  - `.deff/syntaxes` (current working directory)\n- Any `*.sublime-syntax` file added under this repo's `assets/syntaxes` is auto-bundled at build time.\n\nSearch and reviewed workflow:\n\n- Press `/` to enter a search query for the current file (searches both panes).\n- Press `Enter` to apply the query, then use `n` / `N` to jump matches.\n- Press `r` to mark the current file reviewed/unreviewed.\n- Reviewed state is persisted locally in `.git/deff/reviewed/` and keyed by comparison scope + file content hash.\n\n## GitHub Version Bump Workflow\n\nThis repo ships with `.github/workflows/bump-version.yml`.\n\n- Trigger: push to `main` (excluding commits authored by `github-actions[bot]`)\n- Computes the next version from commit prefixes (`feat:` -> next minor, `fix:`/`chore:`/`docs:` -> next patch) and updates `Cargo.toml`/`Cargo.lock` when needed\n- Publishes new crate versions to crates.io and then creates/pushes the matching `vX.Y.Z` tag and GitHub release\n\n## Contributing\n\nSee `CONTRIBUTING.md` for local setup, commit message conventions, and release/versioning rules.\n\n## Architecture and Extension Guide\n\nFor a module-level map and extension plan, see `docs/architecture.md`.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:47.832774"
+  },
+  {
+    "basic_info": {
+      "name": "parsync",
+      "full_name": "AlpinDale/parsync",
+      "owner": "AlpinDale",
+      "description": "Parallel rsync-like pull sync over SSH with resume",
+      "url": "https://github.com/AlpinDale/parsync",
+      "clone_url": "https://github.com/AlpinDale/parsync.git",
+      "ssh_url": "git@github.com:AlpinDale/parsync.git",
+      "homepage": null,
+      "created_at": "2026-03-05T09:14:03Z",
+      "updated_at": "2026-03-20T01:15:20Z",
+      "pushed_at": "2026-03-17T09:14:54Z"
+    },
+    "stats": {
+      "stars": 525,
+      "forks": 18,
+      "watchers": 525,
+      "open_issues": 0,
+      "size": 7679
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 207724,
+        "Shell": 5220,
+        "PowerShell": 2620,
+        "Makefile": 499
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# parsync\n\n`parsync` is a high-throughput, resumable sync tool for SSH remotes and\nlocal-to-local transfers, with parallel file transfers and optional block-delta\nsync.\n\n![demo](assets/demo.gif)\n\n## Installation\n\n**Linux and macOS:**\n\n```bash\ncurl -fsSL https://alpindale.net/install.sh | bash\n```\n\n**Windows:**\n\n```powershell\npowershell -ExecutionPolicy Bypass -c \"irm https://alpindale.net/install.ps1 | iex\"\n```\n\nYou can also install with cargo:\n\n```bash\ncargo install parsync\n```\n\nYou may also download the binary for your platform from the\n[releases page](https://github.com/AlpinDale/parsync/releases), or install from source:\n\n```bash\nmake build\nmake install\n```\n\n## Platform support\n\n- Linux: `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`\n- macOS: `aarch64-apple-darwin`, `x86_64-apple-darwin`\n- Windows: `x86_64-pc-windows-msvc` (best-effort metadata support)\n\n## Usage\n\n```bash\nparsync -vrPlu user@example.com:/remote/path /local/destination\n```\n\nWith non-default SSH port:\n\n```bash\nparsync -vrPlu user@example.com:2222:/remote/path /local/destination\n```\n\nSSH config host aliases are supported.\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-20T03:26:48.973530"
+  },
+  {
+    "basic_info": {
+      "name": "codex-tools",
+      "full_name": "170-carry/codex-tools",
+      "owner": "170-carry",
+      "description": "代理,快捷切换codex 账号, 监控codex用量的工具,以及对codex进行api反代 , 支持多语言",
+      "url": "https://github.com/170-carry/codex-tools",
+      "clone_url": "https://github.com/170-carry/codex-tools.git",
+      "ssh_url": "git@github.com:170-carry/codex-tools.git",
+      "homepage": "",
+      "created_at": "2026-02-27T04:31:27Z",
+      "updated_at": "2026-03-20T03:14:55Z",
+      "pushed_at": "2026-03-20T03:03:54Z"
+    },
+    "stats": {
+      "stars": 513,
+      "forks": 44,
+      "watchers": 513,
+      "open_issues": 11,
+      "size": 17673
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 386886,
+        "TypeScript": 295039,
+        "CSS": 74035,
+        "JavaScript": 616,
+        "HTML": 363
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Codex Tools\n\n一个基于 **React + Tauri** 的桌面工具，用来管理多个 Codex 账号，并提供本地 API 反代能力：\n- 查看账号用量\n- 快速切换和启动 Codex\n- 本地 `/v1` 反代\n- cloudflared 公网访问\n\n仓库地址：<https://github.com/170-carry/codex-tools>\n\n## 更新日志\n[更新日志](changelog.md)\n\n## Cursor API反代功能提示\n1. 通过 Cursor 官网 下载并安装 Cursor。\n\n2. 在 Cursor 中，点击2026-02-03_16-52-37图标，单击Cursor Settings，选择Models页面。\n\n3. 开启 OpenAI API Key，填入您的 API Key。\n\n4. 开启 Override OpenAI Base URL，填入地址。\n\n5. 在Add or search model文本框中，输入Coding Plan支持的模型中的模型名称，点击Add Custom Model。\n\n6. 添加模型名称为gpt-5-4 （目前只支持这个一个）\n\n## 应用截图\n\n![Codex Tools Screenshot](public/ScreenShot.png)\n\n## 解决codex-tools app 已损坏的方案\n\n> https://zhuanlan.zhihu.com/p/135948430\n\n> 省流:\n\n> sudo spctl  --master-disable\n\n> sudo xattr -r -d com.apple.quarantine /Applications/Codex\\ Tools.app\n\n## 快速启动（本地开发）\n\n### 1) 环境准备\n\n- Node.js 20+\n- Rust stable\n- macOS 或 Windows（优先支持 macOS）\n\n### 2) 安装依赖\n\n```bash\nnpm install\n```\n\n### 3) 启动桌面应用\n\n```bash\nnpm run tauri dev\n```\n\n就这三步。\n\n## 主要功能\n\n### 1. 账号管理\n\n- 支持 OAuth 登录导入\n- 支持上传单个或多个 `.json` 文件批量导入\n- 支持直接读取文件夹下的全部 `.json` 文件\n- 导入结束后会恢复当前本机登录态，不覆盖你正在使用的账号\n\n### 2. 用量查看与智能切换\n\n- 展示每个账号的 **5h**、**1week** 用量窗口和计划类型\n- 支持手动刷新，也会定时自动刷新\n- 支持按余量排序和智能切换到更合适的账号\n\n### 3. 切换账号并联动本机环境\n\n- 一键切换账号并启动 Codex\n- 找不到桌面应用时自动回退到 `codex app`\n- 可选同步 Opencode OpenAI 授权\n- 可选在切换后重启已选编辑器\n\n### 4. API 反代\n\n- 本地提供 OpenAI 兼容的 `/v1` 接口\n- 使用已登录的 Codex 账号作为上游能力来源\n- 支持固定端口、自定义端口、固定 API Key 和手动刷新 API Key\n- 按账号余量自动挑选可用账号进行转发\n- 可设置应用启动时自动启动 API 反代\n\n### 5. 公网访问与桌面能力\n\n- 集成 cloudflared，可将本地反代暴露到公网\n- 支持快速隧道和命名隧道，可选 HTTP/2\n- 支持后台驻留、状态栏菜单、应用内更新和多语言界面\n\nAPI 反代详细链路见 [docs/api-proxy.md](docs/api-proxy.md)。\n\n## 打包与发布（简版）\n\n本项目已配置 GitHub Actions 自动发布（mac 双架构 + Windows）。\n\n触发发布：\n\n```bash\ngit tag v0.1.3\ngit push origin v0.1.3\n```\n\n查看：\n- 代码仓库: <https://github.com/170-carry/codex-tools>\n- 版本发布: <https://github.com/170-carry/codex-tools/releases>\n\n## 目录说明\n\n- 前端：`src/`\n- Tauri / Rust：`src-tauri/`\n- 发布流程：`.github/workflows/release.yml`\n\n## License\n\nMIT，详见 [LICENSE](LICENSE)。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:50.145865"
+  },
+  {
+    "basic_info": {
+      "name": "pi-rs",
+      "full_name": "jshachm/pi-rs",
+      "owner": "jshachm",
+      "description": "基于pi-mono，rust轻量化版本",
+      "url": "https://github.com/jshachm/pi-rs",
+      "clone_url": "https://github.com/jshachm/pi-rs.git",
+      "ssh_url": "git@github.com:jshachm/pi-rs.git",
+      "homepage": null,
+      "created_at": "2026-03-04T02:03:51Z",
+      "updated_at": "2026-03-20T01:02:10Z",
+      "pushed_at": "2026-03-05T10:33:19Z"
+    },
+    "stats": {
+      "stars": 487,
+      "forks": 43,
+      "watchers": 487,
+      "open_issues": 1,
+      "size": 148
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 329327
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Pi - AI 编程助手\n\n[English](README_EN.md) | 中文\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n\n一款用 Rust 编写的终端 AI 编程助手，灵感来自 [pi-coding-agent](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)。提供交互式 TUI 界面，支持多种 LLM 提供商。\n\n## 功能特性\n\n- **多提供商支持**：OpenAI、Anthropic、Google、Moonshot（月之暗面）、Ollama、Azure OpenAI、Mistral、Groq\n- **工具系统**：内置文件操作工具（[read](#工具)、[write](#工具)、[edit](#工具)、[bash](#工具)、[grep](#工具)、[find](#工具)、[ls](#工具)、[epkg](#epkg-工具)）\n- **会话管理**：基于 JSONL 的树形结构，支持分支\n- **技能系统**：加载自定义技能以定制 AI 行为\n- **交互式 TUI**：使用 [ratatui](https://github.com/ratatui-org/ratatui) 构建的终端用户界面\n- **上下文压缩**：自动对长对话进行摘要\n- **扩展系统**：可扩展架构，支持添加自定义功能\n\n## 快速开始\n\n```bash\n# 克隆项目\ngit clone https://github.com/yourusername/pi-rs.git\ncd pi-rs\n\n# 构建\ncargo build --release\n\n# 设置 API 键（以 Moonshot 为例）\nexport MOONSHOT_API_KEY=\"your-api-key\"\n\n# 运行\n./target/release/pi --model moonshot-v1-8k \"你好，你会做什么？\"\n```\n\n## 安装\n\n### 从源码构建\n\n```bash\ngit clone https://github.com/yourusername/pi-rs.git\ncd pi-rs\ncargo build --release\n```\n\n二进制文件位于 `target/release/pi`。\n\n## 使用方法\n\n### 命令行选项\n\n```bash\npi [OPTIONS] [MESSAGE] [FILES]...\n\n参数:\n  MESSAGE      发送的初始消息\n  FILES        要包含的文件（使用 @ 前缀）\n\n选项:\n  -c, --continue              继续最近的会话\n  -r, --resume               恢复/选择会话\n      --session <路径>        使用指定的会话文件\n      --no-session           无会话（临时模式）\n      --provider <名称>       提供商名称 (openai, anthropic, moonshot 等)\n      --model <模型>         模型名称或模式\n      --thinking <级别>       思考级别 (off, minimal, low, medium, high, xhigh)\n      --api-key <密钥>       API 密钥\n      --list-models           列出可用模型\n      --tools <工具>         启用指定工具（逗号分隔）\n      --no-tools             禁用所有内置工具\n  -e, --extension <路径>   从路径加载扩展\n      --skill <路径>         从路径加载技能\n      --theme <路径>         加载主题\n  -p, --print               打印模式（非交互式）\n      --sandbox <路径>        启用沙箱模式（必需指定项目路径）\n  -v                        沙箱额外挂载目录（需要 --sandbox）\n  -E                        沙箱环境变量（需要 --sandbox）\n      --sandbox-type <类型>  沙箱类型（默认：epkg）\n      --no-sandbox           禁用沙箱（覆盖配置文件）\n  -h, --help               打印帮助信息\n  -V, --version            打印版本信息\n```\n\n### 使用示例\n\n```bash\n# 列出可用模型\n./target/release/pi --list-models\n\n# 使用 Moonshot 对话\n./target/release/pi --model moonshot-v1-8k \"列出当前目录的文件\"\n\n# 使用工具\n./target/release/pi --model moonshot-v1-8k --tools bash,read \"读取 Cargo.toml 文件\"\n\n# 继续之前的会话\n./target/release/pi --continue\n```\n\n## 环境变量\n\n| 变量 | 说明 |\n|------|------|\n| `OPENAI_API_KEY` | OpenAI API 密钥 |\n| `ANTHROPIC_API_KEY` | Anthropic API 密钥 |\n| `GOOGLE_API_KEY` | Google AI API 密钥 |\n| `MOONSHOT_API_KEY` | Moonshot（月之暗面）API 密钥 |\n| `OLLAMA_BASE_URL` | Ollama 基础 URL（默认：http://localhost:11434） |\n| `AZURE_OPENAI_API_KEY` | Azure OpenAI API 密钥 |\n| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI 端点 |\n| `MISTRAL_API_KEY` | Mistral API 密钥 |\n| `GROQ_API_KEY` | Groq API 密钥 |\n\n## 工具\n\n| 工具 | 说明 |\n|------|------|\n| `read` | 从文件系统读取文件 |\n| `write` | 向文件系统写入文件 |\n| `edit` | 使用查找/替换编辑文件 |\n| `bash` | 执行 shell 命令 |\n| `grep` | 在文件中搜索模式 |\n| `find` | 按名称查找文件 |\n| `ls` | 列出目录内容 |\n| `epkg` | 多源软件包管理器 |\n\n### epkg 工具\n\n集成 [epkg](https://atomgits.com/openeuler/epkg) 多源软件包管理器，支持从多个 Linux 发行版安装软件包（RPM、DEB、Alpine、Arch、Conda）。\n\n```bash\n# 使用 epkg 搜索包\n./target/release/pi --tools epkg \"搜索 vim 包\"\n\n# 使用 epkg 安装包\n./target/release/pi --tools epkg \"在 openeuler 环境安装 nginx\"\n```\n\n支持的子命令：`install`, `remove`, `update`, `upgrade`, `search`, `info`, `list`, `env`, `run`, `history`, `restore`, `gc`, `repo`, `self`, `build`\n\n## 技能系统\n\n技能允许你为特定任务定制 AI 的行为。详见 [skills](docs/skills.md)。\n\n### 创建技能\n\n```\nmy-skill/\n├── skill.json    # 技能清单\n└── content.md   # 技能内容（系统提示词）\n```\n\n### skill.json 格式\n\n```json\n{\n  \"name\": \"my-skill\",\n  \"version\": \"1.0.0\",\n  \"description\": \"技能描述\",\n  \"triggers\": [\"触发词1\", \"触发词2\"],\n  \"variables\": []\n}\n```\n\n### content.md\n\n包含系统提示词，当技能被触发时会预先添加到对话中。\n\n## 工具\n\n| 工具 | 说明 |\n|------|------|\n| `read` | 从文件系统读取文件 |\n| `write` | 向文件系统写入文件 |\n| `edit` | 使用查找/替换编辑文件 |\n| `bash` | 执行 shell 命令 |\n| `grep` | 在文件中搜索模式 |\n| `find` | 按名称查找文件 |\n| `ls` | 列出目录内容 |\n\n### epkg 工具\n\n集成 [epkg](https://atomgits.com/openeuler/epkg) 多源软件包管理器。\n\n### 沙箱模式\n\n支持在隔离的沙箱环境中运行，保护主机系统。\n\n```bash\n# 启用沙箱（必需指定项目路径）\npi-rs --sandbox /my/project\n\n# 带额外挂载目录\npi-rs --sandbox /my/project -v /opt/epkg -v /data\n\n# 带环境变量\npi-rs --sandbox /my/project -E CUSTOM_VAR=value\n\n# 指定沙箱类型（默认：epkg）\npi-rs --sandbox /my/project --sandbox-type epkg\n\n# 禁用沙箱（覆盖配置文件）\npi-rs --sandbox /my/project --no-sandbox\n```\n\n#### 配置文件\n\n在项目目录创建 `.pi/sandbox.json`：\n\n```json\n{\n  \"enabled\": true,\n  \"type\": \"epkg\",\n  \"mounts\": [\"/opt/epkg\", \"/data\"],\n  \"env\": {\n    \"CUSTOM_VAR\": \"value\"\n  }\n}\n```\n\n#### 环境变量\n\n沙箱内自动继承以下环境变量：\n- `MOONSHOT_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`\n- `GOOGLE_API_KEY`, `OLLAMA_BASE_URL`, 等\n\n## 项目结构\n\n```\npi-rs/\n├── src/\n│   ├── main.rs           # CLI 入口点\n│   ├── lib.rs            # 库导出\n│   ├── core/             # 核心类型和工具\n│   ├── session/          # 会话管理\n│   ├── tools/            # 工具实现\n│   ├── providers/        # LLM 提供商实现\n│   ├── agent/            # 助手核心逻辑\n│   ├── tui/              # 终端 UI\n│   ├── skills/           ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:51.300948"
+  },
+  {
+    "basic_info": {
+      "name": "enject",
+      "full_name": "GreatScott/enject",
+      "owner": "GreatScott",
+      "description": "enject: Hide .env secrets from prAIng eyes: secrets live in local encrypted stores (per project) and are injected directly into apps at runtime, never touching disk as plaintext.",
+      "url": "https://github.com/GreatScott/enject",
+      "clone_url": "https://github.com/GreatScott/enject.git",
+      "ssh_url": "git@github.com:GreatScott/enject.git",
+      "homepage": "",
+      "created_at": "2026-02-22T13:29:40Z",
+      "updated_at": "2026-03-19T11:29:24Z",
+      "pushed_at": "2026-02-26T19:42:37Z"
+    },
+    "stats": {
+      "stars": 466,
+      "forks": 12,
+      "watchers": 466,
+      "open_issues": 2,
+      "size": 80
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 51930,
+        "Shell": 2983
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# enject\n\nHide .env secrets from prAIng eyes.\n\n(Note: this project was previously called enveil and has been renamed to enject)\n\nAI coding tools like Claude Code, Copilot, Cursor, and others can read files in your project directory, which means a plaintext `.env` file is an accidental secret dump waiting to happen. This isn’t theoretical. It is a known issue that has happened to me several times (even after explicitly telling Claude not to peek in Claude Code’s settings.json file). `enject` solves this by ensuring plaintext secrets **never exist on disk at all**. Your `.env` file contains only symbolic references; the real values live in an encrypted local store and are injected directly into your subprocess at launch. \n\nThis project is inspired by Filip Hric’s solution/[blog post](https://filiphric.com/dont-let-ai-read-your-env-files), which uses a similar concept leveraging 1Password. I wanted a self-contained solution that didn’t rely on a third party services giving rise to this solution. And yes, this project was built almost entirely with Claude Code with a bunch of manual verification and testing.\n\n## Benefits and Caveats\n\nThis project is primarily designed to mitigate the known issue of AI/LLM tools accidentally reading `.env` secrets in your project. Additional benefits include preventing secret leakage if a `.env` is accidentally committed to a repository, the ability to share `.env` files containing references instead of plaintext secrets, and the option to share the encrypted store itself.                               \n\nThis project is not a silver bullet for preventing an AI agent from obtaining your secrets. For example, an agent can still write code (by accident or via prompt injection) that exfiltrates secrets to terminal output or a file at runtime. We strongly advise against relying on this tool, or `.env` files in general, to store production secrets\n\n## How it works\n\nYour `.env` file looks like this:\n\n```\nDATABASE_URL=en://database_url\nSTRIPE_KEY=en://stripe_key\nPORT=3000\n```\n\nTechnically it is safe to commit (maybe don’t do that, though), and more importantly: safe for any AI tools accidentally (or perhaps not-so-accidentally) snooping in on it.\n\nWhen you run `enject run -- npm start`, it:\n\n1. Prompts for your master password (never echoed, never in shell history)\n2. Derives a 256-bit AES key from your password using **Argon2id** (64 MB memory, 3 iterations)\n3. Decrypts the local store with **AES-256-GCM** — the store file is a 12-byte random nonce followed by authenticated ciphertext\n4. Resolves every `en://` reference against the decrypted map\n5. Zeroizes the key and password bytes from memory\n6. Spawns your subprocess with the resolved values injected into its environment\n\nThe store file is a binary blob. Without the master password, it is indistinguishable from random noise. The nonce is freshly generated on every write, so AES-GCM nonce reuse is impossible. Any modification to the ciphertext — even a single flipped bit — causes authentication to fail and decryption to be refused.\n\n---\n\n## Installation\n\n### Via cargo\n\nThis release is still in alpha, so requires appending the latest version to install when calling `cargo install`\n\n```bash\ncargo install enject --version 0.2.0-alpha \n```\n\n### From source\n\nRequires [Rust](https://rustup.rs) 1.70+.\n\n```bash\ngit clone https://github.com/greatscott/enject\ncd enject\ncargo build --release\n```\n\nThe compiled binary is at `target/release/enject`. Install it once to a location on your `PATH` so you can run it from any project:\n\n**macOS / Linux (bash or zsh)**\n\n```bash\n# Option A: ~/.local/bin (no sudo required, common on Linux)\nmkdir -p ~/.local/bin\ncp target/release/enject ~/.local/bin/\n\n# Option B: /usr/local/bin (requires sudo, available system-wide)\nsudo cp target/release/enject /usr/local/bin/\n\n# Option C: ~/.cargo/bin (already on PATH if you used rustup)\ncp target/release/enject ~/.cargo/bin/\n```\n\nIf you used option A and `~/.local/bin` is not already on your `PATH`, add this to your shell config (`~/.zshrc`, `~/.bashrc`, or `~/.bash_profile`):\n\n```bash\nexport PATH=\"$HOME/.local/bin:$PATH\"\n```\n\nThen reload it:\n\n```bash\nsource ~/.zshrc   # or ~/.bashrc\n```\n\nVerify it worked:\n\n```bash\nenject --version\n```\n\n### Per-project setup (run once per project)\n\nThe binary is installed globally — you never reinstall it. But each project gets its own encrypted store:\n\n```bash\ncd your-project\nenject init\n```\n\nThis creates `.enject/` in the current directory with the project's config and encrypted store. Add it to `.gitignore` — it should never be committed.\n\n---\n\n## Usage\n\n### Initialize a store\n\nRun this once per project, in the project root:\n\n```bash\nenject init\n```\n\nThis generates a random 32-byte salt, writes `.enject/config.toml`, creates an empty encrypted store at `.enject/store`, and prompts you to set a master password. Add `.enject/` to your `.gitignore` — the store should never be committed.\n\n### Add secrets\n\n```bash\nenject set some_database_",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:52.451079"
+  },
+  {
+    "basic_info": {
+      "name": "fabro",
+      "full_name": "fabro-sh/fabro",
+      "owner": "fabro-sh",
+      "description": "⚒️ The open source dark software factory for expert engineers.",
+      "url": "https://github.com/fabro-sh/fabro",
+      "clone_url": "https://github.com/fabro-sh/fabro.git",
+      "ssh_url": "git@github.com:fabro-sh/fabro.git",
+      "homepage": "https://fabro.sh",
+      "created_at": "2026-03-13T22:48:18Z",
+      "updated_at": "2026-03-20T02:49:20Z",
+      "pushed_at": "2026-03-20T03:13:31Z"
+    },
+    "stats": {
+      "stars": 452,
+      "forks": 34,
+      "watchers": 452,
+      "open_issues": 7,
+      "size": 96222
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4962794,
+        "TypeScript": 767968,
+        "Astro": 100673,
+        "Python": 73709,
+        "HTML": 55016,
+        "Shell": 12338,
+        "CSS": 11886,
+        "Dockerfile": 1576,
+        "JavaScript": 502
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"left\" id=\"top\">\n<a href=\"https://docs.fabro.sh\"><img alt=\"Fabro\" src=\"docs/logo/dark.svg\" height=\"75\"></a>\n</div>\n\n## The open source dark software factory for expert engineers\n\nAI coding agents are powerful but unpredictable. You either babysit every step or review a 50-file diff you don't trust. Fabro gives you a middle path: define the process as a graph, let agents execute it, and intervene only where it matters. [Why Fabro?](https://docs.fabro.sh/getting-started/why-fabro)\n\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE.md)\n[![docs](https://img.shields.io/badge/docs-fabro.sh-357F9E)](https://docs.fabro.sh)\n\n```bash\n# With Claude Code\ncurl -fsSL https://fabro.sh/install.md | claude\n\n# With Codex\ncodex \"$(curl -fsSL https://fabro.sh/install.md)\"\n\n# With Bash\ncurl -fsSL https://fabro.sh/install.sh | bash\n```\n\n<img src=\"docs/images/runs-board.png\" alt=\"Fabro Runs board showing workflows across Working, Pending, Verify, and Merge stages\" />\n\n---\n\n## Use Cases\n\n- **Extend disengagement time** — Stop babysitting an agent REPL. Define a workflow with verification gates and walk away — Fabro keeps the process on track without you.\n- **Leverage ensemble intelligence** — Seamlessly combine models from different vendors. Use one model to implement, another to cross-critique, and a third to summarize — all in a single workflow.\n- **Share best practices across your team** — Collaborate on version-controlled workflows that encode your software processes as code. Review, iterate, and reuse them like any other source file.\n- **Reduce token bills** — Route cheap tasks to fast, inexpensive models and reserve frontier models for the steps that need them. CSS-like stylesheets make this a one-line change.\n- **Improve agent security** — Run agents in cloud sandboxes with full network and filesystem isolation. Keep untrusted code off your laptop and out of your production environment.\n- **Run agents 24/7** — Fabro's API server queues and executes runs continuously. Close your laptop — workflows keep running and results are waiting when you return.\n- **Scale infinitely** — Move execution off your laptop and into cloud sandboxes. Run as many concurrent workflows as your infrastructure allows.\n- **Guarantee code quality** — Layer deterministic verifications — test suites, linters, type checkers, LLM-as-judge — into your workflow graph. Failures trigger fix loops automatically.\n- **Achieve compounding engineering** — Automatic retrospectives after every run feed a continuous improvement loop. Your workflows get better over time, not just your code.\n- **Specify in natural language** — Define requirements as natural-language specs and let Fabro generate — and regenerate — implementations that conform to them.\n\n---\n\n## Key Features\n\n|     | Feature                        | Description                                                                                           |\n| --- | ------------------------------ | ----------------------------------------------------------------------------------------------------- |\n| 🔀  | Deterministic workflow graphs  | Define pipelines in Graphviz DOT with branching, loops, parallelism, and human gates. Diffable, reviewable, version-controlled |\n| 🙋  | Human-in-the-loop              | Approval gates pause for human decisions. Steer running agents mid-turn. Interview steps collect structured input |\n| 🎨  | Multi-model routing            | CSS-like stylesheets route each node to the right model and provider, with automatic fallback chains  |\n| ☁️  | Cloud sandboxes                | Run agents in isolated Daytona cloud VMs with snapshot-based setup, network controls, and automatic cleanup |\n| 🔌  | SSH access and preview links   | Shell into running sandboxes with `fabro ssh` and expose ports with `fabro preview` for live debugging    |\n| 🌲  | Git checkpointing              | Every stage commits code changes and execution metadata to Git branches. Resume, revert, or trace any change |\n| 📊  | Automatic retros               | Each run generates a retrospective with cost, duration, files touched, and an LLM-written narrative   |\n| ⚡  | Comprehensive API              | REST API with SSE event streaming and a React web UI. Run workflows programmatically or as a service  |\n| 🦀  | Single binary, no runtime      | One compiled Rust executable with zero dependencies. No Python, no Node, no Docker required           |\n| ⚖️  | Open source (MIT)              | Full source code, no vendor lock-in. Self-host, fork, or extend to fit your workflow                  |\n\n---\n\n## Example Workflow\n\nA plan-approve-implement workflow where a human reviews the plan before the agent writes code:\n\n<img src=\"docs/images/plan-implement-readme.svg\" alt=\"Plan-Implement workflow graph showing Start → Plan → Approve Plan → Implement → Simplify → Exit with a Revise loop\" />\n\n```dot\ndigraph PlanImplement {\n    graph [\n        goal=\"Plan, approve, implement, and simplify a change\"\n        model_st",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:53.684041"
+  },
+  {
+    "basic_info": {
+      "name": "codex",
+      "full_name": "stellarlinkco/codex",
+      "owner": "stellarlinkco",
+      "description": "The open source coding agent. openai anthropic gemini",
+      "url": "https://github.com/stellarlinkco/codex",
+      "clone_url": "https://github.com/stellarlinkco/codex.git",
+      "ssh_url": "git@github.com:stellarlinkco/codex.git",
+      "homepage": "",
+      "created_at": "2026-02-19T10:50:51Z",
+      "updated_at": "2026-03-20T02:46:16Z",
+      "pushed_at": "2026-03-19T09:41:59Z"
+    },
+    "stats": {
+      "stars": 428,
+      "forks": 29,
+      "watchers": 428,
+      "open_issues": 13,
+      "size": 74963
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 18676748,
+        "TypeScript": 1403577,
+        "Shell": 264906,
+        "PowerShell": 243139,
+        "Python": 153566,
+        "JavaScript": 59327,
+        "Starlark": 32533,
+        "HTML": 16072,
+        "CSS": 8137,
+        "Nix": 4427,
+        "Just": 3026,
+        "Dockerfile": 2371,
+        "Smarty": 2015,
+        "Makefile": 625,
+        "C": 76
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\"><strong>Codex (fork)</strong> is a Rust-first coding agent forked from <a href=\"https://github.com/openai/codex\">openai/codex</a>.</p>\n<p align=\"center\">This fork aims to match Claude Code-style workflows: <strong>agent teams</strong>, <strong>hooks</strong>, <strong>Anthropic API agent</strong>, and a <strong>Web UI</strong> served by <code>codex serve</code>.</p>\n<p align=\"center\">Goal: a Rust <strong>OpenCode</strong> with multi-model support, multi-agent collaboration, and long-running orchestration.</p>\n<p align=\"center\">\n  <img src=\"https://github.com/openai/codex/blob/main/.github/codex-cli-splash.png\" alt=\"Codex CLI splash\" width=\"80%\" />\n</p>\n\n## Sponsor\n\n<table>\n<tr>\n<td width=\"180\"><a href=\"https://www.packyapi.com/register?aff=wZPe\"><img src=\"assets/partners/logos/packycode.png\" alt=\"PackyCode\" width=\"150\"></a></td>\n<td>Thanks to PackyCode for sponsoring this project! PackyCode is a reliable and efficient API relay service provider, offering relay services for Claude Code, Codex, Gemini, and more. PackyCode provides special discounts for our software users: register using <a href=\"https://www.packyapi.com/register?aff=wZPe\">this link</a> and enter the \"houcode\" promo code during first recharge to get 10% off.</td>\n</tr>\n</table>\n\n---\n\n## Quickstart\n\n### Install (latest GitHub Release)\n\n**macOS, Linux, WSL:**\n\n```shell\ncurl -fsSL https://raw.githubusercontent.com/stellarlinkco/codex/main/scripts/install.sh | bash\n```\n\nThe shell install command above prefers `gnu` release assets on Linux and falls back to `musl` when needed; `gnu` builds require glibc >= 2.35 (Ubuntu 22.04+).\n\n**Windows PowerShell:**\n\n```powershell\nirm https://raw.githubusercontent.com/stellarlinkco/codex/main/scripts/install.ps1 | iex\n```\n\nCopy/paste the command for your platform above to download the latest Release binary for your OS/arch. The shell command installs `codex` to `~/.local/bin` and prints a PATH reminder.\n\n### Optional: Hodexctl\n\nUse `hodexctl` if you want to manage `hodex` separately without affecting an existing `codex` install.\n\n**macOS, Linux, WSL:**\n\n```shell\ncurl -fsSL https://raw.githubusercontent.com/stellarlinkco/codex/main/scripts/install-hodexctl.sh | bash\n```\n\n**Windows PowerShell:**\n\n```powershell\nirm https://raw.githubusercontent.com/stellarlinkco/codex/main/scripts/install-hodexctl.ps1 | iex\n```\n\nAfter install, use `hodexctl`, `hodexctl install`, or `hodexctl list`.\nMore details: [Hodexctl guide](./scripts/hodexctl/README.md).\n\n### Run\n\n```shell\ncodex --version\ncodex serve\n```\n\n## Docs\n\n- [**Contributing**](./docs/contributing.md)\n- [**Installing & building**](./docs/install.md)\n- [**Hodexctl guide**](./scripts/hodexctl/README.md)\n- [**Open source fund**](./docs/open-source-fund.md)\n\n## Acknowledgements\n\n- https://github.com/openai/codex\n- https://github.com/tiann/hapi\n\nThis repository is licensed under the [AGPL-3.0 License](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:54.848037"
+  },
+  {
+    "basic_info": {
+      "name": "mdr",
+      "full_name": "CleverCloud/mdr",
+      "owner": "CleverCloud",
+      "description": "a very light rust based markdown reader with support of mermaid (web, native, TUI). vibe coded ",
+      "url": "https://github.com/CleverCloud/mdr",
+      "clone_url": "https://github.com/CleverCloud/mdr.git",
+      "ssh_url": "git@github.com:CleverCloud/mdr.git",
+      "homepage": null,
+      "created_at": "2026-02-22T12:37:58Z",
+      "updated_at": "2026-03-19T21:53:12Z",
+      "pushed_at": "2026-03-10T00:22:00Z"
+    },
+    "stats": {
+      "stars": 408,
+      "forks": 20,
+      "watchers": 408,
+      "open_issues": 16,
+      "size": 925
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 149121,
+        "Nix": 1639
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/logo.svg\" alt=\"mdr logo\" width=\"180\"/>\n</p>\n\n<h1 align=\"center\">mdr — Markdown Reader</h1>\n\n<p align=\"center\">\n  A lightweight, fast Markdown viewer with Mermaid diagram support and live reload. Built in Rust.\n</p>\n\n## Why mdr?\n\n**Built for the LLM era.** AI tools generate Markdown constantly — code documentation, technical specs, analysis reports — packed with diagrams, tables, and structured content. You need a fast way to read them.\n\nMost developers end up previewing Markdown in VS Code, pasting into a browser, or squinting at raw text in the terminal. None of these handle Mermaid diagrams. None are instant. mdr is.\n\n- **One command** — `mdr file.md` and you're reading, not editing\n- **Native Rust binary** — no Electron, no Node.js, no npm, starts in milliseconds\n- **Mermaid diagrams** — flowcharts, sequence diagrams, pie charts rendered as SVG natively (no headless browser)\n- **Three backends** — full GUI (egui), native webview (WebKit/WebView2), or terminal UI (TUI) over SSH\n- **Live reload** — edit your file or let your AI tool regenerate it, see changes instantly\n- **In-document search** — Ctrl+F / `/` to find text across all backends\n\n## Backends\n\nmdr offers multiple rendering backends, selectable at runtime:\n\n| Backend | Stack | Strengths |\n|---------|-------|-----------|\n| **egui** (default) | Pure Rust GPU rendering | Single static binary, fast startup, cross-platform |\n| **webview** | OS native WebView (WebKit/WebView2) | GitHub-quality HTML/CSS rendering, full CSS support |\n| **tui** | Terminal UI (ratatui + crossterm) | Works over SSH, no GUI needed, keyboard-driven |\n\n## Install\n\n### From source\n\n```bash\ngit clone https://github.com/CleverCloud/mdr.git\ncd mdr\ncargo install --path .\n```\n\n### Build with specific backends only\n\n```bash\n# egui only (smaller binary, no WebView dependency)\ncargo install --path . --no-default-features --features egui-backend\n\n# webview only\ncargo install --path . --no-default-features --features webview-backend\n```\n\n### Homebrew (macOS/Linux)\n\n```bash\nbrew install CleverCloud/misc/mdr\n```\n\n### Snap (Linux)\n\n```bash\nsudo snap install --edge mdr-markdown-renderer\n```\n\n> **Note**: The snap command is `mdr-markdown-renderer`, not `mdr`. You can create an alias: `sudo snap alias mdr-markdown-renderer mdr`\n\n### Scoop (Windows)\n\n```powershell\nscoop bucket add clevercloud https://github.com/CleverCloud/scoop-bucket\nscoop install mdr\n```\n\n### Chocolatey (Windows)\n\n```powershell\nchoco install mdr\n```\n\n### WinGet (Windows)\n\n```powershell\nwinget install CleverCloud.mdr\n```\n\n### Nix\n\n```bash\nnix run github:CleverCloud/mdr\n```\n\n### Pre-built binaries\n\nDownload from the [Releases](https://github.com/CleverCloud/mdr/releases) page for macOS, Linux, and Windows.\n\n## Usage\n\n```bash\n# Open with default backend (egui)\nmdr README.md\n\n# Open with webview backend\nmdr --backend webview README.md\n\n# Open in terminal (TUI)\nmdr --backend tui README.md\n\n# Show help\nmdr --help\n```\n\n### TUI keybindings\n\n| Key | Action |\n|-----|--------|\n| `q` / `Esc` | Quit |\n| `j` / `↓` | Scroll down |\n| `k` / `↑` | Scroll up |\n| `Space` / `PgDn` | Page down |\n| `PgUp` | Page up |\n| `g` / `Home` | Go to top |\n| `G` / `End` | Go to bottom |\n| `Tab` | Switch focus between TOC and content |\n| `Enter` | Navigate to selected TOC heading |\n| `/` or `Ctrl+F` | Open search |\n| `n` | Next search match |\n| `N` | Previous search match |\n\n## Features\n\n- **Full GFM support** — tables, task lists, strikethrough, footnotes, autolinks\n- **Syntax highlighting** — code blocks with language detection (via syntect)\n- **Mermaid diagrams** — flowcharts, sequence diagrams, pie charts, and more (via mermaid-rs-renderer)\n- **Table of Contents** — auto-generated sidebar from headings with click-to-navigate\n- **Live reload** — file watching with 300ms debounce, updates on save\n- **Dark/Light theme** — follows OS theme (webview backend)\n\n## Mermaid Support\n\nMermaid code fences are rendered as SVG diagrams:\n\n````markdown\n```mermaid\ngraph TD\n    A[Input] --> B[Process]\n    B --> C[Output]\n```\n````\n\nSupported diagram types: flowchart, sequence, pie, class, state, ER, gantt.\n\n> **Note**: Diamond/decision nodes (`{text}`) are not yet supported by the underlying renderer. Use square brackets as a workaround.\n\n## Architecture\n\n```\nsrc/\n├── main.rs              # CLI (clap), backend dispatch\n├── core/\n│   ├── markdown.rs      # GFM parsing (comrak) + CSS\n│   ├── mermaid.rs       # Mermaid → SVG rendering\n│   ├── toc.rs           # Heading extraction for TOC\n│   ├── search.rs       # In-document search\n│   └── watcher.rs       # File watching (notify, 300ms debounce)\n└── backend/\n    ├── egui.rs          # egui/eframe backend\n    ├── tui.rs           # ratatui/crossterm TUI backend\n    └── webview.rs       # wry/tao WebView backend\n```\n\n## Building\n\nRequires Rust 1.75+.\n\n```bash\n# All backends (default)\ncargo build --release\n\n# Run tests\ncargo test\n\n# Run clippy\ncargo clippy\n```\n\n### Linux dependencies\n\n```bas",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:56.015199"
+  },
+  {
+    "basic_info": {
+      "name": "safepilot",
+      "full_name": "3DCF-Labs/safepilot",
+      "owner": "3DCF-Labs",
+      "description": "AI assistant that executes real work, safely.",
+      "url": "https://github.com/3DCF-Labs/safepilot",
+      "clone_url": "https://github.com/3DCF-Labs/safepilot.git",
+      "ssh_url": "git@github.com:3DCF-Labs/safepilot.git",
+      "homepage": "https://safepilot.dev/",
+      "created_at": "2026-02-25T09:16:58Z",
+      "updated_at": "2026-03-19T19:06:52Z",
+      "pushed_at": "2026-03-06T11:10:10Z"
+    },
+    "stats": {
+      "stars": 381,
+      "forks": 8,
+      "watchers": 381,
+      "open_issues": 0,
+      "size": 298
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1147078,
+        "PowerShell": 12892,
+        "Shell": 9163,
+        "Dockerfile": 1179
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "assistant",
+        "own-your-data",
+        "personal",
+        "safe",
+        "secure",
+        "self-hosted"
+      ]
+    },
+    "content": {
+      "readme": "# SafePilot\n\n[![Lint](https://github.com/3DCF-Labs/safepilot/actions/workflows/lint.yml/badge.svg)](https://github.com/3DCF-Labs/safepilot/actions/workflows/lint.yml)\n[![Test](https://github.com/3DCF-Labs/safepilot/actions/workflows/ci.yml/badge.svg)](https://github.com/3DCF-Labs/safepilot/actions/workflows/ci.yml)\n[![Audit](https://github.com/3DCF-Labs/safepilot/actions/workflows/audit.yml/badge.svg)](https://github.com/3DCF-Labs/safepilot/actions/workflows/audit.yml)\n[![Docker](https://github.com/3DCF-Labs/safepilot/actions/workflows/docker.yml/badge.svg)](https://github.com/3DCF-Labs/safepilot/actions/workflows/docker.yml)\n[![Latest Release](https://img.shields.io/github/v/release/3DCF-Labs/safepilot?display_name=tag)](https://github.com/3DCF-Labs/safepilot/releases/latest)\n[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)\n\n\n**SafePilot** - a self-hosted AI assistant that executes real work, safely. It turns messages into executable automation runs with SQLite persistence, job execution, [3DCF context compression](https://github.com/3DCF-Labs/doc2dataset), and integrations (Slack/GitHub/Notion/Linear/Jira/Todoist/Weather/Brave Search/Telegram/etc).\n\n> [Configuration guide for begginers](https://safepilot.dev/#configuration-guide)\n\n## Features\n- Role-aware Telegram interface with owner/admin/public access. `ALLOWED_USER_ID` bootstraps the owner user, while public channels can be bound to workspace-scoped runtimes.\n- Workspace-first UX for create/switch/configure/connect flows (`/ws`, `/wscurrent`, `/wslist`, `/wsnew`, `/wsuse`, `/wsconfig`, `/wspublic`, `/wscaps`).\n- Public runtime bindings per integration target (`/bind`, `/unbind`, `/bindings`, `/bindpolicy`) with capability and policy enforcement.\n- Inline approval buttons for blocked tasks (callback queries), plus simple natural-language approval for the single blocked task (`\"yes\"`, `\"approve\"`, `\"go ahead\"`, etc).\n- Persistent context in SQLite (messages + summaries) with optional 3DCF compression.\n  - Recommended: enable [3DCF compression](https://github.com/3DCF-Labs/doc2dataset) in production to reduce prompt size and improve long-run behavior.\n- Multiple LLM modes:\n  - `LLM_MODE=direct`: uses Anthropic/OpenAI HTTP APIs to produce `{reply, actions}`.\n  - `LLM_MODE=agent`: iterative tool-calling loop with per-run checkpoints. Safe tool calls execute inline; risky tool calls are converted into Run Tasks (and may require approval).\n- Run scheduler with checkpoints:\n  - Each message in `direct` creates (or continues) a **Run** (tasks + deps).\n  - Safe tasks are queued as **Jobs** automatically.\n  - Risky tasks are blocked until you approve them (or you enable a temporary bypass window).\n- Workspace continuity:\n  - Each run executes in its assigned workspace path (stored on the run, typically under `DATA_DIR/chats/<chat_id>/<workspace_name>`).\n- Safer execution defaults:\n  - `shell`/`validate` actions require an allowlisted bare binary name and refuse `bash`/`sh` (supports a separate unsafe allowlist).\n  - `fetch` is SSRF-protected by default (blocks private/loopback/link-local/metadata IPs) and pins DNS resolution to validated IPs for the request.\n  - Agent-mode write tools are disabled by default.\n  - Subprocesses run with a cleared environment (no inherited API keys/tokens), and a minimal `PATH`.\n\n## Architecture\n\nAt a high level:\n- Telegram chat messages create or continue a durable **Run** (stored in SQLite).\n- Each run contains a DAG of **Tasks** (planned actions) with explicit dependencies.\n- Eligible tasks execute as **Jobs**. Jobs run in the workspace attached to the run.\n- A policy layer classifies tasks into `safe`, `needs_approval`, or `dangerous` and enforces\n  checkpoints before execution.\n\nDetails: [`docs/architecture.md`](docs/architecture.md).\n\n## Security At A Glance\n\nSafePilot uses checkpointed execution plus defense-in-depth:\n- Explicit checkpoints: `/approve`, `/trusted`, `/unsafe`\n- Network controls: SSRF protection for `fetch` by default\n- Workspace network policy: trusted-domain allowlist mode (`trusted_only`) blocks web access outside configured domains\n- Process controls: cleared subprocess env + minimal `PATH` (`TG_ORCH_SAFE_PATH`)\n- Optional Linux sandboxing for dangerous jobs (`TG_ORCH_DANGEROUS_SANDBOX*`)\n\nSecurity docs:\n- Model and checkpoint behavior: [`docs/security-model.md`](docs/security-model.md)\n- Host hardening: [`docs/hardening.md`](docs/hardening.md)\n- Docker hardening/deploy: [`docs/docker.md`](docs/docker.md)\n- Security docs index: [`docs/security/README.md`](docs/security/README.md)\n\n## Recommended Security Configuration\n\nBaseline:\n- Run in Docker using [`docker-compose.yml`](docker-compose.yml) (non-root, read-only root filesystem, secrets via files, persistent volumes only for `DATA_DIR` and `LOG_DIR`).\n- Keep `LLM_MODE=direct` unless you specifically need `LLM_MODE=agent`.\n- Keep `AGENT_ENABLE_WRITE_TOOLS=0` and `AGENT_ENABLE_BROWSER_TOOL=0` unless you explicitl",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-20T03:26:57.165301"
+  }
+]

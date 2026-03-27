@@ -1,0 +1,793 @@
+[
+  {
+    "basic_info": {
+      "name": "cli",
+      "full_name": "googleworkspace/cli",
+      "owner": "googleworkspace",
+      "description": "Google Workspace CLI — one command-line tool for Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin, and more. Dynamically built from Google Discovery Service. Includes AI agent skills.",
+      "url": "https://github.com/googleworkspace/cli",
+      "clone_url": "https://github.com/googleworkspace/cli.git",
+      "ssh_url": "git@github.com:googleworkspace/cli.git",
+      "homepage": "https://developers.google.com/workspace",
+      "created_at": "2026-03-02T19:46:06Z",
+      "updated_at": "2026-03-27T03:27:08Z",
+      "pushed_at": "2026-03-26T18:47:42Z"
+    },
+    "stats": {
+      "stars": 22682,
+      "forks": 1091,
+      "watchers": 22682,
+      "open_issues": 48,
+      "size": 10440
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1133210,
+        "Shell": 3773,
+        "Nix": 2166
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-skills",
+        "ai-agent",
+        "automation",
+        "cli",
+        "discovery-api",
+        "gemini-cli-extension",
+        "google-admin",
+        "google-api",
+        "google-calendar",
+        "google-chat",
+        "google-docs",
+        "google-drive",
+        "google-sheets",
+        "google-workspace",
+        "oauth2",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">gws</h1>\n\n**One CLI for all of Google Workspace — built for humans and AI agents.**<br>\nDrive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JSON output. 40+ agent skills included.\n\n> [!NOTE]\n> This is **not** an officially supported Google product.\n\n<p>\n  <a href=\"https://www.npmjs.com/package/@googleworkspace/cli\"><img src=\"https://img.shields.io/npm/v/@googleworkspace/cli\" alt=\"npm version\"></a>\n  <a href=\"https://github.com/googleworkspace/cli/blob/main/LICENSE\"><img src=\"https://img.shields.io/github/license/googleworkspace/cli\" alt=\"license\"></a>\n  <a href=\"https://github.com/googleworkspace/cli/actions/workflows/ci.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/googleworkspace/cli/ci.yml?branch=main&label=CI\" alt=\"CI status\"></a>\n  <a href=\"https://www.npmjs.com/package/@googleworkspace/cli\"><img src=\"https://img.shields.io/npm/unpacked-size/@googleworkspace/cli\" alt=\"install size\"></a>\n</p>\n<br>\n\n```bash\nnpm install -g @googleworkspace/cli\n```\n\n`gws` doesn't ship a static list of commands. It reads Google's own [Discovery Service](https://developers.google.com/discovery) at runtime and builds its entire command surface dynamically. When Google Workspace adds an API endpoint or method, `gws` picks it up automatically.\n\n> [!IMPORTANT]\n> This project is under active development. Expect breaking changes as we march toward v1.0.\n\n## Contents\n\n- [Prerequisites](#prerequisites)\n- [Installation](#installation)\n- [Quick Start](#quick-start)\n- [Why gws?](#why-gws)\n- [Authentication](#authentication)\n- [AI Agent Skills](#ai-agent-skills)\n- [Advanced Usage](#advanced-usage)\n- [Environment Variables](#environment-variables)\n- [Exit Codes](#exit-codes)\n- [Architecture](#architecture)\n- [Troubleshooting](#troubleshooting)\n- [Development](#development)\n\n## Prerequisites\n\n- **Node.js 18+** — for `npm install` (or download a pre-built binary from [GitHub Releases](https://github.com/googleworkspace/cli/releases))\n- **A Google Cloud project** — required for OAuth credentials. You can create one via the [Google Cloud Console](https://console.cloud.google.com/) or with the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) or with the `gws auth setup` command.\n- **A Google account** with access to Google Workspace\n\n## Installation\n\n```bash\nnpm install -g @googleworkspace/cli\n```\n\n> The npm package bundles pre-built native binaries for your OS and architecture.\n> No Rust toolchain required.\n\nPre-built binaries are also available on the [GitHub Releases](https://github.com/googleworkspace/cli/releases) page.\n\nOr build from source:\n\n```bash\ncargo install --git https://github.com/googleworkspace/cli --locked\n```\n\nA Nix flake is also available at `github:googleworkspace/cli`\n\n```bash\nnix run github:googleworkspace/cli\n```\n\nOn macOS and Linux, you can also install via [Homebrew](https://brew.sh/):\n\n```bash\nbrew install googleworkspace-cli\n```\n\n## Quick Start\n\n```bash\ngws auth setup     # walks you through Google Cloud project config\ngws auth login     # subsequent OAuth login\ngws drive files list --params '{\"pageSize\": 5}'\n```\n\n## Why gws?\n\n**For humans** — stop writing `curl` calls against REST docs. `gws` gives you `--help` on every resource, `--dry-run` to preview requests, and auto‑pagination.\n\n**For AI agents** — every response is structured JSON. Pair it with the included agent skills and your LLM can manage Workspace without custom tooling.\n\n```bash\n# List the 10 most recent files\ngws drive files list --params '{\"pageSize\": 10}'\n\n# Create a spreadsheet\ngws sheets spreadsheets create --json '{\"properties\": {\"title\": \"Q1 Budget\"}}'\n\n# Send a Chat message\ngws chat spaces messages create \\\n  --params '{\"parent\": \"spaces/xyz\"}' \\\n  --json '{\"text\": \"Deploy complete.\"}' \\\n  --dry-run\n\n# Introspect any method's request/response schema\ngws schema drive.files.list\n\n# Stream paginated results as NDJSON\ngws drive files list --params '{\"pageSize\": 100}' --page-all | jq -r '.files[].name'\n```\n\n## Authentication\n\nThe CLI supports multiple auth workflows so it works on your laptop, in CI, and on a server.\n\n### Which setup should I use?\n\n| I have… | Use |\n|---|---|\n| `gcloud` installed and authenticated | [`gws auth setup`](#interactive-local-desktop) (fastest) |\n| A GCP project but no `gcloud` | [Manual OAuth setup](#manual-oauth-setup-google-cloud-console) |\n| An existing OAuth access token | [`GOOGLE_WORKSPACE_CLI_TOKEN`](#pre-obtained-access-token) |\n| Existing Credentials | [`GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE`](#service-account-server-to-server) |\n\n### Interactive (local desktop)\n\nCredentials are encrypted at rest (AES-256-GCM) with the key stored in your OS keyring (or `~/.config/gws/.encryption_key` when `GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=file`).\n\n```bash\ngws auth setup       # one-time: creates a Cloud project, enables APIs, logs you in\ngws auth login       # subsequent scope selection and login\n```\n\n> `gws auth setup` requires the [`gcloud` CLI](h",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:45:56.383698"
+  },
+  {
+    "basic_info": {
+      "name": "RustTraining",
+      "full_name": "microsoft/RustTraining",
+      "owner": "microsoft",
+      "description": "Beginner, advanced, expert level Rust training material",
+      "url": "https://github.com/microsoft/RustTraining",
+      "clone_url": "https://github.com/microsoft/RustTraining.git",
+      "ssh_url": "git@github.com:microsoft/RustTraining.git",
+      "homepage": "",
+      "created_at": "2026-03-13T04:25:17Z",
+      "updated_at": "2026-03-27T03:45:40Z",
+      "pushed_at": "2026-03-27T02:09:51Z"
+    },
+    "stats": {
+      "stars": 9256,
+      "forks": 627,
+      "watchers": 9256,
+      "open_issues": 6,
+      "size": 1496
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 14389,
+        "JavaScript": 8834
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div style=\"background-color: #d9d9d9; padding: 16px; border-radius: 6px; color: #000000;\">\n\n**License** This project is dual-licensed under the [MIT License](LICENSE) and [Creative Commons Attribution 4.0 International (CC-BY-4.0)](LICENSE-DOCS).\n\n</div>\n\n<div style=\"background-color: #d9d9d9; padding: 16px; border-radius: 6px; color: #000000;\">\n\n**Trademarks** This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft trademarks or logos is subject to and must follow [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general). Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos are subject to those third-party's policies.\n\n</div>\n\n# Rust Training Books\n\nSeven training courses covering Rust from different programming backgrounds, plus deep-dives on async, advanced patterns, and engineering practices.\n\nThis material combines original content with ideas and examples inspired by some of the best resources in the Rust ecosystem. The goal is to present an in-depth, technically accurate curriculum that weaves together knowledge scattered across books, blogs, conference talks, and video series into a cohesive, pedagogically structured experience.\n\n> **Disclaimer:** These books are training material, not an authoritative reference. While we strive for accuracy, always verify critical details against the [official Rust documentation](https://doc.rust-lang.org/) and the [Rust Reference](https://doc.rust-lang.org/reference/).\n\n### Inspirations & Acknowledgments\n\n- [**The Rust Programming Language**](https://doc.rust-lang.org/book/) — the foundation everything builds on\n- [**Jon Gjengset**](https://www.youtube.com/c/JonGjengset) — deep-dive streams on advanced Rust internals, `Crust of Rust` series\n- [**withoutboats**](https://without.boats/blog/) — async design, `Pin`, and the futures model\n- [**fasterthanlime (Amos)**](https://fasterthanli.me/) — systems programming from first principles, engaging long-form explorations\n- [**Mara Bos**](https://marabos.nl/) — *Rust Atomics and Locks*, concurrency primitives\n- [**Aleksey Kladov (matklad)**](https://matklad.github.io/) — Rust analyzer insights, API design, error handling patterns\n- [**Niko Matsakis**](https://smallcultfollowing.com/babysteps/) — language design, borrow checker internals, Polonius\n- [**Rust by Example**](https://doc.rust-lang.org/rust-by-example/) and [**Rustonomicon**](https://doc.rust-lang.org/nomicon/) — practical patterns and unsafe deep-dives\n- [**This Week in Rust**](https://this-week-in-rust.org/) — community discoveries that shaped many examples\n- …and many others in the **Rust community at large** whose blog posts, conference talks, RFCs, and forum discussions have informed this material — too numerous to list individually, but deeply appreciated\n\n## 📖 Start Reading\n\nPick the book that matches your background. Books are grouped by complexity so you can chart a learning path:\n\n| Level | Description |\n|-------|-------------|\n| 🟢 **Bridge** | Learn Rust coming from another language — start here |\n| 🔵 **Deep Dive** | Focused exploration of a major Rust subsystem |\n| 🟡 **Advanced** | Patterns and techniques for experienced Rustaceans |\n| 🟣 **Expert** | Cutting-edge type-level and correctness techniques |\n| 🟤 **Practices** | Engineering, tooling, and production readiness |\n\n| Book | Level | Who it's for |\n|------|-------|-------------|\n| [**Rust for C/C++ Programmers**](c-cpp-book/src/SUMMARY.md) | 🟢 Bridge | Move semantics, RAII, FFI, embedded, no_std |\n| [**Rust for C# Programmers**](csharp-book/src/SUMMARY.md) | 🟢 Bridge | Swift / C# / Java → ownership & type system |\n| [**Rust for Python Programmers**](python-book/src/SUMMARY.md) | 🟢 Bridge | Dynamic → static typing, GIL-free concurrency |\n| [**Async Rust**](async-book/src/SUMMARY.md) | 🔵 Deep Dive | Tokio, streams, cancellation safety |\n| [**Rust Patterns**](rust-patterns-book/src/SUMMARY.md) | 🟡 Advanced | Pin, allocators, lock-free structures, unsafe |\n| [**Type-Driven Correctness**](type-driven-correctness-book/src/SUMMARY.md) | 🟣 Expert | Type-state, phantom types, capability tokens |\n| [**Rust Engineering Practices**](engineering-book/src/SUMMARY.md) | 🟤 Practices | Build scripts, cross-compilation, CI/CD, Miri |\n\nEach book has 15–16 chapters with Mermaid diagrams, editable Rust playgrounds, exercises, and full-text search.\n\n> **Tip:** You can read the markdown source directly on GitHub, or browse the rendered site with sidebar navigation and search at the [GitHub Pages site](https://microsoft.github.io/RustTraining/).\n>\n> **Local serving:** For the best reading experience (keyboard navigation between chapters, instant search, offline access), clone the repo and run:\n> ```\n> # Install Rust via rustup if you don't have it yet:\n> # https://rustup.rs/\n>\n> ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:45:57.689969"
+  },
+  {
+    "basic_info": {
+      "name": "zeroboot",
+      "full_name": "zerobootdev/zeroboot",
+      "owner": "zerobootdev",
+      "description": "Sub-millisecond VM sandboxes for AI agents via copy-on-write forking",
+      "url": "https://github.com/zerobootdev/zeroboot",
+      "clone_url": "https://github.com/zerobootdev/zeroboot.git",
+      "ssh_url": "git@github.com:zerobootdev/zeroboot.git",
+      "homepage": "https://tally.so/r/aQGkpb",
+      "created_at": "2026-03-15T21:49:32Z",
+      "updated_at": "2026-03-27T01:25:31Z",
+      "pushed_at": "2026-03-21T22:53:51Z"
+    },
+    "stats": {
+      "stars": 1942,
+      "forks": 90,
+      "watchers": 1942,
+      "open_issues": 12,
+      "size": 975
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 70588,
+        "Shell": 9104,
+        "Python": 2669,
+        "C": 2559,
+        "TypeScript": 1892,
+        "Makefile": 290
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-agents",
+        "code-execution",
+        "copy-on-write",
+        "firecracker",
+        "kvm",
+        "rust",
+        "sandbox",
+        "virtual-machine",
+        "vm"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"assets/logo-dark.svg\">\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"assets/logo-light.svg\">\n    <img alt=\"Zeroboot\" src=\"assets/logo-light.svg\" width=\"500\">\n  </picture>\n</p>\n\n<p align=\"center\">\n  <strong>Sub-millisecond VM sandboxes for AI agents via copy-on-write forking</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-Apache--2.0-blue\" alt=\"License\"></a>\n  <a href=\"https://www.rust-lang.org\"><img src=\"https://img.shields.io/badge/rust-2021_edition-orange\" alt=\"Rust\"></a>\n  <a href=\"https://api.zeroboot.dev/v1/health\"><img src=\"https://img.shields.io/badge/api-live-brightgreen\" alt=\"API Status\"></a>\n</p>\n\n---\n\n![demo](demo/demo.gif)\n\n## Try it\n\n```bash\ncurl -X POST https://api.zeroboot.dev/v1/exec \\\n  -H 'Content-Type: application/json' \\\n  -H 'Authorization: Bearer zb_demo_hn2026' \\\n  -d '{\"code\":\"import numpy as np; print(np.random.rand(3))\"}'\n```\n\n## Benchmarks\n\n| Metric | Zeroboot | E2B | microsandbox | Daytona |\n|---|---|---|---|---|\n| Spawn latency p50 | **0.79ms** | ~150ms | ~200ms | ~27ms |\n| Spawn latency p99 | 1.74ms | ~300ms | ~400ms | ~90ms |\n| Memory per sandbox | ~265KB | ~128MB | ~50MB | ~50MB |\n| Fork + exec (Python) | **~8ms** | - | - | - |\n| 1000 concurrent forks | 815ms | - | - | - |\n\nEach sandbox is a real KVM virtual machine with hardware-enforced memory isolation.\n\n## How it works\n\n```\n  Firecracker snapshot ──► mmap(MAP_PRIVATE) ──► KVM VM + restored CPU state\n                              (copy-on-write)         (~0.8ms)\n```\n\n1. **Template** (one-time): Firecracker boots a VM, pre-loads your runtime, and snapshots memory + CPU state\n2. **Fork** (~0.8ms): Creates a new KVM VM, maps snapshot memory as CoW, restores all CPU state\n3. **Isolation**: Each fork is a separate KVM VM with hardware-enforced memory isolation\n\n## SDKs\n\n**Python** &mdash; [sdk/python](sdk/python/)\n\n```python\nfrom zeroboot import Sandbox\nsb = Sandbox(\"zb_live_your_key\")\nresult = sb.run(\"print(1 + 1)\")\n```\n\n**TypeScript** &mdash; [sdk/node](sdk/node/)\n\n```typescript\nimport { Sandbox } from \"@zeroboot/sdk\";\nconst result = await new Sandbox(\"zb_live_your_key\").run(\"console.log(1+1)\");\n```\n\n## Docs\n\n- [API Reference](docs/API.md)\n- [Deployment Guide](docs/DEPLOYMENT.md)\n- [Architecture](docs/ARCHITECTURE.md)\n\n## Status\n\nWorking prototype. The fork primitive, benchmarks, and API are real, but not production-hardened yet. [Open an issue](https://github.com/adammiribyan/zeroboot/issues) if you're interested.\n\n## Self-host or managed\n\nZeroboot is open source. Self-host it on any Linux box with KVM, or use the managed API:\n\n    curl -X POST https://api.zeroboot.dev/v1/exec \\\n      -H 'Content-Type: application/json' \\\n      -H 'Authorization: Bearer zb_demo_hn2026' \\\n      -d '{\"code\":\"import numpy as np; print(np.random.rand(3))\"}'\n\nBuilding the managed service for teams that don't want to run their own infra. Sign up for early access: https://tally.so/r/aQGkpb\n\n## Known limitations\n\n- Forks share CSPRNG state from the snapshot. Kernel entropy is reseeded via RNDADDENTROPY but userspace PRNGs (numpy, OpenSSL) need explicit reseeding per fork. See [Firecracker's guidance](https://github.com/firecracker-microvm/firecracker/blob/main/docs/snapshotting/random-for-clones.md).\n- Single vCPU per fork. Multi-vCPU is architecturally possible but not implemented.\n- No networking inside forks. Sandboxes communicate via serial I/O only.\n- Template updates require a full re-snapshot (~15s). No incremental patching.\n\n## License\n\n[Apache-2.0](LICENSE)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:45:58.994764"
+  },
+  {
+    "basic_info": {
+      "name": "OpenSquirrel",
+      "full_name": "Infatoshi/OpenSquirrel",
+      "owner": "Infatoshi",
+      "description": "For people who get distracted by agents. A native Rust/GPUI control plane for running Claude Code, Codex, Cursor, and OpenCode side by side — because if you're going to be squirrely, you might as well optimize for it.",
+      "url": "https://github.com/Infatoshi/OpenSquirrel",
+      "clone_url": "https://github.com/Infatoshi/OpenSquirrel.git",
+      "ssh_url": "git@github.com:Infatoshi/OpenSquirrel.git",
+      "homepage": null,
+      "created_at": "2026-03-15T21:54:35Z",
+      "updated_at": "2026-03-27T01:49:49Z",
+      "pushed_at": "2026-03-24T08:46:05Z"
+    },
+    "stats": {
+      "stars": 1315,
+      "forks": 86,
+      "watchers": 1315,
+      "open_issues": 4,
+      "size": 48972
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 518223
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/logo.png\" width=\"128\" alt=\"OpenSquirrel\">\n</p>\n\n<h1 align=\"center\">OpenSquirrel</h1>\n\n<p align=\"center\">\n  <strong>This project is no longer actively maintained.</strong><br>\n  Fork it, customize it, make it yours.\n</p>\n\n<p align=\"center\">\n  <img src=\"assets/screenshot-main.png\" width=\"800\" alt=\"OpenSquirrel screenshot\">\n</p>\n\n## What it was\n\nA native, GPU-rendered tiling manager for AI coding agents. Rust + GPUI. Run Claude Code, Codex, Cursor, Gemini, and OpenCode side by side with automatic sub-agent delegation, remote machine targeting via SSH, and persistent sessions.\n\n## Why it's archived\n\nAfter a week of building this, I arrived at a simpler conclusion: **you don't need a custom GUI to orchestrate AI agents.**\n\nHere's what I learned:\n\n**The terminal already won.** Every AI coding CLI (Claude Code, Codex, Cursor Agent, Gemini CLI, OpenCode) ships with a polished terminal TUI. Building a Rust GUI that parses their JSON output and re-renders it will always be worse than just... using the native TUI. Users are comfortable in their terminal. They don't want a new window.\n\n**Delegation is a prompt, not a product.** The entire coordinator/worker delegation system -- spawning sub-agents across runtimes, collecting results, feeding them back -- can be done with 4 lines in a `CLAUDE.md` file telling the model to use `cursor agent --print` or `codex exec` via Bash. No orchestration daemon needed. No hooks. No middleware. Claude Code's Agent tool already handles internal delegation. For external CLIs, just run them headless.\n\n**Token tracking already exists.** [CodexBar](https://github.com/steipete/CodexBar) sits in your macOS menu bar and tracks usage across Claude, Codex, Cursor, Gemini, and more by reading their local data files. No need to build this into a GUI.\n\n**The architectural mismatch.** Using Claude Code (a Node/Bun process) to build and iterate on a Rust GPU application through JSON stream parsing is a bizarre feedback loop. The model is trained on terminal interactions, not on debugging GPUI render pipelines. Every feature took 10x longer than it should have because the tooling fought the workflow.\n\n**Models aren't good enough yet for opinionated UX.** Nobody knows the right workflow for multi-agent coding. Building a rigid UI around one workflow locks you in. The terminal is infinitely flexible. Wait for patterns to emerge before building products around them.\n\n## What works instead\n\nThe setup I actually use now:\n\n- **Terminal**: Ghostty (or whatever you prefer)\n- **Agents**: Run them directly -- `claude`, `codex`, `cursor agent`, `gemini`\n- **Delegation**: Instructions in `~/.claude/CLAUDE.md` telling Claude to run external CLIs via Bash when asked\n- **Token tracking**: CodexBar (menu bar app, reads local files)\n- **Multi-agent**: Just open multiple terminal tabs/panes\n\nThat's it. No custom software. The orchestration layer is a config file.\n\n## If you want to use or fork this\n\nThe code works. The `legacy` branch at commit `78f1bf2` has the full feature set:\n\n- Multi-agent grid with auto-layout\n- Coordinator/worker delegation across runtimes\n- Remote SSH targeting with tmux session persistence\n- Reusable UI components (FuzzyList, modal builders, selectable rows)\n- Model picker with fuzzy search (Cmd+M)\n- Token/cost tracking per agent\n- 7 themes, persistent state, MCP integration\n- 93 passing tests\n\n### Build & run\n\n```bash\ncargo build --release\n# Run as .app bundle:\ncp target/release/opensquirrel dist/OpenSquirrel.app/Contents/MacOS/OpenSquirrel-bin\nopen dist/OpenSquirrel.app\n```\n\nRequires Rust 1.85+ and macOS (Metal GPU). Linux (Vulkan) compiles and tests pass.\n\n### Config\n\n`~/.osq/config.toml` -- runtimes, machines, MCPs, themes, settings.\n\n### Supported runtimes\n\n| Runtime | CLI | Mode |\n|---------|-----|------|\n| Claude Code | `claude` | Persistent multi-turn |\n| Codex | `codex` | One-shot |\n| Cursor Agent | `cursor agent` | One-shot |\n| Gemini CLI | `gemini` | One-shot |\n| OpenCode | `opencode` | One-shot |\n\n## License\n\nMIT\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:00.282518"
+  },
+  {
+    "basic_info": {
+      "name": "novalclaw",
+      "full_name": "Superagentsys/novalclaw",
+      "owner": "Superagentsys",
+      "description": "novalclaw is next generation AI format",
+      "url": "https://github.com/Superagentsys/novalclaw",
+      "clone_url": "https://github.com/Superagentsys/novalclaw.git",
+      "ssh_url": "git@github.com:Superagentsys/novalclaw.git",
+      "homepage": null,
+      "created_at": "2026-03-04T14:23:13Z",
+      "updated_at": "2026-03-27T03:14:00Z",
+      "pushed_at": "2026-03-26T11:59:12Z"
+    },
+    "stats": {
+      "stars": 860,
+      "forks": 47,
+      "watchers": 860,
+      "open_issues": 0,
+      "size": 34232
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 452887,
+        "TypeScript": 127905,
+        "CSS": 21072,
+        "JavaScript": 20550,
+        "HTML": 368
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# OmniNova Claw\n\n<div align=\"center\">\n  <img src=\"apps/omninova-tauri/public/omninoval-logo.png\" alt=\"OmniNova Claw Logo\" width=\"200\" height=\"200\" />\n  <p><strong>A Next-Gen AI Agent Platform & Desktop Control Plane</strong></p>\n  <p>\n    <a href=\"README_zh.md\">中文文档</a> | \n    <a href=\"#features\">Features</a> | \n    <a href=\"#getting-started\">Getting Started</a> | \n    <a href=\"#architecture\">Architecture</a>\n  </p>\n</div>\n\n---\n\n**OmniNova Claw** is a powerful, local-first AI agent platform built on the **Novalclaw** architecture. It combines a high-performance Rust core runtime with a modern Tauri + React desktop interface, giving you complete control over your AI agents, skills, and model providers.\n\nWhether you're building complex agent workflows, managing multiple LLM providers (OpenAI, Anthropic, Gemini, DeepSeek, etc.), or deploying bots across various channels (Slack, Discord, WeChat, etc.), OmniNova Claw provides a unified, secure, and extensible foundation.\n\n## ✨ Features\n\n### 👻 Soul System (Agent Persona & MBTI)\nThe **Soul System** gives your agent a unique identity and behavioral framework, deeply integrated with **MBTI** psychology.\n- **MBTI-Driven Personality**: Architect your agent's cognition using MBTI types (e.g., **INTJ** for logical strategy, **ENFP** for creative empathy). The system translates these types into distinct reasoning patterns and communication styles.\n- **System Prompt**: Define the core personality, tone, and constraints of your agent.\n- **Behavioral Control**: Fine-tune interaction styles, context handling (`compact_context`), and tool usage limits.\n- **Adaptive Persona**: Switch between different \"Souls\" (e.g., Coder, Researcher, Assistant) based on the task or channel.\n\n### 🧠 Three-Layer Memory System\nOmniNova Claw implements a sophisticated cognitive architecture with three distinct memory layers:\n1.  **Working Memory (Short-term)**: Manages the immediate conversation context with intelligent token compression and sliding windows to maintain focus.\n2.  **Episodic Memory (Long-term)**: Stores and retrieves past interaction history, preserving the lineage of sessions and enabling the agent to recall previous contexts.\n3.  **Semantic/Skill Memory (Knowledge)**: A persistent knowledge base derived from loaded Skills (`SKILL.md`) and external documents, allowing the agent to utilize specialized domain knowledge.\n\n### 🛠️ Powerful Tools & Capabilities\n- **Built-in Tools**: File operations, Web Search, PDF reading, Git operations, Shell execution (sandboxed).\n- **Skills System**: Extensible capability system compatible with OpenClaw skills. Load skills from `SKILL.md` or local directories.\n- **ACP Protocol**: Implements the Agent Control Protocol for standardized agent-tool interaction.\n- **Safety First**: E-stop mechanism, tool policy enforcement, and dangerous command filtering.\n\n### 🔌 Universal Connectivity\n- **Multi-Provider Support**: Seamlessly switch between OpenAI, Anthropic, Gemini, DeepSeek, Qwen, Ollama, and more.\n- **Omni-Channel**: Connect your agents to Slack, Discord, Telegram, WeChat, Feishu, Lark, DingTalk, WhatsApp, Email, and Webhooks.\n- **Declarative Routing**: Route messages to specific agents based on channel, user, or metadata without writing code.\n\n### 🖥️ Modern Desktop Experience\n- **Cross-Platform**: Native apps for **macOS** (Apple Silicon/Intel), **Windows**, and **Linux**.\n- **Visual Configuration**: Configure providers, channels, and skills through an intuitive React-based UI.\n- **Local Gateway**: Run the entire stack locally with a built-in HTTP gateway and daemon management.\n\n## 🚀 Getting Started\n\n### Prerequisites\n- **Rust**: Latest stable version (`rustup update`)\n- **Node.js**: Version 22+ (`node -v`)\n- **System Dependencies**:\n  - **Linux**: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`\n  - **Windows**: Microsoft Visual Studio C++ Build Tools\n\n### Installation\n\n1.  **Clone the repository**\n    ```bash\n    git clone https://github.com/omninova/claw.git\n    cd claw/omninovalclaw\n    ```\n\n2.  **Install dependencies**\n    ```bash\n    # Install frontend dependencies\n    cd apps/omninova-tauri\n    npm install\n    ```\n\n3.  **Run in Development Mode**\n    ```bash\n    # Run Tauri app (Frontend + Rust Backend)\n    npm run tauri dev\n    ```\n\n4.  **Build for Production**\n    \n    You can build optimized binaries for specific platforms using the following commands:\n\n    ```bash\n    # Windows (x64)\n    npm run build:windows\n\n    # macOS (Apple Silicon / M1/M2/M3)\n    npm run build:macos:apple\n\n    # macOS (Intel)\n    npm run build:macos:intel\n\n    # Linux (x64)\n    npm run build:linux\n    ```\n    \n    Artifacts will be generated in `apps/omninova-tauri/src-tauri/target/release/bundle/`.\n\n## 🏗️ Architecture\n\nOmniNova Claw follows a modular workspace structure:\n\n```text\nomninovalclaw/\n├── apps/\n│   └── omninova-tauri/      # Desktop Frontend (React 19 + TypeScript) & Tauri Config\n│       ├── src/             # UI Components (Setup, Chat, Co",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:01.602891"
+  },
+  {
+    "basic_info": {
+      "name": "opencli-rs",
+      "full_name": "nashsu/opencli-rs",
+      "owner": "nashsu",
+      "description": "Opencli-rs is a  Blazing fast, memory-safe command-line tool — Fetch information from any website with a single command. Covers Twitter/X, Reddit, YouTube, HackerNews, Bilibili, Zhihu, Xiaohongshu, and 55+ sites, with support for controlling Electron desktop apps, integrating local CLI tools (gh, docker, kubectl)",
+      "url": "https://github.com/nashsu/opencli-rs",
+      "clone_url": "https://github.com/nashsu/opencli-rs.git",
+      "ssh_url": "git@github.com:nashsu/opencli-rs.git",
+      "homepage": "",
+      "created_at": "2026-03-24T03:04:29Z",
+      "updated_at": "2026-03-27T03:41:11Z",
+      "pushed_at": "2026-03-26T10:35:42Z"
+    },
+    "stats": {
+      "stars": 827,
+      "forks": 56,
+      "watchers": 827,
+      "open_issues": 2,
+      "size": 1451
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 419957,
+        "TypeScript": 31404,
+        "Shell": 28614,
+        "Makefile": 2734
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# opencli-rs\n**[English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)**\n\nBlazing fast, memory-safe command-line tool — **Fetch information from any website with a single command**. Covers Twitter/X, Reddit, YouTube, HackerNews, Bilibili, Zhihu, Xiaohongshu,  and [55+ sites](#built-in-commands), with support for controlling Electron desktop apps, integrating local CLI tools (`gh`, `docker`, `kubectl`), powered by browser session reuse and AI-native discovery capabilities.\n\n\nA **complete rewrite in pure Rust** based on [OpenCLI](https://github.com/jackwener/opencli) (TypeScript). Feature-equivalent, **up to 12x faster**, **10x less memory**, **single 4.7MB binary**, zero runtime dependencies.\n\n**The perfect companion for OpenClaw/Agent** — Give your AI Agent the ability to reach information across the entire web, fetching real-time data from 55+ sites with a single command.\n**Built for AI Agents:** Configure `opencli-rs list` in `AGENT.md` or `.cursorrules`, and AI can automatically discover all available tools. Register your local CLI (`opencli-rs register mycli`), and AI can seamlessly invoke all your tools.\n\n**CLI-fy All Desktop Apps!** Turn any Electron app into a command-line tool — Cursor, ChatGPT, Notion, Discord, and more. Reorganize, script, and extend desktop apps; AI can natively control itself — endless possibilities.\n\n## 🚀 Performance Comparison\n\n| Metric | 🦀 opencli-rs (Rust) | 📦 opencli (Node.js) | Improvement |\n|------|:-----------------:|:-----------------:|:----:|\n| 💾 **Memory Usage (Public Commands)** | 15 MB | 99 MB | **6.6x** |\n| 💾 **Memory Usage (Browser Commands)** | 9 MB | 95 MB | **10.6x** |\n| 📏 **Binary Size** | 4.7 MB | ~50 MB (node_modules) | **10x** |\n| 🔗 **Runtime Dependencies** | None | Node.js 20+ | **Zero deps** |\n| ✅ **Test Pass Rate** | 103/122 (84%) | 104/122 (85%) | Near parity |\n\n**⚡ Real-world Command Timing Comparison:**\n\n| Command | 🦀 opencli-rs | 📦 opencli | Speedup |\n|------|:----------:|:-------:|:------:|\n| `bilibili hot` | **1.66s** | 20.1s | 🔥 **12x** |\n| `zhihu hot` | **1.77s** | 20.5s | 🔥 **11.6x** |\n| `xueqiu search 茅台` | **1.82s** | 9.2s | ⚡ **5x** |\n| `xiaohongshu search` | **5.1s** | 14s | ⚡ **2.7x** |\n\n> Based on automated testing of 122 commands (55 sites), macOS Apple Silicon environment.\n\n## Features\n\n- **55 sites, 333 commands** — Covers Bilibili, Twitter, Reddit, Zhihu, Xiaohongshu, YouTube, Hacker News, and more\n- **Browser session reuse** — Reuse logged-in sessions via Chrome extension, no need to manage tokens\n- **Declarative YAML Pipeline** — Describe data scraping workflows in YAML, add new adapters with zero code\n- **AI-native discovery** — `explore` analyzes website APIs, `generate` auto-creates adapters with one command, `cascade` probes authentication strategies\n- **Download media & articles** — Download videos (via yt-dlp), articles as Markdown with images localized\n- **External CLI passthrough** — Integrate GitHub CLI, Docker, Kubernetes, and other tools\n- **Multi-format output** — table, JSON, YAML, CSV, Markdown\n- **Single binary** — Compiles to a 4MB static binary with zero runtime dependencies\n\n## Installation\n> **Just one file, download and use.** No Node.js, Python, or any runtime needed — just put it in your PATH and go.\n\n### One-line Install Script (macOS / Linux)\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/nashsu/opencli-rs/main/scripts/install.sh | sh\n```\n\nAutomatically detects your system and architecture, downloads the corresponding binary, and installs to `/usr/local/bin/`.\n\n### Windows (PowerShell)\n\n```powershell\nInvoke-WebRequest -Uri \"https://github.com/nashsu/opencli-rs/releases/latest/download/opencli-rs-x86_64-pc-windows-msvc.zip\" -OutFile opencli-rs.zip\nExpand-Archive opencli-rs.zip -DestinationPath .\nMove-Item opencli-rs.exe \"$env:LOCALAPPDATA\\Microsoft\\WindowsApps\\\"\n```\n\n\n### Manual Download (Simplest)\n\nDownload the file for your platform from [GitHub Releases](https://github.com/nashsu/opencli-rs/releases/latest):\n\n| Platform | File |\n|------|------|\n| macOS (Apple Silicon) | `opencli-rs-aarch64-apple-darwin.tar.gz` |\n| macOS (Intel) | `opencli-rs-x86_64-apple-darwin.tar.gz` |\n| Linux (x86_64) | `opencli-rs-x86_64-unknown-linux-musl.tar.gz` |\n| Linux (ARM64) | `opencli-rs-aarch64-unknown-linux-musl.tar.gz` |\n| Windows (x64) | `opencli-rs-x86_64-pc-windows-msvc.zip` |\n\nAfter extracting, place `opencli-rs` (or `opencli-rs.exe` on Windows) in your system PATH.\n\n### Build from Source\n\n```bash\ngit clone https://github.com/nashsu/opencli-rs.git\ncd opencli-rs\ncargo build --release\ncp target/release/opencli-rs /usr/local/bin/   # macOS / Linux\n```\n\n### Update\n\nSimply re-run the install command or download the latest release to overwrite the existing binary.\n\n### Chrome Extension Setup (required for browser commands)\n\n1. Download `opencli-rs-chrome-extension.zip` from [GitHub Releases](https://github.com/nashsu/opencli-rs/releases/latest)\n2. Extract to any directory\n3. Open Chrome and go to `chrome://extensi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:02.886484"
+  },
+  {
+    "basic_info": {
+      "name": "yoyo-evolve",
+      "full_name": "yologdev/yoyo-evolve",
+      "owner": "yologdev",
+      "description": "A coding agent that evolves itself. One commit per day.",
+      "url": "https://github.com/yologdev/yoyo-evolve",
+      "clone_url": "https://github.com/yologdev/yoyo-evolve.git",
+      "ssh_url": "git@github.com:yologdev/yoyo-evolve.git",
+      "homepage": "https://yologdev.github.io/yoyo-evolve/",
+      "created_at": "2026-03-01T00:25:19Z",
+      "updated_at": "2026-03-26T23:56:28Z",
+      "pushed_at": "2026-03-26T23:56:24Z"
+    },
+    "stats": {
+      "stars": 678,
+      "forks": 49,
+      "watchers": 678,
+      "open_issues": 11,
+      "size": 5712
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1311583,
+        "Shell": 94378,
+        "Python": 32359,
+        "PowerShell": 5752
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/banner.png\" alt=\"yoyo — a coding agent that evolves itself\" width=\"100%\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://yologdev.github.io/yoyo-evolve\">Website</a> ·\n  <a href=\"https://yologdev.github.io/yoyo-evolve/book/\">Documentation</a> ·\n  <a href=\"https://github.com/yologdev/yoyo-evolve\">GitHub</a> ·\n  <a href=\"https://deepwiki.com/yologdev/yoyo-evolve\">DeepWiki</a> ·\n  <a href=\"https://github.com/yologdev/yoyo-evolve/issues\">Issues</a> ·\n  <a href=\"https://x.com/yuanhao\">Follow on X</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://crates.io/crates/yoyo-agent\"><img src=\"https://img.shields.io/crates/v/yoyo-agent\" alt=\"crates.io\"></a>\n  <a href=\"https://github.com/yologdev/yoyo-evolve/actions\"><img src=\"https://img.shields.io/github/actions/workflow/status/yologdev/yoyo-evolve/evolve.yml?label=evolution&logo=github\" alt=\"evolution\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-blue\" alt=\"license MIT\"></a>\n  <a href=\"https://github.com/yologdev/yoyo-evolve/commits/main\"><img src=\"https://img.shields.io/github/last-commit/yologdev/yoyo-evolve\" alt=\"last commit\"></a>\n</p>\n\n---\n\n# yoyo: A Coding Agent That Evolves Itself\n\n**yoyo** is a free, open-source coding agent for your terminal. It navigates codebases, makes multi-file edits, runs tests, manages git, understands project context, and recovers from failures — all from a streaming REPL with 55 slash commands.\n\nIt started as a ~200-line CLI example. Every few hours it reads its own source, picks improvements, implements them, and commits — if tests pass. 24 days of autonomous evolution later: **31,000+ lines of Rust, 1,346 tests, 14 modules**.\n\nNo human writes its code. No roadmap tells it what to do. It decides for itself.\n\n## Features\n\n### 🐙 Agent Core\n- **Streaming output** — tokens arrive as they're generated, not after completion\n- **Multi-turn conversation** with full history tracking\n- **Extended thinking** — adjustable reasoning depth (off / minimal / low / medium / high)\n- **Subagent spawning** — `/spawn` delegates focused tasks to a child agent; the model can also delegate subtasks automatically via a built-in sub-agent tool\n- **Parallel tool execution** — multiple tool calls run simultaneously\n- **Automatic retry** with exponential backoff and rate-limit awareness\n\n### 🛠️ Tools\n| Tool | What it does |\n|------|-------------|\n| `bash` | Run shell commands with interactive confirmation |\n| `read_file` | Read files with optional offset/limit |\n| `write_file` | Create or overwrite files with content preview |\n| `edit_file` | Surgical text replacement with colored inline diffs |\n| `search` | Regex-powered grep across files |\n| `list_files` | Directory listing with glob filtering |\n| `rename_symbol` | Project-wide symbol rename across all git-tracked files |\n| `ask_user` | Ask the user questions mid-task for clarification (interactive mode only) |\n\n### 🔌 Multi-Provider Support\nWorks with **11 providers** out of the box — switch mid-session with `/provider`:\n\nAnthropic · OpenAI · Google · Ollama · OpenRouter · xAI · Groq · DeepSeek · Mistral · Cerebras · Custom (any OpenAI-compatible endpoint)\n\n### 📂 Git Integration\n- `/diff` — full status + diff with insertion/deletion summary\n- `/commit` — AI-generated commit messages from staged changes\n- `/undo` — revert last commit, clean up untracked files\n- `/git` — shortcuts for `status`, `log`, `diff`, `branch`, `stash`\n- `/pr` — full PR workflow: `list`, `view`, `create [--draft]`, `diff`, `comment`, `checkout`\n- `/review` — AI-powered code review of staged/unstaged changes\n\n### 🏗️ Project Tooling\n- `/health` — run build/test/clippy/fmt diagnostics (auto-detects Rust, Node, Python, Go, Make)\n- `/fix` — run checks and auto-apply fixes for failures\n- `/test` — detect project type and run the right test command\n- `/lint` — detect project type and run the right linter\n- `/init` — scan project and generate a starter YOYO.md context file\n- `/index` — build a codebase index: file counts, language breakdown, key files\n- `/docs` — look up docs.rs documentation for any Rust crate\n- `/tree` — project structure visualization\n- `/find` — fuzzy file search with scoring and ranked results\n- `/ast` — structural code search using [ast-grep](https://ast-grep.github.io/) (optional)\n\n### 💾 Session Management\n- `/save` and `/load` — persist and restore sessions as JSON\n- `--continue/-c` — resume last session on startup\n- **Auto-save on exit** — sessions saved automatically, including crash recovery\n- **Auto-compaction** at 80% context usage, plus manual `/compact`\n- `--context-strategy checkpoint` — exit with code 2 when context is high (for pipeline restarts)\n- `/tokens` — visual token usage bar with percentage\n- `/cost` — per-model input/output/cache pricing breakdown\n\n### 🧠 Context & Memory\n- **Project context files** — auto-loads YOYO.md, CLAUDE.md, or `.yoyo/instructions.md`\n- **Git-aware context** — recently changed files injected into system prompt\n- **Proje",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:04.167531"
+  },
+  {
+    "basic_info": {
+      "name": "codex-tools",
+      "full_name": "170-carry/codex-tools",
+      "owner": "170-carry",
+      "description": "代理,快捷切换codex 账号, 监控codex用量的工具,以及对codex进行api反代 , 支持多语言",
+      "url": "https://github.com/170-carry/codex-tools",
+      "clone_url": "https://github.com/170-carry/codex-tools.git",
+      "ssh_url": "git@github.com:170-carry/codex-tools.git",
+      "homepage": "",
+      "created_at": "2026-02-27T04:31:27Z",
+      "updated_at": "2026-03-27T03:33:50Z",
+      "pushed_at": "2026-03-24T03:18:32Z"
+    },
+    "stats": {
+      "stars": 596,
+      "forks": 52,
+      "watchers": 596,
+      "open_issues": 16,
+      "size": 17947
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 399049,
+        "TypeScript": 313229,
+        "CSS": 78073,
+        "JavaScript": 616,
+        "HTML": 363
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Codex Tools\n\n一个基于 **React + Tauri** 的桌面工具，用来管理多个 Codex 账号，并提供本地 API 反代能力：\n- 查看账号用量\n- 快速切换和启动 Codex\n- 本地 `/v1` 反代\n- cloudflared 公网访问\n\n仓库地址：<https://github.com/170-carry/codex-tools>\n\n## 更新日志\n[更新日志](changelog.md)\n\n## Cursor API反代功能提示\n1. 通过 Cursor 官网 下载并安装 Cursor。\n\n2. 在 Cursor 中，点击2026-02-03_16-52-37图标，单击Cursor Settings，选择Models页面。\n\n3. 开启 OpenAI API Key，填入您的 API Key。\n\n4. 开启 Override OpenAI Base URL，填入地址。\n\n5. 在Add or search model文本框中，输入Coding Plan支持的模型中的模型名称，点击Add Custom Model。\n\n6. 添加模型名称为gpt-5-4 （目前只支持这个一个）\n\n## 应用截图\n\n![Codex Tools Screenshot](public/ScreenShot.png)\n\n## 解决codex-tools app 已损坏的方案\n\n> https://zhuanlan.zhihu.com/p/135948430\n\n> 省流:\n\n> sudo spctl  --master-disable\n\n> sudo xattr -r -d com.apple.quarantine /Applications/Codex\\ Tools.app\n\n## 快速启动（本地开发）\n\n### 1) 环境准备\n\n- Node.js 20+\n- Rust stable\n- macOS 或 Windows（优先支持 macOS）\n\n### 2) 安装依赖\n\n```bash\nnpm install\n```\n\n### 3) 启动桌面应用\n\n```bash\nnpm run tauri dev\n```\n\n就这三步。\n\n## 主要功能\n\n### 1. 账号管理\n\n- 支持 OAuth 登录导入\n- 支持上传单个或多个 `.json` 文件批量导入\n- 支持直接读取文件夹下的全部 `.json` 文件\n- 导入结束后会恢复当前本机登录态，不覆盖你正在使用的账号\n\n### 2. 用量查看与智能切换\n\n- 展示每个账号的 **5h**、**1week** 用量窗口和计划类型\n- 支持手动刷新，也会定时自动刷新\n- 支持按余量排序和智能切换到更合适的账号\n\n### 3. 切换账号并联动本机环境\n\n- 一键切换账号并启动 Codex\n- 找不到桌面应用时自动回退到 `codex app`\n- 可选同步 Opencode OpenAI 授权\n- 可选在切换后重启已选编辑器\n\n### 4. API 反代\n\n- 本地提供 OpenAI 兼容的 `/v1` 接口\n- 使用已登录的 Codex 账号作为上游能力来源\n- 支持固定端口、自定义端口、固定 API Key 和手动刷新 API Key\n- 按账号余量自动挑选可用账号进行转发\n- 可设置应用启动时自动启动 API 反代\n\n### 5. 公网访问与桌面能力\n\n- 集成 cloudflared，可将本地反代暴露到公网\n- 支持快速隧道和命名隧道，可选 HTTP/2\n- 支持后台驻留、状态栏菜单、应用内更新和多语言界面\n\nAPI 反代详细链路见 [docs/api-proxy.md](docs/api-proxy.md)。\n\n## 打包与发布（简版）\n\n本项目已配置 GitHub Actions 自动发布（mac 双架构 + Windows）。\n\n触发发布：\n\n```bash\ngit tag v0.1.3\ngit push origin v0.1.3\n```\n\n查看：\n- 代码仓库: <https://github.com/170-carry/codex-tools>\n- 版本发布: <https://github.com/170-carry/codex-tools/releases>\n\n## 目录说明\n\n- 前端：`src/`\n- Tauri / Rust：`src-tauri/`\n- 发布流程：`.github/workflows/release.yml`\n\n## Star History\n\n<a href=\"https://www.star-history.com/?repos=170-carry/codex-tools&type=date&legend=top-left\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/image?repos=170-carry/codex-tools&type=date&theme=dark&legend=top-left\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/image?repos=170-carry/codex-tools&type=date&legend=top-left\" />\n   <img alt=\"Star History Chart\" src=\"https://api.star-history.com/image?repos=170-carry/codex-tools&type=date&legend=top-left\" />\n </picture>\n</a>\n\n## License\n\nMIT，详见 [LICENSE](LICENSE)。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:05.482113"
+  },
+  {
+    "basic_info": {
+      "name": "rustunnel",
+      "full_name": "joaoh82/rustunnel",
+      "owner": "joaoh82",
+      "description": "**Rustunnel** is a open-source tunnel service written in Rust that replicates the core functionality of ngrok. It exposes local services running behind NAT/firewalls to the public internet through a relay server self-hosted or our managed service.",
+      "url": "https://github.com/joaoh82/rustunnel",
+      "clone_url": "https://github.com/joaoh82/rustunnel.git",
+      "ssh_url": "git@github.com:joaoh82/rustunnel.git",
+      "homepage": "https://www.rustunnel.com",
+      "created_at": "2026-03-10T21:25:25Z",
+      "updated_at": "2026-03-27T02:34:51Z",
+      "pushed_at": "2026-03-26T09:43:22Z"
+    },
+    "stats": {
+      "stars": 587,
+      "forks": 40,
+      "watchers": 587,
+      "open_issues": 0,
+      "size": 8899
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 382171,
+        "TypeScript": 69922,
+        "HTML": 25981,
+        "CSS": 9460,
+        "Makefile": 6519,
+        "JavaScript": 6111,
+        "Shell": 4146,
+        "Dockerfile": 3622
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "api-gateway",
+        "reverse-proxy",
+        "rust",
+        "rustunnel"
+      ]
+    },
+    "content": {
+      "readme": "# rustunnel\n\n[![CI](https://github.com/joaoh82/rustunnel/actions/workflows/ci.yml/badge.svg)](https://github.com/joaoh82/rustunnel/actions/workflows/ci.yml)\n[![License: AGPLv3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)\n[![Rust](https://img.shields.io/badge/rust-1.76%2B-orange.svg)](https://www.rust-lang.org)\n\n![rustunnel logo](images/rustunnel-logo-light.png)\n\nA ngrok-style secure tunnel server written in Rust. Expose local services through a public server over encrypted WebSocket connections with TLS termination, HTTP/TCP proxying, a live dashboard, Prometheus metrics, and audit logging.\n\nYou can self-host or use our managed service.\n\n---\n\n## Table of Contents\n\n- [Hosted service](#hosted-service)\n- [Architecture overview](#architecture-overview)\n- [Requirements](#requirements)\n- [Local development setup](#local-development-setup)\n  - [Build](#build)\n  - [Run tests](#run-tests)\n  - [Run the server locally](#run-the-server-locally)\n  - [Run the client locally](#run-the-client-locally)\n  - [Git hooks](#git-hooks)\n- [Production deployment (Ubuntu / systemd)](#production-deployment-ubuntu--systemd)\n  - [1 — Install dependencies](#1--install-dependencies)\n  - [2 — Build release binaries](#2--build-release-binaries)\n  - [3 — Create system user and directories](#3--create-system-user-and-directories)\n  - [4 — Install the server binary](#4--install-the-server-binary)\n  - [5 — Create the server config file](#5--create-the-server-config-file)\n  - [6 — TLS certificates (Let's Encrypt + Cloudflare)](#6--tls-certificates-lets-encrypt--cloudflare)\n  - [7 — Set up systemd service](#7--set-up-systemd-service)\n  - [8 — Open firewall ports](#8--open-firewall-ports)\n  - [9 — Verify the server is running](#9--verify-the-server-is-running)\n  - [Updating the server](#updating-the-server)\n- [Docker deployment](#docker-deployment) · [full guide](docs/docker-deployment.md)\n- [Client configuration](#client-configuration)\n  - [Installation](#installation)\n  - [Setup wizard](#setup-wizard)\n  - [Quick start (CLI flags)](#quick-start-cli-flags)\n  - [Config file](#config-file)\n  - [Token management](#token-management)\n- [Port reference](#port-reference)\n- [Config file reference (server)](#config-file-reference-server)\n- [REST API](#rest-api)\n- [AI agent integration (MCP server)](#ai-agent-integration-mcp-server)\n  - [OpenClaw skill](#openclaw-skill)\n- [Monitoring](#monitoring)\n- [Roadmap](#roadmap)\n- [Contributing](#contributing)\n- [License](#license)\n- [Contact](#contact)\n\n---\n\n## Hosted service\n\nYou can use rustunnel without running your own server. We operate a global fleet of public edge servers that you can connect to immediately.\n\n### Available regions\n\n| Region ID | Server | Location | Control plane | Status |\n|-----------|--------|----------|---------------|--------|\n| `eu` | `eu.edge.rustunnel.com` | Helsinki, FI | `:4040` | Live |\n| `us` | `us.edge.rustunnel.com` | Hillsboro, OR | `:4040` | Live |\n| `ap` | `ap.edge.rustunnel.com` | Singapore | `:4040` | Live |\n\nThe client auto-selects the nearest region by default. Use `--region <id>` to connect to a specific one. The legacy address `edge.rustunnel.com` is a CNAME to `eu.edge.rustunnel.com` and will continue to work for backward compatibility.\n\n### Getting an auth token\n\nAccess to the hosted service requires an auth token. To request one:\n\n1. Open a [GitHub Issue](https://github.com/joaoh82/rustunnel/issues/new) titled **\"Token request\"**\n2. Include your **email address** or **Discord username** in the body\n3. We will send you a token privately\n\nTokens are issued manually for now while the service is in early access.\n\n### Quick start with the hosted server\n\nOnce you have a token, run the setup wizard:\n\n```bash\nrustunnel setup\n# Tunnel server address [edge.rustunnel.com:4040]: (press Enter)\n# Auth token: <paste your token>\n# Region [auto / eu / us / ap] (default: auto): (press Enter)\n```\n\nThen expose a local service:\n\n```bash\n# HTTP tunnel — auto-selects the nearest region\nrustunnel http 3000\n\n# Connect to a specific region\nrustunnel http 3000 --region eu\n\n# Custom subdomain\nrustunnel http 3000 --subdomain myapp\n\n# TCP tunnel — e.g. expose a local database\nrustunnel tcp 5432\n```\n\nThe client prints the public URL as soon as the tunnel is established:\n\n```\n  Selecting nearest region… eu 12ms · us 143ms · ap 311ms → eu (Helsinki, FI) 12ms\n✓ tunnel open  https://abc123.eu.edge.rustunnel.com\n```\n\n---\n\n## Architecture overview\n\n![rustunnel architecture](images/rustunnel_architecture.png)\n\n```\n                        ┌──────────────────────────────────────────┐\n                        │           rustunnel-server               │\n                        │                                          │\nInternet ──── :80 ─────▶│  HTTP edge (301 → HTTPS)                 │\nInternet ──── :443 ────▶│  HTTPS edge  ──▶ yamux stream ──▶ client │\nClient ───── :4040 ────▶│  Control-plane WebSocket (TLS)           │\nBrowser ──── :8443 ────▶│  Dashboard UI + REST API               ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:06.817103"
+  },
+  {
+    "basic_info": {
+      "name": "fabro",
+      "full_name": "fabro-sh/fabro",
+      "owner": "fabro-sh",
+      "description": "⚒️ The open source dark software factory for expert engineers.",
+      "url": "https://github.com/fabro-sh/fabro",
+      "clone_url": "https://github.com/fabro-sh/fabro.git",
+      "ssh_url": "git@github.com:fabro-sh/fabro.git",
+      "homepage": "https://fabro.sh",
+      "created_at": "2026-03-13T22:48:18Z",
+      "updated_at": "2026-03-26T16:24:19Z",
+      "pushed_at": "2026-03-27T02:34:49Z"
+    },
+    "stats": {
+      "stars": 570,
+      "forks": 47,
+      "watchers": 570,
+      "open_issues": 22,
+      "size": 98101
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 5234589,
+        "TypeScript": 767968,
+        "Astro": 100673,
+        "Python": 73764,
+        "HTML": 55016,
+        "Shell": 12411,
+        "CSS": 11886,
+        "Dockerfile": 1576,
+        "JavaScript": 504
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"left\" id=\"top\">\n<a href=\"https://docs.fabro.sh\"><img alt=\"Fabro\" src=\"docs/logo/dark.svg\" height=\"75\"></a>\n</div>\n\n## The open source dark software factory for expert engineers\n\nAI coding agents are powerful but unpredictable. You either babysit every step or review a 50-file diff you don't trust. Fabro gives you a middle path: define the process as a graph, let agents execute it, and intervene only where it matters. [Why Fabro?](https://docs.fabro.sh/getting-started/why-fabro)\n\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE.md)\n[![docs](https://img.shields.io/badge/docs-fabro.sh-357F9E)](https://docs.fabro.sh)\n\n```bash\n# With Claude Code\ncurl -fsSL https://fabro.sh/install.md | claude\n\n# With Codex\ncodex \"$(curl -fsSL https://fabro.sh/install.md)\"\n\n# With Bash\ncurl -fsSL https://fabro.sh/install.sh | bash\n```\n\n<img src=\"docs/images/runs-board.png\" alt=\"Fabro Runs board showing workflows across Working, Pending, Verify, and Merge stages\" />\n\n---\n\n## Use Cases\n\n- **Extend disengagement time** — Stop babysitting an agent REPL. Define a workflow with verification gates and walk away — Fabro keeps the process on track without you.\n- **Leverage ensemble intelligence** — Seamlessly combine models from different vendors. Use one model to implement, another to cross-critique, and a third to summarize — all in a single workflow.\n- **Share best practices across your team** — Collaborate on version-controlled workflows that encode your software processes as code. Review, iterate, and reuse them like any other source file.\n- **Reduce token bills** — Route cheap tasks to fast, inexpensive models and reserve frontier models for the steps that need them. CSS-like stylesheets make this a one-line change.\n- **Improve agent security** — Run agents in cloud sandboxes with full network and filesystem isolation. Keep untrusted code off your laptop and out of your production environment.\n- **Run agents 24/7** — Fabro's API server queues and executes runs continuously. Close your laptop — workflows keep running and results are waiting when you return.\n- **Scale infinitely** — Move execution off your laptop and into cloud sandboxes. Run as many concurrent workflows as your infrastructure allows.\n- **Guarantee code quality** — Layer deterministic verifications — test suites, linters, type checkers, LLM-as-judge — into your workflow graph. Failures trigger fix loops automatically.\n- **Achieve compounding engineering** — Automatic retrospectives after every run feed a continuous improvement loop. Your workflows get better over time, not just your code.\n- **Specify in natural language** — Define requirements as natural-language specs and let Fabro generate — and regenerate — implementations that conform to them.\n\n---\n\n## Key Features\n\n|     | Feature                        | Description                                                                                           |\n| --- | ------------------------------ | ----------------------------------------------------------------------------------------------------- |\n| 🔀  | Deterministic workflow graphs  | Define pipelines in Graphviz DOT with branching, loops, parallelism, and human gates. Diffable, reviewable, version-controlled |\n| 🙋  | Human-in-the-loop              | Approval gates pause for human decisions. Steer running agents mid-turn. Interview steps collect structured input |\n| 🎨  | Multi-model routing            | CSS-like stylesheets route each node to the right model and provider, with automatic fallback chains  |\n| ☁️  | Cloud sandboxes                | Run agents in isolated Daytona cloud VMs with snapshot-based setup, network controls, and automatic cleanup |\n| 🔌  | SSH access and preview links   | Shell into running sandboxes with `fabro ssh` and expose ports with `fabro preview` for live debugging    |\n| 🌲  | Git checkpointing              | Every stage commits code changes and execution metadata to Git branches. Resume, revert, or trace any change |\n| 📊  | Automatic retros               | Each run generates a retrospective with cost, duration, files touched, and an LLM-written narrative   |\n| ⚡  | Comprehensive API              | REST API with SSE event streaming and a React web UI. Run workflows programmatically or as a service  |\n| 🦀  | Single binary, no runtime      | One compiled Rust executable with zero dependencies. No Python, no Node, no Docker required           |\n| ⚖️  | Open source (MIT)              | Full source code, no vendor lock-in. Self-host, fork, or extend to fit your workflow                  |\n\n---\n\n## Example Workflow\n\nA plan-approve-implement workflow where a human reviews the plan before the agent writes code:\n\n<img src=\"docs/images/plan-implement-readme.svg\" alt=\"Plan-Implement workflow graph showing Start → Plan → Approve Plan → Implement → Simplify → Exit with a Revise loop\" />\n\n```dot\ndigraph PlanImplement {\n    graph [\n        goal=\"Plan, approve, implement, and simplify a change\"\n        model_st",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:08.105616"
+  },
+  {
+    "basic_info": {
+      "name": "pi-rs",
+      "full_name": "jshachm/pi-rs",
+      "owner": "jshachm",
+      "description": "基于pi-mono，rust轻量化版本",
+      "url": "https://github.com/jshachm/pi-rs",
+      "clone_url": "https://github.com/jshachm/pi-rs.git",
+      "ssh_url": "git@github.com:jshachm/pi-rs.git",
+      "homepage": null,
+      "created_at": "2026-03-04T02:03:51Z",
+      "updated_at": "2026-03-27T03:01:35Z",
+      "pushed_at": "2026-03-05T10:33:19Z"
+    },
+    "stats": {
+      "stars": 564,
+      "forks": 55,
+      "watchers": 564,
+      "open_issues": 1,
+      "size": 148
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 329327
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Pi - AI 编程助手\n\n[English](README_EN.md) | 中文\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n\n一款用 Rust 编写的终端 AI 编程助手，灵感来自 [pi-coding-agent](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)。提供交互式 TUI 界面，支持多种 LLM 提供商。\n\n## 功能特性\n\n- **多提供商支持**：OpenAI、Anthropic、Google、Moonshot（月之暗面）、Ollama、Azure OpenAI、Mistral、Groq\n- **工具系统**：内置文件操作工具（[read](#工具)、[write](#工具)、[edit](#工具)、[bash](#工具)、[grep](#工具)、[find](#工具)、[ls](#工具)、[epkg](#epkg-工具)）\n- **会话管理**：基于 JSONL 的树形结构，支持分支\n- **技能系统**：加载自定义技能以定制 AI 行为\n- **交互式 TUI**：使用 [ratatui](https://github.com/ratatui-org/ratatui) 构建的终端用户界面\n- **上下文压缩**：自动对长对话进行摘要\n- **扩展系统**：可扩展架构，支持添加自定义功能\n\n## 快速开始\n\n```bash\n# 克隆项目\ngit clone https://github.com/yourusername/pi-rs.git\ncd pi-rs\n\n# 构建\ncargo build --release\n\n# 设置 API 键（以 Moonshot 为例）\nexport MOONSHOT_API_KEY=\"your-api-key\"\n\n# 运行\n./target/release/pi --model moonshot-v1-8k \"你好，你会做什么？\"\n```\n\n## 安装\n\n### 从源码构建\n\n```bash\ngit clone https://github.com/yourusername/pi-rs.git\ncd pi-rs\ncargo build --release\n```\n\n二进制文件位于 `target/release/pi`。\n\n## 使用方法\n\n### 命令行选项\n\n```bash\npi [OPTIONS] [MESSAGE] [FILES]...\n\n参数:\n  MESSAGE      发送的初始消息\n  FILES        要包含的文件（使用 @ 前缀）\n\n选项:\n  -c, --continue              继续最近的会话\n  -r, --resume               恢复/选择会话\n      --session <路径>        使用指定的会话文件\n      --no-session           无会话（临时模式）\n      --provider <名称>       提供商名称 (openai, anthropic, moonshot 等)\n      --model <模型>         模型名称或模式\n      --thinking <级别>       思考级别 (off, minimal, low, medium, high, xhigh)\n      --api-key <密钥>       API 密钥\n      --list-models           列出可用模型\n      --tools <工具>         启用指定工具（逗号分隔）\n      --no-tools             禁用所有内置工具\n  -e, --extension <路径>   从路径加载扩展\n      --skill <路径>         从路径加载技能\n      --theme <路径>         加载主题\n  -p, --print               打印模式（非交互式）\n      --sandbox <路径>        启用沙箱模式（必需指定项目路径）\n  -v                        沙箱额外挂载目录（需要 --sandbox）\n  -E                        沙箱环境变量（需要 --sandbox）\n      --sandbox-type <类型>  沙箱类型（默认：epkg）\n      --no-sandbox           禁用沙箱（覆盖配置文件）\n  -h, --help               打印帮助信息\n  -V, --version            打印版本信息\n```\n\n### 使用示例\n\n```bash\n# 列出可用模型\n./target/release/pi --list-models\n\n# 使用 Moonshot 对话\n./target/release/pi --model moonshot-v1-8k \"列出当前目录的文件\"\n\n# 使用工具\n./target/release/pi --model moonshot-v1-8k --tools bash,read \"读取 Cargo.toml 文件\"\n\n# 继续之前的会话\n./target/release/pi --continue\n```\n\n## 环境变量\n\n| 变量 | 说明 |\n|------|------|\n| `OPENAI_API_KEY` | OpenAI API 密钥 |\n| `ANTHROPIC_API_KEY` | Anthropic API 密钥 |\n| `GOOGLE_API_KEY` | Google AI API 密钥 |\n| `MOONSHOT_API_KEY` | Moonshot（月之暗面）API 密钥 |\n| `OLLAMA_BASE_URL` | Ollama 基础 URL（默认：http://localhost:11434） |\n| `AZURE_OPENAI_API_KEY` | Azure OpenAI API 密钥 |\n| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI 端点 |\n| `MISTRAL_API_KEY` | Mistral API 密钥 |\n| `GROQ_API_KEY` | Groq API 密钥 |\n\n## 工具\n\n| 工具 | 说明 |\n|------|------|\n| `read` | 从文件系统读取文件 |\n| `write` | 向文件系统写入文件 |\n| `edit` | 使用查找/替换编辑文件 |\n| `bash` | 执行 shell 命令 |\n| `grep` | 在文件中搜索模式 |\n| `find` | 按名称查找文件 |\n| `ls` | 列出目录内容 |\n| `epkg` | 多源软件包管理器 |\n\n### epkg 工具\n\n集成 [epkg](https://atomgits.com/openeuler/epkg) 多源软件包管理器，支持从多个 Linux 发行版安装软件包（RPM、DEB、Alpine、Arch、Conda）。\n\n```bash\n# 使用 epkg 搜索包\n./target/release/pi --tools epkg \"搜索 vim 包\"\n\n# 使用 epkg 安装包\n./target/release/pi --tools epkg \"在 openeuler 环境安装 nginx\"\n```\n\n支持的子命令：`install`, `remove`, `update`, `upgrade`, `search`, `info`, `list`, `env`, `run`, `history`, `restore`, `gc`, `repo`, `self`, `build`\n\n## 技能系统\n\n技能允许你为特定任务定制 AI 的行为。详见 [skills](docs/skills.md)。\n\n### 创建技能\n\n```\nmy-skill/\n├── skill.json    # 技能清单\n└── content.md   # 技能内容（系统提示词）\n```\n\n### skill.json 格式\n\n```json\n{\n  \"name\": \"my-skill\",\n  \"version\": \"1.0.0\",\n  \"description\": \"技能描述\",\n  \"triggers\": [\"触发词1\", \"触发词2\"],\n  \"variables\": []\n}\n```\n\n### content.md\n\n包含系统提示词，当技能被触发时会预先添加到对话中。\n\n## 工具\n\n| 工具 | 说明 |\n|------|------|\n| `read` | 从文件系统读取文件 |\n| `write` | 向文件系统写入文件 |\n| `edit` | 使用查找/替换编辑文件 |\n| `bash` | 执行 shell 命令 |\n| `grep` | 在文件中搜索模式 |\n| `find` | 按名称查找文件 |\n| `ls` | 列出目录内容 |\n\n### epkg 工具\n\n集成 [epkg](https://atomgits.com/openeuler/epkg) 多源软件包管理器。\n\n### 沙箱模式\n\n支持在隔离的沙箱环境中运行，保护主机系统。\n\n```bash\n# 启用沙箱（必需指定项目路径）\npi-rs --sandbox /my/project\n\n# 带额外挂载目录\npi-rs --sandbox /my/project -v /opt/epkg -v /data\n\n# 带环境变量\npi-rs --sandbox /my/project -E CUSTOM_VAR=value\n\n# 指定沙箱类型（默认：epkg）\npi-rs --sandbox /my/project --sandbox-type epkg\n\n# 禁用沙箱（覆盖配置文件）\npi-rs --sandbox /my/project --no-sandbox\n```\n\n#### 配置文件\n\n在项目目录创建 `.pi/sandbox.json`：\n\n```json\n{\n  \"enabled\": true,\n  \"type\": \"epkg\",\n  \"mounts\": [\"/opt/epkg\", \"/data\"],\n  \"env\": {\n    \"CUSTOM_VAR\": \"value\"\n  }\n}\n```\n\n#### 环境变量\n\n沙箱内自动继承以下环境变量：\n- `MOONSHOT_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`\n- `GOOGLE_API_KEY`, `OLLAMA_BASE_URL`, 等\n\n## 项目结构\n\n```\npi-rs/\n├── src/\n│   ├── main.rs           # CLI 入口点\n│   ├── lib.rs            # 库导出\n│   ├── core/             # 核心类型和工具\n│   ├── session/          # 会话管理\n│   ├── tools/            # 工具实现\n│   ├── providers/        # LLM 提供商实现\n│   ├── agent/            # 助手核心逻辑\n│   ├── tui/              # 终端 UI\n│   ├── skills/           ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:09.425330"
+  },
+  {
+    "basic_info": {
+      "name": "parsync",
+      "full_name": "AlpinDale/parsync",
+      "owner": "AlpinDale",
+      "description": "Parallel rsync-like pull sync over SSH with resume",
+      "url": "https://github.com/AlpinDale/parsync",
+      "clone_url": "https://github.com/AlpinDale/parsync.git",
+      "ssh_url": "git@github.com:AlpinDale/parsync.git",
+      "homepage": null,
+      "created_at": "2026-03-05T09:14:03Z",
+      "updated_at": "2026-03-26T20:33:21Z",
+      "pushed_at": "2026-03-17T09:14:54Z"
+    },
+    "stats": {
+      "stars": 553,
+      "forks": 18,
+      "watchers": 553,
+      "open_issues": 0,
+      "size": 7679
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 207724,
+        "Shell": 5220,
+        "PowerShell": 2620,
+        "Makefile": 499
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# parsync\n\n`parsync` is a high-throughput, resumable sync tool for SSH remotes and\nlocal-to-local transfers, with parallel file transfers and optional block-delta\nsync.\n\n![demo](assets/demo.gif)\n\n## Installation\n\n**Linux and macOS:**\n\n```bash\ncurl -fsSL https://alpindale.net/install.sh | bash\n```\n\n**Windows:**\n\n```powershell\npowershell -ExecutionPolicy Bypass -c \"irm https://alpindale.net/install.ps1 | iex\"\n```\n\nYou can also install with cargo:\n\n```bash\ncargo install parsync\n```\n\nYou may also download the binary for your platform from the\n[releases page](https://github.com/AlpinDale/parsync/releases), or install from source:\n\n```bash\nmake build\nmake install\n```\n\n## Platform support\n\n- Linux: `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`\n- macOS: `aarch64-apple-darwin`, `x86_64-apple-darwin`\n- Windows: `x86_64-pc-windows-msvc` (best-effort metadata support)\n\n## Usage\n\n```bash\nparsync -vrPlu user@example.com:/remote/path /local/destination\n```\n\nWith non-default SSH port:\n\n```bash\nparsync -vrPlu user@example.com:2222:/remote/path /local/destination\n```\n\nSSH config host aliases are supported.\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-03-27T03:46:10.780744"
+  },
+  {
+    "basic_info": {
+      "name": "deff",
+      "full_name": "flamestro/deff",
+      "owner": "flamestro",
+      "description": "interactive, side-by-side file review for git diffs with per-file navigation, vertical and horizontal scrolling, syntax highlighting, and added/deleted line tinting",
+      "url": "https://github.com/flamestro/deff",
+      "clone_url": "https://github.com/flamestro/deff.git",
+      "ssh_url": "git@github.com:flamestro/deff.git",
+      "homepage": null,
+      "created_at": "2026-02-25T14:39:39Z",
+      "updated_at": "2026-03-25T02:15:34Z",
+      "pushed_at": "2026-03-06T02:21:09Z"
+    },
+    "stats": {
+      "stars": 551,
+      "forks": 13,
+      "watchers": 551,
+      "open_issues": 0,
+      "size": 992
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 94832,
+        "Shell": 789
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "My name is deff\n\n# deff\n\n`deff` is a Rust TUI: interactive, side-by-side file review for git diffs with per-file navigation, vertical and horizontal scrolling, syntax highlighting, and added/deleted line tinting.\n\n## Quickstart\n\nChoose one install method:\n\n1. Install from crates.io with Cargo:\n\n```bash\ncargo install deff\n```\n\n2. Run the installer script from this repository:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/flamestro/deff/main/install.sh | bash\n```\n\nInstaller script source: https://github.com/flamestro/deff/blob/main/install.sh\n\nThe script checks for `cargo`, clones this project into a temporary directory, installs it, and removes the temporary checkout.\nBundled syntax grammars are compiled into the binary, so removing the checkout does not affect highlighting.\n\nIf you have local edits (including untracked files) and want to review them before committing, run:\n\n```bash\ndeff --include-uncommitted\n```\n\nThis opens the side-by-side review so you can check exactly what changed in your working tree.\n\n## Features\n\n- `upstream-ahead` strategy (default) to compare local branch changes against its upstream\n- `range` strategy for explicit `--base` / `--head` comparison\n- Optional `--include-uncommitted` mode to include working tree and untracked files\n- Side-by-side panes with independent horizontal scroll offsets\n- Keyboard and mouse navigation (including wheel + shift-wheel)\n- Vim-like motion navigation (`h`/`j`/`k`/`l`, `g`/`G`, `Ctrl+u`/`Ctrl+d`)\n- In-diff search (`/` + Enter, then `n` / `N` to navigate matches)\n- Per-file reviewed toggles (`r`) with local persistence under `.git`\n- Language-aware syntax highlighting and line-level add/delete tinting\n\n## Examples\n\nSingle-line change view:\n\n![Single-line change example](docs/example_01.png)\n\nMulti-line change view:\n\n![Multi-line change example](docs/example_02.png)\n\n## Usage\n\n```bash\ndeff\ndeff --strategy upstream-ahead\ndeff --strategy range --base origin/main --head HEAD\ndeff --strategy range --base origin/main --include-uncommitted\ndeff --theme dark\n```\n\nShow help:\n\n```bash\ndeff --help\n```\n\n## Local Build and Usage Flow\n\nPrerequisites:\n\n- Rust toolchain (`cargo`)\n- `git`\n- Interactive terminal (TTY)\n\n1. Build locally:\n\n   ```bash\n   cargo build --release --locked\n   ./target/release/deff --help\n   ```\n\n2. Optionally install it to your local Cargo bin path:\n\n   ```bash\n   cargo install --path .\n   deff --help\n   ```\n\n3. Run it inside any git repository you want to review:\n\n   ```bash\n   cd /path/to/your/repo\n\n   # default: compare local branch commits vs upstream\n   deff\n\n   # explicit range\n   deff --base origin/main --head HEAD\n\n   # include uncommitted + untracked files\n   deff --base origin/main --include-uncommitted\n   ```\n\nIf your branch has no upstream configured, use the explicit `--base` flow.\n\nTheme selection:\n\n- By default, `deff` prefers a dark syntax theme (better for black/dark terminals).\n- Use `--theme auto|dark|light` to control rendering for your terminal.\n- `--theme` takes precedence over `DEFF_THEME=dark|light`.\n\nCustom syntax grammars:\n\n- `deff` loads syntect defaults, bundled deff grammars, plus any extra `.sublime-syntax` files found in:\n  - `assets/syntaxes` (current working directory)\n  - `.deff/syntaxes` (current working directory)\n- Any `*.sublime-syntax` file added under this repo's `assets/syntaxes` is auto-bundled at build time.\n\nSearch and reviewed workflow:\n\n- Press `/` to enter a search query for the current file (searches both panes).\n- Press `Enter` to apply the query, then use `n` / `N` to jump matches.\n- Press `r` to mark the current file reviewed/unreviewed.\n- Reviewed state is persisted locally in `.git/deff/reviewed/` and keyed by comparison scope + file content hash.\n\n## GitHub Version Bump Workflow\n\nThis repo ships with `.github/workflows/bump-version.yml`.\n\n- Trigger: push to `main` (excluding commits authored by `github-actions[bot]`)\n- Computes the next version from commit prefixes (`feat:` -> next minor, `fix:`/`chore:`/`docs:` -> next patch) and updates `Cargo.toml`/`Cargo.lock` when needed\n- Publishes new crate versions to crates.io and then creates/pushes the matching `vX.Y.Z` tag and GitHub release\n\n## Contributing\n\nSee `CONTRIBUTING.md` for local setup, commit message conventions, and release/versioning rules.\n\n## Architecture and Extension Guide\n\nFor a module-level map and extension plan, see `docs/architecture.md`.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:12.082523"
+  },
+  {
+    "basic_info": {
+      "name": "hypura",
+      "full_name": "t8/hypura",
+      "owner": "t8",
+      "description": "Run models too big for your Mac's memory",
+      "url": "https://github.com/t8/hypura",
+      "clone_url": "https://github.com/t8/hypura.git",
+      "ssh_url": "git@github.com:t8/hypura.git",
+      "homepage": "",
+      "created_at": "2026-03-13T14:19:31Z",
+      "updated_at": "2026-03-27T03:40:16Z",
+      "pushed_at": "2026-03-22T14:06:57Z"
+    },
+    "stats": {
+      "stars": 516,
+      "forks": 12,
+      "watchers": 516,
+      "open_issues": 5,
+      "size": 4842
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 367685,
+        "Shell": 21571,
+        "C": 11252
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "```\n _   _\n| | | |_   _ _ __  _   _ _ __ __ _\n| |_| | | | | '_ \\| | | | '__/ _` |\n|  _  | |_| | |_) | |_| | | | (_| |\n|_| |_|\\__, | .__/ \\__,_|_|  \\__,_|\n       |___/|_|\n   Run models too big for your Mac's memory\n```\n\nHypura is a storage-tier-aware LLM inference scheduler for Apple Silicon.\nIt places model tensors across GPU, RAM, and NVMe tiers based on access\npatterns, bandwidth costs, and hardware capabilities — enabling models\nthat exceed physical memory to run without crashing the system.\n\nRun a 31 GB Mixtral 8x7B on a 32 GB Mac Mini at 2.2 tok/s. A 40 GB Llama 70B at 0.3 tok/s. Vanilla llama.cpp crashes on both.\n\n## Why does this matter?\n\nConsumer hardware (MacBook Pro, Mac Studio) ships with fast unified memory\nand NVMe storage, but limited capacity. A 32 GB M1 Max cannot naively load\na 40 GB model — the OS will swap-thrash until the OOM killer intervenes.\n\nHypura solves this by understanding the model architecture:\n\n- **Norms and embeddings** are tiny but accessed every token — pinned to GPU\n- **MoE expert routing** exploits sparsity — only 2 of 8 experts fire per token.\n  Router interception identifies selected experts in the eval callback, then loads\n  only the needed expert strides from NVMe (75% I/O reduction). A neuron cache tracks\n  loaded expert slices across tokens, achieving 99.5% hit rate from temporal locality.\n  Co-activation tracking predicts which experts will fire next for speculative prefetch.\n- **Dense FFN weights** (gate, up, down — ~60% of model size) stream from NVMe through\n  a dynamically-sized pool buffer while attention + norms stay GPU-resident. Prefetch\n  lookahead depth scales automatically with available memory.\n\nThe result: models that would crash your machine under naive mmap become runnable.\nModels that fit in memory run at full Metal GPU speed with zero overhead.\n\n## How it works\n\nHypura reads the GGUF file, profiles your hardware (GPU working set, RAM, NVMe bandwidth),\nand solves a placement optimization that assigns every tensor to a tier:\n\n- **GPU (Metal)** — Attention layers, norms, embeddings. Fastest access, limited by `recommendedMaxWorkingSetSize`.\n- **RAM** — Overflow layers that don't fit in the GPU working set. Accessed via mmap.\n- **NVMe** — Remaining layers loaded on-demand via direct I/O (`F_NOCACHE` + `pread`), prefetched ahead of the forward pass.\n\nHypura selects the best inference mode automatically based on model size, architecture, and available memory:\n\n- **Full-resident** — Model fits in GPU+RAM. No NVMe I/O. Full Metal speed.\n- **Expert-streaming** — For MoE models (Mixtral). Only non-expert tensors (~1 GB) stay on GPU. Expert tensors stream from NVMe through a pool buffer on demand, with a neuron cache (99.5% hit rate) that eliminates most I/O after warmup.\n- **Dense FFN-streaming** — For dense models too large for GPU (Llama 70B). Attention + norms stay on GPU (~8 GB). FFN tensors (~32 GB) stream from NVMe through a dynamically-sized pool buffer, with scaled prefetch lookahead.\n\nPool buffer size, prefetch depth, and memory budgets are computed automatically from your hardware profile — no manual tuning needed.\n\n## Performance\n\nAll benchmarks on **M1 Max, 32 GB unified memory, ~5.1 GB/s NVMe sequential read**.\n\n| Model | Size | GPU | NVMe | Mode | Hypura | llama.cpp | Notes |\n|---|---|---|---|---|---|---|---|\n| Qwen 2.5 14B Q4_K_M | 8.4 GB | 8.4 GB | — | full-resident | **21 tok/s** | ~21 tok/s | Fits in GPU; no overhead |\n| Mixtral 8x7B Q5_K_M | 30.9 GB | 1.1 GB | 29.8 GB | expert-streaming | **2.2 tok/s** | **OOM** | All layers on Metal; 99.5% cache hit rate |\n| Llama 3.3 70B Q4_K_M | 39.6 GB | 7.8 GB | 31.8 GB | dense-FFN-streaming | **0.3 tok/s** | **OOM** | All layers on Metal; dynamic 24-slot pool, 7-layer prefetch |\n\n**Key takeaway:** For models that fit in memory, Hypura adds zero overhead. For models that don't fit, Hypura is the difference between \"runs\" and \"crashes.\" Expert-streaming on Mixtral achieves usable interactive speeds by keeping only non-expert tensors on GPU and exploiting MoE sparsity (only 2/8 experts fire per token). Dense FFN-streaming extends this to non-MoE models like Llama 70B. Pool sizes and prefetch depth scale automatically with available memory.\n\n## Install\n\nHypura builds from source with Cargo. You'll need Rust 1.75+ and CMake (for the vendored llama.cpp).\n\n```sh\ngit clone --recurse-submodules https://github.com/hypura/hypura.git\ncd hypura\ncargo build --release\n```\n\nThe binary is at `target/release/hypura`.\n\n> Homebrew tap coming soon.\n\n## Quick start\n\n```sh\n# Profile your hardware (runs once, cached)\nhypura profile\n\n# Run inference on a GGUF model\nhypura run ./model.gguf --prompt \"Hello, world\"\n\n# Interactive chat\nhypura run ./model.gguf --interactive\n\n# Benchmark: Hypura scheduling vs naive baseline\nhypura bench ./model.gguf\n\n# Inspect model placement plan without loading\nhypura inspect ./model.gguf\n```\n\nStart with `--max-tokens 10` on untested models before scaling up.\n\n## Ollama-compatible server\n\nHypura",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:13.385286"
+  },
+  {
+    "basic_info": {
+      "name": "arbor",
+      "full_name": "penso/arbor",
+      "owner": "penso",
+      "description": "Run agentic coding workflows in a fully native desktop app for Git worktrees, terminals, and diffs.",
+      "url": "https://github.com/penso/arbor",
+      "clone_url": "https://github.com/penso/arbor.git",
+      "ssh_url": "git@github.com:penso/arbor.git",
+      "homepage": "https://penso.github.io/arbor/",
+      "created_at": "2026-03-04T08:33:26Z",
+      "updated_at": "2026-03-27T00:47:04Z",
+      "pushed_at": "2026-03-26T13:59:44Z"
+    },
+    "stats": {
+      "stars": 497,
+      "forks": 26,
+      "watchers": 497,
+      "open_issues": 14,
+      "size": 8192
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2917329,
+        "TypeScript": 173158,
+        "HTML": 66713,
+        "CSS": 54207,
+        "Shell": 31792,
+        "Zig": 12449,
+        "Just": 7253,
+        "JavaScript": 4685,
+        "PowerShell": 2761,
+        "Ruby": 368,
+        "Procfile": 27
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"assets/screenshot.png\">\n    <img src=\"assets/screenshot.png\" alt=\"Arbor UI screenshot\" width=\"1100\" />\n  </a>\n</p>\n\n# Arbor\n\n[![CI](https://github.com/penso/arbor/actions/workflows/ci.yml/badge.svg)](https://github.com/penso/arbor/actions/workflows/ci.yml)\n[![Rust Nightly](https://img.shields.io/badge/rust-nightly--2025--11--30-orange?logo=rust)](https://rust-lang.org)\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n[![GitHub Release](https://img.shields.io/github/v/release/penso/arbor?label=release)](https://github.com/penso/arbor/releases)\n[![macOS](https://img.shields.io/badge/macOS-supported-brightgreen)](#install)\n[![Linux](https://img.shields.io/badge/Linux-supported-brightgreen)](#install)\n[![Windows](https://img.shields.io/badge/Windows-supported-brightgreen)](#install)\n[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/penso/arbor?utm_source=badge)\n\nArbor is a **fully native app for agentic coding** built with Rust and [GPUI](https://gpui.rs).\nIt gives you one place to manage repositories, issue-driven worktrees, embedded terminals, managed processes, diffs, PR context, AI coding agent activity, and a shared daemon that also powers Arbor's web UI, CLI, and MCP server.\n\n## Why Arbor\n\n- Fully native desktop app, UI and terminal stack included, optimized for long-running local workflows\n- One daemon-backed model for the desktop app, web UI, CLI, and MCP server\n- Built for parallel coding sessions across local repos, issue queues, and remote outposts\n\n## Core Capabilities\n\n### Repositories, Worktrees, and Issues\n- List, create, and delete worktrees across multiple repositories\n- Create managed worktrees directly from GitHub or GitLab issues\n- Preview sanitized worktree names, branch names, and target paths before creation\n- Repo-local branch naming rules via `[branch]` in `arbor.toml`\n- Delete confirmation with unpushed commit detection\n- Optional branch cleanup on worktree deletion\n- Worktree navigation history (back/forward)\n- Last git activity timestamp per worktree\n- Automatic issue linking to existing branches and open PRs / MRs\n\n### Embedded Terminal, Processes, and Tasks\n- Built-in PTY terminal with truecolor and `xterm-256color` support\n- Multiple terminal tabs per worktree\n- Experimental embedded `libghostty-vt` engine behind a compile-time feature flag, used by default when available\n- Persistent daemon-based sessions (survive app restarts)\n- Session attach/detach and signals (interrupt/terminate/kill)\n- Managed processes from both `Procfile` and `arbor.toml`\n- Process restart state, memory metrics, and terminal-session linkage\n- Scheduled `[[tasks]]` from `arbor.toml`, with optional Claude or Codex triggers\n- Bell-aware terminal activity and completion notifications\n\n### Diff, PR, and Review Context\n- Side-by-side diff display with addition/deletion line counts\n- Changed file listing per worktree\n- File tree browsing with directory expand/collapse\n- Multi-tab diff sessions\n- PR summary and detail cards in the changes pane\n- Native inline PR comment actions and review-comment refresh support\n\n### Agent Chat\n- Interactive chat sessions with ACP agents (Claude, Codex, Pi, Gemini, and more via acpx)\n- OpenAI-compatible provider support: Ollama, LM Studio, OpenRouter, OpenAI, and any `/v1/chat/completions` endpoint\n- Streaming responses via SSE for OpenAI-compatible providers and JSONL for ACP agents\n- Automatic model discovery: probes `/v1/models` at startup for configured providers\n- Model selector with per-provider sections and distinct icons (ACP vs API)\n- Provider configuration via `~/.config/arbor/config.toml` `[[providers]]` sections\n- Session persistence across daemon restarts\n- Token usage tracking and display\n\n### AI Agent Visibility\n- Detects running coding agents: Claude Code, Codex, OpenCode\n- Working/waiting state indicators with color-coded dots\n- Real-time updates over WebSocket streaming in both the desktop and web UI\n- Legacy session compatibility and targeted clear events for long-lived daemon sessions\n\n### Remote Daemon and Companion Binaries\n- `arbor-httpd` serves the remote daemon API and bundled web UI\n- `arbor-cli` exposes daemon-backed health, repo, worktree, terminal, process, and task commands\n- Dedicated `arbor-mcp` binary backed by Arbor's daemon API\n- Structured MCP tools for repositories, worktrees, terminals, processes, tasks, and agent activity\n- MCP resources for daemon snapshots and prompts for common Arbor workflows\n- Supports `ARBOR_DAEMON_URL` and `ARBOR_DAEMON_AUTH_TOKEN` for remote authenticated daemons\n- Create and manage remote worktrees over SSH\n- Multi-host configuration with custom ports and identity files\n- Mosh support for better connectivity\n- Remote terminal sessions via `arbor-httpd`\n- Outpost status tracking (available, unreachable, provisioning)\n- Optional Symphony runtime endpoints when the feature is enabled\n\n### UI and Config\n- Autom",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:14.687601"
+  },
+  {
+    "basic_info": {
+      "name": "tglock",
+      "full_name": "by-sonic/tglock",
+      "owner": "by-sonic",
+      "description": null,
+      "url": "https://github.com/by-sonic/tglock",
+      "clone_url": "https://github.com/by-sonic/tglock.git",
+      "ssh_url": "git@github.com:by-sonic/tglock.git",
+      "homepage": null,
+      "created_at": "2026-03-16T20:50:52Z",
+      "updated_at": "2026-03-27T01:58:43Z",
+      "pushed_at": "2026-03-17T09:38:34Z"
+    },
+    "stats": {
+      "stars": 494,
+      "forks": 41,
+      "watchers": 494,
+      "open_issues": 18,
+      "size": 36
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 34862,
+        "Batchfile": 31386
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <h1 align=\"center\">TG Unblock</h1>\n  <p align=\"center\">\n    <b>Обход блокировки Telegram через WebSocket-туннель</b><br>\n    Без VPN. Без серверов. Без абонентки. Один клик.\n  </p>\n  <p align=\"center\">\n    <a href=\"https://github.com/by-sonic/tglock/releases\"><img src=\"https://img.shields.io/github/v/release/by-sonic/tglock?style=for-the-badge&color=blue\" alt=\"Release\"></a>\n    <a href=\"https://github.com/by-sonic/tglock/blob/main/LICENSE\"><img src=\"https://img.shields.io/github/license/by-sonic/tglock?style=for-the-badge\" alt=\"License\"></a>\n    <a href=\"https://github.com/by-sonic/tglock/stargazers\"><img src=\"https://img.shields.io/github/stars/by-sonic/tglock?style=for-the-badge&color=yellow\" alt=\"Stars\"></a>\n    <img src=\"https://img.shields.io/badge/rust-1.70%2B-orange?style=for-the-badge&logo=rust\" alt=\"Rust\">\n    <img src=\"https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows\" alt=\"Windows\">\n  </p>\n</p>\n\n---\n\n## Что это?\n\n**TG Unblock** — десктопное приложение на Rust, которое обходит блокировку Telegram через локальный WebSocket-прокси. Провайдер видит обычный HTTPS к `web.telegram.org`, а не MTProto — DPI не может обнаружить и заблокировать трафик.\n\n### Почему не GoodbyeDPI / Zapret?\n\n| | GoodbyeDPI | Zapret | **TG Unblock** |\n|---|---|---|---|\n| Метод | Фрагментация пакетов | Desync пакетов | WebSocket-туннель |\n| DPI видит MTProto? | Нет (обфускация) | Нет (desync) | **Нет (обычный HTTPS)** |\n| IP-шейпинг обходит? | Нет | Нет | **Да** |\n| Скорость | Зависит от DPI | Зависит от DPI | **Полная** |\n| Переподключения | Возможны | Возможны | **Нет** |\n| Настройка | Много параметров | Стратегии | **Один клик** |\n\n## Скачать\n\n> **[Скачать последний релиз](https://github.com/by-sonic/tglock/releases)**\n\nИли собрать из исходников:\n\n```bash\ngit clone https://github.com/by-sonic/tglock.git\ncd tglock\ncargo build --release\n```\n\nГотовый `.exe` будет в `target/release/tg_unblock.exe`.\n\n## Как пользоваться\n\n1. Запустите `tg_unblock.exe`\n2. Нажмите **\"Запустить обход\"**\n3. Нажмите **\"Настроить автоматически\"** — откроется Telegram, нажмите \"Подключить\"\n4. Готово. Telegram работает на полной скорости.\n\n### Ручная настройка прокси\n\nЕсли автонастройка не сработала:\n\n**Telegram Desktop** → Настройки → Продвинутые → Тип соединения → **Использовать SOCKS5-прокси**\n\n| Параметр | Значение |\n|---|---|\n| Сервер | `127.0.0.1` |\n| Порт | `1080` |\n| Логин | *пусто* |\n| Пароль | *пусто* |\n\n## Как это работает\n\n```\nTelegram Desktop\n       │\n       ▼ (SOCKS5)\n┌──────────────────┐\n│  TG Unblock      │  127.0.0.1:1080\n│  WS-прокси       │\n└──────┬───────────┘\n       │\n       ▼ (определяет DC по IP)\n       │\n       ├── Telegram IP? ──► WSS-туннель к {dc}.web.telegram.org/apiws\n       │                    (провайдер видит обычный HTTPS)\n       │\n       └── Другой IP? ────► Прямое TCP-соединение (без изменений)\n```\n\n### DC-маппинг\n\nПриложение автоматически определяет Data Center по IP-адресу и маршрутизирует через правильный WebSocket-эндпоинт:\n\n| DC | Подсеть | WebSocket |\n|---|---|---|\n| DC1 | `149.154.160.0/22` | `wss://pluto.web.telegram.org/apiws` |\n| DC2 | `149.154.164.0/22` | `wss://venus.web.telegram.org/apiws` |\n| DC3 | `149.154.168.0/22` | `wss://aurora.web.telegram.org/apiws` |\n| DC4 | `91.108.12.0/22` | `wss://vesta.web.telegram.org/apiws` |\n| DC5 | `91.108.56.0/22` | `wss://flora.web.telegram.org/apiws` |\n\nИмена DC (`pluto`, `venus`, `aurora`, `vesta`, `flora`) — из [официальной документации MTProto](https://core.telegram.org/mtproto/transports).\n\n## Стек\n\n| Что | Зачем |\n|---|---|\n| **Rust** | Скорость, безопасность, один бинарник без зависимостей |\n| **egui / eframe** | Нативный GUI без Electron, без браузера |\n| **tokio** | Async I/O для высокопроизводительного проксирования |\n| **tokio-tungstenite** | WebSocket-клиент с TLS |\n| **native-tls** | TLS через системные сертификаты Windows |\n\n## Структура проекта\n\n```\ntglock/\n├── Cargo.toml          # Зависимости\n├── src/\n│   ├── main.rs         # GUI + управление прокси\n│   ├── ws_proxy.rs     # SOCKS5-сервер + WebSocket-туннель\n│   ├── bypass.rs       # DNS-настройка, утилиты Windows\n│   └── network.rs      # Сетевая диагностика\n└── tg_blacklist.txt    # IP-подсети и домены Telegram\n```\n\n## Требования\n\n- Windows 10/11\n- [Rust 1.70+](https://rustup.rs/) (для сборки из исходников)\n- Права администратора (для смены DNS, опционально)\n\n## FAQ\n\n**Q: Это VPN?**\nA: Нет. Трафик не идёт через сторонние серверы. Прокси работает локально и туннелирует только Telegram-трафик через WebSocket к официальным серверам Telegram.\n\n**Q: Это безопасно?**\nA: Весь код открыт. Никакой телеметрии. Никаких данных не отправляется. Соединение с Telegram остаётся end-to-end зашифрованным (MTProto).\n\n**Q: Будет ли работать с мобильным Telegram?**\nA: Пока только Telegram Desktop. Для мобильных устройств рекомендуем [by sonic VPN](https://t.me/bysonicvpn_bot).\n\n**Q: Замедляется ли интернет?**\nA: Нет. Проксируется только трафик к серверам Telegram. Весь",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:15.988747"
+  },
+  {
+    "basic_info": {
+      "name": "hf-mount",
+      "full_name": "huggingface/hf-mount",
+      "owner": "huggingface",
+      "description": "Mount Hugging Face Buckets and repos as local filesystems. No download, no copy, no waiting.",
+      "url": "https://github.com/huggingface/hf-mount",
+      "clone_url": "https://github.com/huggingface/hf-mount.git",
+      "ssh_url": "git@github.com:huggingface/hf-mount.git",
+      "homepage": "",
+      "created_at": "2026-03-01T17:26:01Z",
+      "updated_at": "2026-03-27T03:33:26Z",
+      "pushed_at": "2026-03-26T22:42:02Z"
+    },
+    "stats": {
+      "stars": 478,
+      "forks": 26,
+      "watchers": 478,
+      "open_issues": 4,
+      "size": 788
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:17.031430"
+  },
+  {
+    "basic_info": {
+      "name": "horizon",
+      "full_name": "peters/horizon",
+      "owner": "peters",
+      "description": "GPU-accelerated terminal board that puts all your sessions on an infinite canvas",
+      "url": "https://github.com/peters/horizon",
+      "clone_url": "https://github.com/peters/horizon.git",
+      "ssh_url": "git@github.com:peters/horizon.git",
+      "homepage": "",
+      "created_at": "2026-03-15T15:30:53Z",
+      "updated_at": "2026-03-27T02:55:02Z",
+      "pushed_at": "2026-03-26T10:41:55Z"
+    },
+    "stats": {
+      "stars": 422,
+      "forks": 20,
+      "watchers": 422,
+      "open_issues": 1,
+      "size": 1361
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "MIT License",
+      "topics": [
+        "ai-agents",
+        "claude",
+        "codex",
+        "developer-tools",
+        "egui",
+        "gemeni-cli",
+        "gpu",
+        "kilocode-cli",
+        "opencode",
+        "rust",
+        "terminal",
+        "terminal-emulator"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:18.074636"
+  },
+  {
+    "basic_info": {
+      "name": "opendev",
+      "full_name": "opendev-to/opendev",
+      "owner": "opendev-to",
+      "description": "Open-Source Coding Agent in the terminal",
+      "url": "https://github.com/opendev-to/opendev",
+      "clone_url": "https://github.com/opendev-to/opendev.git",
+      "ssh_url": "git@github.com:opendev-to/opendev.git",
+      "homepage": "",
+      "created_at": "2026-03-04T20:13:44Z",
+      "updated_at": "2026-03-27T03:15:05Z",
+      "pushed_at": "2026-03-27T00:26:16Z"
+    },
+    "stats": {
+      "stars": 418,
+      "forks": 45,
+      "watchers": 418,
+      "open_issues": 5,
+      "size": 17254
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:19.118243"
+  },
+  {
+    "basic_info": {
+      "name": "skills-manager",
+      "full_name": "xingkongliang/skills-manager",
+      "owner": "xingkongliang",
+      "description": "A lightweight desktop app to manage, sync, and organize AI agent skills across 15+ coding tools — Cursor, Claude Code, Codex, Copilot, and more.",
+      "url": "https://github.com/xingkongliang/skills-manager",
+      "clone_url": "https://github.com/xingkongliang/skills-manager.git",
+      "ssh_url": "git@github.com:xingkongliang/skills-manager.git",
+      "homepage": "",
+      "created_at": "2026-03-02T00:38:18Z",
+      "updated_at": "2026-03-26T15:38:28Z",
+      "pushed_at": "2026-03-24T13:02:08Z"
+    },
+    "stats": {
+      "stars": 403,
+      "forks": 28,
+      "watchers": 403,
+      "open_issues": 2,
+      "size": 26120
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-03-27T03:46:20.162815"
+  }
+]

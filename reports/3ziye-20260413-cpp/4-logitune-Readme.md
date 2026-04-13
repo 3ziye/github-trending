@@ -1,0 +1,121 @@
+<p align="center">
+  <img src="data/com.logitune.Logitune.svg" width="80">
+  <h1 align="center">Logitune</h1>
+  <p align="center">A Linux configurator for Logitech peripherals — per-application profiles, gesture mapping, thumb wheel modes, and a dark-themed Qt Quick UI matching Logitech Options+.</p>
+</p>
+
+<p align="center">
+  <a href="https://github.com/mmaher88/logitune/actions/workflows/ci.yml"><img src="https://github.com/mmaher88/logitune/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="License">
+  <img src="https://img.shields.io/badge/Qt-6-green" alt="Qt">
+  <img src="https://img.shields.io/badge/C%2B%2B-20-orange" alt="C++">
+  <img src="https://img.shields.io/badge/device-MX%20Master%203S-teal" alt="Device">
+</p>
+
+<p align="center">
+  <img src="docs/images/buttons-page.jpeg" width="800" alt="Logitune — Buttons Page">
+</p>
+
+## ✨ Features
+
+- 🖱️ **Per-app profiles** — automatic button/scroll/DPI switching on window focus
+- ⌨️ **Button remapping** — keystrokes, media controls, app launch, gestures, SmartShift toggle
+- 🎛️ **Thumb wheel modes** — volume, zoom, horizontal scroll with invert control
+- 👆 **Gesture support** — hold + swipe for desktop switching, task view, custom keystrokes
+- ⚡ **DPI / SmartShift / Scroll** — full control with live preview
+- 🔋 **System tray** — battery status, minimize to tray
+- 📡 **HID++ 2.0** — direct communication via Bolt receiver, no daemon needed
+- 🔄 **Disconnect/reconnect** — automatic re-enumeration and profile reapplication
+- 🖥️ **KDE + GNOME** — native focus tracking on both desktops
+
+## 📸 Screenshots
+
+<table>
+<tr>
+<td width="50%">
+<img src="docs/images/buttons-page.jpeg" alt="Buttons Page">
+<p align="center"><em>Button remapping with callout cards</em></p>
+</td>
+<td width="50%">
+<img src="docs/images/buttons-actions-panel.jpeg" alt="Actions Panel">
+<p align="center"><em>Action selection panel</em></p>
+</td>
+</tr>
+<tr>
+<td>
+<img src="docs/images/point-scroll-page.jpeg" alt="Point & Scroll">
+<p align="center"><em>Scroll, thumb wheel & pointer speed</em></p>
+</td>
+<td>
+<img src="docs/images/point-scroll-detail-panel.jpeg" alt="Scroll Settings">
+<p align="center"><em>Scroll direction, SmartShift, smooth scrolling</em></p>
+</td>
+</tr>
+<tr>
+<td>
+<img src="docs/images/settings-page.jpeg" alt="Settings">
+<p align="center"><em>Device info, dark mode, debug logging</em></p>
+</td>
+<td>
+<img src="docs/images/easy-switch-page.jpeg" alt="Easy-Switch">
+<p align="center"><em>Easy-Switch channel management</em></p>
+</td>
+</tr>
+</table>
+
+## 🚀 Install
+
+**Ubuntu 24.04 (via OBS repo):**
+```bash
+echo 'deb http://download.opensuse.org/repositories/home:/mmaher88:/logitune/xUbuntu_24.04/ /' | sudo tee /etc/apt/sources.list.d/logitune.list
+wget -qO- https://download.opensuse.org/repositories/home:mmaher88:logitune/xUbuntu_24.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/logitune.gpg > /dev/null
+sudo apt update && sudo apt install logitune
+```
+
+**Fedora 42 (via OBS repo):**
+```bash
+sudo dnf config-manager addrepo --from-repofile=https://download.opensuse.org/repositories/home:mmaher88:logitune/Fedora_42/home:mmaher88:logitune.repo
+sudo dnf install logitune
+```
+
+**Arch Linux (AUR):**
+```bash
+yay -S logitune
+```
+
+**From source:**
+```bash
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build build
+sudo cmake --install build
+logitune
+```
+
+## 📚 Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [🏁 Getting Started](https://github.com/mmaher88/logitune/wiki/Getting-Started) | Installation, permissions, UI overview |
+| [🔨 Building](https://github.com/mmaher88/logitune/wiki/Building) | Prerequisites, build commands, native packages, devcontainer |
+| [🏗️ Architecture](https://github.com/mmaher88/logitune/wiki/Architecture) | System design, signal flow, 14 Mermaid diagrams |
+| [🖱️ Adding a Device](https://github.com/mmaher88/logitune/wiki/Adding-a-Device) | Step-by-step guide with code examples |
+| [🖥️ Adding a Desktop Environment](https://github.com/mmaher88/logitune/wiki/Adding-a-Desktop-Environment) | KDE + GNOME implementation, adding new DEs |
+| [🧪 Testing](https://github.com/mmaher88/logitune/wiki/Testing) | Philosophy, 4 test tiers, writing tests |
+| [📡 HID++ Protocol](https://github.com/mmaher88/logitune/wiki/HID++-Protocol) | Report format, features, Bolt receiver, async matching |
+| [🤝 Contributing](https://github.com/mmaher88/logitune/wiki/Contributing) | Workflow, code style, commit format |
+
+## 🖱️ Supported Devices
+
+| Device | Status |
+|--------|--------|
+| MX Master 3S (Bolt) | ✅ Full support |
+| MX Master 3S (Bluetooth) | ✅ Full support |
+| Other Logitech HID++ 2.0 | 🔧 Add via [device descriptor](https://github.com/mmaher88/logitune/wiki/Adding-a-Device) |
+
+## 🖥️ Desktop Environment Support
+
+| Feature | KDE Plasma 6 | GNOME 42+ (Wayland) | Other DEs |
+|---------|:---:|:---:|:---:|
+| Button remapping | ✅ | ✅ | ✅ |
+| Media controls | ✅ | ✅ | ✅ |
+| D

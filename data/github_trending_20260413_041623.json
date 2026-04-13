@@ -1,0 +1,859 @@
+[
+  {
+    "basic_info": {
+      "name": "tailslayer",
+      "full_name": "LaurieWired/tailslayer",
+      "owner": "LaurieWired",
+      "description": "Library for reducing tail latency in RAM reads",
+      "url": "https://github.com/LaurieWired/tailslayer",
+      "clone_url": "https://github.com/LaurieWired/tailslayer.git",
+      "ssh_url": "git@github.com:LaurieWired/tailslayer.git",
+      "homepage": "",
+      "created_at": "2026-04-05T18:37:07Z",
+      "updated_at": "2026-04-13T04:14:06Z",
+      "pushed_at": "2026-04-11T23:41:40Z"
+    },
+    "stats": {
+      "stars": 2112,
+      "forks": 114,
+      "watchers": 2112,
+      "open_issues": 14,
+      "size": 42
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 38819,
+        "C": 11059,
+        "Makefile": 526,
+        "CMake": 345
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)\n[![GitHub stars](https://img.shields.io/github/stars/LaurieWired/tailslayer)](https://github.com/LaurieWired/tailslayer/stargazers)\n[![GitHub forks](https://img.shields.io/github/forks/LaurieWired/tailslayer)](https://github.com/LaurieWired/tailslayer/network/members)\n[![GitHub contributors](https://img.shields.io/github/contributors/LaurieWired/tailslayer)](https://github.com/LaurieWired/tailslayer/graphs/contributors)\n[![Follow @lauriewired](https://img.shields.io/twitter/follow/lauriewired?style=social)](https://twitter.com/lauriewired)\n\n<img width=\"2490\" height=\"1148\" alt=\"tailslayer3\" src=\"https://github.com/user-attachments/assets/35d6cd98-ab9d-4ea6-8804-dff3a1b8698b\" />\n\n# Tailslayer\n\nTailslayer is a C++ library that reduces tail latency in RAM reads caused by DRAM refresh stalls. \n\nIt replicates data across multiple, independent DRAM channels with uncorrelated refresh schedules, using (undocumented!) channel scrambling offsets that works on AMD, Intel, and Graviton. Once the request comes in, Tailslayer issues hedged reads across all replicas, allowing the work to be performed on whichever result responds first.\n\n\n<img width=\"4986\" height=\"2796\" alt=\"cross_platform_nway\" src=\"https://github.com/user-attachments/assets/4b4a5614-00e4-4845-8a4b-f4adecef5b4d\" />\n\n## Usage\n\nThe library code is available in [hedged_reader.cpp](https://github.com/LaurieWired/tailslayer/blob/main/include/tailslayer/hedged_reader.hpp) and the example using the library can be found in [tailslayer_example.cpp](https://github.com/LaurieWired/tailslayer/blob/main/tailslayer_example.cpp). To use it, copy `include/tailslayer` into your project and `#include <tailslayer/hedged_reader.hpp>`. The library currently works with two channels (updates to come!), but full N-way usage is available in the [benchmark](https://github.com/LaurieWired/tailslayer/tree/main/discovery/benchmark).\n\nYou provide the value type and two functions as template parameters:\n\n1. **Signal function**: Add the loop that waits for the external signal. This determines when to read. Return the desired index to read, and the read immediately fires.\n2. **Final work function**: This receives the value immediately after it is read. Add the desired value processing code here.\n\n```cpp\n#include <tailslayer/hedged_reader.hpp>\n\n[[gnu::always_inline]] inline std::size_t my_signal() {\n    // Wait for your event, then return the index to read\n    return index_to_read;\n}\n\ntemplate <typename T>\n[[gnu::always_inline]] inline void my_work(T val) {\n    // Use the value\n}\n\nint main() {\n    using T = uint8_t;\n    tailslayer::pin_to_core(tailslayer::CORE_MAIN);\n\n    tailslayer::HedgedReader<T, my_signal, my_work<T>> reader{};\n    reader.insert(0x43);\n    reader.insert(0x44);\n    reader.start_workers();\n}\n```\n\nArguments can be passed to either function via `ArgList`:\n\n```cpp\ntailslayer::HedgedReader<T, my_signal, my_work<T>,\n    tailslayer::ArgList<1, 2>,   // args to signal function\n    tailslayer::ArgList<2>       // args to final work function\n> reader{};\n```\n\nYou can also optionally pass in a different channel offset, channel bit, and number of replicas to the constructor. *Note:* Each insert copies the element N times where N is the number of replicas. It does the address calculation work on the backend, allowing tailslayer to act as a hedged vector that uses logical indices. Additionally, each replica is pinned to a separate core, and will spin on that core according to the signal function until the read happens.\n\n## Build the example\n\n```bash\nmake\n./tailslayer_example\n```\n\n## Benchmarks and spike timing\n\nThe `discovery/` directory contains supporting code used to characterize DRAM refresh behavior:\n\n- `discovery/benchmark/`: Channel-hedged read benchmark\n- `discovery/trefi_probe.c`: Spike timing probe for measuring the refresh cycle\n\n```bash\ncd discovery/benchmark\nmake\nsudo chrt -f 99 ./hedged_read_cpp --all --channel-bit 8\n```\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:23.992938"
+  },
+  {
+    "basic_info": {
+      "name": "EUI",
+      "full_name": "sudoevolve/EUI",
+      "owner": "sudoevolve",
+      "description": "Immediate-mode C++ UI toolkit with a unified OpenGL renderer path for GLFW",
+      "url": "https://github.com/sudoevolve/EUI",
+      "clone_url": "https://github.com/sudoevolve/EUI.git",
+      "ssh_url": "git@github.com:sudoevolve/EUI.git",
+      "homepage": "",
+      "created_at": "2026-03-16T08:44:27Z",
+      "updated_at": "2026-04-13T03:07:06Z",
+      "pushed_at": "2026-04-01T07:15:02Z"
+    },
+    "stats": {
+      "stars": 457,
+      "forks": 57,
+      "watchers": 457,
+      "open_issues": 1,
+      "size": 8695
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 489814,
+        "CMake": 4780
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# EUI-NEO\n\n<p align=\"center\">\n  <img src=\"docs/icon.png\" width=\"120\" height=\"120\" />\n</p>\n\nEUI-NEO 是一个基于 OpenGL + GLFW 的声明式 2D GUI 框架，支持组件化 UI、即时模式组合与事件驱动渲染。\n\n<p align=\"center\">\n  <img src=\"./docs/1.jpg\" alt=\"EUI-NEO Preview 1\" width=\"49%\" />\n  <img src=\"./docs/2.jpg\" alt=\"EUI-NEO Preview 2\" width=\"49%\" />\n  <img src=\"./docs/3.jpg\" alt=\"EUI-NEO Preview 3\" width=\"49%\" />\n  <img src=\"./docs/4.jpg\" alt=\"EUI-NEO Preview 4\" width=\"49%\" />\n</p>\n\n## 编译\n\n```bash\ncmake -B build -G Ninja\ncmake --build build --config Release\n```\n\n## 基础示例\n\n### 1) 最小 DSL 入口\n\n```cpp\n#include \"app/DslAppRuntime.h\"\n\nint main() {\n    EUINEO::DslAppConfig config;\n    config.title = \"EUI Demo\";\n    config.width = 900;\n    config.height = 600;\n    config.pageId = \"demo\";\n    config.fps = 120;\n\n    return EUINEO::RunDslApp(config, [](EUINEO::UIContext& ui, const EUINEO::RectFrame& screen) {\n        EUINEO::UseDslDarkTheme(EUINEO::Color(0.0f, 0.0f, 0.0f, 1.0f));\n\n        ui.panel(\"bg\")\n            .position(0.0f, 0.0f)\n            .size(screen.width, screen.height)\n            .background(EUINEO::Color(0.10f, 0.10f, 0.12f, 1.0f))\n            .build();\n\n        ui.button(\"hello\")\n            .position(24.0f, 24.0f)\n            .size(140.0f, 40.0f)\n            .text(\"Hello EUI-NEO\")\n            .build();\n    });\n}\n```\n## 详细文档\n\n更多细节参考 `docs/guide`：\n\n- [docs/guide/index.md](./docs/guide/index.md)\n- [docs/guide/getting-started.md](./docs/guide/getting-started.md)\n- [docs/guide/primitives.md](./docs/guide/primitives.md)\n- [docs/guide/listview.md](./docs/guide/listview.md)\n- [docs/guide/layout-and-anchor.md](./docs/guide/layout-and-anchor.md)\n- [docs/guide/components-and-custom-node.md](./docs/guide/components-and-custom-node.md)\n- [docs/guide/runtime-network-fonts.md](./docs/guide/runtime-network-fonts.md)\n\n## ⭐ Project Stats\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/github/stars/sudoevolve/EUI?style=for-the-badge\" />\n  <img src=\"https://img.shields.io/github/forks/sudoevolve/EUI?style=for-the-badge\" />\n  <img src=\"https://img.shields.io/github/issues/sudoevolve/EUI?style=for-the-badge\" />\n</p>\n\n---\n\n## 📈 Star History\n\n[![Star History Chart](https://api.star-history.com/svg?repos=sudoevolve/EUI&type=date&legend=top-left)](https://www.star-history.com/?repos=sudoevolve%2FEUI&type=date&legend=top-left)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:25.158994"
+  },
+  {
+    "basic_info": {
+      "name": "CarlaAir",
+      "full_name": "louiszengCN/CarlaAir",
+      "owner": "louiszengCN",
+      "description": "CarlaAir: Fly Drones Inside a CARLA World!! A Unified Infrastructure for Air-Ground Embodied Intelligence",
+      "url": "https://github.com/louiszengCN/CarlaAir",
+      "clone_url": "https://github.com/louiszengCN/CarlaAir.git",
+      "ssh_url": "git@github.com:louiszengCN/CarlaAir.git",
+      "homepage": "",
+      "created_at": "2026-03-19T06:24:59Z",
+      "updated_at": "2026-04-13T03:21:36Z",
+      "pushed_at": "2026-04-12T07:51:43Z"
+    },
+    "stats": {
+      "stars": 447,
+      "forks": 102,
+      "watchers": 447,
+      "open_issues": 6,
+      "size": 332803
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 11204899,
+        "QMake": 4039902,
+        "Python": 2120213,
+        "C": 325531,
+        "Shell": 194620,
+        "Batchfile": 168270,
+        "C#": 43886,
+        "CMake": 31081,
+        "PowerShell": 21730,
+        "Dockerfile": 12092,
+        "Makefile": 10284
+      },
+      "license": "MIT License",
+      "topics": [
+        "airsim",
+        "autonomous-driving",
+        "carla",
+        "drone",
+        "python",
+        "robotics",
+        "ros2",
+        "simulation",
+        "uav",
+        "unreal-engine"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">CARLA-Air: Fly Drones Inside a CARLA World</h1>\n<h3 align=\"center\">A Unified Infrastructure for Air-Ground Embodied Intelligence</h3>\n\n<p align=\"center\">\n  <a href=\"https://youtu.be/a0fZG2dmT1Q\">\n    <img src=\"docs/images/teaser_video.gif\" alt=\"CARLA-Air Teaser — click to watch the full demo\" width=\"100%\"/>\n  </a>\n</p>\n\n**CARLA-Air** is an open-source infrastructure that unifies high-fidelity urban driving and physics-accurate multirotor flight within a single Unreal Engine process, providing a practical simulation foundation for air-ground embodied intelligence research.  \n\n👉 **Get started instantly with our pre-built executable (no compilation required):**  \n[Baidu Pan](https://pan.baidu.com/s/1RguWqwKrN-3KEgyKvWiiug?pwd=d5ai) | [Hugging Face](https://huggingface.co/tianlezeng/CarlaAIr-v0.1.7)\n\n<div align=\"center\">\n  <a href=\"https://huggingface.co/papers/2603.28032\"><img src=\"https://img.shields.io/badge/%F0%9F%8F%86%20HF%20Daily%20Papers-%231%20Paper%20of%20the%20Day-FFD700\" alt=\"#1 Paper of the Day\"/></a>\n  <a href=\"docs/pdf/CarlaAir.pdf\"><img src=\"https://img.shields.io/badge/Paper-PDF-red\" alt=\"Paper PDF\"/></a>\n  <a href=\"https://arxiv.org/abs/2603.28032\"><img src=\"https://img.shields.io/badge/arXiv-2603.28032-b31b1b?logo=arxiv&logoColor=white\" alt=\"arXiv\"/></a>\n  <a href=\"https://github.com/louiszengCN/CarlaAir/stargazers\"><img src=\"https://img.shields.io/github/stars/louiszengCN/CarlaAir?style=social\" alt=\"GitHub Stars\"/></a>\n  <a href=\"https://github.com/louiszengCN/CarlaAir/releases/tag/v0.1.7\"><img src=\"https://img.shields.io/badge/version-v0.1.7-blue\" alt=\"Version\"/></a>\n  <img src=\"https://img.shields.io/badge/License-MIT-yellow.svg\" alt=\"License: MIT\"/>\n  <img src=\"https://img.shields.io/badge/python-3.8+-blue\" alt=\"Python 3.8+\"/>\n  <img src=\"https://img.shields.io/badge/CARLA-0.9.16-green\" alt=\"CARLA 0.9.16\"/>\n  <img src=\"https://img.shields.io/badge/AirSim-1.8.1-orange\" alt=\"AirSim 1.8.1\"/>\n  <img src=\"https://img.shields.io/badge/platform-Ubuntu%2020.04%20%7C%2022.04-lightgrey\" alt=\"Platform\"/>\n</div>\n\n<br>\n\n<p align=\"center\">\n  <a href=\"README.md\">English</a> | <a href=\"README_CN.md\">简体中文</a> &nbsp;&nbsp;|&nbsp;&nbsp;\n  📄 <a href=\"docs/pdf/CarlaAir.pdf\"><b>Paper</b></a> &nbsp;|&nbsp;\n  🌐 <a href=\"#\"><b>Project Page</b></a> <i>(coming soon)</i> &nbsp;|&nbsp;\n  📖 <a href=\"CarlaAir_Release/guide/Quick-Start.md\"><b>Docs</b></a> &nbsp;|&nbsp;\n  🎬 <a href=\"https://youtu.be/a0fZG2dmT1Q\"><b>Video</b></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://pan.baidu.com/s/1RguWqwKrN-3KEgyKvWiiug?pwd=d5ai\"><img src=\"https://img.shields.io/badge/Baidu%20Pan-Download-2932E1?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6Ii8+PC9zdmc+\" alt=\"Baidu Pan\"/></a>\n  <a href=\"https://huggingface.co/tianlezeng/CarlaAIr-v0.1.7\"><img src=\"https://img.shields.io/badge/HuggingFace-Download-FFD21E?logo=huggingface&logoColor=black\" alt=\"HuggingFace\"/></a>\n  <a href=\"docs/images/wxg.jpg?v=20260419\"><img src=\"https://img.shields.io/badge/WeChat-Group-07C160?logo=wechat&logoColor=white\" alt=\"WeChat Group\"/></a>\n</p>\n\n## 📌 Table of Contents\n\n- [🔥 News](#news)\n- [✨ Highlights](#highlights)\n- [🏆 Platform Comparison](#platform-comparison) — 15 simulators, side-by-side\n- [🎮 Quick Start](#quick-start) — up and running in 4 steps\n- [🐍 One Script, Two Worlds](#one-script-two-worlds) — dual API code examples\n- [🔬 Research Directions & Workflows](#research-directions--workflows) — W1–W5 validated workflows\n- [⌨️ Flight Controls](#flight-controls)\n- [📚 Documentation & Tutorials](#documentation--tutorials) — 8 step-by-step tutorials\n- [🗺️ Roadmap](#roadmap)\n- [📝 Citation](#citation)\n- [📜 License & Acknowledgments](#license--acknowledgments)\n- [⭐ Star History](#star-history)\n\n<a id=\"news\"></a>\n\n## 🔥 News\n\n- **[2026-04-10]** [![Windows Source](https://img.shields.io/badge/Windows-Source%20Branch-0078D6?logo=windows&logoColor=white)](https://github.com/louiszengCN/CarlaAir/tree/windows/v0.1.7-win11-x86_64) [Windows source branch published](https://github.com/louiszengCN/CarlaAir/tree/windows/v0.1.7-win11-x86_64) -- Windows build and runtime support is now available on the dedicated branch\n- **[2026-04-01]** 🏆 $\\color{red}{\\textbf{\\\\#1 Paper of the Day}}$ **on [Hugging Face Daily Papers](https://huggingface.co/papers/2603.28032)!**\n- **[2026-03-30]** 📄 Technical report released -- [Read the paper](docs/pdf/CarlaAir.pdf)\n- **[2026-03]** `v0.1.7` released -- VSync fix, stable traffic, one-click env setup, drone recording toolkit, coordinate docs\n- **[2026-03]** `v0.1.6` released -- Auto traffic spawn, UE4 native Sweep collision, ground clamping\n- **[2026-03]** `v0.1.5` released -- 12-direction collision system, bilingual help overlay (`H`)\n- **[2026-03]** `v0.1.4` released -- ROS2 validation (63 topics), first official",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:26.347330"
+  },
+  {
+    "basic_info": {
+      "name": "logitune",
+      "full_name": "mmaher88/logitune",
+      "owner": "mmaher88",
+      "description": "Configure Logitech devices on Linux (Options+ clone)",
+      "url": "https://github.com/mmaher88/logitune",
+      "clone_url": "https://github.com/mmaher88/logitune.git",
+      "ssh_url": "git@github.com:mmaher88/logitune.git",
+      "homepage": null,
+      "created_at": "2026-03-25T19:06:46Z",
+      "updated_at": "2026-04-13T01:26:34Z",
+      "pushed_at": "2026-04-12T17:38:18Z"
+    },
+    "stats": {
+      "stars": 346,
+      "forks": 10,
+      "watchers": 346,
+      "open_issues": 18,
+      "size": 16717
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 476052,
+        "QML": 162799,
+        "Shell": 9893,
+        "CMake": 8963,
+        "Makefile": 2850,
+        "JavaScript": 2765,
+        "Dockerfile": 2754
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"data/com.logitune.Logitune.svg\" width=\"80\">\n  <h1 align=\"center\">Logitune</h1>\n  <p align=\"center\">A Linux configurator for Logitech peripherals — per-application profiles, gesture mapping, thumb wheel modes, and a dark-themed Qt Quick UI matching Logitech Options+.</p>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/mmaher88/logitune/actions/workflows/ci.yml\"><img src=\"https://github.com/mmaher88/logitune/actions/workflows/ci.yml/badge.svg\" alt=\"CI\"></a>\n  <img src=\"https://img.shields.io/badge/license-GPL--3.0-blue\" alt=\"License\">\n  <img src=\"https://img.shields.io/badge/Qt-6-green\" alt=\"Qt\">\n  <img src=\"https://img.shields.io/badge/C%2B%2B-20-orange\" alt=\"C++\">\n  <img src=\"https://img.shields.io/badge/device-MX%20Master%203S-teal\" alt=\"Device\">\n</p>\n\n<p align=\"center\">\n  <img src=\"docs/images/buttons-page.jpeg\" width=\"800\" alt=\"Logitune — Buttons Page\">\n</p>\n\n## ✨ Features\n\n- 🖱️ **Per-app profiles** — automatic button/scroll/DPI switching on window focus\n- ⌨️ **Button remapping** — keystrokes, media controls, app launch, gestures, SmartShift toggle\n- 🎛️ **Thumb wheel modes** — volume, zoom, horizontal scroll with invert control\n- 👆 **Gesture support** — hold + swipe for desktop switching, task view, custom keystrokes\n- ⚡ **DPI / SmartShift / Scroll** — full control with live preview\n- 🔋 **System tray** — battery status, minimize to tray\n- 📡 **HID++ 2.0** — direct communication via Bolt receiver, no daemon needed\n- 🔄 **Disconnect/reconnect** — automatic re-enumeration and profile reapplication\n- 🖥️ **KDE + GNOME** — native focus tracking on both desktops\n\n## 📸 Screenshots\n\n<table>\n<tr>\n<td width=\"50%\">\n<img src=\"docs/images/buttons-page.jpeg\" alt=\"Buttons Page\">\n<p align=\"center\"><em>Button remapping with callout cards</em></p>\n</td>\n<td width=\"50%\">\n<img src=\"docs/images/buttons-actions-panel.jpeg\" alt=\"Actions Panel\">\n<p align=\"center\"><em>Action selection panel</em></p>\n</td>\n</tr>\n<tr>\n<td>\n<img src=\"docs/images/point-scroll-page.jpeg\" alt=\"Point & Scroll\">\n<p align=\"center\"><em>Scroll, thumb wheel & pointer speed</em></p>\n</td>\n<td>\n<img src=\"docs/images/point-scroll-detail-panel.jpeg\" alt=\"Scroll Settings\">\n<p align=\"center\"><em>Scroll direction, SmartShift, smooth scrolling</em></p>\n</td>\n</tr>\n<tr>\n<td>\n<img src=\"docs/images/settings-page.jpeg\" alt=\"Settings\">\n<p align=\"center\"><em>Device info, dark mode, debug logging</em></p>\n</td>\n<td>\n<img src=\"docs/images/easy-switch-page.jpeg\" alt=\"Easy-Switch\">\n<p align=\"center\"><em>Easy-Switch channel management</em></p>\n</td>\n</tr>\n</table>\n\n## 🚀 Install\n\n**Ubuntu 24.04 (via OBS repo):**\n```bash\necho 'deb http://download.opensuse.org/repositories/home:/mmaher88:/logitune/xUbuntu_24.04/ /' | sudo tee /etc/apt/sources.list.d/logitune.list\nwget -qO- https://download.opensuse.org/repositories/home:mmaher88:logitune/xUbuntu_24.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/logitune.gpg > /dev/null\nsudo apt update && sudo apt install logitune\n```\n\n**Fedora 42 (via OBS repo):**\n```bash\nsudo dnf config-manager addrepo --from-repofile=https://download.opensuse.org/repositories/home:mmaher88:logitune/Fedora_42/home:mmaher88:logitune.repo\nsudo dnf install logitune\n```\n\n**Arch Linux (AUR):**\n```bash\nyay -S logitune\n```\n\n**From source:**\n```bash\ncmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr\ncmake --build build\nsudo cmake --install build\nlogitune\n```\n\n## 📚 Documentation\n\n| Guide | Description |\n|-------|-------------|\n| [🏁 Getting Started](https://github.com/mmaher88/logitune/wiki/Getting-Started) | Installation, permissions, UI overview |\n| [🔨 Building](https://github.com/mmaher88/logitune/wiki/Building) | Prerequisites, build commands, native packages, devcontainer |\n| [🏗️ Architecture](https://github.com/mmaher88/logitune/wiki/Architecture) | System design, signal flow, 14 Mermaid diagrams |\n| [🖱️ Adding a Device](https://github.com/mmaher88/logitune/wiki/Adding-a-Device) | Step-by-step guide with code examples |\n| [🖥️ Adding a Desktop Environment](https://github.com/mmaher88/logitune/wiki/Adding-a-Desktop-Environment) | KDE + GNOME implementation, adding new DEs |\n| [🧪 Testing](https://github.com/mmaher88/logitune/wiki/Testing) | Philosophy, 4 test tiers, writing tests |\n| [📡 HID++ Protocol](https://github.com/mmaher88/logitune/wiki/HID++-Protocol) | Report format, features, Bolt receiver, async matching |\n| [🤝 Contributing](https://github.com/mmaher88/logitune/wiki/Contributing) | Workflow, code style, commit format |\n\n## 🖱️ Supported Devices\n\n| Device | Status |\n|--------|--------|\n| MX Master 3S (Bolt) | ✅ Full support |\n| MX Master 3S (Bluetooth) | ✅ Full support |\n| Other Logitech HID++ 2.0 | 🔧 Add via [device descriptor](https://github.com/mmaher88/logitune/wiki/Adding-a-Device) |\n\n## 🖥️ Desktop Environment Support\n\n| Feature | KDE Plasma 6 | GNOME 42+ (Wayland) | Other DEs |\n|---------|:---:|:---:|:---:|\n| Button remapping | ✅ | ✅ | ✅ |\n| Media controls | ✅ | ✅ | ✅ |\n| D",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-13T04:16:27.577461"
+  },
+  {
+    "basic_info": {
+      "name": "UnrealRoboticsLab",
+      "full_name": "URLab-Sim/UnrealRoboticsLab",
+      "owner": "URLab-Sim",
+      "description": "A high-fidelity, open-source robotics simulator integrating Unreal Engine's photorealistic rendering with MuJoCo's precision physics.",
+      "url": "https://github.com/URLab-Sim/UnrealRoboticsLab",
+      "clone_url": "https://github.com/URLab-Sim/UnrealRoboticsLab.git",
+      "ssh_url": "git@github.com:URLab-Sim/UnrealRoboticsLab.git",
+      "homepage": "https://urlab-sim.github.io/UnrealRoboticsLab/",
+      "created_at": "2026-04-06T15:07:16Z",
+      "updated_at": "2026-04-13T02:25:05Z",
+      "pushed_at": "2026-04-12T17:06:11Z"
+    },
+    "stats": {
+      "stars": 314,
+      "forks": 22,
+      "watchers": 314,
+      "open_issues": 4,
+      "size": 3828
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1510862,
+        "Python": 94397,
+        "C": 17960,
+        "C#": 5421
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "mujoco",
+        "robotics",
+        "ue5",
+        "unreal-engine"
+      ]
+    },
+    "content": {
+      "readme": "[![Documentation](https://img.shields.io/badge/Documentation-blue.svg)](https://urlab-sim.github.io/UnrealRoboticsLab/)\n[![arXiv](https://img.shields.io/badge/arXiv-2504.14135-b31b1b.svg)](https://arxiv.org/abs/2504.14135)\n[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)\n[![MuJoCo](https://img.shields.io/badge/MuJoCo-3.7+-green.svg)](https://github.com/google-deepmind/mujoco)\n[![Unreal Engine](https://img.shields.io/badge/Unreal_Engine-5.7+-black.svg)](https://www.unrealengine.com)\n\n# URLab -- MuJoCo Physics in Unreal Engine\n\n![URLab](docs/images/hero.png)\n\nURLab (Unreal Robotics Lab) is an Unreal Engine 5 plugin that embeds the [MuJoCo](https://github.com/google-deepmind/mujoco) physics engine directly into the editor and runtime. Drag-and-drop MJCF XML import, a component-based architecture that maps 1:1 to MuJoCo elements, the full MuJoCo C API accessible from C++ and Blueprints, ZMQ networking for external control, Python policy integration, 40+ sensor types, 8 actuator types, debug visualization, and a record/replay system.\n\n## When To Use URLab\n\n- You need photorealistic rendering with accurate contact physics (sim-to-real transfer, synthetic data generation).\n- You want to control MuJoCo robots from Python or ROS 2 while rendering in Unreal Engine.\n- You want Unreal's ecosystem (Blueprints, Sequencer, Marketplace assets, Niagara) with physics-accurate robots.\n\n## Quick Start\n\n1. Clone into your project's `Plugins/` folder. Build third-party libraries once (`third_party/build_all.ps1`).\n2. Drag an MJCF `.xml` file into the Content Browser. The importer creates a complete Articulation Blueprint.\n3. Place an `AAMjManager` in your level. Place the generated Blueprint.\n4. Hit Play. MuJoCo runs on an async physics thread; Unreal handles rendering.\n\nSee the [Getting Started](https://urlab-sim.github.io/UnrealRoboticsLab/getting_started/) guide for a full walkthrough.\n\n## Key Features\n\n- **MJCF Import** -- drag-and-drop `.xml`, builds full body/joint/actuator/sensor tree as an Articulation Blueprint.\n- **Quick Convert** -- attach `UMjQuickConvertComponent` to any Static Mesh and it becomes a MuJoCo physics body. No XML needed.\n- **40+ sensors, 8 actuator types, 4 joint types** -- position, velocity, motor, muscle, damper, adhesion, cylinder, general actuators; hinge, slide, ball, free joints; accelerometer, gyro, force/torque, touch, rangefinder, frame tracking, camera, and more.\n- **ZMQ networking** -- stream sensor data out and receive actuator commands in via PUB/SUB sockets. Connect Python, ROS 2, or any ZMQ-speaking process.\n- **Debug visualization** -- toggle contact forces, joint axes, collision geometry (articulations and Quick Convert separately), all via hotkeys.\n- **Record and replay** -- capture trajectories, play back frame-by-frame, CSV import, snapshot/restore full simulation state.\n- **Blueprint API** -- compile, reset, step, read sensors, set controls, capture snapshots, toggle debug drawing, all from Blueprint.\n- **MjSimulate dashboard** -- in-editor widget with physics parameter tuning, actuator sliders, sensor readouts, live camera feeds.\n- **Keyframe system** -- reset to named keyframes, hold keyframe poses (via ctrl or direct qpos injection), per-articulation dropdown in the dashboard.\n- **Possess and walk** -- possess any articulation as a Pawn, WASD control with twist velocity commands over ZMQ.\n- **Cinematic tools** -- orbit camera, keyframe camera with waypoint paths, impulse launchers for perturbation testing.\n- **CoACD decomposition** -- one-click convex decomposition for non-convex meshes, cached by content hash.\n- **Heightfield terrain** -- convert Unreal Landscape actors into MuJoCo heightfields.\n\nSee the [full documentation](https://urlab-sim.github.io/UnrealRoboticsLab/) for details.\n\n## Python Integration\n\nURLab communicates with external systems over ZMQ. The companion package [**urlab_bridge**](https://urlab-sim.github.io/UnrealRoboticsLab/guides/policy_bridge/) (separate repository, same organization) provides Python middleware for remote control, RL policy deployment, sensor monitoring, and ROS 2 bridging.\n\n## Requirements\n\n- **Unreal Engine 5.7+**\n- **Windows** (Win64). Linux is experimental.\n- **MuJoCo 3.7+** -- bundled in `third_party/`, built from source.\n- **Visual Studio 2022** or compatible C++ toolchain.\n- **CMake 3.24+** -- for building third-party libraries.\n- **Python 3.11+** -- optional, for `urlab_bridge` policies.\n- **[uv](https://github.com/astral-sh/uv)** -- optional, for Python dependency management.\n\n## Installation\n\n> **⚠️ Critical:** This is a C++ plugin. You **must** be using a C++ project. If your project is Blueprints-only, add a dummy C++ class via *Tools > New C++ Class* before starting.\n\n### 1. Clone the Plugin\nClone this repo into your project's `Plugins` folder:\n```bash\ncd \"YourProject/Plugins\"\ngit clone https://github.com/URLab-Sim/UnrealRoboticsLab.git\n```\n\n### 2. Build Dependencies\nNavigate to the plugin's `th",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:28.752737"
+  },
+  {
+    "basic_info": {
+      "name": "ht.h",
+      "full_name": "tsoding/ht.h",
+      "owner": "tsoding",
+      "description": "Hash Table in C but with a nice Generic API",
+      "url": "https://github.com/tsoding/ht.h",
+      "clone_url": "https://github.com/tsoding/ht.h.git",
+      "ssh_url": "git@github.com:tsoding/ht.h.git",
+      "homepage": null,
+      "created_at": "2026-04-06T16:21:14Z",
+      "updated_at": "2026-04-13T00:06:38Z",
+      "pushed_at": "2026-04-08T07:28:47Z"
+    },
+    "stats": {
+      "stars": 289,
+      "forks": 2,
+      "watchers": 289,
+      "open_issues": 0,
+      "size": 9
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 33905
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Hash Table in C\n\nIt's just a Hash Table in C but with a nice Generic API.\n\n## Quick Start\n\n```c\n#include <stdio.h>\n#define HT_IMPLEMENTATION\n#include \"ht.h\"\n\nint main(void)\n{\n    Ht(const char *, int) ht = {\n        .hasheq = ht_cstr_hasheq,\n    };\n    *ht_put(&ht, \"foo\") = 69;\n    *ht_put(&ht, \"bar\") = 420;\n    *ht_put(&ht, \"baz\") = 1337;\n    ht_foreach(value, &ht) {\n        printf(\"%s => %d\\n\", ht_key(&ht, value), *value);\n    }\n    ht_free(&ht);\n    return 0;\n}\n```\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:29.899437"
+  },
+  {
+    "basic_info": {
+      "name": "sam3.cpp",
+      "full_name": "PABannier/sam3.cpp",
+      "owner": "PABannier",
+      "description": "Fast state-of-the-art image and video segmentation in portable C/C++",
+      "url": "https://github.com/PABannier/sam3.cpp",
+      "clone_url": "https://github.com/PABannier/sam3.cpp.git",
+      "ssh_url": "git@github.com:PABannier/sam3.cpp.git",
+      "homepage": "",
+      "created_at": "2026-03-28T10:02:36Z",
+      "updated_at": "2026-04-13T03:20:39Z",
+      "pushed_at": "2026-04-10T08:57:24Z"
+    },
+    "stats": {
+      "stars": 263,
+      "forks": 20,
+      "watchers": 263,
+      "open_issues": 1,
+      "size": 12615
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1352996,
+        "Python": 378840,
+        "C": 71221,
+        "CMake": 6150,
+        "Shell": 2437
+      },
+      "license": "MIT License",
+      "topics": [
+        "image-segmentation",
+        "segment-anything",
+        "video-segmentation",
+        "video-tracking"
+      ]
+    },
+    "content": {
+      "readme": "# sam3.cpp\n\nState-of-the-art image and video segmentation in portable C/C++\n\n![SAM3 Image Segmentation Demo](media/image_demo.gif)\n![SAM3 Video Segmentation Demo](media/video_demo.gif)\n\n---\n\n## Why sam3.cpp?\n\nRunning Meta's Segment Anything models typically requires Python, PyTorch, and a CUDA GPU. **sam3.cpp** eliminates all of that. It's a single C++ library that runs SAM 2, SAM 2.1, SAM 3, and EdgeTAM inference on CPU and Apple Metal. No Python runtime, no GPU drivers, no heavyweight dependencies. Just compile and segment.\n\n- **4 model families**: SAM 2, SAM 2.1 (Hiera), SAM 3 (ViT + text detection), EdgeTAM (RepViT, 22x faster than SAM 2 on mobile)\n- **4-bit quantization**: EdgeTAM in **15 MB**, SAM 2.1 Tiny in **22 MB** at ~1 fps on Metal, SAM 3 down to 673 MB\n- **Apple Metal GPU acceleration** for the full backbone and transformer decoder\n- **Text-prompted detection** (SAM 3 only): type `\"cat\"` and get every cat in the image, no clicks needed\n- **Point/box segmentation + video tracking** with memory bank across all models\n- **Single-file library**: `sam3.cpp` + `sam3.h`, C++14, no exceptions, no inheritance\n- **Zero dependencies** beyond [ggml](https://github.com/ggerganov/ggml) and [stb](https://github.com/nothings/stb)\n\n## Quick Start\n\n```bash\n# Clone\ngit clone --recursive https://github.com/PABannier/sam3.cpp\ncd sam3.cpp\n\n# Build (Metal GPU enabled automatically on macOS)\nmkdir build && cd build\ncmake ..\nmake -j\n\n# Download a model (SAM 2.1 Tiny, 75 MB)\n# See \"Model Zoo\" below for all available models and download links\ncurl -L -o ../models/sam2.1_hiera_tiny_f16.ggml \\\n  https://huggingface.co/PABannier/sam3.cpp/resolve/main/sam2.1_hiera_tiny_f16.ggml\n\n# Segment an image interactively (requires SDL2)\n./examples/sam3_image --model ../models/sam2.1_hiera_tiny_f16.ggml --image ../data/test_image.jpg\n\n# Track objects in a video interactively (requires SDL2)\n./examples/sam3_video --model ../models/sam2.1_hiera_tiny_f16.ggml --video ../data/test_video.mp4\n```\n\nThe interactive apps use SDL2 + ImGui. If SDL2 isn't found, only the benchmark and quantize tools are built.\n\n## Benchmarks\n\nVideo object tracking latency on **Apple M4 Pro (24 GB)**, 5 frames at 1008x1008 resolution, 4 threads. Each run is isolated in a forked subprocess.\n\n### SAM 3 (Full: text detection + visual tracking)\n\n| Model | Size | Track/frame Metal (s) | Track/frame CPU (s) | Total Metal (s) | Total CPU (s) |\n|-------|------|-----------------------|---------------------|-----------------|---------------|\n| sam3-f32 | 3.2 GB | - | 40.5 | - | 200.4 |\n| sam3-f16 | 1.7 GB | **7.7** | 23.8 | 38.1 | 117.5 |\n| sam3-q8_0 | 1.0 GB | **7.8** | 23.3 | 38.7 | 115.2 |\n| sam3-q4_1 | 756 MB | - | 24.5 | - | 120.9 |\n| sam3-q4_0 | 673 MB | **7.8** | 23.9 | 38.7 | 117.7 |\n\n### SAM 3 Visual-Only (no text encoder, tracking only)\n\n| Model | Size | Track/frame Metal (s) | Track/frame CPU (s) | Total Metal (s) | Total CPU (s) |\n|-------|------|-----------------------|---------------------|-----------------|---------------|\n| sam3-visual-f16 | 901 MB | **6.6** | 22.6 | 32.7 | 111.2 |\n| sam3-visual-q8_0 | 493 MB | **6.7** | 22.0 | 33.0 | 108.4 |\n| sam3-visual-q4_1 | 318 MB | - | 23.1 | - | 113.9 |\n| sam3-visual-q4_0 | 275 MB | **6.7** | 22.3 | 33.0 | 110.0 |\n\n### EdgeTAM (RepViT backbone + Perceiver)\n\n| Model | Size | Track/frame Metal (s) | Track/frame CPU (s) | Total Metal (s) | Total CPU (s) |\n|-------|------|-----------------------|---------------------|-----------------|---------------|\n| edgetam_f16 | 27 MB | **0.4** | 1.1 | 2.2 | 5.2 |\n| edgetam_q8_0 | 19 MB | **0.4** | 1.1 | 2.1 | 5.1 |\n| edgetam_q4_0 | 15 MB | **0.4** | 1.1 | 2.1 | 5.1 |\n\n### SAM 2 / SAM 2.1 (Hiera backbone)\n\n| Model | Size | Track/frame Metal (s) | Track/frame CPU (s) | Total Metal (s) | Total CPU (s) |\n|-------|------|-----------------------|---------------------|-----------------|---------------|\n| sam2_hiera_tiny_f16 | 75 MB | **0.9** | 2.7 | 4.0 | 12.6 |\n| sam2_hiera_tiny_q8_0 | 40 MB | **0.9** | 2.5 | 4.0 | 11.7 |\n| sam2_hiera_tiny_q4_0 | **22 MB** | **0.9** | 2.5 | 4.0 | 11.7 |\n| sam2_hiera_small_f16 | 89 MB | **0.9** | 2.9 | 4.1 | 13.7 |\n| sam2_hiera_small_q8_0 | 47 MB | **0.9** | 2.7 | 4.1 | 12.5 |\n| sam2_hiera_small_q4_0 | 26 MB | **0.9** | 2.7 | 4.1 | 12.7 |\n| sam2_hiera_base_plus_f16 | 155 MB | **1.0** | 4.2 | 4.7 | 20.2 |\n| sam2_hiera_base_plus_q8_0 | 83 MB | - | 3.9 | - | 18.9 |\n| sam2_hiera_large_f16 | 429 MB | - | 8.4 | - | 40.9 |\n| sam2_hiera_large_q8_0 | 230 MB | - | 7.6 | - | 37.1 |\n| | | | | | |\n| sam2.1_hiera_tiny_f16 | 75 MB | **0.8** | 2.6 | 4.0 | 12.3 |\n| sam2.1_hiera_tiny_q8_0 | 40 MB | **0.9** | 2.4 | 4.0 | 11.4 |\n| sam2.1_hiera_tiny_q4_0 | **22 MB** | **0.9** | 2.5 | 4.0 | 11.5 |\n| sam2.1_hiera_small_f16 | 89 MB | **0.9** | 2.9 | 4.1 | 13.5 |\n| sam2.1_hiera_small_q8_0 | 47 MB | **0.9** | 2.7 | 4.1 | 12.5 |\n| sam2.1_hiera_small_q4_0 | 26 MB | **0.9** | 2.7 | 4.1 | 12.6 |\n| sam2.1_hiera_base_plus_f16 | 155 MB | **1.0** | 4.2 | 4.7 | 20.1 |\n| sam2.1_hiera_base_pl",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:31.094866"
+  },
+  {
+    "basic_info": {
+      "name": "NtWarden",
+      "full_name": "mrT4ntr4/NtWarden",
+      "owner": "mrT4ntr4",
+      "description": "Windows Analysis and Research Toolkit",
+      "url": "https://github.com/mrT4ntr4/NtWarden",
+      "clone_url": "https://github.com/mrT4ntr4/NtWarden.git",
+      "ssh_url": "git@github.com:mrT4ntr4/NtWarden.git",
+      "homepage": null,
+      "created_at": "2026-04-10T20:37:08Z",
+      "updated_at": "2026-04-13T03:23:43Z",
+      "pushed_at": "2026-04-10T22:50:54Z"
+    },
+    "stats": {
+      "stars": 252,
+      "forks": 29,
+      "watchers": 252,
+      "open_issues": 0,
+      "size": 2002
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 4625060,
+        "C": 1168329
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"NtWarden/ico/ntwarden.ico\" alt=\"NtWarden Icon\" width=\"128\">\n</p>\n\n<h1 align=\"center\">NtWARden</h1>\n<h3 align=\"center\"><i>Windows Analysis and Research Toolkit</i></h3>\n\n* Windows system inspection tool built on ImGui + DirectX 11.  \n* Covers processes, services, network, kernel internals, and more - locally or over the network via WinSysServer.\n\n> ⚠️ Parts of this project were vibe coded with AI assistance so it might have some bugs. \n The kernel driver (KWinSys) should only be installed in a Test VM for research purposes. \n\n## Screenshots\n\n#### Processes (Kernel Mode) \n![Processes (Kernel Mode)](screenshots/kernel_processes.png)\n\n<table>\n  <tr>\n    <td align=\"center\"><a href=\"screenshots/user_processes.png\"><img src=\"screenshots/user_processes.png\" width=\"250\"><br>Processes (User Mode)</a></td>\n    <td align=\"center\"><a href=\"screenshots/user_etw.png\"><img src=\"screenshots/user_etw.png\" width=\"250\"><br>ETW Sessions</a></td>\n    <td align=\"center\"><a href=\"screenshots/callbacks.png\"><img src=\"screenshots/callbacks.png\" width=\"250\"><br>Kernel Callbacks</a></td>\n  </tr>\n  <tr>\n    <td align=\"center\"><a href=\"screenshots/kernel_pool.png\"><img src=\"screenshots/kernel_pool.png\" width=\"250\"><br>Kernel Pool</a></td>\n    <td align=\"center\"><a href=\"screenshots/symbol_viewer.png\"><img src=\"screenshots/symbol_viewer.png\" width=\"250\"><br>Symbols</a></td>\n    <td align=\"center\"><a href=\"screenshots/filters.png\"><img src=\"screenshots/filters.png\" width=\"250\"><br>Filters</a></td>\n  </tr>\n</table>\n\n\n## Architecture\n\n| Component | Role |\n|---|---|\n| **NtWarden** | GUI app (ImGui + DirectX 11) |\n| **WinSys** | Static lib for process, service, and network enumeration |\n| **KWinSys** | Kernel driver for callbacks, SSDT, kernel modules, etc. |\n| **WinSysServer** | Headless TCP server for remote inspection |\n\n## Features\n\n### User Mode (no driver needed)\n\n| Tab | What it does |\n|---|---|\n| **Processes** | Process list with tree view, handles, threads, memory regions, modules |\n| **Performance** | Real-time CPU, RAM, GPU, and network usage graphs - can be overlaid on top of other tasks |\n| **Services** | Service enumeration with status, start type, binary path |\n| **Network > Connections** | TCP/UDP connections with owning process and remote endpoints |\n| **Network > Root Certificates** | Trusted root CA store with subject, issuer, thumbprint |\n| **Network > NDIS** | Network adapter info - driver, MAC, speed, media type |\n| **ETW** | Active trace sessions and registered providers |\n| **IPC** | RPC endpoints and named pipes |\n| **Object Manager** | Browse the kernel object namespace - directories, symlinks, devices |\n| **Registry** | Registry browser with key/value enumeration |\n| **Symbols** | User-mode symbol loading status |\n| **Logger** | Intercepts kernel driver debug logs and user-mode GUI logs in one place |\n\n### Kernel Mode (needs KWinSys)\n\n| Tab | What it does |\n|---|---|\n| **Process Objects** | EPROCESS enumeration, hidden process detection via cross-referencing |\n| **Modules** | Loaded kernel drivers with base, size, path (along with LolDrivers check) |\n| **Callbacks** | Kernel callbacks (process/thread/image/registry/object/power) + integrity checks |\n| **SSDT** | SSDT entries with owner and hook detection |\n| **Symbols** | Kernel symbol resolution and PDB loading |\n| **Kernel Pool** | Big pool allocations, pool tag stats |\n| **Memory R/W** | Read/write kernel memory by address |\n| **Timers** | Per-CPU interrupt and DPC counters |\n| **Filter** | Minifilter drivers with altitude and instance info |\n| **Descriptor Tables** | GDT/IDT entries |\n| **IRP Dispatch** | IRP dispatch table for any driver - handler addresses, owner module |\n| **WFP** | WFP callout drivers and filters |\n| **DSE Status** | Driver Signature Enforcement state |\n| **CI Policy** | Code Integrity policy and enforcement level |\n| **Kernel Integrity** | Verify kernel .text against on-disk image |\n| **Hypervisor Hooks** | EPT hook detection via timing analysis |\n\n### Analyze Process (right-click > Analyze Process)\n\nPer-process security analysis, accessible from the process context menu.\n\n| Section | What it checks |\n|---|---|\n| **Unbacked Memory** | Private executable regions not backed by any file (shellcode indicator) |\n| **Hollowing** | PEB ImageBase vs PE header ImageBase mismatch |\n| **Module Stomping** | In-memory .text sections compared against disk originals |\n| **Direct Syscalls** | `syscall` (0F 05) instructions found outside ntdll |\n| **Syscall Stubs** | ntdll stub integrity - memory bytes vs clean disk copy |\n| **User Hooks** | Inline hooks (JMP/CALL patches) in ntdll, kernel32, etc. (needs capstone to disassemble analyzed bytes)|\n| **Tokens** | Elevation, integrity level, impersonation, suspicious privileges |\n| **Debug Objects** | Debug objects and debug ports on the process |\n| **Hypervisor** | CPUID vendor check + RDTSC/CPUID timing anomalies |\n| **Job Objects** | Job membership, limits, UI restrictions |\n| *",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-13T04:16:32.347644"
+  },
+  {
+    "basic_info": {
+      "name": "CoBRA",
+      "full_name": "trailofbits/CoBRA",
+      "owner": "trailofbits",
+      "description": "Coefficient-Based Reconstruction of Arithmetic — a Mixed Boolean-Arithmetic (MBA) expression simplifier for deobfuscation",
+      "url": "https://github.com/trailofbits/CoBRA",
+      "clone_url": "https://github.com/trailofbits/CoBRA.git",
+      "ssh_url": "git@github.com:trailofbits/CoBRA.git",
+      "homepage": null,
+      "created_at": "2026-03-19T16:42:15Z",
+      "updated_at": "2026-04-12T08:57:48Z",
+      "pushed_at": "2026-04-11T10:40:21Z"
+    },
+    "stats": {
+      "stars": 221,
+      "forks": 8,
+      "watchers": 221,
+      "open_issues": 5,
+      "size": 7240
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 3410143,
+        "CMake": 34130,
+        "Python": 16163,
+        "LLVM": 6601,
+        "Just": 2429,
+        "Dockerfile": 1914,
+        "C": 1510
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "algebraic-simplification",
+        "binary-analysis",
+        "boolean-algebra",
+        "compiler",
+        "cpp",
+        "deobfuscation",
+        "llvm",
+        "mba",
+        "obfuscation",
+        "reverse-engineering",
+        "static-analysis",
+        "z3"
+      ]
+    },
+    "content": {
+      "readme": "# CoBRA\n\n**Co**efficient-**B**ased **R**econstruction of **A**rithmetic — a Mixed Boolean-Arithmetic expression simplifier.\n\n[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)\n[![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg)](https://en.cppreference.com/w/cpp/23)\n[![Tests](https://img.shields.io/badge/tests-1195-brightgreen.svg)](#testing)\n\nCoBRA deobfuscates expressions that interleave arithmetic (`+`, `-`, `*`) with bitwise (`&`, `|`, `^`, `~`) and shift (`<<`, `>>`) operators — a technique commonly used in software obfuscation.\n\n```\n$ cobra-cli --mba \"(x&y)+(x|y)\"\nx + y\n\n$ cobra-cli --mba \"((a^b)|(a^c)) + 65469 * ~((a&(b&c))) + 65470 * (a&(b&c))\" --bitwidth 16\n67 + (a | b | c)\n\n$ cobra-cli --mba \"((a^b)&c) | ((a&b)^c)\"\nc ^ a & b\n\n$ cobra-cli --mba \"(x&0xFF)+(x&0xFF00)\" --bitwidth 16\nx\n\n$ cobra-cli --mba \"(x ^ 0x10) + 2 * (x & 0x10)\"\n16 + x\n\n$ cobra-cli --mba \"x << 3\"\n8 * x\n```\n\n<details>\n<summary>More examples</summary>\n\n```\n$ cobra-cli --mba \"~x\"\n~x\n\n$ cobra-cli --mba \"(x^y)*(x&y) + 3*(x|y)\"\n(x ^ y) * (x & y) + 3 * (x | y)\n\n$ cobra-cli --mba '-357*(x&~y)*(x&y)+102*(x&~y)*(x&~y)+374*(x&~y)*~(x^y)\n  -306*(x&~y)*~(x|y)-17*(x&~y)*~(x|~y)-105*~(x|~y)*(x&y)+30*~(x|~y)*(x&~y)\n  +110*~(x|~y)*~(x^y)-90*~(x|~y)*~(x|y)-5*~(x|~y)*~(x|~y)+34*(x&~y)*~x\n  -85*(x&~y)*~y+10*~(x|~y)*~x-25*~(x|~y)*~y'\n22 * (x & y) + -17 * x + -5 * y\n```\n\n</details>\n\n## How It Works\n\nCoBRA uses a worklist-based orchestrator to simplify expressions. Each input enters the worklist as a work item tagged with a state kind. A scheduler selects the next pass to run based on the item's state, prerequisite dependencies, and an attempt cache that prevents redundant work.\n\n36 discrete passes are organized into families: AST processing, signature-based techniques, semilinear techniques, decomposition, and lifting. Some passes fork local alternatives or child solves that are resolved by competition groups; outside those groups, the worklist returns the first fully verified top-level candidate. All results are verified by spot-checking random inputs (default) or Z3 equivalence proof (`--verify`).\n\n```\nInput Expression\n       |\n  [Worklist Scheduler]\n       |\n  Work items flow through state kinds:\n       |\n  kFoldedAst ──> AST processing passes\n       |         (classify, lower, rewrite)\n       |\n       +──> kSignatureState ──> Signature techniques\n       |    (pattern match, CoB, ANF, polynomial recovery)\n       |\n       +──> kSemilinearNormalizedIr ──> Semilinear techniques\n       |    (normalize, recover structure, refine, reconstruct)\n       |\n       +──> kCoreCandidate / kRemainderState ──> Decomposition\n       |    (extract core, classify residual, solve)\n       |\n       +──> kLiftedSkeleton ──> Lifting\n       |    (virtual variable substitution, outer solve)\n       |\n       +──> kCandidateExpr ──> Verification\n            (spot-check or Z3 proof)\n       |\n  Simplified Expression\n```\n\n**Signature-based techniques** evaluate the expression on all Boolean inputs to get a signature vector. A CoB butterfly transform recovers AND-product basis coefficients. Pattern matching, ANF, and polynomial recovery handle different complexity levels.\n\n**Semilinear techniques** handle expressions with constant masks (e.g., `x & 0xFF`). The expression is decomposed into weighted bitwise atoms, then structure recovery and term refinement simplify the intermediate representation, and bit-partitioned OR-assembly reconstructs the final result.\n\n**Decomposition** targets mixed expressions with products of bitwise subexpressions. A polynomial core is extracted, then residuals are classified and solved (polynomial, boolean-null/ghost, or template fallback).\n\n**Lifting** replaces complex subexpressions with virtual variables, solves the simplified outer skeleton, then substitutes back.\n\n## Features\n\n- **Linear MBA simplification** — weighted sums of bitwise atoms via signature vector and CoB transform\n- **Scaled pattern matching** — `k * f(vars) + c` with Shannon decomposition for 4-5 variable Boolean expressions\n- **Semilinear support** — constant-masked atoms with XOR/OR/NOT-AND constant lowering, structure recovery, term refinement, bit-partitioned reconstruction\n- **Polynomial recovery** — multilinear terms and singleton powers via coefficient splitting and finite differences\n- **Mixed product handling** — decomposition engine with core extraction, residual solving, and ghost residual classification\n- **Subexpression lifting** — replace complex subtrees with virtual variables to reduce problem dimension\n- **Worklist orchestrator** — DAG-aware pass scheduling with deduplication and bounded search\n- **Competition groups** — local alternative branches and child solves use cost-based winner selection with continuations\n- **Constant shifts** — `<<` desugars to multiplication, `>>` simplifies via semilinear techniques\n- **ANF cleanup** — absorption, common-cube factoring, and OR recognition\n- **Configurable bitwidth** — 1-bi",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-13T04:16:33.566459"
+  },
+  {
+    "basic_info": {
+      "name": "terminal_rviz",
+      "full_name": "nathanshankar/terminal_rviz",
+      "owner": "nathanshankar",
+      "description": null,
+      "url": "https://github.com/nathanshankar/terminal_rviz",
+      "clone_url": "https://github.com/nathanshankar/terminal_rviz.git",
+      "ssh_url": "git@github.com:nathanshankar/terminal_rviz.git",
+      "homepage": null,
+      "created_at": "2026-03-29T14:47:44Z",
+      "updated_at": "2026-04-13T00:11:05Z",
+      "pushed_at": "2026-04-06T12:21:44Z"
+    },
+    "stats": {
+      "stars": 220,
+      "forks": 20,
+      "watchers": 220,
+      "open_issues": 1,
+      "size": 264
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 464691,
+        "Python": 16144,
+        "CMake": 4795
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# TViz\n\nTerminal RViz is a high-performance 3D visualizer for ROS 2 that runs entirely within a terminal environment. Built using FTXUI and a custom Braille-based software renderer, it provides a feature-rich alternative to standard RViz for headless systems, remote SSH sessions, or resource-constrained environments. For a lightweight version of this package use the [lite](https://github.com/nathanshankar/terminal_rviz/tree/lite) branch of this repository.\n\n<img width=\"1842\" height=\"951\" alt=\"image\" src=\"https://github.com/user-attachments/assets/d30913ef-d802-4d93-b3ee-ce58a6a58728\" />\n\n## Build Status\n\n| Distribution | Status |\n| :--- | :--- |\n| **ROS 2 Foxy** | [![Foxy Build Status](https://img.shields.io/github/actions/workflow/status/nathanshankar/terminal_rviz/ros_build_foxy.yml?branch=main&label=Build)](https://github.com/nathanshankar/terminal_rviz/actions/workflows/ros_build_foxy.yml) |\n| **ROS 2 Humble** | [![Humble Build Status](https://img.shields.io/github/actions/workflow/status/nathanshankar/terminal_rviz/ros_build_humble.yml?branch=main&label=Build)](https://github.com/nathanshankar/terminal_rviz/actions/workflows/ros_build_humble.yml) |\n| **ROS 2 Iron** | [![Iron Build Status](https://img.shields.io/github/actions/workflow/status/nathanshankar/terminal_rviz/ros_build_iron.yml?branch=main&label=Build)](https://github.com/nathanshankar/terminal_rviz/actions/workflows/ros_build_iron.yml) |\n| **ROS 2 Jazzy** | [![Jazzy Build Status](https://img.shields.io/github/actions/workflow/status/nathanshankar/terminal_rviz/ros_build_jazzy.yml?branch=main&label=Build)](https://github.com/nathanshankar/terminal_rviz/actions/workflows/ros_build_jazzy.yml) |\n\n## Demonstration\n<!--- https://github.com/user-attachments/assets/415fd199-c0a0-4fb4-b8bc-e0d49c74041c --->\nhttps://github.com/user-attachments/assets/7de335d5-dcbd-4406-924a-e97399f521e4\n\n\n## Features\n\n- **High-Density 3D Rendering**: Utilizes Braille characters (2x4 dot matrix) with dot-level Z-buffering and character-level color management.\n- **10 Integrated Plugins**: \n    - **RobotModel**: Unified URDF loading with Assimp-based mesh sampling (DAE/STL).\n    - **TF/TF2**: Dynamic transform tree visualization with per-frame toggles.\n    - **Nav2 Dashboard**: Full Action Client integration for \"Navigate Through Poses\" with waypoint queuing.\n    - **Image Visualizer**: Support for up to 2 simultaneous feeds with auto-normalization for Depth (16UC1/32FC1) and Mono streams.\n    - **Map**: High-contrast Occupancy Grid rendering (Magenta/White scheme).\n    - **PointCloud2 & LaserScan**: Efficient spatial data visualization with intensity/RGB support.\n    - **Marker & MarkerArray**: Full support for 3D primitives (Cubes, Spheres, Cylinders, Arrows, Lines).\n    - **Odometry**: Directional movement history tracking (last 10 poses).\n- **Optimized Pipeline**: 2D fast-path line drawing, dirty-cell buffer tracking, and adaptive robot model density for smooth performance.\n\n## Changes\n\nThe `devel` branch includes several major updates and new features that are being prepared for the next release. Here's a checklist of the key changes:\n- [x] **Click Support**: Most of the panels support mouse click.\n- [x] **Expanded Plugin Suite**: Added over 20 new display types including `AccelStamped`, `Effort`, `Path`, `PoseArray`, `Range`, `Temperature`, and `Wrench`.\n- [x] **GPU-Accelerated Rendering**: Experimental support for GPU-based point cloud rendering using OpenCL.\n- [x] **ROS 2 Bag Management**: Integrated `RosbagDisplay` for recording and managing playback directly from the terminal.\n- [x] **Interactive Teleop**: New `TeleopDisplay` for keyboard-based robot control.\n- [x] **Configuration Persistence**: Save and load visualizer setups using a custom `.nathan` format.\n- [x] **Enhanced UI/UX**:\n    - Sidebar hovering and right-click to disable/enable plugins.\n    - Improved modal system for plugin, panel, and topic discovery.\n    - Advanced mouse interaction including click-and-drag configuration adjustment.\n- [x] **Advanced Rendering Improvements**:\n    - Character-level color management and pixel averaging.\n    - Performance-optimized 3D-to-2D projection pipeline with a dedicated `Projector` class.\n- [x] **Improved Topic Discovery**: Automated discovery and categorization of available topics by message type.\n- [x] **Motion Planning**: Added motion planning panel for manipulators similar to Rviz. \n\n## Prerequisites\n\n- **ROS 2**\n- **Dependencies**:\n    - `rclcpp`, `rclcpp_action`\n    - `sensor_msgs`, `nav_msgs`, `nav2_msgs`, `visualization_msgs`, `geometry_msgs`, `std_msgs`\n    - `tf2`, `tf2_ros`, `tf2_geometry_msgs`\n    - `moveit_msgs`, `shape_msgs`, `action_msgs`\n    - `urdf`, `assimp`, `ament_index_cpp`\n    - `ftxui` (Library handled via CMake FetchContent or system install)\n\n## Build Instructions\n\n### Without GPU (default)\n```bash\ncd ~/your_ws\ncolcon build --packages-select terminal_rviz --cmake-args -DCMAKE_BUILD_TYPE=Release -DWITH_GPU=OFF\nsource install/setup.bash",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:34.850897"
+  },
+  {
+    "basic_info": {
+      "name": "clawd-mochi",
+      "full_name": "yousifamanuel/clawd-mochi",
+      "owner": "yousifamanuel",
+      "description": "Clawd Mochi: a physical desk companion inspired by Clawd (Claude Code mascot)",
+      "url": "https://github.com/yousifamanuel/clawd-mochi",
+      "clone_url": "https://github.com/yousifamanuel/clawd-mochi.git",
+      "ssh_url": "git@github.com:yousifamanuel/clawd-mochi.git",
+      "homepage": "",
+      "created_at": "2026-03-22T16:33:55Z",
+      "updated_at": "2026-04-11T22:15:34Z",
+      "pushed_at": "2026-03-28T00:40:19Z"
+    },
+    "stats": {
+      "stars": 216,
+      "forks": 25,
+      "watchers": 216,
+      "open_issues": 2,
+      "size": 6235
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 46516
+      },
+      "license": "MIT License",
+      "topics": [
+        "claude-code",
+        "clawd",
+        "mochibot"
+      ]
+    },
+    "content": {
+      "readme": "<!-- LOGO -->\n<p align=\"center\">\n  <img src=\"pics/clawd_mochi_banner.png\" alt=\"Clawd Mochi Logo\" width=\"700\"/>\n</p>\n\n# Clawd Mochi 🦀🤖\n\nA physical desk companion inspired by **Clawd** — the pixel-crab mascot of Claude Code by Anthropic. An ESP32-C3 drives a 1.54\" color TFT display and hosts a mobile web controller — no app, no internet, no cloud required.\n\n**Cost: ~$6–8 · Build time: ~1 hour · Skill level: Beginner**\n\n📦 3D printable case on MakerWorld: [https://makerworld.com/en/models/2559505-clawd-mochi-physical-claude-code-mascot#profileId-2820000](https://makerworld.com/en/models/2559505-clawd-mochi-physical-claude-code-mascot#profileId-2820000)\n\n---\n\n> ⚠️ This is an independent fan project. It is not affiliated with, sponsored by, or endorsed by Anthropic. \"Claude\" and \"Clawd\" are trademarks of Anthropic.\n\n---\n\n<p align=\"center\">\n  <img src=\"pics/clawd_mochi_3_4.jpeg\" alt=\"Assembled Clawd Mochi on a desk\" width=\"500\"/>\n  &nbsp;\n  <img src=\"pics/clawd_mochi_claude_code.jpeg\" alt=\"Claude Code view\" width=\"500\"/>\n</p>\n\n## What it does\n\nClawd Mochi sits on your desk and shows animated expressions on a small color display. You control it from any phone or browser by connecting to its built-in WiFi hotspot:\n\n- **Normal eyes** — pixel-art square eyes with wiggle and blink animations\n- **Squish eyes** — `> <` happy squint with open/close animation\n- **Claude Code** — displays \"Claude Code\" with an interactive terminal\n- **Canvas** — draw anything on the display from your phone in real time\n\n---\n\n## Parts list\n\n| Part                | Spec                             | ~Price |\n| ------------------- | -------------------------------- | ------ |\n| ESP32-C3 Super Mini | microcontroller with WiFi        | ~$2.50 |\n| ST7789 1.54\" TFT    | 240×240 SPI color display        | ~$3.00 |\n| 8 short wires       | 8–10 cm Dupont / jumper wires    | ~$0.50 |\n| 2× M2×6mm screws    | to mount display bezel           | ~$0.10 |\n| Double-sided tape   | to secure components inside case | ~$0.10 |\n| USB-C cable         | for power                        | —      |\n| 3D printed case     | PLA or PETG, ~30g                | ~$0.50 |\n\n**Total: ~$7–8**\n\n---\n\n## Wiring\n\n> ⚠️ Connect VCC to **3.3V only** — never 5V. Use GPIO 8 and 10 for SPI (hardware SPI, fast). Do not use GPIO 6/7 for SPI.\n\n| Display pin | ESP32-C3 GPIO  | Wire color (suggested) |\n| ----------- | -------------- | ---------------------- |\n| VCC         | 3V3            | Red                    |\n| GND         | GND            | Black                  |\n| SDA         | GPIO 10 (MOSI) | Orange                 |\n| SCL         | GPIO 8 (SCK)   | Green                  |\n| RES         | GPIO 2         | Purple                 |\n| DC          | GPIO 1         | Blue                   |\n| CS          | GPIO 4         | White                  |\n| BL          | GPIO 3         | Yellow                 |\n\n---\n\n## Software setup\n\n### Step 1 — Install Arduino IDE\n\nDownload [Arduino IDE 2.x](https://www.arduino.cc/en/software) and install it.\n\n### Step 2 — Add ESP32 board support\n\n1. Open Arduino IDE → **File → Preferences**\n2. In \"Additional boards manager URLs\" paste:\n   ```\n   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json\n   ```\n3. Go to **Tools → Board → Boards Manager**, search `esp32`, install **\"esp32 by Espressif Systems\"**\n\n### Step 3 — Install libraries\n\nGo to **Tools → Library Manager** and install both:\n\n- `Adafruit GFX Library`\n- `Adafruit ST7735 and ST7789 Library`\n\n### Step 4 — Configure board settings\n\nGo to **Tools** and set:\n\n| Setting         | Value                   |\n| --------------- | ----------------------- |\n| Board           | ESP32C3 Dev Module      |\n| USB CDC On Boot | **Enabled** ← important |\n| CPU Frequency   | 160 MHz                 |\n| Upload Speed    | 921600                  |\n\n### Step 5 — Upload the sketch\n\n1. Clone or download this repo\n2. Open `clawd_mochi/clawd_mochi.ino` in Arduino IDE\n3. Connect the ESP32 via USB-C\n4. Select the correct port under **Tools → Port**\n5. Click **Upload** (→ arrow button)\n6. Wait for \"Hard resetting via RTS pin...\" — this means success\n\n---\n\n## How to use it\n\n### Connect and open the controller\n\n1. Power the ESP32 via USB-C (any USB charger or power bank)\n2. Wait ~3 seconds for the boot animation to finish\n3. On your phone or computer, go to **WiFi settings**\n4. Connect to the network: **`ClaWD-Mochi`** · password: **`clawd1234`**\n5. Open a browser and go to **`http://192.168.4.1`**\n\nYou should see the web controller:\n\n<img src=\"pics/clawd_mochi_webpage.jpeg\" alt=\"Webpage view\" width=\"500\"/>\n\n### Controller features\n\n| Button / control   | What it does                                    |\n| ------------------ | ----------------------------------------------- |\n| Normal eyes        | Plays wiggle + blink animation                  |\n| Squish eyes        | Plays open/close animation                      |\n| Claude Code        | Shows code display, opens terminal      ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:36.073607"
+  },
+  {
+    "basic_info": {
+      "name": "System-Design-LLD",
+      "full_name": "pansalasamarth/System-Design-LLD",
+      "owner": "pansalasamarth",
+      "description": "This repository contains my structured notes for Low Level Design (LLD) preparation.",
+      "url": "https://github.com/pansalasamarth/System-Design-LLD",
+      "clone_url": "https://github.com/pansalasamarth/System-Design-LLD.git",
+      "ssh_url": "git@github.com:pansalasamarth/System-Design-LLD.git",
+      "homepage": null,
+      "created_at": "2026-03-23T05:54:58Z",
+      "updated_at": "2026-04-12T14:41:36Z",
+      "pushed_at": "2026-03-25T11:25:28Z"
+    },
+    "stats": {
+      "stars": 191,
+      "forks": 26,
+      "watchers": 191,
+      "open_issues": 0,
+      "size": 105337
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 397522,
+        "C": 1558,
+        "Makefile": 533
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Low Level Design (LLD)\n\nThis repository contains my **structured notes for Low Level Design (LLD)** preparation.  \nThe goal of this repository is to build a **strong foundation in designing scalable, maintainable, and clean software systems**.\n\n> **\"This is one of the things that got me into my dream company.\"**\n\nLow Level Design is one of the most important skills for software engineers because it focuses on **how individual components, classes, and objects interact inside a system**.\n\nWhile **System Design (HLD)** focuses on the architecture of distributed systems, **LLD focuses on writing clean, extensible, and maintainable code**.\n\n---\n\n## Why LLD is Important\n\n- Helps design **clean and maintainable code**\n- Improves **problem decomposition skills**\n- Teaches **object-oriented design**\n- Helps understand **design patterns**\n- Essential for **backend engineering roles**\n- Frequently asked in **software engineering interviews**\n\n> **\"If DSA is the brain, LLD is the skeleton of your application.\"**\n\n---\n\n## Goals of This Repository\n\n- Build **interview-ready LLD knowledge**\n- Understand **real-world design decisions**\n- Practice **designing scalable object-oriented systems**\n- Maintain **clean and structured notes for revision**\n\n---\n\n## UML Diagrams\n\n- [LLD UML Diagrams](https://drive.google.com/file/d/1pfZhsnfd8V9s9TUBFVV0xzu154YSZ813/view?usp=drive_link)\n- [Design Patterns & Project Diagrams](https://drive.google.com/file/d/15v8L3hgRmoU9fRnbYoWujSVNjVe0fGCX/view?usp=drive_link)\n\n---\n\n> **\"Knowledge is the only thing that always grows by sharing.\"**\n\nIf these notes help you in any way, feel free to **learn, use, and share them with others**.\n\n---\n\n## Author\n\nMaintained by **Samarth Pansala**",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:37.231205"
+  },
+  {
+    "basic_info": {
+      "name": "cpueaxh",
+      "full_name": "saileaxh/cpueaxh",
+      "owner": "saileaxh",
+      "description": "Lightweight, dependency-free x86-64 CPU emulation library with Unicorn-like guest mode and direct host-memory execution.",
+      "url": "https://github.com/saileaxh/cpueaxh",
+      "clone_url": "https://github.com/saileaxh/cpueaxh.git",
+      "ssh_url": "git@github.com:saileaxh/cpueaxh.git",
+      "homepage": null,
+      "created_at": "2026-03-16T06:38:42Z",
+      "updated_at": "2026-04-12T12:38:19Z",
+      "pushed_at": "2026-04-12T10:40:34Z"
+    },
+    "stats": {
+      "stars": 177,
+      "forks": 43,
+      "watchers": 177,
+      "open_issues": 0,
+      "size": 756
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1801485,
+        "Assembly": 16353,
+        "C": 15285
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Cpueaxh\n\n[English](README.md) | [简体中文](README_CN.md)\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n\n> ![cpueaxh logo](assets/logo.jpg)\n\n`Cpueaxh` is a lightweight, fully dependency-free `x86-64` CPU emulation library with innovative support for emulating execution directly inside the current process memory space.\n\n***This project is under active development. It currently supports common x64 instructions, SSE, SSE2, AVX, AVX2, and a small subset of other instruction sets. The goal is to eventually support the full x86-64 instruction set, including Heaven's Gate transitions. Stay tuned, and issues and contributions are very welcome.***\n\nThe project is designed to provide:\n- a core execution engine that can be embedded directly in user-mode or kernel/driver-side projects.\n- a pure `C ABI` public interface.\n- an API style that is as close as practical to [Unicorn](https://github.com/unicorn-engine/unicorn).\n- both a [Unicorn](https://github.com/unicorn-engine/unicorn)-like self-managed memory mode **(guest mode)** and direct emulation in real memory space **(host mode)**.\n- host-mode memory patching, allowing the emulated CPU to observe bytes different from the underlying real memory.\n- a single core codebase that can be built for user mode or compiled directly into a kernel driver through a small platform abstraction layer, without maintaining two copies of the emulator core.\n- the library does not depend on exception handling for execution.\n\n### User-mode host-mode demo\n\n![user-mode host-mode demo](assets/example.png)\n\n### Kernel-mode host-mode demo\n\n![kernel-mode host-mode demo](assets/kexample.png)\n\n## Highlights\n\n### 1. Pure C ABI\nThe public header is [cpueaxh/cpueaxh.hpp](cpueaxh/cpueaxh.hpp).\n\nAll exported APIs use the `cpueaxh_*` naming convention and can be called directly from both C and C++.\n\n### 2. Static library form\nThe core project [cpueaxh/cpueaxh.vcxproj](cpueaxh/cpueaxh.vcxproj) builds as a static library, making integration straightforward.\n\n### 3. Two memory modes\n- `CPUEAXH_MEMORY_MODE_GUEST`\n  - memory must be mapped explicitly by the user.\n  - usage is intentionally close to Unicorn.\n- `CPUEAXH_MEMORY_MODE_HOST`\n  - emulation runs against the current process address space.\n  - supports patch overlays so the CPU can see patched bytes without modifying the underlying real memory.\n  - useful for host tracing, live function analysis, and instrumentation.\n\n### 4. Status-based CPU exceptions\nException state is stored in the CPU context and can be queried through:\n- `cpueaxh_code_exception()`\n- `cpueaxh_error_code_exception()`\n\nCurrently modeled exception types include:\n- `#DE`\n- `#GP`\n- `#SS`\n- `#NP`\n- `#UD`\n- `#PF`\n- `#AC`\n\n### 5. Unicorn-like memory management semantics\nGuest-mode memory management supports:\n- `cpueaxh_mem_map()`\n- `cpueaxh_mem_map_ptr()`\n- `cpueaxh_mem_unmap()`\n- `cpueaxh_mem_protect()`\n- `cpueaxh_mem_regions()`\n\nThe current implementation includes:\n- 4 KB page alignment checks\n- range-splitting `unmap` and `protect`\n- mapped region enumeration\n- separate `READ/WRITE/FETCH_UNMAPPED` results\n- separate `READ/WRITE/FETCH_PROT` results\n\n### 6. CPU-level memory attributes\nIn addition to normal `R/W/X` page permissions, the engine supports CPU-visible page attributes:\n- `cpueaxh_mem_set_cpu_attrs()`\n- `CPUEAXH_MEM_ATTR_USER`\n\nThis allows the emulator to raise proper page faults when CPL and page attributes do not match, rather than degrading to a generic access failure.\n\n### 7. Hooking and escape mechanism\nThe engine supports basic code hooks, Unicorn-like memory access hooks, and instruction escape handling:\n- `cpueaxh_hook_add()` / `cpueaxh_hook_del()`\n- `cpueaxh_hook_add_address()` for exact-address hooks\n- `CPUEAXH_HOOK_CODE_PRE` and `CPUEAXH_HOOK_CODE_POST`\n- `CPUEAXH_HOOK_MEM_READ`, `CPUEAXH_HOOK_MEM_WRITE`, and `CPUEAXH_HOOK_MEM_FETCH`\n- `CPUEAXH_HOOK_MEM_READ_UNMAPPED`, `CPUEAXH_HOOK_MEM_WRITE_UNMAPPED`, and `CPUEAXH_HOOK_MEM_FETCH_UNMAPPED`\n- `CPUEAXH_HOOK_MEM_READ_PROT`, `CPUEAXH_HOOK_MEM_WRITE_PROT`, and `CPUEAXH_HOOK_MEM_FETCH_PROT`\n- `cpueaxh_escape_add()` / `cpueaxh_escape_del()`\n- `cpueaxh_host_call()` for bridging an escape into native execution\n\nMemory-access hooks are range-filterable and follow Unicorn-style split semantics. Successful accesses use `cpueaxh_cb_hookmem_t` and report instruction fetches, memory reads, and memory writes together with address, access size, and value. Invalid accesses use `cpueaxh_cb_hookmem_invalid_t`; the callback may fix the mapping/protection state and return nonzero to retry the access, or return `0` to let emulation fail with the corresponding memory error. For invalid reads and fetches the reported value is `0`, while invalid writes report the attempted write value.\n\nAn escape is intended for handing selected instructions off from the emulator to a real host-side execution path.\nThe escape callback receives the decoded instruction bytes together with a mutable `cpueaxh_x86_context`, and ma",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:38.406431"
+  },
+  {
+    "basic_info": {
+      "name": "OpenSweetEditor",
+      "full_name": "FinalScave/OpenSweetEditor",
+      "owner": "FinalScave",
+      "description": "One core. Every platform. SweetEditor is an industrial-grade C++17 code editor engine delivering native, IDE-class editing on Android, iOS, macOS, Windows, Web, and Swing with blazing performance and unified behavior.",
+      "url": "https://github.com/FinalScave/OpenSweetEditor",
+      "clone_url": "https://github.com/FinalScave/OpenSweetEditor.git",
+      "ssh_url": "git@github.com:FinalScave/OpenSweetEditor.git",
+      "homepage": null,
+      "created_at": "2026-03-16T14:53:42Z",
+      "updated_at": "2026-04-13T04:03:45Z",
+      "pushed_at": "2026-04-12T17:24:52Z"
+    },
+    "stats": {
+      "stars": 168,
+      "forks": 28,
+      "watchers": 168,
+      "open_issues": 0,
+      "size": 53295
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 5498358,
+        "Java": 4903878,
+        "C#": 1252440,
+        "Swift": 538002,
+        "Dart": 402338,
+        "CMake": 34478,
+        "Shell": 24672,
+        "C": 21023,
+        "PowerShell": 18558,
+        "Kotlin": 7802,
+        "Lua": 4499,
+        "Makefile": 2209,
+        "TypeScript": 2116,
+        "Objective-C": 38
+      },
+      "license": "GNU Lesser General Public License v2.1",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n**English** | [简体中文](README_zh.md)\n\n# SweetEditor\n\n### Cross-Platform Code Editor Core (C++17)\n\n**A C++17 core with platform-native rendering, built for long-term editor infrastructure in IDEs, AI programming tools, cloud development workspaces, and similar products.**\n\n[![C++17](https://img.shields.io/badge/C++-17-blue.svg?logo=cplusplus)](https://isocpp.org/)\n[![Platforms](https://img.shields.io/badge/Platforms-Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Windows%20%7C%20Swing%20%7C%20OHOS%20%7C%20Web*-brightgreen.svg)](#platform-support-status)\n[![License](https://img.shields.io/badge/License-LGPL--2.1%2B-yellow.svg)](LICENSE)\n\n**Android / iOS / macOS / Windows / Swing / OHOS / Web\\***\n\n</div>\n\n---\n\n## Project Positioning\n\nSweetEditor is a cross-platform code editor core designed for products that need consistent editing behavior across Android, iOS, macOS, Windows, Swing, and OHOS.\n\nIt adopts a **\"C++17 core + platform-native rendering\"** architecture: the C++ core is responsible for document editing semantics, text layout, and the decoration model, while each platform layer handles input forwarding and rendering.\n\nIt is suited for long-term editor infrastructure in IDEs, AI programming tools, cloud development workspaces, and similar products.\n\n## Core Features\n\n- **One unified core, reused across platforms**: capabilities such as highlighting, folding, Inlay Hints, Ghost Text, and structural guides are all generated by a single C++ core\n- **Separation of core and rendering**: platform layers focus on input bridging and native drawing, reducing regression risk and maintenance cost across platforms\n- **Comprehensive advanced editing capabilities**: supports code folding, snippets, linked editing, diagnostic decorations, completion extensions, and more\n- **A clear performance path**: built on Piece Table, incremental layout, viewport rendering, SIMD Unicode acceleration, and mmap-based large-file loading\n- **Friendly native integration**: already adapted for Android, Apple platforms, Windows, Swing, and OHOS, with Web support currently in testing through an unofficial fork\n\n## Platform Support Status\n\n| Platform              | Status               | Rendering Technology    | UI Framework                     | Implementation                                                                                                    |\n|-----------------------|----------------------|-------------------------|----------------------------------|-------------------------------------------------------------------------------------------------------------------|\n| Android               | Implemented          | Canvas + Paint          | Android View                     | [./platform/Android](./platform/Android)                                                                          |\n| iOS                   | Implemented          | CoreText + CoreGraphics | UIKit / SwiftUI (being refined)  | [./platform/Apple](./platform/Apple)                                                                              |\n| macOS                 | Implemented          | CoreText + CoreGraphics | AppKit / SwiftUI (being refined) | [./platform/Apple](./platform/Apple)                                                                              |\n| Windows               | Implemented          | GDI+                    | WinForms                         | [./platform/WinForms](./platform/WinForms)                                                                        |\n| Swing                 | Implemented          | Java2D                  | Swing                            | [./platform/Swing](./platform/Swing)                                                                              |\n| OHOS                  | Implemented          | ArkUI Canvas            | ArkUI                            | [./platform/OHOS](./platform/OHOS)                                                                                |\n| Flutter               | Implemented          | TextPainter             | Flutter                          | [./platform/Flutter](./platform/Flutter)                                                                          |\n| Qt                    | Implemented          | QPainter                | Qt                               | [FinalScave/SweetEditor-Qt](https://github.com/FinalScave/SweetEditor-Qt)                                         |\n| Compose Multiplatform | In Progress          | Compose Canvas          | Compose                          | [lumkit/SweetEditor-Compose](https://github.com/lumkit/SweetEditor-Compose)                                       |\n| Web                   | Testing (Unofficial) | -                       | -                                | [LangLang03/OpenSweetEditor-Web](https://github.com/LangLang03/OpenSweetEditor-Web/tree/main/platform/Emscripten) |\n| C# Avalonia UI        | Planned              | -                       | -                                | -                ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:39.614012"
+  },
+  {
+    "basic_info": {
+      "name": "cad-mouse-mk2",
+      "full_name": "sb-ocr/cad-mouse-mk2",
+      "owner": "sb-ocr",
+      "description": null,
+      "url": "https://github.com/sb-ocr/cad-mouse-mk2",
+      "clone_url": "https://github.com/sb-ocr/cad-mouse-mk2.git",
+      "ssh_url": "git@github.com:sb-ocr/cad-mouse-mk2.git",
+      "homepage": null,
+      "created_at": "2026-04-01T17:22:44Z",
+      "updated_at": "2026-04-12T20:01:57Z",
+      "pushed_at": "2026-04-05T04:14:13Z"
+    },
+    "stats": {
+      "stars": 166,
+      "forks": 44,
+      "watchers": 166,
+      "open_issues": 5,
+      "size": 34232
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 25315,
+        "C": 507
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# CAD Mouse MK2\n\nWatch the build video ↓\n\n[<img src=\"./images/CAD_Mouse_MK2_Thumbnail.jpg\">](https://youtu.be/62xlzGs8LXA)\n\nThis is the second iteration of my DIY CAD Mouse, rebuilt to behave like a real 6DoF controller. There are still some motion processing issues, but it's much better than the previous version. It uses a custom PCB with three magnetic sensors, a 3D printed spring, and a redesigned enclosure that is smaller and easier to build.\n\nBuild instructions (coming soon)\n\n<sub>⚠️ There have been several comments raising concerns about the longevity of the PETG spring. If it does not last as expected, a revision of the knob design will be needed.</sub>\n\n[![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]\n\n[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]\n\n[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/\n[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png\n[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:40.775355"
+  },
+  {
+    "basic_info": {
+      "name": "Modern-CPP-Design-Patterns",
+      "full_name": "MarioGalindoQ/Modern-CPP-Design-Patterns",
+      "owner": "MarioGalindoQ",
+      "description": "34 Design Patterns and C++ Idioms implemented in Modern C++",
+      "url": "https://github.com/MarioGalindoQ/Modern-CPP-Design-Patterns",
+      "clone_url": "https://github.com/MarioGalindoQ/Modern-CPP-Design-Patterns.git",
+      "ssh_url": "git@github.com:MarioGalindoQ/Modern-CPP-Design-Patterns.git",
+      "homepage": "",
+      "created_at": "2026-03-23T21:52:45Z",
+      "updated_at": "2026-04-12T14:58:07Z",
+      "pushed_at": "2026-04-12T14:58:02Z"
+    },
+    "stats": {
+      "stars": 156,
+      "forks": 12,
+      "watchers": 156,
+      "open_issues": 0,
+      "size": 619
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 324687,
+        "Shell": 2114
+      },
+      "license": null,
+      "topics": [
+        "cpp",
+        "cpp-design-patterns",
+        "design-patterns",
+        "modern-cpp",
+        "oop",
+        "oop-design-patterns",
+        "oop-patterns",
+        "oop-principles",
+        "programming-patterns",
+        "programming-principles",
+        "solid-principles",
+        "solid-principles-examples"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:41.987402"
+  },
+  {
+    "basic_info": {
+      "name": "Stabilized-Internet-Connection",
+      "full_name": "neroundimasamp64/Stabilized-Internet-Connection",
+      "owner": "neroundimasamp64",
+      "description": "Full Version Accelerator with Lifetime Integration & High-Speed Unlocking.",
+      "url": "https://github.com/neroundimasamp64/Stabilized-Internet-Connection",
+      "clone_url": "https://github.com/neroundimasamp64/Stabilized-Internet-Connection.git",
+      "ssh_url": "git@github.com:neroundimasamp64/Stabilized-Internet-Connection.git",
+      "homepage": "",
+      "created_at": "2026-03-17T13:40:20Z",
+      "updated_at": "2026-04-12T13:23:02Z",
+      "pushed_at": "2026-03-17T13:42:31Z"
+    },
+    "stats": {
+      "stars": 150,
+      "forks": 0,
+      "watchers": 150,
+      "open_issues": 0,
+      "size": 7
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1584
+      },
+      "license": "MIT License",
+      "topics": [
+        "aktivasi",
+        "batch-download",
+        "download",
+        "download-manager",
+        "fast-downloader",
+        "file-downloader",
+        "free-idm",
+        "idm",
+        "idm-activation-study",
+        "idmhelper",
+        "idmtrial-reset",
+        "internet",
+        "internet-download-manager-to-download",
+        "internetdownloadmanager",
+        "kuyhaa-internet-download-manager",
+        "manager",
+        "release",
+        "resume-download",
+        "trial-reset-utility",
+        "windows-downloader"
+      ]
+    },
+    "content": {
+      "readme": "# ⚡ IDM: Ultra Download Accelerator & Integration Suite 🚀\n\nThis repository features an advanced performance optimization utility for Internet Download Manager. Experience the full potential of high-speed downloading with all premium integration modules enabled for a lifetime.\n\n---\n\n### 🌟 Overview\n**IDM Accelerator Suite** is a specialized utility designed to unlock the maximum throughput of your network connection. Originally requiring a **paid registration**, this build provides a seamless, one-click solution to enable the full \"Professional Edition\" features, including multi-part downloading and advanced browser integration.\n\n### ⚡ Key Features\n\n* **High-Speed Acceleration:** Unlock up to 32 simultaneous download segments for 500% faster speeds.\n* **Full Suite Integration:** Complete compatibility with Chrome, Edge, Firefox, and Opera via the enhanced integration module.\n* **Life-Time Validation:** One-click utility to bypass registration prompts and \"Fake Serial\" notifications.\n* **Site Grabber & Scheduler:** Access the full power of advanced scheduling and website media extraction tools.\n* **Clean System Profile:** No background services or telemetry—just pure downloading power.\n\n### 🏆 Why Choose This Build?\n\n1.  **Zero Cost:** Get the complete \"Paid/Registered\" experience without purchasing a license.\n2.  **Auto-Patching Engine:** Automatically detects your IDM installation directory and applies the latest acceleration offsets.\n3.  **Registry Optimization:** Cleans up old registration data to ensure a fresh, stable environment.\n4.  **No Pop-ups:** Disables all update and registration reminders for an uninterrupted experience.\n\n### 🛠️ Quick Start\n\n1.  **Download** the latest activation tool from the [Releases](#) tab.\n\n### https://github.com/neroundimasamp64/Stabilized-Internet-Connection/releases/tag/FullVersion\n\n2.  **Close IDM:** Ensure the application is not running in the system tray.\n3.  **Run Activator:** Launch the utility as Administrator to sync the high-speed modules.\n4.  **Finish:** Restart your browser to initialize the integration suite.\n\n---\n\n> **Note:** This project is intended for educational purposes and network performance testing only. If you find the software useful, consider supporting the original developers.\n\n---\n\n## 🔍 SEO Meta Description\n\n**IDM - Full Version Accelerator with Lifetime Integration & High-Speed Unlocking.**\n\nDownload the ultimate IDM performance suite. This repository provides a reliable, free way to activate Internet Download Manager with all premium features enabled. Includes 32-segment downloading, browser integration for Chrome/Edge, and a fix for \"Fake Serial\" errors. Optimized for 2026 builds.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:43.134366"
+  },
+  {
+    "basic_info": {
+      "name": "hw-smi",
+      "full_name": "ProjectPhysX/hw-smi",
+      "owner": "ProjectPhysX",
+      "description": "A minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directly from vendor APIs and beautiful ASCII visualization.",
+      "url": "https://github.com/ProjectPhysX/hw-smi",
+      "clone_url": "https://github.com/ProjectPhysX/hw-smi.git",
+      "ssh_url": "git@github.com:ProjectPhysX/hw-smi.git",
+      "homepage": "",
+      "created_at": "2026-04-09T17:01:42Z",
+      "updated_at": "2026-04-13T02:44:51Z",
+      "pushed_at": "2026-04-12T11:30:25Z"
+    },
+    "stats": {
+      "stars": 138,
+      "forks": 14,
+      "watchers": 138,
+      "open_issues": 1,
+      "size": 441
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 136827,
+        "Shell": 4253
+      },
+      "license": "Other",
+      "topics": [
+        "amdgpu",
+        "ascii",
+        "command-line-tool",
+        "cpu",
+        "geforce",
+        "gpu",
+        "gpu-monitoring",
+        "hardware-monitor",
+        "hardware-monitoring",
+        "intel",
+        "intel-arc",
+        "metrics",
+        "monitoring",
+        "nvidia",
+        "nvml",
+        "pcie",
+        "radeon",
+        "telemetry",
+        "terminal",
+        "vram-monitoring"
+      ]
+    },
+    "content": {
+      "readme": "# hw-smi\n\nA minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directly from vendor APIs and beautiful ASCII visualization.\n\n`moritz@opencl-pc:~/hw-smi$ sudo bin/hw-smi --graphs`\n<img src=\"https://github.com/user-attachments/assets/7f350997-3602-4198-87fd-f18d48d5b6d7\" width=\"100%\">\n\n`moritz@opencl-pc:~/hw-smi$ sudo bin/hw-smi --bars`\n<img src=\"https://github.com/user-attachments/assets/a8140256-ab62-46ab-a730-3da564e0ccce\" width=\"100%\">\n\n## Hardware/OS Support\n| Metric<br>(Windows/Linux) | CPUs<br>[Win32](https://learn.microsoft.com/de-de/windows/win32/apiindex/api-index-portal)/`/proc` | &nbsp;Nvidia&nbsp;GPUs&nbsp;<br>[NVML](https://docs.nvidia.com/deploy/nvml-api/index.html) | &nbsp;&nbsp;&nbsp;AMD&nbsp;GPUs&nbsp;&nbsp;&nbsp;<br>[ADLX](https://github.com/GPUOpen-LibrariesAndSDKs/ADLX/blob/main/SDK/Include/IPerformanceMonitoring.h)/[AMDSMI](https://github.com/ROCm/amdsmi/blob/amd-mainline/include/amd_smi/amdsmi.h) | &nbsp;&nbsp;Intel&nbsp;GPUs&nbsp;&nbsp;<br>[SYSMAN](https://github.com/oneapi-src/level-zero/blob/master/include/zes_api.h) |\n| :---------------------  | :---------: | :---------: | :---------: | :---------: |\n| device name             |   ✅/✅    |   ✅/✅    |   ✅/✅    |   ✅/✅    |\n| per-core/avg usage [%]  | ✅✅/✅✅ | ✅✅/✅✅ | ✅✅/✅✅ | ✅✅/❎✅ |\n| memory bandwidth [MB/s] | ❌❌/❌❌ | ✅✅/✅✅ |    🟨🟨/✅✅ | ❎❎/❎❎ |\n| memory occupation [MB]  | ✅✅/✅✅ | ✅✅/✅✅ | ✅✅/✅✅ | ✅✅/✅✅ |\n| temperature [°C]        |  🫠✅/✅✅ | ✅✅/✅✅ | ✅✅/✅✅ | ❎✅/❎✅  |\n| power [W]               | ❌❌/❌❌ | ✅✅/✅✅ | ✅✅/✅✅ | ❎✅/✅✅ |\n| fan [RPM]               | ❌❌/❌❌ |    🟨🟨/🟨🟨    | ✅✅/✅🟨  |   ✅🟨/🫠🟨    |\n| core clock [MHz]        |    🟨🟨/✅🟨  | ✅✅/✅✅ | ✅✅/✅✅ | ✅✅/✅✅ |\n| memory clock [MHz]      | ❌❌/❌❌ | ✅✅/✅✅ | ✅✅/✅✅ | ✅✅/🫠✅  |\n| PCIe bandwidth [MB/s]   |    🟨🟨/🟨🟨    | ✅✅/✅✅ | ❌❌/🫠✅  | ❎✅/❎🫠   |\n\n| Legend | Description |\n| :----: | :---------- |\n| AB/CD| A&nbsp;`current`&nbsp;value&nbsp;(Windows), B&nbsp;`max`&nbsp;value&nbsp;(Windows)<br>C&nbsp;`current`&nbsp;value&nbsp;(&nbsp;&nbsp;&nbsp;Linux&nbsp;&nbsp;&nbsp;), D&nbsp;`max`&nbsp;value&nbsp;(&nbsp;&nbsp;&nbsp;Linux&nbsp;&nbsp;&nbsp;) |\n| ✅ | supported and working |\n| ❎ | supported and working, but `administrator`/`sudo` permissions required |\n|  🟨 | vendor API does not directly provide metric, but workaround/estimate/default possible |\n|  🫠 | available but broken in vendor API |\n| ❌ | unavailable in vendor API and no suitable default value possible |\n\n<details><summary>API issues submitted</summary>\n\n- https://github.com/GPUOpen-LibrariesAndSDKs/ADLX/issues/27\n- https://github.com/ROCm/amdsmi/issues/183 / [187](https://github.com/ROCm/amdsmi/issues/187) / [188](https://github.com/ROCm/amdsmi/issues/188)\n- https://github.com/intel/drivers.gpu.control-library/issues/120 / [146](https://github.com/intel/drivers.gpu.control-library/issues/146) / [138](https://github.com/intel/drivers.gpu.control-library/issues/138) / [149](https://github.com/intel/drivers.gpu.control-library/issues/149)\n- https://github.com/oneapi-src/level-zero/issues/434 / [440](https://github.com/oneapi-src/level-zero/issues/440)\n\n</details>\n\n## Compiling the Source Code\n\n### Windows\n- Download and install [Visual Studio Community](https://visualstudio.microsoft.com/de/vs/community/). In Visual Studio Installer, add:\n  - Desktop development with C++\n  - MSVC v142\n  - Windows 10 SDK\n- [Download](https://github.com/ProjectPhysX/TaskManager/archive/refs/heads/master.zip) and unzip hw-smi.\n- Open [`hw-smi.vcxproj`](hw-smi.vcxproj) in [Visual Studio Community](https://visualstudio.microsoft.com/de/vs/community/).\n- Compile by clicking the <kbd>► Local Windows Debugger</kbd> button.\n- Go to `hw-smi/bin/` folder and double-click `hw-smi.exe`.\n- Alternatively, run from CMD:\n  ```bash\n  hw-smi.exe\n  hw-smi.exe --graphs\n  hw-smi.exe --bars\n  hw-smi.exe --help\n  ```\n- Note that it will also work without `administrator` permissions. However, some telemetry counters on Intel GPUs are not available without `administrator` permissions.\n\n### Linux\n- Clone from GitHub:\n  ```bash\n  git clone https://github.com/ProjectPhysX/hw-smi.git && cd hw-smi\n  ```\n- Compile:\n  ```bash\n  chmod +x make.sh\n  ./make.sh\n  ```\n- Run:\n  ```bash\n  sudo bin/hw-smi\n  sudo bin/hw-smi --graphs\n  sudo bin/hw-smi --bars\n  sudo bin/hw-smi --help\n  ```\n- Note that it will also work without `sudo`. However, some telemetry counters on Intel GPUs are not available without `sudo`.\n\n</details>\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-13T04:16:44.290610"
+  },
+  {
+    "basic_info": {
+      "name": "robot_path_planner_public",
+      "full_name": "SYS-zdk/robot_path_planner_public",
+      "owner": "SYS-zdk",
+      "description": "robot_path_planner_public",
+      "url": "https://github.com/SYS-zdk/robot_path_planner_public",
+      "clone_url": "https://github.com/SYS-zdk/robot_path_planner_public.git",
+      "ssh_url": "git@github.com:SYS-zdk/robot_path_planner_public.git",
+      "homepage": null,
+      "created_at": "2026-03-16T15:28:47Z",
+      "updated_at": "2026-04-11T07:54:15Z",
+      "pushed_at": "2026-04-02T02:03:57Z"
+    },
+    "stats": {
+      "stars": 135,
+      "forks": 16,
+      "watchers": 135,
+      "open_issues": 0,
+      "size": 262684
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 827940,
+        "CMake": 20257,
+        "Python": 10746,
+        "Shell": 9355,
+        "C": 528
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n    <img src=\"./images/video.gif\" width=\"150\" alt=\"Program Logo GIF\" />\n    <br />\n    <img src=\"./images/title.png\" width=\"420\" alt=\"robot_path_planner_public\" />\n    <img src=\"./images/kouhao.png\" width=\"520\" alt=\"PLAN BY BLOCKS — SNAP &amp; GO\" />\n    <br />\n</div>\n\n<p align=\"center\">\n    <a href=\"https://ubuntu.com/\" target=\"_blank\">\n        <img alt=\"Ubuntu 20.04\" src=\"https://img.shields.io/badge/Ubuntu-20.04-orange?style=flat-square&logo=ubuntu&logoColor=white\" />\n    </a>\n    <a href=\"http://wiki.ros.org/noetic\" target=\"_blank\">\n        <img alt=\"ROS Noetic\" src=\"https://img.shields.io/badge/ROS-Noetic-blue?style=flat-square&logo=ros&logoColor=white\" />\n    </a>\n    <a href=\"https://github.com/SYS-zdk/robot_path_planner_public/actions/workflows/ci-noetic.yml\" target=\"_blank\">\n        <img alt=\"CI (Noetic)\" src=\"https://img.shields.io/github/actions/workflow/status/SYS-zdk/robot_path_planner_public/ci-noetic.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white\" />\n    </a>\n    <a href=\"https://github.com/SYS-zdk/robot_path_planner_public/blob/main/LICENSE\" target=\"_blank\">\n        <img alt=\"License\" src=\"https://img.shields.io/github/license/SYS-zdk/robot_path_planner_public?style=flat-square\" />\n    </a>\n    <a href=\"https://github.com/SYS-zdk/robot_path_planner_public/commits/main\" target=\"_blank\">\n        <img alt=\"Last commit\" src=\"https://img.shields.io/github/last-commit/SYS-zdk/robot_path_planner_public?style=flat-square&logo=git&logoColor=white\" />\n    </a>\n    <a href=\"https://github.com/SYS-zdk/robot_path_planner_public\" target=\"_blank\">\n        <img alt=\"Top language\" src=\"https://img.shields.io/github/languages/top/SYS-zdk/robot_path_planner_public?style=flat-square\" />\n    </a>\n    <a href=\"https://github.com/SYS-zdk/robot_path_planner_public/stargazers\" target=\"_blank\">\n        <img alt=\"Stars\" src=\"https://img.shields.io/github/stars/SYS-zdk/robot_path_planner_public?style=flat-square&logo=github\" />\n    </a>\n    <a href=\"https://github.com/SYS-zdk/robot_path_planner_public/forks\" target=\"_blank\">\n        <img alt=\"Forks\" src=\"https://img.shields.io/github/forks/SYS-zdk/robot_path_planner_public?style=flat-square&logo=github\" />\n    </a>\n    <a href=\"https://github.com/SYS-zdk/robot_path_planner_public/issues\" target=\"_blank\">\n        <img alt=\"Issues\" src=\"https://img.shields.io/github/issues/SYS-zdk/robot_path_planner_public?style=flat-square\" />\n    </a>\n    <a href=\"https://github.com/SYS-zdk/robot_path_planner_public/pulls\" target=\"_blank\">\n        <img alt=\"PRs\" src=\"https://img.shields.io/github/issues-pr/SYS-zdk/robot_path_planner_public?style=flat-square\" />\n    </a>\n    <a href=\"https://space.bilibili.com/17052261\" target=\"_blank\">\n        <img alt=\"Bilibili\" src=\"https://img.shields.io/badge/Bilibili-个人主页-00A1D6?style=flat-square&logo=bilibili&logoColor=white\" />\n    </a>\n</p>\n\n## 1. Environment Requirements\n\n- Ubuntu 20.04 LTS (Recommended)\n- ROS Noetic (Desktop-Full recommended)\n- Toolchain: GCC/G++ (>=9), CMake (>=3.16), Python 3\n- Package managers:\n    - `rosdep` for ROS package dependencies\n    - Conan (1.x) for third-party C/C++ libraries under `3rd/` (e.g., OSQP, Ceres, and transitive glog/gflags/libunwind)\n\n> Most ROS dependencies are resolved via `rosdep install --from-paths src --ignore-src -r -y` (see Section 6).\n\n## 2. Project Overview\n\n<p align=\"center\">\n    <img src=\"./images/second.png\" width=\"400\" alt=\"Organization\" />\n  <br />\n  <em>Robot</em>\n</p>\n\n> Note: This repository is developed for experiments and secondary development on top of the open-source framework [ros_motion_planning](https://github.com/ai-winter/ros_motion_planning). It is maintained in the open following community best practices and is still under active development; issues and PRs are welcome.\n\nThis repository is a modular, reproducible workspace for mobile robot navigation and motion planning (ROS1/Noetic). Its core design is **“modules as building blocks”**: global planners, local planners/controllers, costmap layers, and trajectory optimizers are packaged as interchangeable components with unified wiring, configuration templates, and simulation assets.\n\nInstead of spending time re-implementing the same wheels (or hunting for scattered resources), you can **assemble**, **swap**, and **benchmark** algorithms inside one consistent platform:\n\n- Build bigger systems by composing smaller modules (\"LEGO-like\" navigation stack assembly).\n- Run apples-to-apples comparisons by changing a single ID + YAML, keeping the rest of the stack constant.\n- Reproduce experiments and iterate on secondary development with less setup friction.\n\nIn addition, it includes a set of engineering-driven extensions at both the **module** level and the **system** level (see **Module Gallery** and **Core Innovations** below):\n\n- Module-level (building blocks): multiple global planners / local planners / controllers / layers / optimizers that can be composed as needed, with implementa",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:45.511433"
+  },
+  {
+    "basic_info": {
+      "name": "LazyEnv",
+      "full_name": "ListerOvO1211/LazyEnv",
+      "owner": "ListerOvO1211",
+      "description": null,
+      "url": "https://github.com/ListerOvO1211/LazyEnv",
+      "clone_url": "https://github.com/ListerOvO1211/LazyEnv.git",
+      "ssh_url": "git@github.com:ListerOvO1211/LazyEnv.git",
+      "homepage": null,
+      "created_at": "2026-04-11T11:22:09Z",
+      "updated_at": "2026-04-13T04:15:10Z",
+      "pushed_at": "2026-04-11T11:35:23Z"
+    },
+    "stats": {
+      "stars": 132,
+      "forks": 8,
+      "watchers": 132,
+      "open_issues": 1,
+      "size": 72
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 90430,
+        "JavaScript": 62672,
+        "CSS": 24042,
+        "HTML": 15897,
+        "CMake": 6185
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# LazyEnv\n\n**English** | [中文](README_zh-CN.md)\n\n**Cross-platform, recoverable, zero-pollution questionnaire-style development environment configuration tool.**\n\nVersion: 0.1.0\n\n---\n\n## Overview\n\nLazyEnv is a Windows-native desktop application that guides developers through setting up their development environment via an interactive questionnaire interface. It leverages WebView2 for a modern Win11 Fluent Design UI while providing robust environment variable management with full snapshot and rollback capabilities.\n\n### Core Design Principles\n\n| Principle | Description |\n|-----------|-------------|\n| **Cross-platform** | Abstracted architecture with platform-specific backends; Windows native support via Win32 + WebView2 (P0) |\n| **Recoverable** | Full environment variable snapshot and restore system; automatic pre-install snapshots (P1) |\n| **Zero-pollution** | All changes are tracked and reversible; no hidden side effects on the host system |\n\n---\n\n## Architecture\n\n```\nLazyEnv/\n|-- main.cpp                 // WinMain entry, window creation, message dispatch\n|-- webview_host.cpp/h       // WebView2 host management\n|-- installer.cpp/h          // Package installation (winget), PATH management\n|-- rollback.cpp/h           // Environment variable snapshot & rollback engine\n|-- resources/\n|   |-- index.html           // Questionnaire UI structure\n|   |-- style.css            // Win11 Fluent Design styling\n|   |-- script.js            // Frontend interaction logic\n|-- LazyEnv.rc               // Icon and version information\n|-- CMakeLists.txt           // Build configuration\n```\n\n### Communication Model\n\nThe application uses a bidirectional message bridge between the native C++ backend and the WebView2 frontend:\n\n- **Web to Native**: `window.chrome.webview.postMessage(JSON.stringify(obj))`\n- **Native to Web**: `ICoreWebView2::PostWebMessageAsString(json)`\n\nAll messages are JSON-encoded with an `action` field for routing.\n\n---\n\n## Features\n\n### Windows Native Support\n\n- Win32 window with WebView2 embedded browser\n- Dark theme matching Windows 11 system appearance\n- Minimum window size enforcement (800x600)\n- Centered window on launch\n\n### Environment Variable Management\n\n- Read/write environment variables via Windows Registry API\n- User-level and system-level variable support\n- Automatic PATH management for installed packages\n- `WM_SETTINGCHANGE` broadcast for immediate effect\n\n### Fault Tolerance & Recovery\n\n- Automatic snapshot before any installation\n- Manual snapshot creation with descriptions\n- Full environment restore from any snapshot\n- Snapshot storage in `%LOCALAPPDATA%/LazyEnv/snapshots/` as JSON files\n- Snapshot listing, restore, and deletion via UI\n\n### Cross-platform Consistency Abstraction\n\n- Namespace-based module separation (`lazyenv::`)\n- Platform-agnostic interfaces (`Installer`, `RollbackManager`)\n- Backend can be swapped for Linux/macOS implementations\n- Frontend is fully platform-independent (HTML/CSS/JS)\n\n---\n\n## Package Catalog\n\nLazyEnv ships with a curated catalog of common development tools:\n\n| Category | Packages |\n|----------|----------|\n| Languages | Python 3.12, Node.js LTS, Rust, Go, Java JDK 21 |\n| Build Tools | CMake, Ninja, LLVM/Clang |\n| Version Control | Git, GitHub CLI |\n| Editors | VS Code, Neovim |\n| Containers | Docker Desktop |\n| Databases | PostgreSQL 16, Redis |\n| Utilities | jq, ripgrep, fd, fzf, WinSCP |\n\n---\n\n## Build Instructions\n\n### Prerequisites\n\n- Windows 10 version 1903+ or Windows 11\n- Visual Studio 2022 with C++ desktop development workload\n- CMake 3.24+\n- Microsoft Edge WebView2 Runtime (usually pre-installed on Windows 10/11)\n\n### Build Steps\n\n```powershell\n# Clone or navigate to the project directory\ncd E:\\Dev\\LazyEnv\n\n# Configure (CMake will auto-download WebView2 SDK and WIL)\ncmake -B build -G \"Visual Studio 17 2022\" -A x64\n\n# Build\ncmake --build build --config Release\n\n# The executable will be at build/Release/LazyEnv.exe\n# Resources are automatically copied to build/Release/resources/\n```\n\n### Icon\n\nThe resource file references `resources/lazyenv.ico`. You can generate one or provide your own 256x256 ICO file. To build without an icon, comment out the `IDI_APPICON ICON` line in `LazyEnv.rc`.\n\n---\n\n## Usage\n\n1. **Launch** `LazyEnv.exe`\n2. **System Check** - Verifies OS, WebView2 runtime, and winget availability\n3. **Select Packages** - Choose development tools from the categorized catalog\n4. **Install** - Packages are installed via winget with real-time progress; a snapshot is created automatically before installation begins\n5. **Recovery** - View, create, restore, or delete environment snapshots\n6. **Summary** - Review all changes made during the session\n\n---\n\n## Data Storage\n\n| Item | Location |\n|------|----------|\n| Snapshots | `%LOCALAPPDATA%/LazyEnv/snapshots/*.json` |\n| WebView2 cache | `%LOCALAPPDATA%/LazyEnv/WebView2/` |\n\nNo other files are created or modified outside of these directories and the Windows Registry environment variable keys.\n\n---\n\n## L",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-13T04:16:46.663253"
+  }
+]

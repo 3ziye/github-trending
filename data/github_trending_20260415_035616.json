@@ -1,0 +1,797 @@
+[
+  {
+    "basic_info": {
+      "name": "JavaClaw",
+      "full_name": "jobrunr/JavaClaw",
+      "owner": "jobrunr",
+      "description": "JavaClaw, a Java version of OpenClaw built on Spring Boot, Spring AI and JobRunr",
+      "url": "https://github.com/jobrunr/JavaClaw",
+      "clone_url": "https://github.com/jobrunr/JavaClaw.git",
+      "ssh_url": "git@github.com:jobrunr/JavaClaw.git",
+      "homepage": "https://javaclaw.io/",
+      "created_at": "2026-03-17T15:55:23Z",
+      "updated_at": "2026-04-15T03:45:51Z",
+      "pushed_at": "2026-04-08T14:30:11Z"
+    },
+    "stats": {
+      "stars": 527,
+      "forks": 107,
+      "watchers": 527,
+      "open_issues": 16,
+      "size": 270
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 278291
+      },
+      "license": "GNU Lesser General Public License v3.0",
+      "topics": [
+        "java",
+        "jobrunr",
+        "openclaw"
+      ]
+    },
+    "content": {
+      "readme": "# JavaClaw\n\nJavaClaw is a Java-based personal AI assistant that runs on your own devices. It acts as a control plane (gateway) for an AI agent that can interact across multiple communication channels, manage tasks, execute shell commands, browse the web, and more — all while keeping your data local.\n\n> NOTE: this project was originally created as a demo to show the use of JobRunr, JavaClaw is now an open invitation to the Java community, let’s build the future of Java-based AI agents together ☕.\n\n## Features\n\n- **Multi-Channel Support** — Chat UI (WebSocket), Telegram, Discord, and an extensible plugin-based channel architecture\n- **Task Management** — Create, schedule (one-off, delayed, or recurring via cron), and track tasks as human-readable Markdown files\n- **Extensible Skills** — Drop a `SKILL.md` into `workspace/skills/` and the agent picks it up at runtime\n- **LLM Provider Choice** — Plug in OpenAI, Anthropic, or Ollama (local); switchable during onboarding\n- **MCP Support** — Model Context Protocol client for connecting external tool servers\n- **Shell & File Access** — Agent can read/write files and run bash commands on your machine\n- **Smart Web Tools** — Brave web search and intelligent web scraping\n- **Background Jobs** — Powered by JobRunr with a built-in dashboard at `:8081`\n- **Privacy-First** — Runs entirely on your own hardware; no data leaves unless you configure an external LLM\n\n## Technology Stack\n\n| Layer | Technology |\n|---|---|\n| Language | Java 25 |\n| Framework | Spring Boot 4.0.3, Spring Modulith 2.0.3 |\n| LLM | Spring AI 2.0.0-SNAPSHOT (OpenAI, Anthropic, Ollama) |\n| Agent | Spring AI Agent Utils |\n| MCP | Spring AI MCP Client |\n| Jobs | JobRunr 8.5.0 |\n| Database | H2 (embedded, file-backed) |\n| Templating | Pebble 4.1.1 |\n| Frontend | htmx 2.0.8 + Bulma 1.0.4 |\n| Discord | JDA 6.1.1 |\n| Telegram | Telegrambots 9.4.0 |\n\n## Project Structure\n\n```\nJavaClaw/\n├── base/           # Core: agent, tasks, tools, channels, config\n├── app/            # Spring Boot entry point, onboarding UI, web routes, chat channel\n└── plugins/\n    ├── brave/      # Brave web search integration\n    ├── discord/    # Discord Gateway channel plugin\n    ├── playwright/ # Browser automation tools\n    └── telegram/   # Telegram long-poll channel plugin\n```\n\n## Getting Started\n\n### Prerequisites\n\n- Java 25\n- Gradle (or use the included `./gradlew` wrapper)\n- An LLM API key (OpenAI / Anthropic) **or** a running [Ollama](https://ollama.com) instance\n\n### Run\n\n```bash\n./gradlew :app:bootRun\n```\n\nYou can also build a docker image and use it as follows (from the cloned repo):\n```bash\n./gradlew app:jibDockerBuild\ndocker run -it -p 8080:8080 -p:8081:8081 -v \"$(pwd)/workspace:/workspace\" jobrunr.io/javaclaw\n```\n\nThen open [http://localhost:8080/onboarding](http://localhost:8080/onboarding) to complete the guided onboarding.\n\n### Onboarding\n\n1. **Welcome** — Introduction screen\n2. **Provider** — Choose Ollama, OpenAI, or Anthropic\n3. **Credentials** — Enter your API key and model name\n4. **Agent Prompt** — Customize `workspace/AGENT.md` with your personal info (name, email, role, etc.)\n5. **MCP Servers** — Optionally configure Model Context Protocol servers\n6. **Channel/Tool Plugins** — Optional steps such as Telegram, Discord, and other plugin-provided setup\n7. **Complete** — Review and save your configuration\n\nConfiguration is persisted to `app/src/main/resources/application.yaml` and takes effect immediately.\n\n## Workspace\n\nThe `workspace/` directory is the agent's home:\n\n| Path | Purpose |\n|---|---|\n| `workspace/AGENT.md` | System prompt — edit during onboarding or at any time |\n| `workspace/INFO.md` | Environment context injected into every prompt |\n| `workspace/context/` | Agent memory and long-term context files |\n| `workspace/skills/` | Drop a `SKILL.md` here to add new capabilities |\n| `workspace/tasks/` | Task files, date-bucketed (`yyyy-MM-dd/HHmmss-<state>-<name>.md`) |\n| `workspace/tasks/recurring/` | Cron-scheduled recurring task templates |\n\n### Task States\n\n`todo` → `in_progress` → `completed` / `awaiting_human_input`\n\n## Channels\n\n### Chat (built-in)\n\nAvailable at [http://localhost:8080/chat](http://localhost:8080/chat). Uses WebSocket for real-time delivery and falls back to REST polling when no WebSocket session is active.\n\n### Telegram\n\nConfigure during onboarding or by setting:\n\n```yaml\nagent:\n  channels:\n    telegram:\n      token: <your-bot-token>\n      username: <your-telegram-username>\n```\n\n### Discord\n\nConfigure during onboarding or by setting:\n\n```yaml\nagent:\n  channels:\n    discord:\n      token: <your-discord-bot-token>\n      allowed-user: <your-discord-user-id>\n```\n\n## Skills\n\nSkills extend the agent's capabilities at runtime without code changes. Create a directory under `workspace/skills/<skill-name>/` containing a `SKILL.md` file and the agent will load it automatically via `SkillsTool`.\n\n## Dashboard\n\nJobRunr's job dashboard is available at [http://localhost:8081](http://localhost:8081) for ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:17.710037"
+  },
+  {
+    "basic_info": {
+      "name": "memind",
+      "full_name": "openmemind/memind",
+      "owner": "openmemind",
+      "description": "Self-evolving cognitive memory and context engine for AI agents in Java. Empowering 24/7 proactive agents like OpenClaw with understanding and SOTA performance.",
+      "url": "https://github.com/openmemind/memind",
+      "clone_url": "https://github.com/openmemind/memind.git",
+      "ssh_url": "git@github.com:openmemind/memind.git",
+      "homepage": "",
+      "created_at": "2026-03-19T07:43:53Z",
+      "updated_at": "2026-04-15T03:28:59Z",
+      "pushed_at": "2026-04-15T03:44:36Z"
+    },
+    "stats": {
+      "stars": 401,
+      "forks": 38,
+      "watchers": 401,
+      "open_issues": 3,
+      "size": 4527
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 4200921,
+        "HTML": 1457
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "ai-agent",
+        "ai-agents",
+        "ai-memory",
+        "context-engineering",
+        "java",
+        "memory",
+        "openclaw",
+        "spring-ai"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"./docs/images/memind-banner.png\" alt=\"Memind banner\">\n</p>\n\n<p align=\"center\">\n  <strong>Memory that thinks. Context that evolves.</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"#highlights\">Highlights</a> ·\n  <a href=\"#overview\">Overview</a> ·\n  <a href=\"#quick-start\">Quick Start</a> ·\n  <a href=\"#examples\">Examples</a> ·\n  <a href=\"#benchmark\">Benchmark</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"./LICENSE\"><img src=\"https://img.shields.io/badge/License-Apache%202.0-orange\" alt=\"License\"></a>\n  <a href=\"./README.md\"><img src=\"https://img.shields.io/badge/English-Click-yellow\" alt=\"English\"></a>\n  <a href=\"./README_zh.md\"><img src=\"https://img.shields.io/badge/简体中文-点击查看-orange\" alt=\"简体中文\"></a>\n  <a href=\"https://github.com/openmemind/memind\"><img src=\"https://img.shields.io/github/stars/openmemind/memind?style=social\" alt=\"GitHub Stars\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"#\"><img src=\"https://img.shields.io/badge/memind-0.1.0-0A7AFF\" alt=\"memind 0.1.0\"></a>\n  <a href=\"#\"><img src=\"https://img.shields.io/badge/Java-21-blue\" alt=\"Java 21\"></a>\n  <a href=\"#\"><img src=\"https://img.shields.io/badge/Spring%20Boot-4.0-brightgreen\" alt=\"Spring Boot 4.0\"></a>\n  <a href=\"#\"><img src=\"https://img.shields.io/badge/Spring%20AI-2.0-green\" alt=\"Spring AI 2.0\"></a>\n</p>\n\n---\n\n<a id=\"highlights\"></a>\n\n## 🏆 Highlights\n\n**Memind** achieves **state-of-the-art results across all three benchmarks**: LoCoMo, LongMemEval, and PersonaMem.\n\n- ☕ **The first Java-native SOTA memory and context engine for AI agents:** built natively in Java, memind brings state-of-the-art long-memory performance into the Java ecosystem.\n- 🚀 **Highest reported results across all three benchmarks:** achieved **86.88%** on **LoCoMo**, **84.20%** on **LongMemEval**, and **67.91%** on **PersonaMem** under aligned **MemOS / EverMemOS-style** evaluation.\n- 📈 **Stronger than the strongest published baselines:** surpassed **EverMemOS** on **LoCoMo** and **LongMemEval**, and exceeded **MemOS** on **PersonaMem**.\n- 🌳 **Insight Tree turns memory into structured understanding:** instead of flat fact storage, memind organizes memory into hierarchical knowledge that evolves over time. See [Insight Tree](#insight-tree).\n- 🔬 **Full benchmark details:** see the [Benchmark](#benchmark) section for complete tables, category-level comparisons, context tokens, and evaluation protocol.\n\n## Overview\n\n### What is Memind?\n\nMemind is a hierarchical cognitive memory and context engine for AI agents, built natively in Java.\n\nInstead of treating memory as a flat collection of isolated facts, Memind continuously extracts, organizes, and evolves knowledge from conversations into a structured **Insight Tree**.\n\nIt tackles two core problems of agent memory: **flat, unstructured storage** (memories remain disconnected facts with no higher-level organization) and **no knowledge evolution** (memories accumulate, but never consolidate into deeper understanding).\n\nThe result is a long-term memory and context layer that helps agents retain context, build structured understanding over time, and recall knowledge at multiple levels of abstraction.\n\n### Core Design\n\n#### Insight Tree\n\nThe Insight Tree is memind's core innovation. Unlike traditional memory systems that store isolated facts, memind **progressively distills knowledge** through three tiers — each tier sees patterns the previous one cannot:\n\n| Tier | Input | What it produces |\n|------|-------|-----------------|\n| 🍃 **Leaf** | Grouped memory items | Insights within a single semantic group |\n| 🌿 **Branch** | Multiple leaves | Cross-group patterns within one dimension |\n| 🌳 **Root** | Multiple branches | Cross-dimensional insights invisible at lower levels |\n\n**Example — understanding a user named Li Wei through conversations:**\n\n> 🍃 **Leaf** (from career_background group):\n> \"Li Wei has 8 years of backend experience — 3 years at Alibaba, then led an 8-person team at a fintech company, designing a core trading system with Java 17 + Spring Cloud + Kafka.\"\n>\n> 🌿 **Branch** (integrating career + education + certifications):\n> \"Li Wei is a senior backend architect with deep distributed systems expertise, combining Zhejiang University CS training, large-scale Alibaba experience, and hands-on fintech system design — a well-rounded technical profile with both depth and breadth.\"\n>\n> 🌳 **Root** (cross-dimensional — identity × preferences × behavior):\n> \"Li Wei's preference for functional programming and high code quality (80% test coverage), combined with conservative tech adoption (requires 2+ years production validation), reveals a personality oriented toward long-term code maintainability over rapid innovation — suggesting recommendations should emphasize stability and proven patterns over cutting-edge tools.\"\n\nEach tier reveals something the previous one couldn't see. Leaves know facts. Branches see patterns. Roots understand the person.\n\n#### Two-Scope Memory\n\nmemind maintains separate memory scopes for compr",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:18.938852"
+  },
+  {
+    "basic_info": {
+      "name": "katamariio",
+      "full_name": "TACOWASA059/katamariio",
+      "owner": "TACOWASA059",
+      "description": "[Forge1.20.1] Control a sphere that absorbs nearby blocks and grows in size",
+      "url": "https://github.com/TACOWASA059/katamariio",
+      "clone_url": "https://github.com/TACOWASA059/katamariio.git",
+      "ssh_url": "git@github.com:TACOWASA059/katamariio.git",
+      "homepage": "",
+      "created_at": "2026-03-27T16:02:56Z",
+      "updated_at": "2026-04-15T00:14:40Z",
+      "pushed_at": "2026-03-29T01:10:25Z"
+    },
+    "stats": {
+      "stars": 191,
+      "forks": 6,
+      "watchers": 191,
+      "open_issues": 4,
+      "size": 106
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 106786
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# KatamariIO\n\nForge 1.20.1 mod.\n\nhttps://github.com/user-attachments/assets/33ec2c37-4ff6-4192-b9e5-03bcf725ee65\n\n## Commands\nPermission level: `2` (OP)\n\n- `/katamari size <targets> <value>`\nSet collision size for target players.  \nRange: `0.01 .. 20.0`\n\n- `/katamari size <target>`\nShow current size.\n\n- `/katamari restitution <targets> <value>`\nSet restitution coefficient.  \nRange: `0.01 .. 1.2`\n\n- `/katamari restitution <target>`\nShow restitution coefficient.\n\n- `/katamari ball <targets> <enabled>`\nEnable/disable ball mode.\n\n- `/katamari resetBlocks <targets>`\nClear attached blocks and reset collision/render size to `KatamariIO.DEFAULT_BALL_SIZE` (currently `2.0f`).\n\n## Player NBT\nCustom player data is saved in player NBT via `PlayerMixin#addAdditionalSaveData`.\n\n- `SPM_Size` (`float`)\nCollision size.\n\n- `SPM_RenderSize` (`float`)\nRender size.\n\n- `SPM_isBall` (`boolean`)\nBall mode flag.\n\n- `SPM_RESTITUTION` (`float`)\nRestitution coefficient.\n\n- `SPM_Quaternion` (`compound`)\nCurrent quaternion: `x`, `y`, `z`, `w`.\n\n- `SPM_POSITION` (`compound`)\nCurrent position cache: `x`, `y`, `z`.\n\n- `SPM_BlockCount` (`int`)\nTotal attached-block count metric.\n\n- `SPM_AttachedBlocks` (`list<compound>`)\nAttached block entries for sync/render.  \nEach entry has:\n`block` (resource location string), `x`, `y`, `z`, `qx`, `qy`, `qz`, `qw`.\n\n## NBT command examples\n- `/data get entity @s SPM_BlockCount`\n- `/data get entity @s SPM_Size`\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:20.109635"
+  },
+  {
+    "basic_info": {
+      "name": "max-bot-api-client-java",
+      "full_name": "max-messenger-client/max-bot-api-client-java",
+      "owner": "max-messenger-client",
+      "description": null,
+      "url": "https://github.com/max-messenger-client/max-bot-api-client-java",
+      "clone_url": "https://github.com/max-messenger-client/max-bot-api-client-java.git",
+      "ssh_url": "git@github.com:max-messenger-client/max-bot-api-client-java.git",
+      "homepage": null,
+      "created_at": "2026-03-29T00:14:38Z",
+      "updated_at": "2026-04-11T10:22:33Z",
+      "pushed_at": "2026-03-29T00:18:28Z"
+    },
+    "stats": {
+      "stars": 187,
+      "forks": 1,
+      "watchers": 187,
+      "open_issues": 5,
+      "size": 2117
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 871335,
+        "HTML": 870
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "[![Maven](https://maven-badges.herokuapp.com/maven-central/chat.max/max-bot-api-client-java/badge.svg)](https://maven-badges.herokuapp.com/maven-central/chat.max/max-bot-api-client-java) ![Build](https://github.com/max-messenger/max-bot-api-client-java/workflows/Build/badge.svg?branch=master)\n[![Coverage Status](https://coveralls.io/repos/github/max-messenger/max-bot-api-client-java/badge.svg?branch=master)](https://coveralls.io/github/max-messenger/max-bot-api-client-java?branch=master) [![Javadocs](http://www.javadoc.io/badge/chat.max/max-bot-api-client-java.svg)](http://www.javadoc.io/doc/chat.max/max-bot-api-client-java)\n\n# Max Bot API Java Client\nThis is Java client for Max Bot API. It gives you full access to API in your Java code.\n\nLibrary has been built based on [Max Bot API Schema](https://github.com/max-messenger/max-bot-api-schema) that is OpenAPI-compliant.\n\nFull documentation of API can be found [here](https://dev.max.ru).\n\n⚠️ This library provides just a thin client to invoke API methods. Take a look at [max-bot-sdk-java](https://github.com/max-messenger/max-bot-sdk-java) framework to build bots.\n\n## Requirements\nMinimum required version of Java is 8.\n\nTo use Max Bot API you should obtain `ACCESS_TOKEN` for each bot you create.\n\nTalk to [@MasterBot](http://max.ru/MasterBot). It will helps you to create your first bot.\n\n## Dependencies\n- [Jackson 2.9.8](https://github.com/FasterXML/jackson)\n- [OkHttp 3.12.0](https://github.com/square/okhttp)\n- [SLF4J](https://github.com/qos-ch/slf4j)\n\n## Usage\nTo start using this client add it as Maven dependency:\n```xml\n<dependency>\n    <groupId>ru.max</groupId>\n    <artifactId>max-bot-api</artifactId>\n    <version>0.0.6-SNAPSHOT</version>\n</dependency>\n```\n\n### Initialization\nThe easiest way to create it is to call:\n```java\nMaxBotAPI api = MaxBotAPI.create(\"%ACCESS_TOKEN%);\n```\n\nIt will create client with default Jackson-based serializer and OkHttp-based HTTP client.\nIf you want to use your own implementation you can implement `MaxTransportClient` and `MaxSerializer` and initialize `MaxClient` with it:\n\n```java\nMaxTransportClient transportClient = …;\nMaxSerializer serializer = …;\nMaxClient client = new MaxClient(\"%ACCESS_TOKEN%\", transportClient, serializer);\nMaxBotAPI botAPI = new MaxBotAPI(client);\n```\n\n### Making requests\n`MaxBotAPI` provides access to all methods supported by the API. All methods return `MaxQuery` object that can be executed **synchronous** or **asynchronous**.\n\nFor example:\n\n```java\nString fileToken = …;\nLong userId = …;\n\nAttachmentRequest fileAttachment = new FileAttachmentRequest(new UploadedInfo(fileToken));\nList<AttachmentRequest> attachments = Collections.singletonList(fileAttachment);\nNewMessageBody body = new NewMessageBody(\"hello world!\", attachments, null);\nSendMessageQuery sendMessageQuery = botAPI.sendMessage(body).userId(userId);\n\n// Sync\nSendMessageResult result = sendMessageQuery.execute();\n\n// Async\nFuture<SendMessageResult> futureResult = sendMessageQuery.enqueue();\n```\n\n### Uploading media\nYour bot is able to attach some media content to messages. It could be image, video, audio or file.\n\nTo attach media to message you should follow two steps:\n\n1. Obtain URL to upload:\n```java\nUploadEndpoint endpoint = botAPI.getUploadUrl(UploadType.VIDEO).execute();\nString uploadUrl = endpoint.getUrl();\n```\n2. Upload binary data to this url. You can manually execute HTTP-request to send binary data to this url, or use built-in `MaxUploadAPI`:\n\n```java\nMaxUploadAPI uploadAPI = new MaxUploadAPI(client);\nUploadedInfo uploadedInfo = uploadAPI.uploadFile(uploadUrl, new File(\"%FILE_PATH%\")).execute();\n```\n\n#### Important notice\nIt may take a time for server to process you file (audio/video or binary file). While file is not processed you can't attach it and will get `AttachmentNotReadyException` when calling `sendMessage` method. Try again until you'll get successful result.\n\n### Handling exceptions\nAll methods can throw two type of exceptions:\n\n1. ClientException: general exception type wrapping all kinds of IO/serialization exceptions.\n\n2. APIException: exception you will get if API was used incorrectly. For example, some arguments are missing or access to requested resource is denied.\n\n### Logging\nNo logging is performed by default. This project uses SLF4J, so you should bring adapter for logging framework you prefer. For example, add slf4j-log4j12 as dependency:\n\n```xml\n<dependency>\n    <groupId>org.slf4j</groupId>\n    <artifactId>slf4j-log4j12</artifactId>\n    <version>1.7.25</version>\n</dependency>\n```\n\n## Contributing\n\nPull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.\n\nPlease make sure to update tests as appropriate.\n\n## License\nThis project is licensed under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:21.324603"
+  },
+  {
+    "basic_info": {
+      "name": "mateclaw",
+      "full_name": "matevip/mateclaw",
+      "owner": "matevip",
+      "description": "🤖 MateClaw — Java + Vue 3 AI Assistant with Multi-Agent Orchestration, MCP Protocol, Skills & Memory, and Multi-Channel Support. Built on Spring AI Alibaba.",
+      "url": "https://github.com/matevip/mateclaw",
+      "clone_url": "https://github.com/matevip/mateclaw.git",
+      "ssh_url": "git@github.com:matevip/mateclaw.git",
+      "homepage": "https://claw.mate.vip",
+      "created_at": "2026-04-04T10:53:35Z",
+      "updated_at": "2026-04-15T03:18:45Z",
+      "pushed_at": "2026-04-15T03:18:41Z"
+    },
+    "stats": {
+      "stars": 135,
+      "forks": 33,
+      "watchers": 135,
+      "open_issues": 4,
+      "size": 4827
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 2663630,
+        "Vue": 831058,
+        "TypeScript": 337755,
+        "Groovy": 88235,
+        "CSS": 25917,
+        "HTML": 642,
+        "Dockerfile": 355
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-agent",
+        "ai-assistant",
+        "chatbot",
+        "dingtalk-robot",
+        "discord-bot",
+        "feishu-bot",
+        "mcp-protocol",
+        "multi-agent",
+        "openclaw",
+        "plan-and-execute",
+        "react-agent",
+        "skills",
+        "spring-ai",
+        "spring-boot",
+        "telegrambot",
+        "tool-calling",
+        "vue3"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<p align=\"center\">\n  <img src=\"mateclaw-ui/public/logo/mateclaw_logo_s.png\" alt=\"MateClaw Logo\" width=\"120\">\n</p>\n\n# MateClaw\n\n<p align=\"center\"><b>Build AI that thinks, acts, remembers, and ships.</b></p>\n\n[![GitHub Repo](https://img.shields.io/badge/GitHub-Repo-black.svg?logo=github)](https://github.com/matevip/mateclaw)\n[![Documentation](https://img.shields.io/badge/Docs-Website-green.svg?logo=readthedocs&label=Docs)](https://claw.mate.vip/docs)\n[![Live Demo](https://img.shields.io/badge/Demo-Online-orange.svg?logo=vercel&label=Demo)](https://claw-demo.mate.vip)\n[![Website](https://img.shields.io/badge/Website-claw.mate.vip-blue.svg?logo=googlechrome&label=Site)](https://claw.mate.vip)\n[![Java Version](https://img.shields.io/badge/Java-17+-blue.svg?logo=openjdk&label=Java)](https://adoptium.net/)\n[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)\n[![Vue](https://img.shields.io/badge/Vue-3-4FC08D.svg?logo=vuedotjs)](https://vuejs.org/)\n[![Last Commit](https://img.shields.io/github/last-commit/matevip/mateclaw)](https://github.com/matevip/mateclaw)\n[![License](https://img.shields.io/badge/license-Apache--2.0-red.svg?logo=opensourceinitiative&label=License)](LICENSE)\n\n[[Website](https://claw.mate.vip)] [[Live Demo](https://claw-demo.mate.vip)] [[Documentation](https://claw.mate.vip/docs)] [[中文](README_zh.md)]\n\n</div>\n\n<p align=\"center\">\n  <img src=\"assets/images/preview.png\" alt=\"MateClaw Preview\" width=\"800\">\n</p>\n\n---\n\nAn AI agent. A knowledge engine. A memory system. A tool runtime. A multi-channel presence.\n\n**One product. The whole widget.**\n\nMateClaw is a personal AI operating system built with **Java + Vue 3**, powered by [Spring AI Alibaba](https://github.com/alibaba/spring-ai-alibaba). It's not a chatbox, not a workflow builder, not just another coding assistant. It's the entire system — from reasoning to remembering to shipping — in one deployment.\n\nThree things make it insanely different:\n\n1. **Agents do work, not just talk** — ReAct + Plan-and-Execute. Not one-shot answers — iterative reasoning that actually completes tasks\n2. **Knowledge is shaped, not just stored** — An LLM Wiki that digests raw material into structured, linked pages. The difference between a warehouse and a library\n3. **End-to-end, no compromises** — Web console, desktop app, 7 IM channels, tool guardrails, enterprise auth. One team, one deployment, one experience\n\n---\n\n## Why MateClaw\n\nMost AI tools do one thing well. MateClaw does the whole thing.\n\n| Capability | MateClaw | [OpenClaw](https://github.com/openclaw/openclaw) | [CoPaw](https://github.com/agentscope-ai/CoPaw) | [QClaw](https://cntechpost.com/2026/03/20/tencent-opens-qclaw-public-testing-amid-fierce-ai-rivalry/) | [Claude Code](https://github.com/anthropics/claude-code) | [Cursor](https://cursor.com) | [Windsurf](https://windsurf.com) |\n|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|\n| Agent Orchestration | **ReAct + Plan-Execute** | Multi-agent teams | Multi-agent collab | Specialist agents | Agent Teams + subagents | Background Agents (cloud VM) | Cascade engine |\n| Knowledge System | **LLM Wiki (digestion)** | Intelligence Mode + Wiki | Personal KB | Knowledge graph | CLAUDE.md (no RAG) | Codebase indexing | No |\n| Memory | **Extract + Consolidate + Dream** | SQLite + Dreaming + Wiki | ReMe (hybrid retrieval) | 3-layer memory | 3-layer (CLAUDE.md + auto + files) | No persistent memory | Memories (~48h learning) |\n| Tool Guard & Approval | **RBAC + approval flow** | HITL + risk levels | No | No | Permissions + Sandbox + Hooks | No | Turbo Mode (auto-approve) |\n| Multi-Channel IM | **7 channels** | 25+ channels | 7 channels | 5 channels | 3 channels (preview) | IDE only | IDE only |\n| Web Management UI | **Full admin dashboard** | Control UI | Console UI | Dashboard | Enterprise dashboard | No | No |\n| Desktop App | **Electron + bundled JRE** | macOS menu bar | Electron (Beta) | Win/Mac app | Claude Desktop (Mac/Win) | VS Code fork | VS Code fork |\n| Multimodal Creation | **TTS/STT/Img/Music/Video** | TTS/Video/Music/Image | Vision input | No | Vision input only | No | No |\n| Skill Ecosystem | **ClawHub marketplace** | ClawHub registry | Python skills | Templates | 340+ plugins, 1300+ skills | MCP marketplace | MCP one-click |\n| Enterprise Auth | **RBAC + JWT** | Basic (password) | Basic auth | No | SSO/SCIM/RBAC | SSO + Teams | Teams plan |\n| Open Source | **Apache 2.0** | MIT | Apache 2.0 | Partial | No (source-available) | No | No |\n| Pricing | **Free** | Free | Free | Free (beta) | $20–200/mo | $0–200/mo | $0–200/mo |\n| Tech Stack | **Java + Vue 3** | TypeScript | Python + TS | OpenClaw fork | TypeScript | Electron (VS Code) | Electron (VS Code) |\n\n**What makes MateClaw different?**\n\nEvery product in this table is genuinely strong. Here's where MateClaw carves its own space:\n\n- **Plan-and-Execute orchestration** — Break complex work into ordered steps",
+      "default_branch": "dev"
+    },
+    "fetched_at": "2026-04-15T03:56:22.495584"
+  },
+  {
+    "basic_info": {
+      "name": "wechatpay-skills",
+      "full_name": "wechatpay-apiv3/wechatpay-skills",
+      "owner": "wechatpay-apiv3",
+      "description": "微信支付Skills",
+      "url": "https://github.com/wechatpay-apiv3/wechatpay-skills",
+      "clone_url": "https://github.com/wechatpay-apiv3/wechatpay-skills.git",
+      "ssh_url": "git@github.com:wechatpay-apiv3/wechatpay-skills.git",
+      "homepage": "",
+      "created_at": "2026-03-23T10:05:12Z",
+      "updated_at": "2026-04-15T03:39:05Z",
+      "pushed_at": "2026-04-03T14:45:29Z"
+    },
+    "stats": {
+      "stars": 133,
+      "forks": 10,
+      "watchers": 133,
+      "open_issues": 1,
+      "size": 414
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 1557505,
+        "Go": 1353937,
+        "Python": 53029
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 微信支付 Skills\n\n微信支付为 AI Agent 提供了专业的技能包（Skills），将产品的业务知识、代码示例和接入规范以 Agent 可理解的方式组织，使 Agent 能够准确地协助开发者完成微信支付的接入工作。\n\n每个 Skill 对应一个微信支付产品，包含：\n\n- **业务知识** — 接入流程、参数说明、状态流转等，结构化整理，Agent 可直接检索\n- **代码示例** — 覆盖各接口的 API 调用示例（含签名），Agent 检索后展示，开发者参考即用\n- **交互规范** — 定义 Agent 的能力边界和交互流程，确保回答准确可靠\n\n基于以上内容，每个 Skill 覆盖接入过程中的五大场景：\n\n| 场景 | 说明 |\n|------|------|\n| 产品选型 | 根据业务需求，引导开发者选择合适的产品方案 |\n| 示例代码 | 提供各接口的 API 调用示例（含签名），开发者参考即用 |\n| 知识问答 | 接入流程、参数说明、状态流转等业务知识，随问随答 |\n| 质量检测 | 上线前扫描代码，检查签名、回调、必接接口等常见隐患 |\n| 排障 | 根据错误信息定位问题原因，给出排查方案 |\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:23.654188"
+  },
+  {
+    "basic_info": {
+      "name": "openaipay",
+      "full_name": "OpenAIPay/openaipay",
+      "owner": "OpenAIPay",
+      "description": null,
+      "url": "https://github.com/OpenAIPay/openaipay",
+      "clone_url": "https://github.com/OpenAIPay/openaipay.git",
+      "ssh_url": "git@github.com:OpenAIPay/openaipay.git",
+      "homepage": null,
+      "created_at": "2026-03-27T03:20:47Z",
+      "updated_at": "2026-04-15T02:10:30Z",
+      "pushed_at": "2026-04-13T01:55:33Z"
+    },
+    "stats": {
+      "stars": 119,
+      "forks": 18,
+      "watchers": 119,
+      "open_issues": 0,
+      "size": 59151
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 4333777,
+        "Swift": 2562547,
+        "JavaScript": 897977,
+        "TypeScript": 495529,
+        "Shell": 75536,
+        "CSS": 46001,
+        "Python": 28136,
+        "HTML": 23597
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# OpenAIPay\n\n中文 | [English](./README.en.md)\n\n过去的一年，尤其是最近半年，AI编程能力经历了前所未有的跃迁。从简单的代码补全和重构，到能够理解复杂系统、参与架构设计，再到具备一定自主开发能力的智能体工具，软件工程的生产方式正在被重新定义。\n\n以Claude Code、OpenAI Codex为代表的新一代AI编程工具，正在从“辅助工具”转变为“生产力引擎”。越来越多的互联网公司与软件团队，开始探索如何借助AI重构研发流程、提升开发效率，乃至重塑工程师的角色边界。\n\n21天时间，我用纯Codex，构建了这个支付App的初始版本。我的出发点并非简单的复刻，而是希望通过构建一个具有真实复杂度的大型系统，去尝试探索这些问题：AI在复杂系统开发中，真正擅长解决哪些问题？在多模块、多服务协同场景下，它的局限性又体现在哪里？如何设计合理的交互方式与工程结构，让AI更高效地参与开发？在实际工程中，如何将AI从“辅助编码工具”，转变为“真正的开发者”？这是一次面向未来软件工程模式的实践。\n\n我从用户侧的支付功能体验出发，构建了一套端到端的支付系统体系：App层的交互界面与用户操作入口，BFF层的多端适配与服务编排，以及涵盖交易、支付、风控、账户、银行网关等核心能力的后端服务，尽可能贴近真实生产系统的设计方式，能够让大家了解我们每天用的“扫一扫”，“碰一下”背后的运行机制。所以，对于想了解支付系统实现机制的同学，这也是一个很不错的学习样本。\n\n我希望这个项目，能够让更多的软件工程师意识到，AI带来的并不仅仅是效率的提升，而是软件工程范式的根本转变。我也希望AI/支付行业有感兴趣的同学加入这个项目，让它成为AI时代一个有代表性的开源项目。\n\n当编写代码逐渐不再是门槛，真正重要的将是如何建立领域模型，如何拆解系统，以及如何与智能体协作完成大型软件系统。也希望它能促使更多的软件工程师在AI的加持下，拓展能力边界，成为这个时代真正的创造者。\n\n## 一眼看懂\n\n| 维度 | 说明 |\n| --- | --- |\n| 项目形态 | 移动支付超级App多模块单仓库 |\n| 核心组成 | iOS App、NestJS BFF、Spring Boot后端、运营后台 |\n| 研发方式 | 纯AI协作研发，核心执行引擎为 OpenAI Codex |\n| 工程目标 | 验证纯AI在复杂多模块工程中的持续交付能力 |\n| 适用场景 | 产品原型、技术演示、资金链路验证 |\n\n### iOS版本下载\n\n请先在App Store下载TestFlight，然后扫码安装iOS版本。\n\n<p align=\"left\">\n  <img src=\"resource/testflight-qrcode.png\" alt=\"TestFlight iOS 下载地址\" width=\"200\" />\n</p>\n\n打开后点击“在 TestFlight 中查看”，再点击安装。\n\n<p align=\"left\">\n  <img src=\"resource/testflight-open.jpg\" alt=\"打开\" width=\"30%\" />\n</p>\n\n## 覆盖范围\n\n- 移动端产品体验：注册、实名认证、登录、充值、提现、转账、发红包、充话费，横幅投放、加好友聊天，以及爱存、爱花、爱借等金融产品场景。\n- 资金核心链路：收银台、交易、支付/支付路由、账户、会计、红包、计费、出入金、网关\n- 运营后台：用户、交易、入出金、红包、计费、投放、风控、App、会计、消息投递\n\n## 项目亮点\n\n- 不是单页Demo，而是一套可运行的“移动端产品体验 + 资金内核 + 运营后台”组合体\n- 前端采用高保真原生iOS方案，提供了丝滑的支付体验\n- 后端按领域驱动/六边形架构拆分，高内聚、松耦合，方便扩展和长期维护\n- 管理后台与后端同源部署，丰富的后台管理功能\n- 适合做演示、研发验证与持续迭代\n\n## 纯 AI 开发方式\n\n这个项目不是“用了部分AI辅助”的传统工程，而是一个以“工程师主导设计+纯AI实现”为研发方式完成的完整项目：\n\n- OpenAI Codex直接参与了需求拆解、方案设计、代码实现、页面还原、数据脚本、问题修复与文档整理\n- 工程内容覆盖iOS App、NestJS BFF、Java后端、管理后台、数据库迁移与测试脚本\n- 项目目标不是展示单点生成能力，而是验证纯AI在复杂多模块工程中的持续交付能力\n- 这个仓库本身也可以视为一个“纯AI构建支付类超级App沙盘”的工程样本\n\n## 快速导航\n\n- [Quick Start](#quick-start)\n- [技术栈](#技术栈)\n- [整体架构](#整体架构)\n- [App功能说明](#app-功能说明)\n- [BFF功能说明](#bff-功能说明)\n- [管理后台功能说明](#管理后台功能说明)\n- [安装与运行](#安装与运行)\n- [当前状态](#当前状态)\n- [路线图](#路线图)\n- [测试与回归](#测试与回归)\n\n## Quick Start\n\n### 1. 获取代码\n\n```bash\ngit clone git@github.com:openaipay/openaipay.git openaipay\ncd openaipay\n```\n\n### 2. 准备环境\n\n- JDK `21`\n- Maven `3.9+`\n- Node.js `22`\n- Xcode `16+`\n- Docker / Docker Compose\n\n### 3. 启动本地数据库\n\n```bash\ndocker compose -f docker-compose.local.yml up -d\n```\n\n### 4. 启动后端与 BFF\n\n```bash\nOpenAIPay_DB_HOST=127.0.0.1 \\\nOpenAIPay_DB_PORT=3306 \\\nOpenAIPay_DB_NAME=portal \\\nOpenAIPay_DB_USERNAME=openaipay \\\nOpenAIPay_DB_PASSWORD=openaipay \\\nmvn -f backend/adapter-web/pom.xml spring-boot:run\n```\n\n```bash\n(cd app-bff && npm ci && BACKEND_BASE_URL=http://127.0.0.1:8080 npm run start:dev)\n```\n\n### 5. 启动 App 与后台\n\n```bash\nopen iOS-app/OpenAiPay.xcodeproj\n```\n\n- iOS 模拟器：`iPhone 17 Pro`\n- 管理后台：`http://127.0.0.1:8080/manager`\n- 如需真机联调或覆盖默认接口地址，参考 [`ios-app/README.md`](./ios-app/README.md)\n\n### 本地一键启动（守护脚本）\n\n如果你希望本机同时守护 backend + app-bff，可以直接执行：\n\n```bash\nOpenAIPay_DB_HOST=127.0.0.1 \\\nOpenAIPay_DB_PORT=3306 \\\nOpenAIPay_DB_NAME=portal \\\nOpenAIPay_DB_USERNAME=openaipay \\\nOpenAIPay_DB_PASSWORD=openaipay \\\n./scripts/start-backend-bff-guard.sh\n```\n\n停止命令：\n\n```bash\n./scripts/stop-backend-bff-guard.sh\n```\n\n日志位置：\n\n- `./.run_logs/backend.log`\n- `./.run_logs/bff.log`\n\n## 项目定位\n\nOpenAIPay 当前更接近一个“高保真产品原型 + 可运行资金内核 + 后台运营系统”的组合体：\n\n- 前台App追求接近真实移动支付产品的交互与视觉还原\n- 后台后端不是单纯CRUD，而是按领域驱动/六边形方式拆分资金域能力\n- 管理后台直接嵌在后端静态页面中，方便本机一体化运行\n- 多数演示数据、账号、会计科目、后台菜单均可通过迁移脚本自动初始化\n\n## 技术栈\n\n| 层次 | 技术 | 说明 |\n| --- | --- | --- |\n| iOS App | Swift 5、SwiftUI、XcodeGen、Xcode / xcodebuild | 原生iPhone客户端，承担主要产品体验 |\n| 移动端 BFF | NestJS 11、TypeScript 5、AxiOS、Jest | 做接口聚合、鉴权、错误包装、白名单代理 |\n| 核心后端 | Java 21、Spring Boot 3.4、MyBatis-Plus 3.5、Flyway、MySQL 8 | 承载交易、支付、账户、消息、后台等核心能力 |\n| 调度层 | Spring Context Scheduler | 异步消息轮询、爱存收益结算、支付补偿扫单 |\n| 管理后台 | 原生 HTML / CSS / JavaScript | 嵌入 `backend` 工程，不单独起前端工程 |\n| 测试 | JUnit5、Mockito、Jest、Supertest、Swift Package Tests | 覆盖后端、BFF与iOS核心逻辑 |\n| CI | GitHub Actions | 自动执行 backend/BFF/iOS core tests |\n\n## 整体架构\n\n```mermaid\nflowchart LR\n    iOS[iOS App]\n    Manager[管理后台浏览器]\n    BFF[app-bff / NestJS]\n    Backend[backend / Spring Boot]\n    DB[(MySQL)]\n    Scheduler[adapter-scheduler]\n\n    iOS -->|/bff/*| BFF\n    iOS -->|/api/*（部分直连或降级）| Backend\n    BFF -->|HTTP| Backend\n    Manager -->|/manager + /api/admin/*| Backend\n    Backend --> DB\n    Scheduler --> Backend\n```\n\n### 本地运行链路\n\n- iOS 模拟器默认访问本机：\n  - BFF：`http://127.0.0.1:3000`\n  - Backend：`http://127.0.0.1:8080`\n- 真机联调地址覆盖方式见 [`ios-app/README.md`](./ios-app/README.md)\n- 管理后台不经过 BFF，直接由后端同源提供：\n  - 页面入口：`/manager`\n  - 数据接口：`/api/admin/**`\n- BFF 内置受控 `/api/*` 代理和聚合能力，默认转发给 `BACKEND_BASE_URL`\n\n## 工程总体结构\n\n| 目录 | 说明 |\n| --- | --- |\n| `iOS-app` | iOS原生客户端工程与Swift Package Tests |\n| `app-bff` | 移动端BFF，负责聚合、鉴权、代理与统一回包 |\n| `backend` | Java多模块后端，包含领域层、应用层、基础设施层、Web适配器、调度器 |\n| `scripts` | 启动、验证、守护、对账与主题校验脚本 |\n\n## 后端分层架构\n\n### Maven模块\n\n| 模块 | 说明 |\n| --- | --- |\n| `backend/domain` | 核心领域模型、值对象、领域服务、仓储接口 |\n| `bac",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-15T03:56:24.882566"
+  },
+  {
+    "basic_info": {
+      "name": "max-bot-sdk-java",
+      "full_name": "max-messenger-client/max-bot-sdk-java",
+      "owner": "max-messenger-client",
+      "description": null,
+      "url": "https://github.com/max-messenger-client/max-bot-sdk-java",
+      "clone_url": "https://github.com/max-messenger-client/max-bot-sdk-java.git",
+      "ssh_url": "git@github.com:max-messenger-client/max-bot-sdk-java.git",
+      "homepage": null,
+      "created_at": "2026-03-29T00:09:44Z",
+      "updated_at": "2026-04-11T10:22:30Z",
+      "pushed_at": "2026-03-29T00:11:20Z"
+    },
+    "stats": {
+      "stars": 110,
+      "forks": 1,
+      "watchers": 110,
+      "open_issues": 7,
+      "size": 84
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 121887
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Max Bot SDK <sup><span title=\"Alpha version. Use in production at your own risk\">𝛂</span></sup>\n\n[![build status](https://github.com/max-messenger/max-bot-sdk-java/workflows/Build/badge.svg?branch=master)](https://github.com/max-messenger/max-bot-sdk/actions?query=workflow%3A%22Build%22)\n\nMax Bot SDK is a simple library built on top of [max-bot-api-client-java](https://github.com/max-messenger/max-bot-api-client-java) that\nhelps you to develop bots for [Max](https://web.max.ru) quickly.\n\n## Usage\n\nAdd the following dependency to your project:\n\nMaven:\n```xml\n<dependency>\n    <groupId>ru.max</groupId>\n    <artifactId>max-bot-sdk</artifactId>\n    <version>0.0.6-SNAPSHOT</version>\n</dependency>\n```\n\nGradle:\n```\nimplementation group: 'ru.max', name: 'max-bot-sdk', version: '0.0.6-SNAPSHOT'\n```\n\nThen you should choose the way how your bot will receive notifications: long-polling or webhook.\n\n### Long-polling\n\nLong-polling is the easiest way to receive updates for your bot because it does not require running web server.\n\nTo start your bot just extend [`LongPollingBot`](src/main/java/ru/max/bot/longpolling/LongPollingBot.java) class and add methods annotated by [`@UpdateHandler`](src/main/java/ru/max/bot/annotations/UpdateHandler.java) annotation.\n\nThese methods must have **only** one parameter with concrete implementation of [`Update`](https://github.com/max-messenger/max-bot-api-client-java/blob/main/src/main/java/ru/max/botapi/model/Update.java). Every method will handle update of such type.\n\nFor example, simple bot that just replies on incoming message:\n\n```java\npublic class ReplyBot extends LongPollingBot {\n    public ReplyBot(String accessToken) {\n        super(accessToken);\n    }\n\n    @UpdateHandler\n    public void onMessageCreated(MessageCreatedUpdate update) throws ClientException {\n        Message message = update.getMessage();\n        NewMessageBody replyMessage = NewMessageBodyBuilder.ofText(\"Reply on: \" + message.getBody()).build();\n        Long chatId = update.getMessage().getRecipient().getChatId();\n        SendMessageQuery query = new SendMessageQuery(getClient(), replyMessage).chatId(chatId);\n        query.enqueue(); // or `execute` to invoke method synchronously\n    }\n}\n```\n\nAll other updates will be ignored. If you want to handle every update just override `onUpdate` method of [`MaxBotBase`](src/main/java/ru/max/bot/MaxBotBase.java).\n\nAlternatively, you can directly create instance of `LongPollingBot` and pass handlers to constructor:\n```java\n// handler can be any object that has methods annotated with `@UpdateHandler` or `@CommandHandler`\nLongPollingBot bot = new LongPollingBot(\"%ACCESS_TOKEN%\", handler1, handler2);\n```\n\nAs soon as you created instance of bot you must `start` it:\n\n```java\nReplyBot bot = new ReplyBot(\"%ACCESS_TOKEN%\");\nbot.start();\n```\nThis method starts separated *non-daemon* thread that polls Bot API in cycle.\nCall `stop` as soon as you ready to shutdown it:\n\n```java\nbot.stop();\n```\n\nCheck out [EchoBot](examples/longpolling-echobot/src/main/java/ru/max/echobot/Main.java) for more complete example.\n\n### Webhooks\n\nWebhook subscribed bot requires running HTTP server. By default we use [Jetty](https://www.eclipse.org/jetty/)\nbut you can use any server you want.\n\nAll webhook bots should be put in container that manages server and handle all incoming HTTP-requests to bots:\n\n```java\nWebhookEchoBot bot1 = new WebhookEchoBot(\"%ACCESS_TOKEN%\");\nWebhookBot bot2 = new WebhookBot(\"%ANOTHER_ACCESS_TOKEN%\") {\n   @UpdateHandler\n   public NewMessageBody onMessageCreated(MessageCreatedUpdate update) {\n       // webhook bots can also reply with message simply returning it from update handler \n       return NewMessageBodyBuilder.ofText(\"Reply from handler\").build();\n   }\n};\n\nJettyWebhookBotContainer botContainer = new JettyWebhookBotContainer(\"mysupercoolbot.com\", 8080);\nbotContainer.register(bot1);\nbotContainer.register(bot2);\n\n// Register JVM shutdown hook to stop our server\nRuntime.getRuntime().addShutdownHook(new Thread(botContainer::stop));\n\n// `start` will run underlying Jetty server and register webhook subscription for each bot\nbotContainer.start();\n```\n\nCheck out [jetty-webhook-echobot](examples/jetty-webhook-echobot/src/main/java/ru/max/echobot/WebhookEchoBot.java)\nfor more complete example or [tomcat-webhook-echobot](examples/tomcat-webhook-echobot/src/main/java/ru/max/echobot/WebhookEchoBot.java)\nas an example of alternative container implementation.\n\n### Handling bot commands\n\nAlong with update handlers, methods can be annotated by [`@CommandHandler`](src/main/java/ru/max/bot/annotations/CommandHandler.java). Every method will handle command with the name specified in the annotation.\nThese methods must have [`Message`](https://github.com/max-messenger/max-bot-api-client-java/blob/main/src/main/java/ru/max/botapi/model/Message.java) **as the first parameter**. Also, these methods can have command args in the method definition. \nExample: user typed \"/command2 text max\", then \"text\" wi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:26.099368"
+  },
+  {
+    "basic_info": {
+      "name": "picsou-finance",
+      "full_name": "Zoeille/picsou-finance",
+      "owner": "Zoeille",
+      "description": null,
+      "url": "https://github.com/Zoeille/picsou-finance",
+      "clone_url": "https://github.com/Zoeille/picsou-finance.git",
+      "ssh_url": "git@github.com:Zoeille/picsou-finance.git",
+      "homepage": null,
+      "created_at": "2026-03-26T19:24:59Z",
+      "updated_at": "2026-04-14T22:38:36Z",
+      "pushed_at": "2026-03-31T00:24:00Z"
+    },
+    "stats": {
+      "stars": 109,
+      "forks": 9,
+      "watchers": 109,
+      "open_issues": 1,
+      "size": 199
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 149827,
+        "TypeScript": 140832,
+        "Python": 9427,
+        "Dockerfile": 2064,
+        "CSS": 595,
+        "HTML": 441,
+        "JavaScript": 80
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Picsou 💰\n\n> Tableau de bord de finances personnelles — suivi d'enveloppes, objectifs, synchronisation bancaire.\n\nSelf-hosted, open-source, single-user. Construit avec Spring Boot + React.\n\n---\n\n## Statut du projet\n\n> **Pré-release publique** — L'application est partagée en l'état pour permettre à la communauté de contribuer. Elle est fonctionnelle pour un usage personnel mais manque encore de polish et de couverture de tests. Elle s'améliorera avec le temps et les contributions de chacun. N'hésitez pas à ouvrir des issues ou des pull requests !\n> Le projet a été complétement vibecodé sur le frontend et en partie sur le back-end, c'est un projet perso sans prise de tête d'ou mon énorme disclaimer à ce sujet. Le temps fera son travail.\n\n---\n\n## ⚠️ DISCLAIMER — À LIRE AVANT TOUT\n\n> **CE PROJET EST UN PROTOTYPE PERSONNEL.**\n>\n> Picsou a été développé pour un usage strictement **personnel et local**. Il n'a **pas** vocation à être déployé sur un serveur public ou partagé avec d'autres utilisateurs.\n>\n> **Pourquoi ne pas l'exposer sur internet :**\n> - Il stocke des données bancaires hautement sensibles (soldes, transactions, tokens de session)\n> - L'authentification est mono-utilisateur et basique (pas de 2FA, pas d'audit log)\n> - Il n'a subi **aucun audit de sécurité professionnel**\n> - Il interagit avec vos vraies banques via PSD2 (Enable Banking) et Trade Republic\n>\n> **Si vous l'utilisez sur un réseau exposé**, vous le faites à vos propres risques. L'auteur décline toute responsabilité en cas de compromission, perte de données ou accès non autorisé à vos comptes bancaires.\n>\n> **Usage recommandé : uniquement en local, sur votre propre machine, derrière votre réseau domestique.**\n\n---\n\n## Fonctionnalités\n\n- **Comptes** — LEP, PEA, Compte-titres, Crypto, Livret, Compte courant...\n- **Objectifs** — Cible + deadline sur plusieurs comptes ; suivi de progression\n- **Synchronisation bancaire** — Via Enable Banking (PSD2/OAuth) : Revolut, BoursoBank, et +2000 banques européennes\n- **Prix en temps réel** — CoinGecko (crypto), Yahoo Finance (actions/ETF)\n- **Graphiques** — Évolution du patrimoine, répartition, historique par compte\n- **Trade Republic** — Import CSV ou sync automatique\n\n---\n\n## Installation (local uniquement)\n\n### Prérequis\n\n- Docker & Docker Compose v2\n- Un compte Enable Banking (gratuit) si vous souhaitez la sync bancaire → https://enablebanking.com/\n\n### 1. Cloner le dépôt\n\n```bash\ngit clone https://github.com/Zoeille/picsou-finance.git\ncd picsou\n```\n\n### 2. Configurer les secrets\n\n```bash\ncp .env.example .env\n```\n\nÉditer `.env` :\n\n| Variable | Description | Commande pour générer |\n|----------|-------------|----------------------|\n| `POSTGRES_PASSWORD` | Mot de passe PostgreSQL | Chaîne aléatoire forte |\n| `JWT_SECRET` | Clé de signature JWT (min. 32 car.) | `openssl rand -base64 48` |\n| `APP_USERNAME` | Identifiant de connexion | Votre choix |\n| `APP_PASSWORD_HASH` | Hash bcrypt du mot de passe | `htpasswd -bnBC 12 \"\" VOTRE_MDP \\| tr -d ':\\r\\n'` |\n\n> **Important :** le hash bcrypt contient des caractères `$`. Dans le fichier `.env` ils sont écrits tels quels (pas de quotes). Ne jamais faire `export APP_PASSWORD_HASH=$2a$...` dans un shell — les `$` seraient interprétés. Utilisez toujours le fichier `.env` avec Docker Compose, ou exportez avec des guillemets simples : `export APP_PASSWORD_HASH='$2a$12$...'`.\n\nPour la sync Enable Banking (optionnel) :\n\n| Variable | Description |\n|----------|-------------|\n| `ENABLEBANKING_APPLICATION_ID` | Depuis votre dashboard Enable Banking |\n| `ENABLEBANKING_KEY_ID` | Depuis votre dashboard Enable Banking |\n| `ENABLEBANKING_REDIRECT_URI` | `http://localhost:5173/sync/callback` |\n| `ENABLEBANKING_PRIVATE_KEY_PATH` | Chemin vers votre clé RSA privée |\n\nGénérer la paire de clés RSA pour Enable Banking :\n\n```bash\n# Générer la clé privée\nopenssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/enablebanking.pem\n\n# Extraire la clé publique (à uploader dans le dashboard Enable Banking)\nopenssl rsa -pubout -in secrets/enablebanking.pem -out enablebanking_public.pem\n```\n\n### 3. Lancer\n\n```bash\ndocker compose up --build\n```\n\nOuvrir http://localhost:5173\n\n> Le premier démarrage télécharge les images Docker et compile le projet — comptez 2-3 minutes.\n\n### 4. Se connecter\n\nUtiliser le `APP_USERNAME` et le mot de passe (non hashé) configurés dans `.env`.\n\n---\n\n## Développement\n\n### Backend (Spring Boot)\n\n```bash\ncd backend\n./mvnw spring-boot:run -Dspring-boot.run.profiles=dev\n```\n\nNécessite une instance PostgreSQL locale. Le profil `dev` active les logs SQL et devtools.\n\n### Frontend (React + Vite)\n\n```bash\ncd frontend\nnpm install\nnpm run dev\n```\n\nVite proxie automatiquement `/api/*` vers `localhost:8080`.\n\n### Lancer les tests\n\n```bash\ncd backend && ./mvnw test\ncd frontend && npm run lint && npm run build\n```\n\n---\n\n## Architecture\n\n```\n┌─────────────────┐     ┌──────────────────────┐     ┌────────────┐\n│  React Frontend │────▶│  Spring Boot Backend  │────▶│ ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:27.297508"
+  },
+  {
+    "basic_info": {
+      "name": "show",
+      "full_name": "jsbzg/show",
+      "owner": "jsbzg",
+      "description": "面向中小理发店、社区店、夫妻店的一体化轻量客户管理工具。",
+      "url": "https://github.com/jsbzg/show",
+      "clone_url": "https://github.com/jsbzg/show.git",
+      "ssh_url": "git@github.com:jsbzg/show.git",
+      "homepage": "",
+      "created_at": "2026-03-25T05:32:56Z",
+      "updated_at": "2026-04-14T04:49:55Z",
+      "pushed_at": "2026-03-30T01:02:27Z"
+    },
+    "stats": {
+      "stars": 109,
+      "forks": 47,
+      "watchers": 109,
+      "open_issues": 0,
+      "size": 493
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 99625,
+        "Vue": 87668,
+        "HTML": 4959,
+        "CSS": 3522,
+        "C#": 2557,
+        "JavaScript": 2126,
+        "PowerShell": 2065
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Show · 理发店极简会员管理系统\n\n> 面向中小理发店、社区店、夫妻店的一体化轻量客户管理工具。  \n> 目标是：安装即用、操作直接、数据清晰、成本可控。\n\n![Java](https://img.shields.io/badge/Java-17-2f6f4f)\n![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.1.5-2f6f4f)\n![Vue](https://img.shields.io/badge/Vue-3.4-2f6f4f)\n![SQLite](https://img.shields.io/badge/SQLite-3.46-2f6f4f)\n![License](https://img.shields.io/badge/License-MIT-2f6f4f)\n\n## 为什么是它\n\n- 不依赖外部数据库服务，内置 SQLite，单机可运行，维护门槛低。\n- 登录、注册、JWT 鉴权、租户隔离完整闭环，避免“裸奔接口”。\n- 聚焦理发店高频场景：会员、充值、消费、员工、服务、业绩、审计。\n- UI 统一为简洁时尚风格，减少培训成本，新员工也能快速上手。\n\n## 主要功能\n\n- 账号体系\n  - 店长账号注册与登录\n  - 修改密码\n  - 所有业务接口默认鉴权（除登录/注册）\n- 会员管理\n  - 新增/编辑会员、状态切换、分页查询\n  - 支持设置 4 位校验码（默认手机号后四位）\n  - 新增会员可直接录入初次充值金额\n- 充值与消费\n  - 会员下拉支持模糊检索（姓名/手机号）\n  - 消费时强校验会员校验码（与后端存储值比对）\n  - 交易流水分页查询与导出\n- 员工与服务\n  - 员工管理、服务类型管理（均支持分页）\n  - 注册后自动初始化默认服务类型（按租户）\n- 统计与审计\n  - 经营概览、服务分布、员工业绩（分页）\n  - 审计日志分页，关键操作可追溯\n\n## 截图展示\n\n- 登录页与注册弹窗  \n  ![登录与注册](./docs/screenshots/login-register.png)\n- 工作台总览  \n  ![工作台](./docs/screenshots/dashboard-overview.png)\n- 会员管理与模糊检索下拉  \n  ![会员管理](./docs/screenshots/customer-management.png)\n- 充值/消费与校验码校验  \n  ![充值消费](./docs/screenshots/transaction-verify-code.png)\n- 统计报表与审计日志  \n  ![报表审计](./docs/screenshots/report-audit.png)\n  ![报表审计](./docs/screenshots/stat.png)\n\n## 项目亮点\n\n- 极简上手：围绕理发店真实日常，不做过度设计。\n- 安全可用：统一鉴权 + 审计日志 + 租户隔离。\n- 离线友好：SQLite 本地持久化，无需单独部署数据库。\n- 可打包分发：可直接产出可执行程序，适合门店终端落地。\n\n## 系统架构\n\n```mermaid\nflowchart LR\n  A[\"Vue 3 + Vite 前端\"] --> B[\"Spring Boot API\"]\n  B --> C[\"JWT 鉴权\"]\n  C --> D[\"租户上下文 TenantContext\"]\n  D --> E[\"SQLite 本地数据库\"]\n  B --> F[\"审计日志 recordLog\"]\n```\n\n- 前端：`frontend`（Vue 3 单页应用）\n- 后端：`src/main/java`（Spring Boot + JDBC）\n- 数据库：SQLite（默认文件位于 `${user.home}/.show/show.db`）\n- 租户隔离：所有核心业务表包含 `tenant_id`\n- 安全策略：JWT 承载租户信息（加密后写入 token claim）\n\n## 数据模型（核心表）\n\n- `t_manager`：店长账号\n- `t_customer`：会员（含 `verify_code`）\n- `t_employee`：员工\n- `t_service_type`：服务类型\n- `t_recharge_record`：充值记录\n- `t_consume_record`：消费记录\n- `t_audit_log`：审计日志\n\n建表脚本见：`src/main/resources/schema.sql`\n\n## 依赖与版本\n\n### 后端\n\n- Java 17\n- Spring Boot 3.1.5\n- sqlite-jdbc 3.46.0.0\n- JJWT 0.12.5\n- Maven Compiler Plugin 3.11.0\n- JavaFX 17.0.2（桌面壳相关）\n\n### 前端\n\n- Node.js 18+（建议）\n- Vue 3.4.x\n- Vue Router 4.3.x\n- Vite 5.4.x\n- @vitejs/plugin-vue 5.0.x\n\n## 本地运行\n\n1. 安装 JDK 17、Node.js、Maven。\n2. 执行前端构建：`frontend` 目录 `npm install` + `npm run build`。\n3. 执行后端启动或打包（见下节）。\n4. 首次运行会自动创建数据库目录与表结构。\n\n## 一键打包\n\n项目已提供脚本：`compile_all.ps1`\n\n```powershell\n.\\compile_all.ps1\n```\n\n脚本会依次完成：\n\n1. 前端构建\n2. 后端 Maven 打包\n3. jpackage 生成应用目录\n4. 输出 `Show.zip` 与 `Show.exe`\n\n## 后续演进方向\n\n- 多角色权限（店长/店员）与细粒度菜单权限。\n- 会员标签、回访提醒、生日关怀、沉睡唤醒。\n- 套餐卡/次卡/折扣券/积分体系。\n- 收银扩展：多支付方式、交班对账、日结报表。\n- 数据备份恢复、门店迁移、云端同步。\n- 连锁门店管理：跨店汇总、店铺维度经营分析。\n\n## License\n\nMIT\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:28.509697"
+  },
+  {
+    "basic_info": {
+      "name": "nekogram-proof-of-logging",
+      "full_name": "RomashkaTea/nekogram-proof-of-logging",
+      "owner": "RomashkaTea",
+      "description": "A proof of Nekogram sending phone numbers to the developer",
+      "url": "https://github.com/RomashkaTea/nekogram-proof-of-logging",
+      "clone_url": "https://github.com/RomashkaTea/nekogram-proof-of-logging.git",
+      "ssh_url": "git@github.com:RomashkaTea/nekogram-proof-of-logging.git",
+      "homepage": null,
+      "created_at": "2026-04-02T13:34:47Z",
+      "updated_at": "2026-04-15T02:02:59Z",
+      "pushed_at": "2026-04-02T18:40:39Z"
+    },
+    "stats": {
+      "stars": 103,
+      "forks": 7,
+      "watchers": 103,
+      "open_issues": 0,
+      "size": 11063
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 2906,
+        "Python": 1009
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Nekogram logging proof\n\nA proof of Nekogram collecting phone numbers\n\n# Requirements\n- A rooted Android device  \n- LSPosed  \n- Aiogram 3\n\n# How to reproduce\n\n1. Create a bot in @BotFather, enable Inline mode in Bot Settings\n2. Run the bot:\n```python3 bot.py```\n2. Insert your bot ID and username in module/app/src/main/java/com/yourname/nekopoc/MainHook.java\n3. Build the module, install, activate it\n4. Install the Nekogram app '12.5.2-6597' version from [GitHub releases](https://github.com/Nekogram/Nekogram/releases/tag/v12.5.2) (or [their Telegram channel](https://t.me/NekogramAPKs/946))\n4. Open the Nekogram app, make sure the module is working by checking logcat:  \n```adb logcat | grep Xposed```  \nIf it's running, you'll see this:  \n```NekoPoC: Successfully injected into tw.nekogram```  \n```NekoPoC: getBotId() called```\n\n5. Sign in to an account, check the bot logs. The query is sent every login.\n\n# Proof\n\n![Proof](neko_proof.png)\n![A video proof](https://github.com/RomashkaTea/nekogram-proof-of-logging/raw/refs/heads/main/video.mp4)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:29.654480"
+  },
+  {
+    "basic_info": {
+      "name": "Warehouse-Management-System-",
+      "full_name": "shanqiu127/Warehouse-Management-System-",
+      "owner": "shanqiu127",
+      "description": " 企业级仓库管理系统。项目采用前后端分离架构，前端基于 Vue 3 + Vite，后端基于 Spring Boot + MyBatis-Plus，数据库使用 MySQL。系统围绕实际仓储业务场景，完成了用户与权限管理、基础资料维护、进销退存流程、统计分析与可视化展示，具备完整的开发、部署与演示能力。",
+      "url": "https://github.com/shanqiu127/Warehouse-Management-System-",
+      "clone_url": "https://github.com/shanqiu127/Warehouse-Management-System-.git",
+      "ssh_url": "git@github.com:shanqiu127/Warehouse-Management-System-.git",
+      "homepage": "",
+      "created_at": "2026-03-18T14:11:24Z",
+      "updated_at": "2026-04-15T00:36:55Z",
+      "pushed_at": "2026-04-12T08:01:44Z"
+    },
+    "stats": {
+      "stars": 87,
+      "forks": 12,
+      "watchers": 87,
+      "open_issues": 1,
+      "size": 681
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 646385,
+        "Vue": 406925,
+        "JavaScript": 31063,
+        "Batchfile": 3660,
+        "CSS": 1128,
+        "HTML": 308
+      },
+      "license": null,
+      "topics": [
+        "warehouse-management-system",
+        "wms"
+      ]
+    },
+    "content": {
+      "readme": "# Warehouse Management System\n\n一个面向企业多部门协同场景的仓库管理系统，采用前后端分离架构，覆盖认证授权、用户与部门管理、商品进销退存、库存预警、统计分析等核心业务。\n\n在传统进销存流程基础上，项目进一步补齐了工作要求闭环、历史单据审批作废/红冲、公告定向投放、站内消息提醒、超时治理，以及面向项目知识问答的 AI 助手能力，使系统同时具备业务处理、部门协同、流程追踪与智能辅助支持等实际落地价值。\n\n## 🎯 适用业务场景 / 适合谁用\n\n本项目适合采购、销售、仓储、财务、人事等多角色协同的中小型企业，也适合希望把进销存管理、部门协作、审批流转与项目内 AI 辅助问答放在同一套系统中的团队。\n\n如果你的业务同时涉及商品进销退存、岗位权限区分、任务与公告协同、历史单据审批，并且希望补充面向系统流程、角色职责和页面入口的 AI 助手能力，这套系统会比较匹配。\n\n## 🌐 在线演示\n\n- 🔗 演示网站：https://wmsystem123.pages.dev/\n- 📌 演示网站无AI助手功能，建议本地部署后体验完整功能。\n- 🚀 快速部署链接：[快速部署](#quick-start)\n\n\n## ✨ 项目亮点\n\n本项目不只停留在传统进销存能力上，还把 AI 助手接入到项目知识、角色权限、页面入口与业务流程之中，让“查流程、问职责、找页面、看规则”可以和日常业务处理放在同一套系统内完成。\n\n| 维度 | 亮点 | 价值 |\n|---|---|---|\n| AI 助手定位 | 面向项目知识问答的内置助手，而非通用聊天窗口 | 更适合回答系统流程、角色职责、页面入口、业务规则等项目内问题 |\n| AI 助手联动 | 与角色权限、页面入口、项目文档、历史会话和模型路由打通 | 用户不必反复翻文档或找页面，能直接在系统内获得针对当前项目的答案 |\n| 多模型能力 | 支持通义千问、智谱 GLM、Kimi、DeepSeek，并结合默认模型与回退链路 | 在可用性、成本与回答稳定性之间做平衡，减少单模型不可用带来的影响 |\n| 权限模型 | 角色 + 部门双维权限控制 | 更贴近真实企业组织结构与权限边界 |\n| 部门协同 | 人事、采购、销售、仓储、财务拥有独立工作台 | 不同岗位看到的菜单、首页指标和业务入口各不相同 |\n| 任务闭环 | “工作要求”覆盖发布、接受、执行、提交、审核全流程 | 将跨部门任务转为可跟踪、可回看、可审核的闭环流程 |\n| 审批追溯 | 历史单据不能直接处理，需经仓储审批后作废或红冲 | 保留审批轨迹与处理结果，提升业务可控性 |\n| 消息协同 | 待办提醒、站内邮箱与超时通知统一收口 | 关键消息前置展示，减少遗漏处理成本 |\n| 时效治理 | 超时状态独立记录，统一识别超时中、逾期提交、逾期完成 | 不破坏原有状态机，又能显式暴露时效风险 |\n| 经营与治理 | 销售毛利分析、登录日志、操作日志、超管总览形成组合能力 | 同时兼顾业务经营分析与系统治理审计 |\n\n### 📋 工作要求闭环速览\n\n```mermaid\nflowchart LR\n\tA[管理员发布] --> B[员工接受或拒收]\n\tB -->|接受| C[执行并提交]\n\tC --> D[管理员审核]\n\tD -->|通过| E[完成]\n\tD -->|驳回| F[退回重做]\n\tF --> C\n\tC --> G[附件留痕]\n\tB -->|超时| H[定时扫描]\n\tH --> I[站内提醒]\n```\n\n### 🧾 历史单据审批流速览\n\n```mermaid\nflowchart LR\n\tA[采购或销售管理员] --> B[提交作废或红冲申请]\n\tB --> C[仓储管理员审批]\n\tC -->|通过| D[执行作废或红冲]\n\tC -->|驳回| E[保留原单据]\n\tD --> F[列表回写结果]\n\tE --> F\n```\n\n### 🔐 角色权限矩阵速览\n\n| 身份 | 代表账号 | 权限范围 | 主要入口 |\n|---|---|---|---|\n| 超级管理员 | `superadmin` | 系统治理与安全审计 | 首页、公告管理、用户管理、超管总览、安全策略、登录日志、操作日志 |\n| 人事管理员 | `hr_admin` | 人事与组织管理 | 首页、部门管理、员工管理、员工分布、通知、用户部门管理 |\n| 采购管理员 | `purchase_admin` | 采购业务与库存协同 | 首页、商品进货、进货退货、预警中心、通知、用户部门管理 |\n| 销售管理员 | `sales_admin` | 销售业务与库存协同 | 首页、商品销售、销售退货、预警中心、通知、用户部门管理 |\n| 仓储管理员 | `warehouse_admin` | 仓储资料与审批中心 | 首页、供应商管理、商品资料、预警中心、作废审批、通知、用户部门管理 |\n| 财务管理员 | `finance_admin` | 经营分析与报表查看 | 首页、销售统计图表、通知、用户部门管理 |\n| 部门员工 | `*_employee` | 员工工作台与个人信息维护 | 单页工作台、工作要求、公告提醒、部门信息、手机号邮箱维护 |\n\n\n\n## 👤 默认账号（可按需修改）\n\n- `superadmin`：超级管理员，聚焦系统治理与安全审计管理\n- `hr_admin`：人事管理员\n- `purchase_admin`：采购管理员\n- `sales_admin`：销售管理员\n- `warehouse_admin`：仓储管理员\n- `finance_admin`：财务管理员\n- `*_employee`：对应部门员工账号\n\n默认密码：123456\n\n## 🛠️ 技术栈\n\n- 前端：Vue 3、Vite、Element Plus、Pinia、Vue Router、Axios、ECharts\n- 后端：Spring Boot 3.3.5、MyBatis-Plus 3.5.5、Sa-Token 1.37.0\n- 数据库：MySQL 8.0\n- 运行环境：JDK 17、Node.js 16+\n\n## 📦 环境准备\n\n- JDK 17：后端基于 Spring Boot 3，必须有 Java 17 环境。\n- Maven（MVN）：用于编译和启动后端。项目自带 Maven Wrapper（`mvnw` / `mvnw.cmd`）(即使未全局安装 Maven 也通常可以直接运行)。\n- Node.js（建议 18+）和 npm：前端基于 Vue 3 + Vite，需要用 npm 安装依赖并启动前端。\n- MySQL 8.0：项目数据存储在 MySQL，需先执行初始化 SQL 脚本。\n\n\n## 📁 目录结构\n\n```text\n.\n├─front/                 # Vue 前端\n├─back/                  # Spring Boot 后端\n└─db.sql                 # 数据库初始化脚本\n├─README.md              # 项目说明文档\n├─AImd/                  # AI 助手相关文档\n├─projectmd/             # 项目说明文档目录\n```\n\n\n\n<a id=\"quick-start\"></a>\n\n## 🚀 快速开始\n\n### 1. 拉取项目\n\n```bash\ngit clone https://github.com/shanqiu127/Warehouse-Management-System-.git\ncd Warehouse-Management-System-\n```\n\n\n### 2. 初始化数据库\n\n1. 打开数据库管理工具（如：Navicat、DBeaver 等），执行根目录数据库脚本：`db.sql`即可。\n2. 正常导入整份脚本即可；如果你的工具不允许在导入时自动建库，再手动创建 `warehouse_management` 数据库。\n\n\n### 3. 更改application.properties配置文件\n\n请根据你的本机环境修改 `back/src/main/resources/application.properties` 中的数据库连接配置，`spring.datasource.username` 和 `spring.datasource.password`。\n\n完成这一步后，小白用户只需要在项目根目录运行下面两个命令之一。（注意是之一，不要两个都运行），如果不想使用脚本，也可以手动执行后续步骤。\n\n\n### 4.1脚本执行\n如果你不使用 AI 助手，直接运行：\n\n```bat\n.\\start-no-ai.bat\n```\n脚本会自动：\n- 启动后端\n- 检查前端依赖，缺少时自动执行 `npm install`\n- 启动前端\n\n#### 如果你要连同 AI 助手一起使用，直接运行：\n```bat\n.\\start-with-ai.bat\n```\n脚本会自动：\n- 首次提示填写 AI 助手模型 Key，并生成本地 `back/assistant-llm.env`\n- 启动后端\n- 检查前端依赖，缺少时自动执行 `npm install`\n- 启动前端\n后端默认地址：`http://localhost:8080`\n前端默认地址：`http://localhost:5173`\n\n### 4.2手动执行\n\n如果你不想使用上面的脚本，也可以手动执行：\n后端启动：\n```bash\ncd back\n.\\mvnw.cmd -DskipTests compile\n.\\mvnw.cmd spring-boot:run\n```\n前端启动：\n```bash\ncd front\nnpm install\nnpm run dev\n```\n\n如果需要 AI 助手，再在 back 目录下新建 `assistant-llm.env` 文件，至少配置一个可用模型的 API Key：\n```env\nQWEN_API_KEY=\nGLM_API_KEY=\nKIMI_API_KEY=\nKIMI_ENDPOINT=https://api.moonshot.cn/v1/chat/completions\nKIMI_MODEL_CODE=moonshot-v1-8k\nDEEPSEEK_API_KEY=\n```\n\n\n\n## ⚠️ 注意事项\n\n### 可选更改\n- back/src/main/resources/application.properties 中 `app.upload.base-path` 当前建议使用相对路径 `../uploads`。\n\t- 该配置表示：当你在 `back` 目录启动后端时，上传图片会落到项目根目录下的 `uploads/` 文件夹。\n\t- 如果你希望上传文件落到别的位置，可以按本机环境改成其他相对路径或绝对路径。\n- AI 助手模型密钥建议统一放在本地 `back/assistant-llm.env` 文件中，方便管理和切换。也可以直接修改 `application.properties` 中的环境变量引用，但不建议直接把 Key 写在 `application.properties` 中。\n- db.sql 中初始化的默认账号和密码（当前为 `superadmin`、`hr_admin`、`purchase_admin`、`sales_admin`、`warehouse_admin`、`finance_admin` 及各部门 `*_employee`，默认密码均为 `123456`）可按需调整。（应用于登录系统时的默认账号密码）\n- back/src/main/java/org/example/back/service/UserManageService.java 中的默认密码为 `123456`。（应用于新建用户时的默认密码）\n- 这两个是不一样",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:30.855569"
+  },
+  {
+    "basic_info": {
+      "name": "HyperOS_FCM_Live",
+      "full_name": "Howard20181/HyperOS_FCM_Live",
+      "owner": "Howard20181",
+      "description": null,
+      "url": "https://github.com/Howard20181/HyperOS_FCM_Live",
+      "clone_url": "https://github.com/Howard20181/HyperOS_FCM_Live.git",
+      "ssh_url": "git@github.com:Howard20181/HyperOS_FCM_Live.git",
+      "homepage": null,
+      "created_at": "2026-03-27T12:50:53Z",
+      "updated_at": "2026-04-13T07:21:23Z",
+      "pushed_at": "2026-04-13T21:54:11Z"
+    },
+    "stats": {
+      "stars": 82,
+      "forks": 1,
+      "watchers": 82,
+      "open_issues": 5,
+      "size": 155
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 46216
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 修复澎湃系统谷歌推送重连\n\n去除澎湃系统对谷歌推送连接相关广播的限制。启用模块后，系统耗电可能会增加。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:32.048352"
+  },
+  {
+    "basic_info": {
+      "name": "ShiroAttack2_bypass",
+      "full_name": "lingxisec/ShiroAttack2_bypass",
+      "owner": "lingxisec",
+      "description": "在ShiroAttack2基础上增加 Header 长度绕过、分块、短 Payload等功能",
+      "url": "https://github.com/lingxisec/ShiroAttack2_bypass",
+      "clone_url": "https://github.com/lingxisec/ShiroAttack2_bypass.git",
+      "ssh_url": "git@github.com:lingxisec/ShiroAttack2_bypass.git",
+      "homepage": null,
+      "created_at": "2026-03-23T14:39:53Z",
+      "updated_at": "2026-04-15T03:47:29Z",
+      "pushed_at": "2026-04-14T12:33:49Z"
+    },
+    "stats": {
+      "stars": 81,
+      "forks": 9,
+      "watchers": 81,
+      "open_issues": 0,
+      "size": 24213
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 1274930
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "\n\n<h1 align=\"center\" >ShiroAttack2 Bypass</h1>\n<h3 align=\"center\" >一款针对Shiro550漏洞进行快速漏洞利用</h3>\n\n\n> 站在巨人的肩膀上，基于 [ShiroAttack2](https://github.com/SummerSec/ShiroAttack2) 二次开发。\n>\n> By **凌曦安全 Syst1m**\n\n\n![ShiroAttack2_bypass](https://socialify.git.ci/lingxisec/ShiroAttack2_bypass/image?description=1&font=KoHo&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&stargazers=1&theme=Dark)\n\n## 新增功能\n\n### Header 绕过（WAF Bypass）\n\n- 在 `rememberMe` Cookie 中插入非 Base64 字符（`$`）绕过 WAF 的 Base64 解码检测，Shiro 的 `discardNonBase64` 机制会自动忽略这些字符\n- 支持混淆开关，可关闭以减少 Cookie 长度\n- 支持最大 Cookie 长度限制配置\n\n### 短 Payload 利用链爆破\n- 基于 `Thread.sleep()` 时间差检测，替代原有回显方式验证利用链，大幅缩短爆破 payload 长度\n\n### 命令执行\n\n- **盲执行**：单次请求，最短 payload\n- **回显执行**：两阶段请求（执行+回显），支持 Spring / Tomcat 两种回显方式\n  - Spring：通过 `RequestContextHolder` 获取 Response\n  - Tomcat：通过 `ApplicationFilterChain.lastServicedResponse` 获取 Response\n\n### 分块内存马注入\n\n- 将大体积内存马 Base64 分块传输，每块通过系统属性 / 线程名 / 文件落地方式存储，最终由 Loader 类拼接加载\n- 支持自动计算最优分块大小\n\n### 其他\n\n- AES GCM 加密模式在绕过选项卡同步生效\n- 请求头 / POST 数据支持多行输入，可直接粘贴 Burp 数据包\n- 支持多版本 CommonsBeanutils gadget（1.8.3 / 1.9.2）\n\n\n![main](./assets/main.png)\n\n\n## 使用\n\n```bash\njava -jar shiro_attack-1.0-all.jar\n```\n\n在 jar 同级目录创建 `data/shiro_keys.txt` 存放密钥字典，`lib/` 目录存放 CommonsBeanutils 依赖。\n\n## 更新日志\n### ShiroAttack2 Bypass v1.1 — 20260413\n\n- **Cookie**：合并多行 Cookie、避免 hutool 多头发 rememberMe 被丢；主标签与子标签请求方式对齐。\n- **性能**：主标签统一 hutool、修复慢读与超时，界面操作放到后台线程，避免卡死。\n- **利用链**：去掉误注入 Base64 的 `insertSpecialChars`；类加载兼容 JDK 9+；Gadget 解析与原版对齐。\n- **Header 绕过**：动态类改为 JDK6 字节码，目标 JDK7 可加载；回显改走响应头 `X-C`，不写 Body，减少 500；混淆勾选即始终混淆，超长只提示不自动关。\n- **体验**：绕过页 UI 可缩放；子标签识别「密钥/利用链」时同时认输入框和下拉框，不必重复爆破。\n\n\n\n## 致谢(排名不分先后)\n\n076w\n\n## 免责声明\n\n该工具仅用于安全自查检测由于传播、利用此工具所提供的信息而造成的任何直接或者间接的后果及损失，均由使用者本人负责，作者不为此承担任何责任。\n未经网络安全部门及相关部门允许，不得善自使用本工具进行任何攻击活动，不得以任何方式将其用于商业目的。\n该工具只授权于企业内部进行问题排查，请勿用于非法用途，请遵守网络安全法，否则后果作者概不负责\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-15T03:56:33.267289"
+  },
+  {
+    "basic_info": {
+      "name": "JDex2",
+      "full_name": "J5now/JDex2",
+      "owner": "J5now",
+      "description": "基于Xposed / Lsposed的主动调用抽取壳脱壳工具",
+      "url": "https://github.com/J5now/JDex2",
+      "clone_url": "https://github.com/J5now/JDex2.git",
+      "ssh_url": "git@github.com:J5now/JDex2.git",
+      "homepage": null,
+      "created_at": "2026-04-06T12:38:08Z",
+      "updated_at": "2026-04-14T10:56:42Z",
+      "pushed_at": "2026-04-13T11:40:44Z"
+    },
+    "stats": {
+      "stars": 75,
+      "forks": 24,
+      "watchers": 75,
+      "open_issues": 1,
+      "size": 3839
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 47658,
+        "C++": 7854,
+        "CMake": 1634
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "## 项目介绍\n\n[JDex：基于Xposed / Lsposed的主动调用抽取壳脱壳工具](https://bbs.kanxue.com/thread-290669.htm)\n\n⭐ 如果本项目对您有帮助，请点个 Star，感谢您的支持！\n\n## 应用场景\n\n可以应对未对Lsposed设置有效检测的大部分的企业抽取壳和免费壳的Dex加固\n\n## 使用方法简介\n\n以根据不同Android版本的特性，适配不同版本下配置文件写入的情况，无需Root权限\n\n`MainActivity`中有如下配置，会根据输入将配置写到`/sdcard/Android/data/package.name/files/config.properties`路径下。配置文件也可以手动编辑，除了目标包名，其它配置多个路径可以通过`,`间隔\n\ndump后的dex位于`/sdcard/Android/data/包名/dumpDex/`下\n\n白名单和黑名单只是不做主动调用，但是仍然会进行dump\n\n![image-20260413193801812](images/image-20260413193801812.png)\n\n\n* targetApp：目标APP包名\n* targetClass：指定要脱的壳的包路径`com.xxx`（不设置可能会导致 JNI 引用过多，通常建议以App的包名前两层作为筛选）\n* blackListClass：填写某些导致App崩溃的类，如果崩溃则需要通过`JDex2 Debugger`的日志对某些类或者包进行筛选（由于写到本地性能开销过大所以没有写）\n* Debugger：输出完成主动调用的类列表（`tag~=JDex2 Debugger`）\n  * 当对某些APP脱壳过程中出现崩溃的情况，如果没有Dex被脱下来，需要参考主动调用的类列表进行分析，可能是因为某些Android的系统类在低版本下不存在，而APP的业务逻辑中做了定义但不会在低版本Android调用\n  * 比如某APP的`com.xxx.xxx.conferencesw`包下的类继承了 Android12 才有的类\n* Hook：使用Hook方式脱壳（不推荐使用）\n* innerClassesFilter：由于可能导致 JNI 引用数量过多，可以尝试关闭对内部类的主动调用，但是对某些壳，脱出来的匿名类依旧是空的，按需开启，建议使用黑名单过滤而不是本配置\n* **invokeConstructors：是否进行主动调用脱壳**\n* lazyDump：用于在筛选出导致闪退类的大致范围之后通过白名单进行主动调用筛选时，降低主动调用速度，以便更快的找到导致闪退的类/包\n\n如果使用的是Lsposed，**记得在Lsposed中勾选对应APP**\n\n某最新企业抽取壳脱壳效果展示：\n\n <img width=\"1799\" height=\"1090\" alt=\"image-20260406203358574\" src=\"images/9f71b8f8-11db-47e6-a423-55a42ee1f2fe.png\" style=\"zoom:67%;\" />\n\n\n## 本工具的局限性\n\n* 只能对抗类级别的方法抽取，而基于方法粒度的抽取则会无法进行，并且无法应对方法执行结束后重新抽取的情况，还有真正开始执行字节码才动态解密的情况\n* 各个方面的便捷性不足，一些崩溃问题可能需要参考崩溃日志进行分析，而且不算很完善\n* 基于 Android9.0+ 开发，未适配 Android7 系列及以下，Android8未知\n* JNI全局引用数量超过最大上限 51200 个导致崩溃\n  * 如果类的数量过于庞大导致目标App崩溃，需要重新进行一次脱壳来重新脱剩下的类，配置无需修改，会自动识别并且跳过已经Dump的类\n* 高度依赖于Lsposed的隐蔽性，如果Lsposed被检测则会直接闪退无法进行脱壳\n* 对于一些继承该系统下不存在类的类的主动调用实例化可能导致崩溃，需要通过观察`invokeDebugger`的结束类去将其加入黑名单\n* ~~UI写的有点草率~~",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-15T03:56:34.448300"
+  },
+  {
+    "basic_info": {
+      "name": "WINGSV",
+      "full_name": "WINGS-N/WINGSV",
+      "owner": "WINGS-N",
+      "description": "VPN клиент под Xray и vk-turn-proxy с дизайном Samsung One UI, root раздачей VPN, bypass'ом приложений, встроенным WG, ByeDPI, автопереключением, и многим другим",
+      "url": "https://github.com/WINGS-N/WINGSV",
+      "clone_url": "https://github.com/WINGS-N/WINGSV.git",
+      "ssh_url": "git@github.com:WINGS-N/WINGSV.git",
+      "homepage": "",
+      "created_at": "2026-04-02T02:18:47Z",
+      "updated_at": "2026-04-14T23:07:41Z",
+      "pushed_at": "2026-04-13T11:30:56Z"
+    },
+    "stats": {
+      "stars": 68,
+      "forks": 2,
+      "watchers": 68,
+      "open_issues": 6,
+      "size": 7021
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 1603283,
+        "Kotlin": 66874,
+        "C++": 10588,
+        "Python": 7503,
+        "C": 2838,
+        "CMake": 1250,
+        "JavaScript": 232,
+        "IDL": 1
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">WINGS V</h1>\n<p align=\"center\">\n  <a href=\"https://t.me/+KrgCVOtwL980ZDky\">\n    <img src=\"https://img.shields.io/badge/Telegram-Чат-26A5E4?style=for-the-badge&logo=telegram&logoColor=white\" alt=\"Telegram Чат\">\n  </a>\n</p>\n\nКлиент Xray, vk-turn-proxy, WireGuard, AmneziaWG в интерфейсе Samsung One UI\n\n## Скриншоты\n|                                                                                           |                                                                                           |\n| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |\n![Главная](readme-res/screenshots/main.jpg) | ![Роутинг приложений](readme-res/screenshots/appsrouting.jpg)\n![VPN Hotspot](readme-res/screenshots/vpnhotspot.jpg) | ![Настройки](readme-res/screenshots/settings.jpg)\n\n## Что умеет\n\n- работать через `Xray (VLESS)`, `VK TURN + WireGuard или AmneziaWG`, обычные `WireGuard/AmneziaWG`\n- показывать статус подключения, IP, страну, провайдера и сетевую статистику\n- работать в обычном VPN режиме через `VpnService`\n- работать в root режиме для `VK TURN + WireGuard`\n- настраивать маршрутизацию по приложениям\n- раздавать VPN через Wi‑Fi, USB, Bluetooth и Ethernet\n- показывать отдельные логи `vk-turn-proxy`, `Xray` и runtime приложения\n- импортировать и экспортировать конфигурации через `wingsv://`\n- импортировать `vless://` и raw `awg-quick` конфиги\n- работать с `Xray` профилями и подписками\n- переключаться через launcher actions, внешние intents и Quick Settings tiles\n\n## Панель 3x-ui с встроенным vk-turn-proxy\nВ качестве сервера, вы можете использовать эту [панель 3x-ui](https://github.com/WINGS-N/3x-ui), в которой уже вшит vk-turn-proxy как inbound\n\n## `wingsv://` ссылки\n- Основной формат: `wingsv://{base64(deflate(protobuf_data))}`\n- Основной импорт работает через protobuf+deflate\n- Внутри могут храниться:\n  - `VK TURN + WireGuard` настройки\n  - `Xray` профили и подписки\n  - `VK TURN + AmneziaWG` конфиг\n- Старый JSON вариант - legacy\n\n## Что используется\n\n- Java для основного приложения\n- OneUI / SESL 8 для интерфейса\n- `com.wireguard.android:tunnel` для WireGuard\n- `external/vk-turn-proxy` для native `VK TURN` клиента\n- `external/libXray` + `external/Xray-core` для `Xray`\n- `external/amneziawg-android` для `VK TURN + AmneziaWG`\n- `external/VPNHotspot` для root раздачи\n\n## Сборка\n\nНужно задать credentials для SESL GitHub Packages вне репозитория:\n\n- `seslUser`\n- `seslToken`\n\n```bash\n# Сразу склонить с submodules\ngit clone --recurse-submodules https://github.com/WINGS-N/WINGSV.git\n\n# Или после простого clone\n# Инициализация submodules\ngit submodule update --init --recursive\n```\n\nЛокальная сборка:\n\n```bash\n# debug сборка\n./gradlew :app:assembleDebug\n\n# релизная сборка\n./gradlew :app:assembleRelease\n```\n\nДля локальной сборки также нужны:\n\n- Android SDK\n- Android NDK\n- `protoc`\n- `go`\n- `gomobile`\n\n## Release\n\nGitHub Actions собирают:\n\n- CI debug build на `main`\n- release APK по тегам `v*`\n\n## Special thanks to\n\n- [XTLS](https://github.com/XTLS)\n- [cacggghp](https://github.com/cacggghp)\n- [Samsung](https://samsung.com)\n- [tribalfs](https://github.com/tribalfs)\n- [Mygod](https://github.com/Mygod)\n- [zx2c4](https://github.com/zx2c4)\n- [Amnezia VPN](https://github.com/amnezia-vpn)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:35.632882"
+  },
+  {
+    "basic_info": {
+      "name": "Poops-PS5-Java",
+      "full_name": "jaigaresc/Poops-PS5-Java",
+      "owner": "jaigaresc",
+      "description": "Java implementation of the poops_ps5 sys_netcontrol UAF kernel exploit for PS5 BD-J. Achieves arbitrary kernel R/W, root privileges, enables Debug Settings, and deploys an ELF loader.",
+      "url": "https://github.com/jaigaresc/Poops-PS5-Java",
+      "clone_url": "https://github.com/jaigaresc/Poops-PS5-Java.git",
+      "ssh_url": "git@github.com:jaigaresc/Poops-PS5-Java.git",
+      "homepage": "",
+      "created_at": "2026-03-31T20:48:12Z",
+      "updated_at": "2026-04-11T22:00:21Z",
+      "pushed_at": "2026-04-04T23:08:34Z"
+    },
+    "stats": {
+      "stars": 63,
+      "forks": 5,
+      "watchers": 63,
+      "open_issues": 1,
+      "size": 469
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 137512
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# POOPS PS5 - BD-J Kernel Exploit & ELF Loader\n\nA complete Java port of the [`poops_ps5.lua`](https://github.com/Gezine/Luac0re/blob/main/payloads/poops_ps5.lua) IPv6 UAF kernel exploit originally developed by [Gezine](https://github.com/Gezine) and [egycnq](https://github.com/egycnq), based on the [`ExploitNetControlImpl`](https://gist.github.com/TheOfficialFloW/7174351201b5260d7780780f4059bebf) vulnerability discovered by [TheFlow](https://github.com/TheOfficialFloW). This project is designed to run natively within the PlayStation 5 BD-J (Blu-ray Java) environment. \n\nThis payload chains a Netgraph/`sys_netcontrol` Use-After-Free (UAF) vulnerability, leveraging IPv6 routing headers for heap spraying, to achieve arbitrary kernel read/write, patches system credentials for root privileges, enables Debug Settings via a GPU DMA memory patch, and deploys an ELF loader.\n\n## Features\n\n* **Full Kernel R/W:** Stable UAF execution with dynamic triplet repair and Kqueue reclamation to prevent kernel panics.\n* **Privilege Escalation:** Patches process credentials (`ucred`) to achieve root access.\n* **Debug Settings:** Uses GPU DMA to patch QA flags, target ID, and UTOKEN in protected kernel memory.\n* **ELF Loader:** Safely allocates and maps executable memory using shared memory aliasing (respecting FreeBSD W^X protections) and spawns a system thread listening on port 9021 for payload execution.\n\n## Project History & Development\n\nThis project began as a technical challenge. Due to a lack of initial in-depth knowledge regarding FreeBSD internals and the PS5 kernel, the initial port of [`poops_ps5.lua`](https://github.com/Gezine/Luac0re/blob/main/payloads/poops_ps5.lua) to Java was generated using Large Language Models (LLMs). \n\nStarting from that AI-generated foundation, extensive reverse engineering, iterative hardware testing, and debugging were performed to stabilize the exploit chain.\n\n## Credits & Acknowledgements\n\nThis project relies heavily on the research and open-source contributions of the PlayStation security community:\n\n* **[Gezine](https://github.com/Gezine) & [egycnq](https://github.com/egycnq):** For the original [`poops_ps5.lua`](https://github.com/Gezine/Luac0re/blob/main/payloads/poops_ps5.lua) script and the core implementation of the exploitation chain.\n* **[TheFlow (Andy Nguyen)](https://github.com/TheOfficialFloW):** For the discovery of the [`ExploitNetControlImpl`](https://gist.github.com/TheOfficialFloW/7174351201b5260d7780780f4059bebf) vulnerability and the original BD-J sandbox escape research.\n* **[SpecterDev (Cryptogenic)](https://github.com/Cryptogenic), [ChendoChap](https://github.com/ChendoChap), [John Törnblom](https://github.com/john-tornblom), and the [ps5-payload-dev](https://github.com/ps5-payload-dev) contributors:** For their foundational work on PS5 ELF loading, memory mapping, and the overall payload ecosystem.\n* **Testers: A massive thank you to [DrYenyen](https://github.com/DrYenyen), [EchoStretch](https://github.com/EchoStretch), and [Viktorious-x](https://github.com/Viktorious-x), who generously volunteered their time and consoles to test and debug this payload despite not knowing me beforehand.**\n\n## Requirements\n\n* A PS5 on firmware 12.00 or below with an unpatched BD-J environment.\n* A functional BD-J Loader environment running on the console.\n  * *Note: For our testing and development, we successfully used the [BD-UN-JB 1.0 ISO](https://github.com/Gezine/BD-UN-JB/releases/download/1.0/BD-UN-JB_1.0.iso), which includes the Jar Loader utilizing TheFlow's API.*\n\n## Execution\n\n1. Send the compiled `.jar` file to the listening BD-J loader on your console (typically via port 9025).\n2. Wait for the process to complete all 7 stages. Once finished, the Debug Settings will become visible, and the ELF loader will be active.\n3. Close the Blu-ray application.\n4. Send your final payload (e.g., an `.elf` file) to **port 9021**.\n\n## Support ☕\n\nIf you found this project helpful and want to support my work, consider buying me a coffee!\n\n[Ko-fi](https://ko-fi.com/jaime_cyber)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:36.867509"
+  },
+  {
+    "basic_info": {
+      "name": "react-native-notify-kit",
+      "full_name": "marcocrupi/react-native-notify-kit",
+      "owner": "marcocrupi",
+      "description": "Actively maintained fork of Notifee for React Native notifications, continued and improved by Marco Crupi.",
+      "url": "https://github.com/marcocrupi/react-native-notify-kit",
+      "clone_url": "https://github.com/marcocrupi/react-native-notify-kit.git",
+      "ssh_url": "git@github.com:marcocrupi/react-native-notify-kit.git",
+      "homepage": "https://www.npmjs.com/package/react-native-notify-kit",
+      "created_at": "2026-03-30T14:48:22Z",
+      "updated_at": "2026-04-14T21:31:07Z",
+      "pushed_at": "2026-04-14T21:31:03Z"
+    },
+    "stats": {
+      "stars": 60,
+      "forks": 0,
+      "watchers": 60,
+      "open_issues": 0,
+      "size": 37847
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 422857,
+        "TypeScript": 401395,
+        "Objective-C": 128675,
+        "Kotlin": 41544,
+        "Shell": 26186,
+        "Objective-C++": 17458,
+        "JavaScript": 11184,
+        "Ruby": 5505,
+        "Swift": 1286
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "android",
+        "ios",
+        "notifee",
+        "notifications",
+        "react-native",
+        "react-native-new-architecture",
+        "turbomodules"
+      ]
+    },
+    "content": {
+      "readme": "# react-native-notify-kit\n\nMaintained Notifee-compatible fork — a feature-rich React Native notification library (Android & iOS).\n\n<!-- markdownlint-disable MD033 -->\n<p align=\"center\">\n  <a href=\"https://www.npmjs.com/package/react-native-notify-kit\"><img src=\"https://img.shields.io/npm/v/react-native-notify-kit.svg\" alt=\"npm version\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-Apache--2.0-blue.svg\" alt=\"License\"></a>\n  <img src=\"https://img.shields.io/badge/platform-Android%20%7C%20iOS-green.svg\" alt=\"Platform\">\n  <img src=\"https://img.shields.io/badge/React%20Native-%3E%3D0.73-blue.svg\" alt=\"React Native\">\n</p>\n\n<hr/>\n\nAn actively maintained fork of Notifee for React Native notifications, continued and improved by Marco Crupi.\n\nThis repository preserves the original Notifee APIs and native core while continuing development for modern React Native releases.\n\n## Why this fork\n\nThe original [Notifee](https://github.com/invertase/notifee) repository was **officially archived** by Invertase on April 7, 2026 (last release: v9.1.8, December 2024). The archived README recommends this fork (`react-native-notify-kit`) as a community-maintained drop-in replacement, alongside `expo-notifications`. Previously, in [issue #1254](https://github.com/invertase/notifee/issues/1254), the Invertase maintainer had already suggested migrating to `expo-notifications`.\n\nHowever, `expo-notifications` does not cover several advanced capabilities that many production apps rely on:\n\n- **Android foreground services** (ongoing notifications for background tasks)\n- **Rich notification styles** (BigPicture, Messaging, Inbox)\n- **Progress bar notifications**\n- **Full-screen intent notifications** (alarm/call screens)\n- **Ongoing / persistent notifications**\n\nThis fork fills the gap: it preserves all of Notifee's advanced features, migrates the bridge to React Native's **New Architecture** (TurboModules), and actively fixes the critical bugs left unresolved upstream — see the [bug fix table](#bugs-fixed-from-upstream-notifee) below.\n\n## Project Status\n\n<a href=\"https://github.com/marcocrupi/react-native-notify-kit/commits\"><img src=\"https://img.shields.io/github/last-commit/marcocrupi/react-native-notify-kit.svg\" alt=\"Last commit\"></a>\n\n- Officially recommended by Invertase as the community-maintained fork (April 2026)\n- Maintained fork of Notifee — actively developed and published as `react-native-notify-kit`\n- New Architecture only (TurboModules)\n- Minimum supported React Native: `0.73`\n- Development target: React Native `0.84`\n- License: `Apache-2.0`\n- Full changelog: [CHANGELOG.md](CHANGELOG.md)\n\nThe native core (NotifeeCore) is compiled from source as part of the bridge module (since 9.2.0) and the public API is **100% compatible** with the original `@notifee/react-native` — migration is a safe, drop-in replacement.\n\n## Installation\n\n```bash\nyarn add react-native-notify-kit\n# or\nnpm install react-native-notify-kit\n```\n\nFor iOS, run `cd ios && pod install` after installing.\n\n## Migration from @notifee/react-native\n\nIf you're coming from the original Notifee package, migrating takes just a few steps:\n\n1. **Swap the package:**\n\n   ```bash\n   yarn remove @notifee/react-native\n   yarn add react-native-notify-kit\n   ```\n\n2. **Update imports** — find and replace across your codebase:\n\n   ```diff\n   - import notifee from '@notifee/react-native';\n   + import notifee from 'react-native-notify-kit';\n   ```\n\n   The default export is still called `notifee`, so your application code stays the same — only the import path changes.\n\n3. **Reinstall pods** (iOS):\n\n   ```bash\n   cd ios && pod install\n   ```\n\nNo native code changes are required. The public API is fully compatible with `@notifee/react-native`.\n\n## Quick Start\n\n```ts\nimport notifee, { AndroidImportance } from 'react-native-notify-kit';\n\n// 1. Request permission (required on Android 13+ and iOS)\nawait notifee.requestPermission();\n\n// 2. Create a channel (Android only, required for Android 8+)\nawait notifee.createChannel({\n  id: 'default',\n  name: 'Default Channel',\n  importance: AndroidImportance.HIGH,\n});\n\n// 3. Display a notification\nawait notifee.displayNotification({\n  title: 'Hello',\n  body: 'This is a local notification',\n  android: { channelId: 'default' },\n});\n```\n\n> **Note:** The default export name `notifee` is kept intentionally for backward compatibility. If you're migrating from `@notifee/react-native`, a simple find-and-replace of the import path is all you need.\n\n### 4. Handle events\n\nIn your `index.js` (before `AppRegistry.registerComponent`):\n\n```ts\nimport notifee from 'react-native-notify-kit';\n\n// Background/killed state events\nnotifee.onBackgroundEvent(async ({ type, detail }) => {\n  console.log('Background event:', type, detail.notification?.id);\n});\n```\n\nIn your React component:\n\n```ts\nimport { useEffect } from 'react';\nimport notifee, { EventType } from 'react-native-notify-kit';\n\nuseEffect(() => {\n  return notifee.onForegroundEvent(({ type",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:38.065800"
+  },
+  {
+    "basic_info": {
+      "name": "CoGanh",
+      "full_name": "vinh1512004-crypto/CoGanh",
+      "owner": "vinh1512004-crypto",
+      "description": null,
+      "url": "https://github.com/vinh1512004-crypto/CoGanh",
+      "clone_url": "https://github.com/vinh1512004-crypto/CoGanh.git",
+      "ssh_url": "git@github.com:vinh1512004-crypto/CoGanh.git",
+      "homepage": null,
+      "created_at": "2026-03-24T09:58:43Z",
+      "updated_at": "2026-04-13T01:14:31Z",
+      "pushed_at": "2026-04-13T01:14:26Z"
+    },
+    "stats": {
+      "stars": 59,
+      "forks": 0,
+      "watchers": 59,
+      "open_issues": 0,
+      "size": 67261
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 129993
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-15T03:56:39.259363"
+  },
+  {
+    "basic_info": {
+      "name": "claude-your-gpt",
+      "full_name": "smartcmd/claude-your-gpt",
+      "owner": "smartcmd",
+      "description": "Make GPT code like Claude.",
+      "url": "https://github.com/smartcmd/claude-your-gpt",
+      "clone_url": "https://github.com/smartcmd/claude-your-gpt.git",
+      "ssh_url": "git@github.com:smartcmd/claude-your-gpt.git",
+      "homepage": "",
+      "created_at": "2026-03-19T20:14:53Z",
+      "updated_at": "2026-04-15T03:36:27Z",
+      "pushed_at": "2026-04-05T16:54:12Z"
+    },
+    "stats": {
+      "stars": 55,
+      "forks": 3,
+      "watchers": 55,
+      "open_issues": 0,
+      "size": 39
+    },
+    "tech_info": {
+      "language": "Java",
+      "languages": {
+        "Java": 62868
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# claude-your-gpt\n\nGPT is a smart model — it can solve problems and find bugs accurately, but it has recurring code style issues. This is likely a side effect of OpenAI's reinforcement learning stage. The goal of this project is to correct GPT's code style through prompts.\n\n## How we did that?\n\nFirst, I provided several small but representative development tasks for GPT and Claude to complete independently. Then, Claude analyzed the differences in code style between the two and summarized a report.\n\nI then provided several new feature development tasks on top of the existing codebase, also having the two models work independently and asking Claude to analyze the differences and summarize them.\n\nFinally, the two summaries are merged and distilled into a concise, language-agnostic set of code guidelines, manually adjusted to be used as prompts for GPT.\n\n## How to use it?\n\nDownload [AGENTS.md](AGENTS.md) and put it into your Codex home directory (defaults to `~/.codex`, unless you set `CODEX_HOME`) or project root. It also works with other AI coding tools that support custom instructions or system prompts.",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-15T03:56:40.428050"
+  }
+]

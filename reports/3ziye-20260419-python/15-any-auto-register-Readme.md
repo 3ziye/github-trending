@@ -1,0 +1,330 @@
+# Any Auto Register
+
+<p align="center">
+  <a href="https://linux.do" target="_blank">
+    <img src="https://img.shields.io/badge/LINUX-DO-FFB003?style=for-the-badge&logo=linux&logoColor=white" alt="LINUX DO" />
+  </a>
+</p>
+
+> ⚠️ 免责声明：本项目仅供学习与研究使用，不得用于任何商业用途。使用本项目所产生的一切后果由使用者自行承担。
+
+<p align="center">
+  <a href="README.md">中文</a> |
+  <a href="README_en.md">English</a> |
+  <a href="README_vi.md">Tiếng Việt</a>
+</p>
+
+多平台账号自动注册与管理系统，支持插件化扩展、Web UI 管理、批量注册、状态同步，以及本地 Turnstile Solver 自动拉起。
+
+## 目录
+
+- [项目简介](#项目简介)
+- [当前界面与实际平台展示](#当前界面与实际平台展示)
+- [功能特性](#功能特性)
+- [界面预览](#界面预览)
+- [技术栈](#技术栈)
+- [环境要求](#环境要求)
+- [ChatGPT 专项能力](#chatgpt-专项能力)
+- [邮箱服务支持](#邮箱服务支持)
+- [快速开始](#快速开始)
+- [Docker 部署](#docker-部署)
+- [插件与外部依赖](#插件与外部依赖)
+- [常见问题排查](#常见问题排查)
+- [项目结构](#项目结构)
+- [Electron 开发说明](#electron-开发说明)
+- [用户讨论群](#用户讨论群)
+- [赞助商目录](#赞助商目录)
+- [打赏博主](#赞助支持)
+- [Star History](#star-history)
+- [License](#license)
+
+## 项目简介
+
+本项目基于 [lxf746/any-auto-register](https://github.com/lxf746/any-auto-register.git) 二次开发
+
+## 当前界面与实际平台展示
+
+根据当前前端代码与界面，**左侧“平台管理”菜单默认显示的平台**为：
+
+- ChatGPT
+- Grok
+- Kiro (AWS Builder ID)
+- OpenBlockLabs
+- Trae.ai
+
+
+
+## 功能特性
+
+- **多平台账号注册与管理**：统一的账号列表、详情、导入、导出、删除、批量操作
+- **多执行器模式**：纯协议、无头浏览器、有头浏览器
+- **多邮箱服务接入**：支持内置、第三方、自建 Worker 邮箱等多种方案
+- **验证码支持**：YesCaptcha、本地 Turnstile Solver（Camoufox）
+- **代理能力**：代理池轮询、代理状态维护、注册过程代理接入
+- **批量注册**：支持注册数量、并发数、每个账号启动延迟设置
+- **实时日志**：前端实时查看注册日志
+- **任务历史管理**：支持历史记录查看与批量删除
+- **插件化扩展**：可按需接入外部服务和独立管理端
+
+## 界面预览
+
+### 仪表盘
+
+![仪表盘](docs/images/dashboard.png)
+
+### 全局配置 / 插件管理
+
+![全局配置 / 插件管理](docs/images/settings-integrations.png)
+
+## 技术栈
+
+| 层级 | 技术 |
+| --- | --- |
+| 后端 | FastAPI + SQLite（SQLModel） |
+| 前端 | React + TypeScript + Vite |
+| HTTP | curl_cffi |
+| 浏览器自动化 | Playwright / Camoufox |
+
+## 环境要求
+
+- Python 3.12+
+- Node.js 18+
+- Conda（推荐）
+- Windows（推荐直接使用仓库内启动脚本）
+
+## ChatGPT 专项能力
+
+当前版本里，**ChatGPT 是功能最完整的平台之一**，不仅支持注册，还支持 Token 生命周期管理、状态探测和外部系统同步。
+
+### 1. ChatGPT Token 方案切换
+
+前端当前提供两种 ChatGPT 注册模式：
+
+- **有 RT**（默认推荐）
+  - 走新 PR 链路
+  - 产出 **Access Token + Refresh Token**
+- **无 RT**（兼容旧方案）
+  - 走旧链路
+  - 仅产出 **Access Token / Session**
+  - 依赖 RT 的后续能力可能不可用
+
+这项切换在以下位置都能看到：
+
+- 注册任务页
+- ChatGPT 平台注册弹窗
+
+
+
+### 4. ChatGPT 批量状态同步与补传
+
+在 ChatGPT 平台列表顶部，当前还有两类批量能力：
+
+- **状态同步**
+  - 同步所选账号本地状态
+  - 同步所选账号 CLIProxyAPI 状态
+  - 或对当前筛选结果批量执行
+- **补传远端未发现**
+  - 补传远端未发现的 auth-file
+  - 支持“当前筛选范围”或“当前所选账号”两种作用范围
+
+## 邮箱服务支持
+
+根据当前注册页实际配置项，项目支持以下邮箱服务：
+
+| 服务名称 | 标识 | 说明 |
+| --- | --- | --- |
+| LuckMail | `luckmail` | 可免费领取用于测试，且**每天签到还能继续领取邮箱** |
+| MoeMail | `moemail` | 默认常用方案，自动注册账号并生成邮箱 |
+| TempMail.lol | `tempmail_lol` | 临时邮箱方案，部分地区可能需要代理 |
+| SkyMail (CloudMail) | `skymail` | 通过 API / Token / 域名使用 |
+| YYDS Mail / MaliAPI | `maliapi` | 支持域名与自动域名策略 |
+| GPTMail | `gptmail` | 基于 GPTMail API 生成临时邮箱并轮询邮件，支持已知域名时本地拼装随机地址 |
+| DuckMail | `duckmail` | 临时邮箱方案 |
+| Freemail | `freemail` | 自建邮箱服务 |
+| Laoudo | `laoudo` | 固定邮箱方案 |
+| CF Worker | `cfworker` | Cloudflare Worker 自建邮箱 |
+
+### Kiro 邮箱说明
+
+Kiro 当前风控较严格，邮箱方案会显著影响成功率。当前项目内也保留了这条重点提示：
+
+- **自建邮箱成功率：100%**
+- **项目内置临时邮箱成功率：0%**
+
+因此进行 **Kiro (AWS Builder ID)** 注册时，建议优先使用**自建邮箱**。
+
+## 快速开始
+
+### 1. 创建并激活 Conda 环境
+
+```bash
+conda create -n any-auto-register python=3.12 -y
+conda activate any-auto-register
+```
+
+### 2. 安装后端依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. 安装浏览器相关依赖
+
+```bash
+python -m playwright install chromium
+python -m camoufox fetch
+```
+
+### 4. 安装并构建前端
+
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+```
+
+构建完成后，静态资源输出到：
+
+```text
+./static
+```
+
+### 5. 启动项目
+
+#### Windows 推荐方式
+
+PowerShell：
+
+```powershell
+.\start_backend.ps1
+```
+
+CMD：
+
+```bat
+start_backend.bat
+```
+
+#### 手动启动
+
+```bash
+conda activate any-auto-register
+python main.py
+```
+
+启动后默认访问：
+
+```text
+http://localhost:8000
+```
+
+> 如果你已经执行过 `npm run build`，前端会由 FastAPI 直接托管，因此访问的是 `8000`，不是 `5173`。
+
+## Windows 启动脚本说明
+
+仓库内已提供以下脚本：
+
+- `start_backend.bat`
+- `start_backend.ps1`
+- `stop_backend.bat`
+- `stop_backend.ps1`
+
+这些脚本会强制使用 `any-auto-register` 环境启动/停止后端，可避免以下常见问题：
+
+- 后端能启动，但 Solver 没有拉起
+- `ModuleNotFoundError: quart`
+- 前端中 Turnstile Solver 一直显示“未运行”
+
+停止服务时可执行：
+
+PowerShell：
+
+```powershell
+.\stop_backend.ps1
+```
+
+CMD：
+
+```bat
+stop_backend.bat
+```
+
+默认会停止：
+
+- 后端端口：`8000`
+- Solver 端口：`8889`
+
+## 前端开发模式
+
+适合调试 React 页面时使用。
+
+### 终端 1：启动后端
+
+```powershell
+.\start_backend.ps1
+```
+
+### 终端 2：启动 Vite
+
+```bash
+cd frontend
+npm run dev
+```
+
+访问地址：
+
+```text
+http://localhost:5173
+```
+
+Vite 会将 `/api` 请求代理到本地后端 `http://localhost:8000`。
+
+## Turnstile Solver 说明
+
+### 自动启动
+
+本地 Turnstile Solver 会在 FastAPI 后端启动时自动拉起，默认地址：
+
+```text
+http://localhost:8889
+```
+
+前端“全局配置 → 验证码 → Turnstile Solver”显示的是**后端检测结果**，因此：
+
+- 后端未启动 → 前端显示“未运行”
+- 后端已启动但不在正确 conda 环境 → Solver 可能启动失败
+
+### 手动启动 Solver
+
+```bash
+conda activate any-auto-register
+python services/turnstile_solver/start.py --browser_type camoufox --port 8889
+```
+
+### Solver 日志
+
+如启动失败，可查看：
+
+```text
+services/turnstile_solver/solver.log
+```
+
+## Docker 部署
+
+仓库根目录已提供：
+
+- `Dockerfile`
+- `docker-compose.yml`
+
+默认部署内容包括：
+
+- FastAPI 后端
+- 已构建的前端静态资源
+- SQLite 数据库持久化目录 `./data`
+- 随后端自动拉起的本地 Turnstile Solver
+
+### 启动
+
+```bash
+docker c

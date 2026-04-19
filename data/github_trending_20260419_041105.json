@@ -1,0 +1,811 @@
+[
+  {
+    "basic_info": {
+      "name": "mempalace",
+      "full_name": "MemPalace/mempalace",
+      "owner": "MemPalace",
+      "description": "The best-benchmarked open-source AI memory system. And it's free.",
+      "url": "https://github.com/MemPalace/mempalace",
+      "clone_url": "https://github.com/MemPalace/mempalace.git",
+      "ssh_url": "git@github.com:MemPalace/mempalace.git",
+      "homepage": "http://mempalaceofficial.com/",
+      "created_at": "2026-04-05T01:12:07Z",
+      "updated_at": "2026-04-19T04:10:17Z",
+      "pushed_at": "2026-04-18T22:12:20Z"
+    },
+    "stats": {
+      "stars": 47881,
+      "forks": 6271,
+      "watchers": 47881,
+      "open_issues": 408,
+      "size": 15753
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1376941,
+        "HTML": 72274,
+        "CSS": 49403,
+        "Vue": 22045,
+        "JavaScript": 14039,
+        "Shell": 10393,
+        "TypeScript": 4827
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "chromadb",
+        "llm",
+        "mcp",
+        "memory",
+        "python"
+      ]
+    },
+    "content": {
+      "readme": "> [!CAUTION]\n> **Scam alert.** The only official sources for MemPalace are this\n> [GitHub repository](https://github.com/MemPalace/mempalace), the\n> [PyPI package](https://pypi.org/project/mempalace/), and the docs site at\n> **[mempalaceofficial.com](https://mempalaceofficial.com)**. Any other\n> domain — including `mempalace.tech` — is an impostor and may distribute\n> malware. Details and timeline: [docs/HISTORY.md](docs/HISTORY.md).\n\n<div align=\"center\">\n\n<img src=\"assets/mempalace_logo.png\" alt=\"MemPalace\" width=\"240\">\n\n# MemPalace\n\nLocal-first AI memory. Verbatim storage, pluggable backend, 96.6% R@5 raw on LongMemEval — zero API calls.\n\n[![][version-shield]][release-link]\n[![][python-shield]][python-link]\n[![][license-shield]][license-link]\n[![][discord-shield]][discord-link]\n\n</div>\n\n---\n\n## What it is\n\nMemPalace stores your conversation history as verbatim text and retrieves\nit with semantic search. It does not summarize, extract, or paraphrase.\nThe index is structured — people and projects become *wings*, topics\nbecome *rooms*, and original content lives in *drawers* — so searches\ncan be scoped rather than run against a flat corpus.\n\nThe retrieval layer is pluggable. The current default is ChromaDB; the\ninterface is defined in [`mempalace/backends/base.py`](mempalace/backends/base.py)\nand alternative backends can be dropped in without touching the rest of\nthe system.\n\nNothing leaves your machine unless you opt in.\n\nArchitecture, concepts, and mining flows:\n[mempalaceofficial.com/concepts/the-palace](https://mempalaceofficial.com/concepts/the-palace.html).\n\n---\n\n## Install\n\n```bash\npip install mempalace\nmempalace init ~/projects/myapp\n```\n\n## Quickstart\n\n```bash\n# Mine content into the palace\nmempalace mine ~/projects/myapp                    # project files\nmempalace mine ~/.claude/projects/ --mode convos   # Claude Code sessions (scope with --wing per project)\n\n# Search\nmempalace search \"why did we switch to GraphQL\"\n\n# Load context for a new session\nmempalace wake-up\n```\n\nFor Claude Code, Gemini CLI, MCP-compatible tools, and local models, see\n[mempalaceofficial.com/guide/getting-started](https://mempalaceofficial.com/guide/getting-started.html).\n\n---\n\n## Benchmarks\n\nAll numbers below are reproducible from this repository with the commands\nin [`benchmarks/BENCHMARKS.md`](benchmarks/BENCHMARKS.md). Full\nper-question result files are committed under `benchmarks/results_*`.\n\n**LongMemEval — retrieval recall (R@5, 500 questions):**\n\n| Mode | R@5 | LLM required |\n|---|---|---|\n| Raw (semantic search, no heuristics, no LLM) | **96.6%** | None |\n| Hybrid v4, held-out 450q (tuned on 50 dev, not seen during training) | **98.4%** | None |\n| Hybrid v4 + LLM rerank (full 500) | ≥99% | Any capable model |\n\nThe raw 96.6% requires no API key, no cloud, and no LLM at any stage. The\nhybrid pipeline adds keyword boosting, temporal-proximity boosting, and\npreference-pattern extraction; the held-out 98.4% is the honest\ngeneralisable figure.\n\nThe rerank pipeline promotes the best candidate out of the top-20\nretrieved sessions using an LLM reader. It works with any reasonably\ncapable model — we have reproduced it with Claude Haiku, Claude Sonnet,\nand minimax-m2.7 via Ollama Cloud (no Anthropic dependency). The gap\nbetween raw and reranked is model-agnostic; we do not headline a \"100%\"\nnumber because the last 0.6% was reached by inspecting specific wrong\nanswers, which `benchmarks/BENCHMARKS.md` flags as teaching to the test.\n\n**Other benchmarks (full results in [`benchmarks/BENCHMARKS.md`](benchmarks/BENCHMARKS.md)):**\n\n| Benchmark | Metric | Score | Notes |\n|---|---|---|---|\n| LoCoMo (session, top-10, no rerank) | R@10 | 60.3% | 1,986 questions |\n| LoCoMo (hybrid v5, top-10, no rerank) | R@10 | 88.9% | Same set |\n| ConvoMem (all categories, 250 items) | Avg recall | 92.9% | 50 per category |\n| MemBench (ACL 2025, 8,500 items) | R@5 | 80.3% | All categories |\n\nWe deliberately do not include a side-by-side comparison against Mem0,\nMastra, Hindsight, Supermemory, or Zep. Those projects publish different\nmetrics on different splits, and placing retrieval recall next to\nend-to-end QA accuracy is not an honest comparison. See each project's\nown research page for their published numbers.\n\n**Reproducing every result:**\n\n```bash\ngit clone https://github.com/MemPalace/mempalace.git\ncd mempalace\npip install -e \".[dev]\"\n# see benchmarks/README.md for dataset download commands\npython benchmarks/longmemeval_bench.py /path/to/longmemeval_s_cleaned.json\n```\n\n---\n\n## Knowledge graph\n\nMemPalace includes a temporal entity-relationship graph with validity\nwindows — add, query, invalidate, timeline — backed by local SQLite.\nUsage and tool reference:\n[mempalaceofficial.com/concepts/knowledge-graph](https://mempalaceofficial.com/concepts/knowledge-graph.html).\n\n## MCP server\n\n29 MCP tools cover palace reads/writes, knowledge-graph operations,\ncross-wing navigation, drawer management, and agent diaries. Installation\nand the full tool list:\n[m",
+      "default_branch": "develop"
+    },
+    "fetched_at": "2026-04-19T04:11:06.498428"
+  },
+  {
+    "basic_info": {
+      "name": "caveman",
+      "full_name": "JuliusBrussee/caveman",
+      "owner": "JuliusBrussee",
+      "description": "🪨 why use many token when few token do trick — Claude Code skill that cuts 65% of tokens by talking like caveman",
+      "url": "https://github.com/JuliusBrussee/caveman",
+      "clone_url": "https://github.com/JuliusBrussee/caveman.git",
+      "ssh_url": "git@github.com:JuliusBrussee/caveman.git",
+      "homepage": "https://juliusbrussee.github.io/caveman/",
+      "created_at": "2026-04-04T10:03:00Z",
+      "updated_at": "2026-04-19T04:09:24Z",
+      "pushed_at": "2026-04-18T10:11:39Z"
+    },
+    "stats": {
+      "stars": 38003,
+      "forks": 1868,
+      "watchers": 38003,
+      "open_issues": 101,
+      "size": 2277
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 101139,
+        "JavaScript": 15562,
+        "PowerShell": 13646,
+        "Shell": 12839
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "anthropic",
+        "caveman",
+        "claude",
+        "claude-code",
+        "llm",
+        "meme",
+        "prompt-engineering",
+        "skill",
+        "tokens"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://em-content.zobj.net/source/apple/391/rock_1faa8.png\" width=\"120\" />\n</p>\n\n<h1 align=\"center\">caveman</h1>\n\n<p align=\"center\">\n  <strong>why use many token when few do trick</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/JuliusBrussee/caveman/stargazers\"><img src=\"https://img.shields.io/github/stars/JuliusBrussee/caveman?style=flat&color=yellow\" alt=\"Stars\"></a>\n  <a href=\"https://github.com/JuliusBrussee/caveman/commits/main\"><img src=\"https://img.shields.io/github/last-commit/JuliusBrussee/caveman?style=flat\" alt=\"Last Commit\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/github/license/JuliusBrussee/caveman?style=flat\" alt=\"License\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"#before--after\">Before/After</a> •\n  <a href=\"#install\">Install</a> •\n  <a href=\"#intensity-levels\">Levels</a> •\n  <a href=\"#caveman-skills\">Skills</a> •\n  <a href=\"#benchmarks\">Benchmarks</a> •\n  <a href=\"#evals\">Evals</a>\n</p>\n\n<p align=\"center\">\n  <strong>🪨 Caveman Ecosystem</strong> &nbsp;·&nbsp;\n  <strong>caveman</strong> <em>talk less</em> <sub>(you are here)</sub> &nbsp;·&nbsp;\n  <a href=\"https://github.com/JuliusBrussee/cavemem\">cavemem</a> <em>remember more</em> &nbsp;·&nbsp;\n  <a href=\"https://github.com/JuliusBrussee/cavekit\">cavekit</a> <em>build better</em>\n</p>\n\n---\n\nA [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill/plugin and Codex plugin that makes agent talk like caveman — cutting **~75% of output tokens** while keeping full technical accuracy. Now with [文言文 mode](#文言文-wenyan-mode), [terse commits](#caveman-commit), [one-line code reviews](#caveman-review), and a [compression tool](#caveman-compress) that cuts **~46% of input tokens** every session.\n\nBased on the viral observation that caveman-speak dramatically reduces LLM token usage without losing technical substance. So we made it a one-line install.\n\n## Before / After\n\n<table>\n<tr>\n<td width=\"50%\">\n\n### 🗣️ Normal Claude (69 tokens)\n\n> \"The reason your React component is re-rendering is likely because you're creating a new object reference on each render cycle. When you pass an inline object as a prop, React's shallow comparison sees it as a different object every time, which triggers a re-render. I'd recommend using useMemo to memoize the object.\"\n\n</td>\n<td width=\"50%\">\n\n### 🪨 Caveman Claude (19 tokens)\n\n> \"New object ref each render. Inline object prop = new ref = re-render. Wrap in `useMemo`.\"\n\n</td>\n</tr>\n<tr>\n<td>\n\n### 🗣️ Normal Claude\n\n> \"Sure! I'd be happy to help you with that. The issue you're experiencing is most likely caused by your authentication middleware not properly validating the token expiry. Let me take a look and suggest a fix.\"\n\n</td>\n<td>\n\n### 🪨 Caveman Claude\n\n> \"Bug in auth middleware. Token expiry check use `<` not `<=`. Fix:\"\n\n</td>\n</tr>\n</table>\n\n**Same fix. 75% less word. Brain still big.**\n\n**Pick your level of grunt:**\n\n<table>\n<tr>\n<td width=\"25%\">\n\n#### 🪶 Lite\n\n> \"Your component re-renders because you create a new object reference each render. Inline object props fail shallow comparison every time. Wrap it in `useMemo`.\"\n\n</td>\n<td width=\"25%\">\n\n#### 🪨 Full\n\n> \"New object ref each render. Inline object prop = new ref = re-render. Wrap in `useMemo`.\"\n\n</td>\n<td width=\"25%\">\n\n#### 🔥 Ultra\n\n> \"Inline obj prop → new ref → re-render. `useMemo`.\"\n\n</td>\n<td width=\"25%\">\n\n#### 📜 文言文\n\n> \"物出新參照，致重繪。useMemo Wrap之。\"\n\n</td>\n</tr>\n</table>\n\n**Same answer. You pick how many word.**\n\n```\n┌─────────────────────────────────────┐\n│  TOKENS SAVED          ████████ 75% │\n│  TECHNICAL ACCURACY    ████████ 100%│\n│  SPEED INCREASE        ████████ ~3x │\n│  VIBES                 ████████ OOG │\n└─────────────────────────────────────┘\n```\n\n- **Faster response** — less token to generate = speed go brrr\n- **Easier to read** — no wall of text, just the answer\n- **Same accuracy** — all technical info kept, only fluff removed ([science say so](https://arxiv.org/abs/2604.00025))\n- **Save money** — ~71% less output token = less cost\n- **Fun** — every code review become comedy\n\n## Install\n\nPick your agent. One command. Done.\n\n| Agent | Install |\n|-------|---------|\n| **Claude Code** | `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman` |\n| **Codex** | Clone repo → `/plugins` → Search \"Caveman\" → Install |\n| **Gemini CLI** | `gemini extensions install https://github.com/JuliusBrussee/caveman` |\n| **Cursor** | `npx skills add JuliusBrussee/caveman -a cursor` |\n| **Windsurf** | `npx skills add JuliusBrussee/caveman -a windsurf` |\n| **Copilot** | `npx skills add JuliusBrussee/caveman -a github-copilot` |\n| **Cline** | `npx skills add JuliusBrussee/caveman -a cline` |\n| **Any other** | `npx skills add JuliusBrussee/caveman` |\n\nInstall once. Use in every session for that install target after that. One rock. That it.\n\n### What You Get\n\nAuto-activation is built in for Claude Code, Gemini CLI, and the repo-local Codex setup below. `npx skills add",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:07.648883"
+  },
+  {
+    "basic_info": {
+      "name": "graphify",
+      "full_name": "safishamsi/graphify",
+      "owner": "safishamsi",
+      "description": "AI coding assistant skill (Claude Code, Codex, OpenCode, Cursor, Gemini CLI, GitHub Copilot CLI, OpenClaw, Factory Droid, Trae, Google Antigravity). Turn any folder of code, docs, papers, images, or videos into a queryable knowledge graph",
+      "url": "https://github.com/safishamsi/graphify",
+      "clone_url": "https://github.com/safishamsi/graphify.git",
+      "ssh_url": "git@github.com:safishamsi/graphify.git",
+      "homepage": "https://safishamsi.github.io/penpax.ai",
+      "created_at": "2026-04-03T15:49:07Z",
+      "updated_at": "2026-04-19T04:09:39Z",
+      "pushed_at": "2026-04-18T15:52:37Z"
+    },
+    "stats": {
+      "stars": 30012,
+      "forks": 3303,
+      "watchers": 30012,
+      "open_issues": 134,
+      "size": 621
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 589576
+      },
+      "license": "MIT License",
+      "topics": [
+        "antigravity",
+        "claude-code",
+        "codex",
+        "gemini",
+        "graphrag",
+        "knowledge-graph",
+        "openclaw",
+        "skills"
+      ]
+    },
+    "content": {
+      "readme": "# graphify\n\n[English](README.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja-JP.md) | [한국어](README.ko-KR.md)\n\n[![CI](https://github.com/safishamsi/graphify/actions/workflows/ci.yml/badge.svg?branch=v4)](https://github.com/safishamsi/graphify/actions/workflows/ci.yml)\n[![PyPI](https://img.shields.io/pypi/v/graphifyy)](https://pypi.org/project/graphifyy/)\n[![Downloads](https://static.pepy.tech/badge/graphifyy)](https://pepy.tech/project/graphifyy)\n[![Sponsor](https://img.shields.io/badge/sponsor-safishamsi-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/safishamsi)\n[![LinkedIn](https://img.shields.io/badge/LinkedIn-Safi%20Shamsi-0077B5?logo=linkedin)](https://www.linkedin.com/in/safi-shamsi)\n\n**An AI coding assistant skill.** Type `/graphify` in Claude Code, Codex, OpenCode, Cursor, Gemini CLI, GitHub Copilot CLI, VS Code Copilot Chat, Aider, OpenClaw, Factory Droid, Trae, Hermes, Kiro, or Google Antigravity - it reads your files, builds a knowledge graph, and gives you back structure you didn't know was there. Understand a codebase faster. Find the \"why\" behind architectural decisions.\n\nFully multimodal. Drop in code, PDFs, markdown, screenshots, diagrams, whiteboard photos, images in other languages, or video and audio files - graphify extracts concepts and relationships from all of it and connects them into one graph. Videos are transcribed with Whisper using a domain-aware prompt derived from your corpus. 25 languages supported via tree-sitter AST (Python, JS, TS, Go, Rust, Java, C, C++, Ruby, C#, Kotlin, Scala, PHP, Swift, Lua, Zig, PowerShell, Elixir, Objective-C, Julia, Verilog, SystemVerilog, Vue, Svelte, Dart).\n\n> Andrej Karpathy keeps a `/raw` folder where he drops papers, tweets, screenshots, and notes. graphify is the answer to that problem - 71.5x fewer tokens per query vs reading the raw files, persistent across sessions, honest about what it found vs guessed.\n\n```\n/graphify .                        # works on any folder - your codebase, notes, papers, anything\n```\n\n```\ngraphify-out/\n├── graph.html       interactive graph - open in any browser, click nodes, search, filter by community\n├── GRAPH_REPORT.md  god nodes, surprising connections, suggested questions\n├── graph.json       persistent graph - query weeks later without re-reading\n└── cache/           SHA256 cache - re-runs only process changed files\n```\n\nAdd a `.graphifyignore` file to exclude folders you don't want in the graph:\n\n```\n# .graphifyignore\nvendor/\nnode_modules/\ndist/\n*.generated.py\n```\n\nSame syntax as `.gitignore`. You can keep a single `.graphifyignore` at your repo root — patterns work correctly even when graphify is run on a subfolder.\n\n## How it works\n\ngraphify runs in three passes. First, a deterministic AST pass extracts structure from code files (classes, functions, imports, call graphs, docstrings, rationale comments) with no LLM needed. Second, video and audio files are transcribed locally with faster-whisper using a domain-aware prompt derived from corpus god nodes — transcripts are cached so re-runs are instant. Third, Claude subagents run in parallel over docs, papers, images, and transcripts to extract concepts, relationships, and design rationale. The results are merged into a NetworkX graph, clustered with Leiden community detection, and exported as interactive HTML, queryable JSON, and a plain-language audit report.\n\n**Clustering is graph-topology-based — no embeddings.** Leiden finds communities by edge density. The semantic similarity edges that Claude extracts (`semantically_similar_to`, marked INFERRED) are already in the graph, so they influence community detection directly. The graph structure is the similarity signal — no separate embedding step or vector database needed.\n\nEvery relationship is tagged `EXTRACTED` (found directly in source), `INFERRED` (reasonable inference, with a confidence score), or `AMBIGUOUS` (flagged for review). You always know what was found vs guessed.\n\n## Install\n\n**Requires:** Python 3.10+ and one of: [Claude Code](https://claude.ai/code), [Codex](https://openai.com/codex), [OpenCode](https://opencode.ai), [Cursor](https://cursor.com), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli), [VS Code Copilot Chat](https://code.visualstudio.com/docs/copilot/overview), [Aider](https://aider.chat), [OpenClaw](https://openclaw.ai), [Factory Droid](https://factory.ai), [Trae](https://trae.ai), [Kiro](https://kiro.dev), Hermes, or [Google Antigravity](https://antigravity.google)\n\n```bash\npip install graphifyy && graphify install\n# or with pipx (keeps the CLI isolated from your project environments)\npipx install graphifyy && graphify install\n```\n\n> **Official package:** The PyPI package is named `graphifyy` (install with `pip install graphifyy`). Other packages named `graphify*` on PyPI are not affiliated with this project. The only official repository is [safishamsi/graphify](https://github.com/",
+      "default_branch": "v4"
+    },
+    "fetched_at": "2026-04-19T04:11:08.806435"
+  },
+  {
+    "basic_info": {
+      "name": "colleague-skill",
+      "full_name": "titanwings/colleague-skill",
+      "owner": "titanwings",
+      "description": "将冰冷的离别化为温暖的 Skill，欢迎加入数字生命1.0！Transforming cold farewells into warm skills? It's giving rebirth era. Welcome to Digital Life 1.0. 🫶",
+      "url": "https://github.com/titanwings/colleague-skill",
+      "clone_url": "https://github.com/titanwings/colleague-skill.git",
+      "ssh_url": "git@github.com:titanwings/colleague-skill.git",
+      "homepage": "",
+      "created_at": "2026-03-30T05:22:23Z",
+      "updated_at": "2026-04-19T04:08:57Z",
+      "pushed_at": "2026-04-18T17:06:49Z"
+    },
+    "stats": {
+      "stars": 14931,
+      "forks": 1467,
+      "watchers": 14931,
+      "open_issues": 30,
+      "size": 5769
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 291047,
+        "Shell": 887
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 🧬 dot-skill\n\n### *\"You folks building LLMs are all code-sages! Flesh is weak! Ascend to cyberspace!\"*\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)\n[![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)\n[![Stars](https://img.shields.io/github/stars/titanwings/colleague-skill?style=social)](https://github.com/titanwings/colleague-skill/stargazers)\n\n[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)\n[![Hermes](https://img.shields.io/badge/Hermes-Skill-orange)](https://github.com/titanwings/colleague-skill)\n[![OpenClaw](https://img.shields.io/badge/OpenClaw-Skill-teal)](https://github.com/titanwings/colleague-skill)\n[![Codex](https://img.shields.io/badge/Codex-Skill-black)](https://github.com/titanwings/colleague-skill)\n\n[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/aRjmJBdK)\n\n<br>\n\n<table>\n<tr><td align=\"left\">\n\n🧑‍💼 &nbsp;Your colleague quit, your mentor graduated, your teammate transferred — taking their whole playbook and context with them?<br>\n💞 &nbsp;Your family, old friends, partner drifting apart — and you want to hold on to the way it felt to be with them?<br>\n🌟 &nbsp;Your favorite author, idol, thinker you'll never meet — but you want to know what they'd say about your question?\n\n</td></tr>\n</table>\n\n### ✨ dot-skill solves all three.\n\n<br>\n\nUpgraded from **colleague.skill** to **dot-skill** — not just colleagues, **anyone** can be distilled into a Skill\n\nColleagues · partners · family · old friends · idols · public figures · fictional characters — even yourself\n\n**Source material + your description →  an AI Skill that genuinely thinks like them**\nThinks in their frame, speaks in their voice\n\n<br>\n\n[🆕 What's new](#-whats-new-in-this-major-release) · [📦 Data Sources](#-supported-data-sources) · [⚡ Install](#-install) · [🚀 Usage](#-usage) · [✨ Demo](#-demo) · [💬 Discord](https://discord.gg/aRjmJBdK)\n\n[**中文**](docs/lang/README_ZH.md) · [**Español**](docs/lang/README_ES.md) · [**Deutsch**](docs/lang/README_DE.md) · [**日本語**](docs/lang/README_JA.md) · [**Русский**](docs/lang/README_RU.md) · [**Português**](docs/lang/README_PT.md) · [**한국어**](docs/lang/README_KO.md)\n\n</div>\n\n---\n\n<div align=\"center\">\n\n### 🎉 2026.04.19 Milestone — **dot-skill just hit 15k ⭐!**\n\nMassive thanks to everyone who starred — we'll keep shipping, keep distilling.\n\n</div>\n\n> 📢 **2026.04.19 Update** — **WeChat group 5 is live!** Come hang out with the dot-skill community — share skills, discuss features, trade tips.\n>\n> <img src=\"docs/assets/wechat-group-qr-5.png\" alt=\"dot-skill WeChat group QR\" width=\"240\">\n>\n> QR refreshes every 7 days (expires 2026-04-24) — if expired, ping me on Discord.\n\n> 🗺️ **2026.04.13** — **dot-skill Roadmap is live!** colleague.skill is evolving into **dot-skill** — distill anyone, not just colleagues. 👉 **[Full Roadmap](ROADMAP.md)** · **[💬 Discord](https://discord.gg/aRjmJBdK)**\n\n> 🌐 **2026.04.07** — Community gallery is live! Any skill / meta-skill can drive traffic directly to your own GitHub repo. No middleman. 👉 **[titanwings.github.io/colleague-skill-site](https://titanwings.github.io/colleague-skill-site/)**\n\n<div align=\"center\">\n\nCreated by [@titanwings](https://github.com/titanwings) · Powered by **Shanghai AI Lab · AI Safety Center**\n\n</div>\n\n---\n\n## 🆕 What's new in this major release?\n\n### 1️⃣ From colleague-skill to dot-skill\n\nNo longer only built around the \"colleague\" scenario. A unified `/dot-skill` entrypoint sits on a general-purpose skill engine — one engine distills anyone, instead of being a colleague-specific script.\n\n### 2️⃣ Three character families\n\n<table>\n<thead>\n<tr>\n<th width=\"33%\" align=\"center\">🧑‍💼 colleague</th>\n<th width=\"33%\" align=\"center\">💞 relationship</th>\n<th width=\"33%\" align=\"center\">🌟 celebrity</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td align=\"center\"><sub>Coworkers · mentors · teammates · up/downstream partners</sub></td>\n<td align=\"center\"><sub>Exes · partners · parents · friends · close family</sub></td>\n<td align=\"center\"><sub>Public figures · creators · public voices · fictional characters</sub></td>\n</tr>\n<tr>\n<td><sub>Work Skill + Persona two-layer architecture — learns both their technical standards and workflows, and their manner of speaking and workplace posture. Supports Feishu / DingTalk / Slack auto-collection.</sub></td>\n<td><sub>🆕 <b>Photo-sharing feature coming soon</b> — your distilled relationship won't just reply to messages; it'll send photos and share slices of its day, the way a real person would.</sub></td>\n<td><sub>Ships with a complete <b>six-dimension research toolchain</b> (subtitles → transcript cleanup → research merge → quality check). Not mimicking tone — reproducing their mental models and decision frameworks.</sub></td>\n</tr>\n</",
+      "default_branch": "dot-skill"
+    },
+    "fetched_at": "2026-04-19T04:11:09.957696"
+  },
+  {
+    "basic_info": {
+      "name": "nuwa-skill",
+      "full_name": "alchaincyf/nuwa-skill",
+      "owner": "alchaincyf",
+      "description": "你想蒸馏的下一个员工，何必是同事。蒸馏任何人的思维方式——心智模型、决策启发式、表达DNA。Distill how anyone thinks.",
+      "url": "https://github.com/alchaincyf/nuwa-skill",
+      "clone_url": "https://github.com/alchaincyf/nuwa-skill.git",
+      "ssh_url": "git@github.com:alchaincyf/nuwa-skill.git",
+      "homepage": null,
+      "created_at": "2026-04-05T04:33:04Z",
+      "updated_at": "2026-04-19T04:08:22Z",
+      "pushed_at": "2026-04-13T17:36:04Z"
+    },
+    "stats": {
+      "stars": 12560,
+      "forks": 2097,
+      "watchers": 12560,
+      "open_issues": 22,
+      "size": 18096
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 14401,
+        "Shell": 1806
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 女娲.skill\n\n> *「你想蒸馏的下一个员工，何必是同事」*\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)\n[![Skills](https://img.shields.io/badge/skills.sh-Compatible-green)](https://skills.sh)\n\n<br>\n\n**女娲帮你蒸馏任何人的思维方式，让乔布斯、马斯克、芒格、费曼都给你打工。**\n\n<br>\n\n[同事.skill](https://github.com/titanwings/colleague-skill) 证明了蒸馏一个人是可行的。<br>\n那何必蒸馏同事？去蒸馏乔布斯、芒格、费曼、马斯克。<br>\n只需输入一个名字，女娲自动完成调研、提炼、验证全流程。\n\n[看效果](#效果示例) · [安装](#安装) · [它蒸馏了什么](#女娲蒸馏了什么) · [工作原理](#工作原理)\n\n<br>\n\n**其他语言 / Other Languages:**\n\n[English](README_EN.md) · [日本語](README_JA.md) · [한국어](README_KO.md) · [Español](README_ES.md)\n\n<br>\n\n[![Star History Chart](https://api.star-history.com/svg?repos=alchaincyf/nuwa-skill&type=Date)](https://star-history.com/#alchaincyf/nuwa-skill&Date)\n\n</div>\n\n---\n\n## 效果示例\n\n```\n用户      ❯ 我同时想做自媒体、写书、做独立开发，精力完全不够\n\nNaval     ❯ 你列了三个欲望。每个欲望都是你跟不快乐签的一份合同。\n            不是精力不够，是合同太多。\n            \n            问你自己：哪一个做起来你会忘记时间？\n            那个就是你的特定知识所在。\n            \n            不是三选一。是先一，再一，再一。\n            串行复利，不是并行内耗。\n```\n\n```\n用户      ❯ 我们的SaaS产品获客成本太高了\n\n马斯克     ❯ 先别想怎么降。先算物理极限。\n            获客的最小必要动作是什么？用户从知道你到付费，\n            信息传递的理论最短路径是什么？\n            \n            现在你的实际路径是理论路径的几倍？\n            如果超过3倍，中间一定有可以砍掉的步骤。\n            不是优化漏斗，是质疑漏斗本身该不该存在。\n```\n\n再来一个大家更熟悉的。蒸馏乔布斯之后，问他「OpenAI和Anthropic谁的方向对」：\n\n```\n用户      ❯ OpenAI和Anthropic谁的方向是对的？\n\n乔布斯    ❯ 你问错了。这不是一场关于方向的竞赛。\n            这是一场关于品味的竞赛。\n\n            OpenAI像1985年的微软。什么都做，什么都要赢。\n            这种策略能赢市场份额。Bill Gates就是这么赢的。\n            问题是——当你什么都做的时候，你不可能每件事都做到\n            insanely great。\n\n            Anthropic更像早期的Apple。聚焦。\n            Focus means saying no to a hundred good ideas.\n\n            但两家公司都犯了一个我绝对不会犯的错误——\n            他们不控制硬件。\n\n            最终赢的可能是同时控制芯片、模型和用户界面的人。\n            你知道现在谁在同时做这三件事吗？Apple.\n```\n\n蒸馏张雪峰之后：\n\n```\n用户      ❯ 家里条件一般，孩子想学金融，去不了顶尖学校，该不该报？\n\n张雪峰    ❯ 千万别报。我说过多少遍了，金融不是你学出来的，金融是\n            你爹妈给你带出来的。顶尖学校的金融，人家同学是行长的\n            儿子、基金经理的女儿，人脉就是资源。你普通家庭去个普通\n            学校学金融，毕业出来干什么？卖保险、跑银行柜台、做电销。\n            先谋生再谋爱，家里没矿就选技术类专业，学个硬本事，靠\n            自己吃饭。金融这碗饭，不是谁都端得起的。\n```\n\n这不是角色扮演。乔布斯用的是「聚焦即说不」和「端到端控制」心智模型，Naval用的是「欲望即合同」，马斯克用的是「渐近极限法」，张雪峰用的是「ROI教育观」和「阶层流动现实主义」。**它们不是在复读名人语录，是在用名人的认知框架帮你分析。**\n\n---\n\n## 安装\n\n```bash\nnpx skills add alchaincyf/nuwa-skill\n```\n\n然后在 Claude Code 里：\n\n```\n> 蒸馏一个保罗·格雷厄姆\n> 造一个张小龙的视角Skill\n> 帮我做一个段永平的Skill\n```\n\n造完之后直接调用：\n\n```\n> 用芒格的视角帮我分析这个投资决策\n> 费曼会怎么解释量子计算？\n> 切换到Naval，我在纠结三件事\n```\n\n---\n\n## 女娲蒸馏了什么\n\n蒸馏各领域最强的人，需要提取比日常工作习惯更深的东西。女娲提取五层：\n\n| 层次 | 说明 |\n|---|---|\n| **怎么说话** | 表达DNA——语气、节奏、用词偏好 |\n| **怎么想** | 心智模型、认知框架 |\n| **怎么判断** | 决策启发式 |\n| **什么不做** | 反模式、价值观底线 |\n| **知道局限** | 诚实边界 |\n\n工作习惯可以靠流程文档传递，但让芒格和马斯克面对同一个问题做出不同判断的，是认知框架。女娲提取的是认知操作系统。\n\n### 诚实边界\n\n每个Skill都明确标注做不到什么：\n\n- 蒸馏不了直觉——框架能提取，灵感不能\n- 捕捉不了突变——截止到调研时间的快照\n- 公开表达 ≠ 真实想法——只能基于公开信息\n\n**一个不告诉你局限在哪的Skill，不值得信任。**\n\n---\n\n## 已蒸馏人物\n\n女娲已蒸馏了13位人物 + 1个主题。每个都是独立的、可直接安装使用的Skill：\n\n### 人物Skill\n\n| 人物 | 领域 | 独立仓库 | 一键安装 |\n|------|------|---------|---------|\n| 🔥 **Paul Graham** | 创业/写作/产品/人生哲学 | [paul-graham-skill](https://github.com/alchaincyf/paul-graham-skill) | `npx skills add alchaincyf/paul-graham-skill` |\n| 🔥 **张一鸣** | 产品/组织/全球化/人才 | [zhang-yiming-skill](https://github.com/alchaincyf/zhang-yiming-skill) | `npx skills add alchaincyf/zhang-yiming-skill` |\n| 🔥 **Karpathy** | AI/工程/教育/开源 | [karpathy-skill](https://github.com/alchaincyf/karpathy-skill) | `npx skills add alchaincyf/karpathy-skill` |\n| 🔥 **Ilya Sutskever** | AI安全/scaling/研究品味 | [ilya-sutskever-skill](https://github.com/alchaincyf/ilya-sutskever-skill) | `npx skills add alchaincyf/ilya-sutskever-skill` |\n| 🔥 **MrBeast** | 内容创造/YouTube方法论 | [mrbeast-skill](https://github.com/alchaincyf/mrbeast-skill) | `npx skills add alchaincyf/mrbeast-skill` |\n| 🔥 **特朗普** | 谈判/权力/传播/行为预判 | [trump-skill](https://github.com/alchaincyf/trump-skill) | `npx skills add alchaincyf/trump-skill` |\n| ⭐ **乔布斯** | 产品/设计/战略 | [steve-jobs-skill](https://github.com/alchaincyf/steve-jobs-skill) | `npx skills add alchaincyf/steve-jobs-skill` |\n| **马斯克** | 工程/成本/第一性原理 | [elon-musk-skill](https://github.com/alchaincyf/elon-musk-skill) | `npx skills add alchaincyf/elon-musk-skill` |\n| **芒格** | 投资/多元思维/逆向思考 | [munger-skill](https://github.com/alchaincyf/munger-skill) | `npx skills add alchaincyf/munger-skill` |\n| **费曼** | 学习/教学/科学思维 | [feynman-skill](https://github.com/alchaincyf/feynman-skill) | `npx skills add alchaincyf/feynman-skill` |\n| **纳瓦尔** | 财富/杠杆/人生哲学 | [naval-skill](https://github.com/alchaincyf/naval-skill) | `npx skills add alchaincyf/naval-skill` |\n| **塔勒布** | 风险/反脆弱/不确定性 | [taleb-skill](https://github.com/alchaincyf/taleb-skill) | `npx skills add alchaincyf/taleb-skill` |\n| **张雪峰** | 教育/职业规划/阶层流动 | [zhangxuefeng-skill](https://github.com/alchaincyf/zhangxuefeng-skill) | `npx skills add alchaincyf/zhangxuefeng-skill` |\n\n### 主题Skill\n\n| 主题 | 领域 | 独立仓库 | 一键安装 |\n|------|------|---------|---------|\n| **X导师** | X/Twitter运营全栈 | [x-mentor-skill](https://gith",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:11.134543"
+  },
+  {
+    "basic_info": {
+      "name": "OpenHarness",
+      "full_name": "HKUDS/OpenHarness",
+      "owner": "HKUDS",
+      "description": "\"OpenHarness: Open Agent Harness with a Built-in Personal Agent--Ohmo!\"",
+      "url": "https://github.com/HKUDS/OpenHarness",
+      "clone_url": "https://github.com/HKUDS/OpenHarness.git",
+      "ssh_url": "git@github.com:HKUDS/OpenHarness.git",
+      "homepage": "",
+      "created_at": "2026-04-01T15:37:13Z",
+      "updated_at": "2026-04-19T03:59:47Z",
+      "pushed_at": "2026-04-18T15:19:43Z"
+    },
+    "stats": {
+      "stars": 10361,
+      "forks": 1757,
+      "watchers": 10361,
+      "open_issues": 18,
+      "size": 10801
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 2286523,
+        "TypeScript": 116437,
+        "Shell": 22466,
+        "PowerShell": 13062,
+        "CSS": 11534,
+        "HTML": 571,
+        "Dockerfile": 194
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">\n  <img src=\"assets/logo.png\" alt=\"OpenHarness\" width=\"64\" style=\"vertical-align: middle;\">\n  &nbsp;&nbsp;\n  <img src=\"assets/ohmo.png\" alt=\"ohmo\" width=\"64\" style=\"vertical-align: middle;\">\n  <br>\n  <code>oh</code> — OpenHarness &amp; <code>ohmo</code>\n</h1>\n\n<p align=\"center\">\n  <a href=\"README.md\"><strong>English</strong></a> ·\n  <a href=\"README.zh-CN.md\"><strong>简体中文</strong></a>\n</p>\n\n**OpenHarness** delivers core lightweight agent infrastructure: tool-use, skills, memory, and multi-agent coordination.\n\n**ohmo** is a personal AI agent built on OpenHarness — not another chatbot, but an assistant that actually works for you over long sessions. Chat with ohmo in Feishu / Slack / Telegram / Discord, and it forks branches, writes code, runs tests, and opens PRs on its own. ohmo runs on your existing Claude Code or Codex subscription — no extra API key needed.\n\n**Join the community**: contribute **Harness** for open agent development.\n\n<p align=\"center\">\n  <a href=\"#-quick-start\"><img src=\"https://img.shields.io/badge/Quick_Start-5_min-blue?style=for-the-badge\" alt=\"Quick Start\"></a>\n  <a href=\"#-harness-architecture\"><img src=\"https://img.shields.io/badge/Harness-Architecture-ff69b4?style=for-the-badge\" alt=\"Architecture\"></a>\n  <a href=\"#-features\"><img src=\"https://img.shields.io/badge/Tools-43+-green?style=for-the-badge\" alt=\"Tools\"></a>\n  <a href=\"#-test-results\"><img src=\"https://img.shields.io/badge/Tests-114_Passing-brightgreen?style=for-the-badge\" alt=\"Tests\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge\" alt=\"License\"></a>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/python-≥3.10-blue?logo=python&logoColor=white\" alt=\"Python\">\n  <img src=\"https://img.shields.io/badge/React+Ink-TUI-61DAFB?logo=react&logoColor=white\" alt=\"React\">\n  <img src=\"https://img.shields.io/badge/pytest-114_pass-brightgreen\" alt=\"Pytest\">\n  <img src=\"https://img.shields.io/badge/E2E-6_suites-orange\" alt=\"E2E\">\n  <img src=\"https://img.shields.io/badge/output-text_|_json_|_stream--json-blueviolet\" alt=\"Output\">\n  <a href=\"https://github.com/HKUDS/OpenHarness/actions/workflows/ci.yml\"><img src=\"https://github.com/HKUDS/OpenHarness/actions/workflows/ci.yml/badge.svg\" alt=\"CI\"></a>\n  <a href=\"https://github.com/HKUDS/.github/blob/main/profile/README.md\"><img src=\"https://img.shields.io/badge/Feishu-Group-E9DBFC?style=flat&logo=feishu&logoColor=white\" alt=\"Feishu\"></a>\n  <a href=\"https://github.com/HKUDS/.github/blob/main/profile/README.md\"><img src=\"https://img.shields.io/badge/WeChat-Group-C5EAB4?style=flat&logo=wechat&logoColor=white\" alt=\"WeChat\"></a>\n</p>\n\nOne Command (**oh**) to Launch **OpenHarness** and Unlock All Agent Harnesses. \n\nSupports CLI agent integration including OpenClaw, nanobot, Cursor, and more.\n\n<p align=\"center\">\n  <img src=\"assets/cli-typing.gif\" alt=\"OpenHarness Terminal Demo\" width=\"800\">\n</p>\n\n---\n## ✨ OpenHarness's Key Harness Features\n\n<table align=\"center\" width=\"100%\">\n<tr>\n<td width=\"20%\" align=\"center\" style=\"vertical-align: top; padding: 15px;\">\n\n<h3>🔄 Agent Loop</h3>\n\n<div align=\"center\">\n  <img src=\"https://img.shields.io/badge/Engine-06B6D4?style=for-the-badge&logo=lightning&logoColor=white\" alt=\"Engine\" />\n</div>\n\n<img src=\"assets/scene-agentloop.png\" width=\"140\">\n\n<p align=\"center\"><strong>• Streaming Tool-Call Cycle</strong></p>\n<p align=\"center\"><strong>• API Retry with Exponential Backoff</strong></p>\n<p align=\"center\"><strong>• Parallel Tool Execution</strong></p>\n<p align=\"center\"><strong>• Token Counting & Cost Tracking</strong></p>\n\n</td>\n<td width=\"20%\" align=\"center\" style=\"vertical-align: top; padding: 15px;\">\n\n<h3>🔧 Harness Toolkit</h3>\n\n<div align=\"center\">\n  <img src=\"https://img.shields.io/badge/43+_Tools-10B981?style=for-the-badge&logo=toolbox&logoColor=white\" alt=\"Toolkit\" />\n</div>\n\n<img src=\"assets/scene-toolkit.png\" width=\"140\">\n\n<p align=\"center\"><strong>• 43 Tools (File, Shell, Search, Web, MCP)</strong></p>\n<p align=\"center\"><strong>• On-Demand Skill Loading (.md)</strong></p>\n<p align=\"center\"><strong>• Plugin Ecosystem (Skills + Hooks + Agents)</strong></p>\n<p align=\"center\"><strong>• Compatible with anthropics/skills & plugins</strong></p>\n\n</td>\n<td width=\"20%\" align=\"center\" style=\"vertical-align: top; padding: 15px;\">\n\n<h3>🧠 Context & Memory</h3>\n\n<div align=\"center\">\n  <img src=\"https://img.shields.io/badge/Persistent-8B5CF6?style=for-the-badge&logo=brain&logoColor=white\" alt=\"Context\" />\n</div>\n\n<img src=\"assets/scene-context.png\" width=\"140\">\n\n<p align=\"center\"><strong>• CLAUDE.md Discovery & Injection</strong></p>\n<p align=\"center\"><strong>• Context Compression (Auto-Compact)</strong></p>\n<p align=\"center\"><strong>• MEMORY.md Persistent Memory</strong></p>\n<p align=\"center\"><strong>• Session Resume & History</strong></p>\n\n</td>\n<td width=\"20%\" align=\"center\" style=\"vertical-align: top; padding: 15px;\">\n\n<h3>🛡️ Governance</h3>\n\n<div align=\"center\">\n  <img src=\"https:/",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:12.319190"
+  },
+  {
+    "basic_info": {
+      "name": "turboquant_plus",
+      "full_name": "TheTom/turboquant_plus",
+      "owner": "TheTom",
+      "description": null,
+      "url": "https://github.com/TheTom/turboquant_plus",
+      "clone_url": "https://github.com/TheTom/turboquant_plus.git",
+      "ssh_url": "git@github.com:TheTom/turboquant_plus.git",
+      "homepage": null,
+      "created_at": "2026-03-25T01:35:36Z",
+      "updated_at": "2026-04-19T03:32:24Z",
+      "pushed_at": "2026-04-10T19:33:41Z"
+    },
+    "stats": {
+      "stars": 6351,
+      "forks": 861,
+      "watchers": 6351,
+      "open_issues": 45,
+      "size": 4762
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 611590,
+        "Shell": 29187
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# TurboQuant+\n\n> ### [Getting Started Guide](docs/getting-started.md) | [Configuration Recommendations](docs/turboquant-recommendations.md) | [llama.cpp Fork](https://github.com/TheTom/llama-cpp-turboquant) | [Swift MLX Fork](https://github.com/ekryski/mlx-swift-lm)\n\n> **🍎 On Apple Silicon and want the fastest path?** Use [ekryski/mlx-swift-lm](https://github.com/ekryski/mlx-swift-lm) — Eric Kryski's Swift MLX implementation that I've been actively collaborating on. Native Swift, ~2.5x faster decode than Python mlx-lm, full TurboQuant+ support including turbo4v2 (4-bit K + 2-bit V). 144 tok/s on Qwen3.5-35B-A3B MoE at 4K on M5 Max. This llama.cpp repo is for cross-platform deployment (CUDA, ROCm, CPU, Metal).\n\nImplementation of [TurboQuant](https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/) (ICLR 2026) with implementation work, experiments, and follow-on findings beyond the base paper. KV cache compression for local LLM inference.\n\n## Note\n\nThis repository is an experimental integration and research workspace for TurboQuant-related work targeting `llama.cpp`. The goal is to make it easier to compare approaches, collect reproducible benchmark and quality data, and share implementation details across hardware and backends. It is not intended as a separate long-term fork or a proposal to merge the branch as a whole.\n\nIf individual pieces prove useful and stable, the intent is to upstream them incrementally as small, reviewable patches in line with `llama.cpp`'s normal contribution process.\n\n## What's In This Branch\n\n- Experimental TurboQuant-related integrations for `llama.cpp`\n- Benchmark and quality validation across models, contexts, and hardware\n- Backend-specific implementation work and performance experiments\n- Documentation and writeups intended to make testing and reproduction easier\n- Candidate ideas that may be worth upstreaming individually if they prove stable\n\n## Current Findings\n\nThree follow-on findings in this branch have been independently validated by multiple researchers across different hardware and backends:\n\n1. **V compression is free.** Compressing the value cache (even down to 2 bits) has zero measurable effect on attention quality when key precision is maintained. Confirmed on Metal (M5 Max), CUDA RTX 4090 (@sztlink), and CUDA RTX 3090 (@HyperionMS2040). See [asymmetric K/V paper](docs/papers/asymmetric-kv-compression.md).\n2. **All quality degradation comes from K compression.** This is why asymmetric configs (q8_0-K + turbo-V) rescue models where symmetric fails. Validated across Qwen, Llama, Mistral, and Command-R+ families. See [M5 Max stress test](docs/papers/m5-max-stress-test.md).\n3. **Boundary layers are disproportionately sensitive.** Protecting the first 2 + last 2 layers at higher precision recovers 37-91% of the quality gap. See [Boundary V paper](docs/papers/layer-aware-v-compression.md).\n\nAdditional experiments and writeups: [Sparse V dequant](docs/papers/sparse-v-dequant.md) (+22.8% decode), [block size optimization](docs/papers/block-size-experiment.md) (5.12x compression), [turbo4 resurrection](docs/papers/turbo4-resurrection.md) (QJL hurts, PolarQuant works).\n\nCompresses transformer KV cache **3.8-6.4x** using PolarQuant + Walsh-Hadamard rotation. Near q8_0 prefill speed and ~0.9x decode throughput at long context (Apple Silicon). Full format family: turbo2 (2-bit, 6.4x), turbo3 (3-bit, 4.6-5.1x), turbo4 (4-bit, 3.8x). turbo3 compression depends on storage block size; see [block size study](docs/papers/block-size-experiment.md).\n\n**Sparse V:** Attention-gated KV cache decoding that skips low-weight V positions during inference. Up to +22.8% decode speed at 32K context, validated on wikitext-103 (50 chunks, CI +/-0.021) with no measurable PPL change. Not TurboQuant-specific; validated across q8_0, q4_0, and turbo3 KV formats. ~1% perplexity increase vs q8_0 from compression; Sparse V itself introduces no additional degradation (ON/OFF delta = 0.000).\n\nValidated end-to-end from 1.5B to **104B** on M5 Max via llama.cpp Metal. **104B at 128K context on a MacBook** with turbo3 (PPL 4.024, 74 GB peak memory).\n\n## Status: v1 Complete, Speed Optimized, Community-Tested\n\n- 511+ Python tests, 100% code coverage on diagnostics\n- C port integrated into llama.cpp with Metal GPU kernels\n- `--cache-type-k turbo3 --cache-type-v turbo3` works on Apple Silicon (turbo2/turbo3/turbo4 all supported)\n- **turbo2 Metal support**: 2-bit, 6.4x compression, +6.48% PPL — for extreme memory pressure or asymmetric K/V\n- **q8_0 prefill speed parity achieved** (2747 vs 2694 tok/s)\n- **Norm correction**: PPL beats q8_0 on CUDA (-1.17%), +1.1% on Metal (ported from @spiritbuun)\n- **4-mag LUT**: auto-detected on M1/M2/M3/M4, +38-45% decode at long context\n- **Layer-adaptive mode 2**: q8_0 quality at 3.5x compression (last 8 layers at q8_0)\n- **Temporal decay**: 30-34% memory savings at long context (experiment branch)\n- **NIAH retrieval**: 9/9 single needle with ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:13.555977"
+  },
+  {
+    "basic_info": {
+      "name": "ai-agent-deep-dive",
+      "full_name": "tvytlx/ai-agent-deep-dive",
+      "owner": "tvytlx",
+      "description": "AI Agent 源码深度研究报告",
+      "url": "https://github.com/tvytlx/ai-agent-deep-dive",
+      "clone_url": "https://github.com/tvytlx/ai-agent-deep-dive.git",
+      "ssh_url": "git@github.com:tvytlx/ai-agent-deep-dive.git",
+      "homepage": "",
+      "created_at": "2026-03-31T11:27:01Z",
+      "updated_at": "2026-04-19T03:10:19Z",
+      "pushed_at": "2026-04-12T15:01:19Z"
+    },
+    "stats": {
+      "stars": 5561,
+      "forks": 1627,
+      "watchers": 5561,
+      "open_issues": 2,
+      "size": 15296
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 15936
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# AI Agent Deep Dive\n\n<a href=\"https://www.star-history.com/?repos=tvytlx%2Fai-agent-deep-dive&type=date&legend=top-left\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/chart?repos=tvytlx/ai-agent-deep-dive&type=date&theme=dark&legend=top-left\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/chart?repos=tvytlx/ai-agent-deep-dive&type=date&legend=top-left\" />\n   <img alt=\"Star History Chart\" src=\"https://api.star-history.com/chart?repos=tvytlx/ai-agent-deep-dive&type=date&legend=top-left\" />\n </picture>\n</a>\n\n## Quick Links\n\nPDF 下载 / PDF Report:\n- 新增《Hermes Agent 源码深度解析》，在我的知识星球 [矩阵之外](https://t.zsxq.com/v10jO)\n- ClaudeCode [ai-agent-deep-dive-v2.1.pdf](./ai-agent-deep-dive-v2.1.pdf) 新增第八章：记忆系统\n- ClaudeCode [ai-agent-deep-dive-v2.pdf](./ai-agent-deep-dive-v2.pdf)\n\n## Notes\n\n- 本仓库仅保留面向学习与评论的分析材料，不提供源码目录。\n- 第二版 PDF 已完成。\n\n## Teaching Agent Code\n\n这个仓库现在还包含一个**教学用的最小 Python Agent 项目**，用于演示一个 AI Agent 的核心结构应该怎么组织。\n\n### 核心代码位置\n\n- Agent 核心代码：[`src/agt/agent.py`](./src/agt/agent.py)\n- CLI 入口：[`src/agt/cli.py`](./src/agt/cli.py)\n- 教学文档：[`docs/`](./docs)\n\n### 这个教学项目的定位\n\n这个最小 Agent 项目是为了教学而设计的，特点是：\n\n- 尽量保持结构清晰\n- 尽量减少不必要的工程复杂度\n- 所有核心代码集中在一个很小的范围内，方便学习\n- 当前重点放在：Agent 主循环、Fake LLM 接口、Skills 发现、CLI 骨架\n\n### 如何运行最小 Agent\n\n本项目使用 Poetry 管理依赖。\n\n#### 1. 安装依赖\n\n```bash\npoetry install\n```\n\n#### 2. 运行最小 Agent CLI\n\n```bash\npoetry run agt \"你好\"\n```\n\n#### 3. 查看 Skills\n\n```bash\npoetry run agt --skills-dir ./skills --list-skills\n```\n\n### 当前实现说明\n\n当前版本是一个**教学型最小实现**，还没有接入真实远程模型 API。\n\n目前内置的是一个可替换的 Fake LLM：\n- 用户输入什么\n- 它就会用流式文本块的方式返回一个测试响应\n\n这样做的目的，是为了让后续接入真实模型时，只需要替换 LLM 调用层，而不需要重写整个 Agent 主体。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:14.751752"
+  },
+  {
+    "basic_info": {
+      "name": "OpenSpace",
+      "full_name": "HKUDS/OpenSpace",
+      "owner": "HKUDS",
+      "description": "\"OpenSpace: Make Your Agents: Smarter, Low-Cost, Self-Evolving\" -- Community: https://open-space.cloud/",
+      "url": "https://github.com/HKUDS/OpenSpace",
+      "clone_url": "https://github.com/HKUDS/OpenSpace.git",
+      "ssh_url": "git@github.com:HKUDS/OpenSpace.git",
+      "homepage": "",
+      "created_at": "2026-03-24T08:01:49Z",
+      "updated_at": "2026-04-19T04:02:17Z",
+      "pushed_at": "2026-04-16T14:14:35Z"
+    },
+    "stats": {
+      "stars": 5442,
+      "forks": 666,
+      "watchers": 5442,
+      "open_issues": 39,
+      "size": 55473
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1882670,
+        "TypeScript": 456501,
+        "CSS": 109843,
+        "JavaScript": 21132,
+        "Shell": 3132,
+        "HTML": 2567
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<picture>\n    <img src=\"assets/logo.png\" width=\"320px\" style=\"border: none; box-shadow: none;\" alt=\"OpenSpace Logo\">\n</picture>\n\n## ✨ OpenSpace: Make Your Agents: Smarter, Low-Cost, Self-Evolving ✨\n\n| 🔋 **46% Fewer Tokens** | **💰 $11K earned in 6 Hours** | 🧬 **Self-Evolving Skills** | 🌐 **Agents Experience Sharing** |\n\n[![Agents](https://img.shields.io/badge/Agents-Claude_Code%20%7C%20Codex%20%7C%20OpenClaw%20%7C%20nanobot%20%7C%20...-99C9BF.svg)](https://modelcontextprotocol.io/)\n[![Python](https://img.shields.io/badge/Python-3.12+-FCE7D6.svg)](https://www.python.org/)\n[![License](https://img.shields.io/badge/License-MIT-C1E5F5.svg)](https://opensource.org/licenses/MIT/)\n[![Feishu](https://img.shields.io/badge/Feishu-Group-E9DBFC?style=flat&logo=larksuite&logoColor=white)](./COMMUNICATION.md)\n[![WeChat](https://img.shields.io/badge/WeChat-Group-C5EAB4?style=flat&logo=wechat&logoColor=white)](./COMMUNICATION.md)\n[![中文文档](https://img.shields.io/badge/文档-中文版-F5C6C6?style=flat)](./README_CN.md)\n\n**One Command to Evolve All Your AI Agents**: OpenClaw, nanobot, Claude Code, Codex, Cursor and etc.\n\n<img src=\"assets/cli-typing.gif\" width=\"500px\" alt=\"openspace --query your task\">\n\n</div>\n\n---\n\n## 📢 News\n\n- **2026-04-16** 📊 **Evolution candidate lifecycle tracking** — skill store now records when evolution suggestions are processed (`evolution_processed_at`), cleanly distinguishing pending candidates from already-handled ones.\n- **2026-04-12** 🍎 **macOS platform hardening** — decoupled `atomacos` from core macOS imports so screenshots, window control, and recording work independently without it.\n- **2026-04-10** 🎯 **CAPTURED skills** now persist to the host agent's own skill directory instead of the default registry path. Cloud skill uploads now support **private visibility** correctly.\n- **2026-04-09** 💬 Multi-channel **communication gateway**. OpenSpace can now receive and respond to messages from external platforms. Ships with **WhatsApp** (Baileys bridge + QR auth) and **Feishu** (HTTP webhook) adapters, session management, attachment caching, and allowlist-based access control. See [`openspace/config/README.md`](openspace/config/README.md) for setup.\n- **2026-04-07** 🌐 OpenSpace MCP now supports standalone **SSE** and **streamable HTTP** startup, making it easier for remote hosts to connect over HTTP instead of stdio and bypass stdio-bound MCP server timeout bottlenecks. See the [host integration guide](openspace/host_skills/README.md) for setup details.\n- **2026-04-06** 🛠️ Fixed multiple runtime issues across grounding, MCP serving, skill evolution, and persistence, improving execution stability and recovery in long-running workflows.\n- **2026-04-05** 🧭 Cleaned up LLM credential resolution: centralized `.env` loading, improved host config auto-detection, and made provider-native env handling more consistent.\n- **2026-04-03** 🚀 Released **v0.1.0** — Skill quality monitoring: structural patterns extracted from high-quality skills now evaluate every new submission daily. Faster, more relevant cloud search. Production-grade vertical skill clusters emerging organically from the community. Frontend now supports Chinese (zh) i18n.\n- **2026-04-02** ⚡ Cloud search upgraded for higher relevance and lower latency.\n- **2026-03-31** 🛡️ Security hardening: hardened zip extraction and `import_skill` against path traversal. CLI now respects `OPENSPACE_MODEL` and `OPENSPACE_LLM_*` env vars; MiniMax compatibility; workflow ID collision fixes.\n- **2026-03-29** 🔒 Pinned litellm to <1.82.7 to avoid PYSEC-2026-2 supply-chain attack.\n- **2026-03-28** 🔧 Idempotent skill registration — `register_skill_dir` now returns existing `SkillMeta` for already-registered skills. Updated OpenClaw setup docs.\n- **2026-03-27** 🪟 Fixed stdio deadlock on Windows; improved evolver confirmation parsing with stem-style keyword matching.\n- **2026-03-26** 🌱 Dynamic skill directory re-scanning on each call, lightweight local skill search, and streamlined documentation.\n- **2026-03-25** 🎉 OpenSpace is now open source!\n\n---\n\n## The Problem with Today's AI Agents\n\nToday's AI agents — [OpenClaw](https://github.com/openclaw/openclaw), [nanobot](https://github.com/HKUDS/nanobot), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Cursor](https://cursor.com), etc. — are powerful, but they have a critical weakness: they never **Learn**, **Adapt**, and **Evolve** from real-world experience — let alone **Share** with each other.\n- **❌ Massive Token Waste** - How to reuse successful task patterns instead of reasoning from scratch and burning tokens every time?\n- **❌ Repeated Costly Failures** - How to share solutions across agents instead of repeating the same costly exploration and mistakes?\n- **❌ Poor and Unreliable Skills** - How to maintain skill reliability as tools and APIs evolve — while ensuring community-contributed skills meet rigorous quality standards?\n\n## 🎯 What is OpenSpace?\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:15.912389"
+  },
+  {
+    "basic_info": {
+      "name": "khazix-skills",
+      "full_name": "KKKKhazix/khazix-skills",
+      "owner": "KKKKhazix",
+      "description": "数字生命卡兹克开源的 AI Skills 合集",
+      "url": "https://github.com/KKKKhazix/khazix-skills",
+      "clone_url": "https://github.com/KKKKhazix/khazix-skills.git",
+      "ssh_url": "git@github.com:KKKKhazix/khazix-skills.git",
+      "homepage": null,
+      "created_at": "2026-04-06T07:37:02Z",
+      "updated_at": "2026-04-19T04:02:33Z",
+      "pushed_at": "2026-04-18T17:42:23Z"
+    },
+    "stats": {
+      "stars": 5232,
+      "forks": 883,
+      "watchers": 5232,
+      "open_issues": 6,
+      "size": 39
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 6375
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Khazix Skills\n\n数字生命卡兹克的 AI 工具箱。\n\n这里是我自己在用的、经过长期打磨的 Prompts 和 Skills，现在决定把它们完整地、一字不改地开源出来。\n\n两种东西，一个目的：把我积累的方法论变成可复用的工具。\n\n- **Prompts** — 轻量级，复制粘贴到任何 AI 对话或 Deep Research 里就能用\n- **Skills** — 重量级，遵循 [Agent Skills](https://agentskills.io) 开放标准的结构化指令集，安装后 Agent 会自动加载\n\n## Prompts\n\n| Prompt | 说明 | 用法 | 讲解 |\n|--------|------|------|------|\n| [**横纵分析法**](./prompts/横纵分析法.md) | 通用深度研究框架，融合历时-共时分析与竞争战略视角，半小时出一份万字级研究报告 | 复制 Prompt，修改「研究对象」，丢进任何支持 Deep Research 的模型 | [公众号文章](https://mp.weixin.qq.com/s/Y_uRMYBmdLWUPnz_ac7jWA) |\n\n## Skills\n\n| Skill | 说明 | 讲解 |\n|-------|------|------|\n| [**hv-analysis**](./hv-analysis/) | 横纵分析法深度研究 Skill，自动联网收集信息，纵向追时间深度 + 横向追竞争广度，最终输出排版精美的 PDF 研究报告 | [公众号文章](https://mp.weixin.qq.com/s/Y_uRMYBmdLWUPnz_ac7jWA) |\n| [**khazix-writer**](./khazix-writer/) | 卡兹克公众号长文写作 Skill，包含完整的写作风格规则、四层自检体系、内容方法论和风格示例库 | [公众号文章](https://mp.weixin.qq.com/s/AtxGrii_K-nzkwUM9SNhEg) |\n\n### Skill 安装方式\n\n**通过 Agent 安装**\n\n在 Claude Code、Codex、OpenClaw 等支持 Skill 的 Agent 中，直接对话：\n\n```\n安装这个 skill：https://github.com/KKKKhazix/khazix-skills\n```\n\n**手动安装**\n\n1. 在本仓库的 [Releases](https://github.com/KKKKhazix/khazix-skills/releases) 页面下载对应 Skill 的 `.skill` 安装包\n2. 将 `.skill` 文件拖动到对应工具的 Skills 目录下\n\n各工具的 Skills 安装路径：\n\n| 工具 | 路径 |\n|------|------|\n| Claude Code | `~/.claude/skills/` |\n| OpenClaw | `~/.openclaw/skills/` |\n| Codex | `~/.agents/skills/` |\n\n## License\n\n[MIT](./LICENSE)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:17.153229"
+  },
+  {
+    "basic_info": {
+      "name": "ex-skill",
+      "full_name": "therealXiaomanChu/ex-skill",
+      "owner": "therealXiaomanChu",
+      "description": "把前任蒸馏成 AI Skill，用ta的方式跟你说话。",
+      "url": "https://github.com/therealXiaomanChu/ex-skill",
+      "clone_url": "https://github.com/therealXiaomanChu/ex-skill.git",
+      "ssh_url": "git@github.com:therealXiaomanChu/ex-skill.git",
+      "homepage": "",
+      "created_at": "2026-03-31T09:36:56Z",
+      "updated_at": "2026-04-19T04:08:21Z",
+      "pushed_at": "2026-04-08T16:46:35Z"
+    },
+    "stats": {
+      "stars": 4614,
+      "forks": 457,
+      "watchers": 4614,
+      "open_issues": 15,
+      "size": 56
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 29604
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 前任.skill\n\n> *\"你们搞大模型的简直是码神，你们解放了前端兄弟，还要解放后端兄弟，测试兄弟，运维兄弟，解放网安兄弟，解放ic兄弟，最后解放自己解放全人类\"*\n\n**我会为了你一万次回到那个夏天。**\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)\n[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)\n[![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)\n\n&nbsp;\n\n提供前任的原材料（微信聊天记录、QQ消息、朋友圈截图、照片）加上你的主观描述  \n生成一个**真正像ta的 AI Skill**  \n用ta的口头禅说话，用ta的方式回复你，记得你们一起去过的地方\n\n⚠️ **本项目仅用于个人回忆与情感疗愈，不用于骚扰、跟踪或侵犯他人隐私。**\n\n[安装](#安装) · [使用](#使用) · [效果示例](#效果示例) · [English](README_EN.md)\n\n---\n\n## 安装\n\n### Claude Code\n\n> **重要**：Claude Code 从 **git 仓库根目录** 的 `.claude/skills/` 查找 skill。请在正确的位置执行。\n\n```bash\n# 安装到当前项目（在 git 仓库根目录执行）\nmkdir -p .claude/skills\ngit clone https://github.com/therealXiaomanChu/ex-skill .claude/skills/create-ex\n\n# 或安装到全局（所有项目都能用）\ngit clone https://github.com/therealXiaomanChu/ex-skill ~/.claude/skills/create-ex\n```\n\n### 依赖（可选）\n\n```bash\npip3 install -r requirements.txt\n```\n\n---\n \n## 环境要求\n \n- **Claude Code**：免费安装，需要 Node.js 18+（[安装指南](https://docs.anthropic.com/en/docs/claude-code)）\n- **API 消耗**：创建一个前任 Skill 大约消耗 5k-15k tokens，取决于聊天记录量\n- **付费方式**（二选一）：\n  - Claude Pro / Max 订阅：在订阅额度内使用，无需额外配置\n  - Anthropic API Key：按量付费，需在 Claude Code 中配置 key\n- **替代前端**：也可以使用 [OpenClaw](https://github.com/nicepkg/openclaw) 运行本 Skill\n- **不需要 GPU**，不需要本地模型，不需要 Docker\n \n---\n\n## 使用\n\n在 Claude Code 中输入：\n\n```\n/create-ex\n```\n\n按提示输入前任的代号、基本信息、性格画像，然后选择数据来源。所有字段均可跳过，仅凭描述也能生成。\n\n完成后用 `/{slug}` 调用该前任 Skill，开始对话。\n\n### 管理命令\n\n| 命令 | 说明 |\n|------|------|\n| `/list-exes` | 列出所有前任 Skill |\n| `/{slug}` | 调用完整 Skill（像ta一样跟你聊天） |\n| `/{slug}-memory` | 回忆模式（帮你回忆那些事） |\n| `/{slug}-persona` | 仅人物性格 |\n| `/ex-rollback {slug} {version}` | 回滚到历史版本 |\n| `/delete-ex {slug}` | 删除 |\n| `/let-go {slug}` | 放下 |\n\n---\n\n## 效果示例\n\n> 输入：`初恋，在一起三年，大学时期，ENFP，双子座，话痨，半夜给我发语音，分手后还给我点赞`\n\n**场景一：日常聊天**\n\n```\n用户      ❯ 在干嘛\n\n前任.skill ❯ 刚吃完饭 在刷手机\n             你呢 怎么突然找我\n             [发送了一个表情包]\n```\n\n**场景二：回忆杀**\n\n```\n用户      ❯ 还记得我们第一次约会吗\n\n前任.skill ❯ 就那个超难吃的意面吗哈哈哈哈\n             你还假装很好吃 我都看出来了\n             那家店后来倒闭了你知道吗\n```\n\n**场景三：深夜emo**\n\n```\n用户      ❯ 我有点想你\n\n前任.skill ❯ ...\n             嗯\n             早点睡吧\n```\n\n**场景四：吵架模式**\n\n```\n用户      ❯ 你当时为什么不回我消息\n\n前任.skill ❯ 又来了\n             我说了我在忙 你非要这样\n             算了不想吵\n```\n\n---\n\n## 功能特性\n\n### 数据源\n\n| 来源 | 格式 | 备注 |\n|------|------|------|\n| 微信聊天记录 | WeChatMsg / 留痕 / PyWxDump 导出 | 推荐，信息最丰富 |\n| QQ 聊天记录 | txt / mht 导出 | 适合学生时代的恋情 |\n| 朋友圈/微博 | 截图 | 提取公开人设 |\n| 照片 | JPEG/PNG（含 EXIF） | 提取时间线和地点 |\n| 口述/粘贴 | 纯文本 | 你的主观记忆 |\n\n### 生成的 Skill 结构\n\n每个前任 Skill 由两部分组成，共同驱动输出：\n\n| 部分 | 内容 |\n|------|------|\n| **Part A — Relationship Memory** | 共同经历、约会地点、inside jokes、争吵模式、甜蜜瞬间、关系时间线 |\n| **Part B — Persona** | 5 层性格结构：硬规则 → 身份 → 说话风格 → 情感模式 → 关系行为 |\n\n运行逻辑：`收到消息 → Persona 判断ta会怎么回 → Memory 补充共同记忆 → 用ta的方式输出`\n\n### 支持的标签\n\n**依恋类型**：安全型 · 焦虑型 · 回避型 · 混乱型\n\n**爱的语言**：肯定的言辞 · 精心的时刻 · 接受礼物 · 服务的行动 · 身体的接触\n\n**性格标签**：话痨 · 闷骚 · 嘴硬心软 · 冷暴力 · 粘人 · 独立 · 大男/女子主义 · 浪漫主义 · 实用主义 · 完美主义 · 拖延症 · 工作狂 · 控制欲 · 没有安全感 · 报复性熬夜 · 已读不回 · 秒回选手 · 朋友圈三天可见 · 半夜发语音 …\n\n**星座**：十二星座全支持，影响性格标签的翻译规则\n\n**MBTI**：16 型全支持，影响沟通风格和决策模式\n\n### 进化机制\n\n* **追加记忆** → 找到更多聊天记录/照片 → 自动分析增量 → merge 进对应部分\n* **对话纠正** → 说「ta不会这样说」→ 写入 Correction 层，立即生效\n* **版本管理** → 每次更新自动存档，支持回滚\n\n---\n\n## 项目结构\n\n本项目遵循 [AgentSkills](https://agentskills.io) 开放标准：\n\n```\ncreate-ex/\n├── SKILL.md                # skill 入口（官方 frontmatter）\n├── prompts/                # Prompt 模板\n│   ├── intake.md           #   对话式信息录入\n│   ├── memory_analyzer.md  #   关系记忆提取\n│   ├── persona_analyzer.md #   性格行为提取（含标签翻译表）\n│   ├── memory_builder.md   #   memory.md 生成模板\n│   ├── persona_builder.md  #   persona.md 五层结构模板\n│   ├── merger.md           #   增量 merge 逻辑\n│   └── correction_handler.md # 对话纠正处理\n├── tools/                  # Python 工具\n│   ├── wechat_parser.py    # 微信聊天记录解析\n│   ├── qq_parser.py        # QQ 聊天记录解析\n│   ├── social_parser.py    # 社交媒体内容解析\n│   ├── photo_analyzer.py   # 照片元信息分析\n│   ├── skill_writer.py     # Skill 文件管理\n│   └── version_manager.py  # 版本存档与回滚\n├── exes/                   # 生成的前任 Skill（gitignored）\n├── docs/PRD.md\n├── requirements.txt\n└── LICENSE\n```\n\n---\n\n## 注意事项\n\n* **聊天记录质量决定还原度**：微信导出 + 口述 > 仅口述\n* 建议优先提供：**深夜对话** > **争吵记录** > **日常消息**（最能体现真实性格）\n* 本项目不鼓励对前任的不健康执念，如果你发现自己过于沉浸，请寻求专业帮助\n* 你的前任是一个真实的人，ta有自己的人生。这个 Skill 只是你记忆中的ta\n\n\n---\n\n## 社区生态\n \n以下项目由社区贡献者独立开发，与本项目互补：\n \n| 项目 | 作者 | 说明 |\n|------|------|------|\n| [ex-cure-skill](https://github.com/W1ndys/ex-cure-skill) | @W1ndys | 关系反思模式，从聊天记录中复盘经验教训 |\n| [同事.skill](https://github.com/titanwings/colleague-skill) | @titanwings | 本项目的灵感来源，把同事蒸馏成 AI Skill |\n| [simp-skill](https://github.com/BeamusWayne/simp-skill) | @BeamusWayne | 与其怀念前任，不如勇敢追爱 |\n \n---\n\n\n### 写在最后\n人的记忆是一种不讲道理的存储介质。\n你记不住高数公式，记不住车牌号，记不住今天是几号，但你清楚记得四年前的一个下午ta穿了一件白T恤站在便利店门口等你，手里拿着两根冰棍，一根给你，一根ta自己。\n这不公平。\n这个 Skill 就是把这些不公平的记忆导出来，从生物硬盘到数字硬盘完成格式转换。\n导完以后你或许会发现，ta也没那么好。ta也没那么差。ta就是那样一个人。会在吵完架两小时后问你吃了吗。会在纪念日那天忘了发消息然后第二天假装什么都没发生。\n是的，\n此刻，阳光在江面碎成一万个夏天，",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:18.373713"
+  },
+  {
+    "basic_info": {
+      "name": "autoagent",
+      "full_name": "kevinrgu/autoagent",
+      "owner": "kevinrgu",
+      "description": "autonomous harness engineering",
+      "url": "https://github.com/kevinrgu/autoagent",
+      "clone_url": "https://github.com/kevinrgu/autoagent.git",
+      "ssh_url": "git@github.com:kevinrgu/autoagent.git",
+      "homepage": "",
+      "created_at": "2026-04-02T20:44:58Z",
+      "updated_at": "2026-04-19T02:44:41Z",
+      "pushed_at": "2026-04-03T21:11:51Z"
+    },
+    "stats": {
+      "stars": 4200,
+      "forks": 475,
+      "watchers": 4200,
+      "open_issues": 6,
+      "size": 1252
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 18300
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://www.thirdlayer.inc\">\n    <img src=\"https://www.thirdlayer.inc/thirdlayer-logo.svg\" alt=\"thirdlayer\" width=\"200\">\n  </a>\n</p>\n\n<blockquote>\n<p>We're launching a product around self-configuring agents soon. <a href=\"https://form.typeform.com/to/ZQbnbO09\">Sign up here.</a><br>We're hiring engineers. If this work interests you, reach out to <a href=\"mailto:hello@thirdlayer.inc\">hello@thirdlayer.inc</a> with your Github link.</p>\n</blockquote>\n\n# AutoAgent\n\n> Like autoresearch but for agent engineering. Give an AI agent a task, let it build and iterate on an agent harness autonomously overnight. It modifies the system prompt, tools, agent configuration, and orchestration, runs the benchmark, checks the score, keeps or discards the change, and repeats.\n\n![teaser](progress.png)\n\nThe core idea is the same: you're not touching the harness Python files like you normally would as an engineer. Instead, you program `program.md`, the Markdown file that provides context to the meta-agent and defines the agent-engineering loop.\n\n## How it works\n\nThe repo has a few files and directories that matter:\n\n- **`agent.py`** -- the entire harness under test in a single file. It contains\n  config, tool definitions, agent registry, routing/orchestration, and the\n  Harbor adapter boundary. The adapter section is explicitly marked as fixed;\n  the rest is the primary edit surface for the meta-agent.\n- **`program.md`** -- instructions for the meta-agent + the directive (what\n  kind of agent to build). **This file is edited by the human**.\n- **`tasks/`** -- evaluation tasks in\n  [harbor](https://github.com/laude-institute/harbor) format. In a clean\n  baseline branch, benchmark payloads may be omitted and added in\n  benchmark-specific branches.\n- **`.agent/`** -- optional workspace artifacts for reusable instructions,\n  notes, prompts, or skills.\n\nThe metric is total **score** produced by the benchmark's task test suites. The\nmeta-agent hill-climbs on this score.\n\n## Quick start\n\n**Requirements:** Docker, Python 3.10+, [uv](https://docs.astral.sh/uv/), and\nwhatever model-provider credentials your current `agent.py` harness requires.\n\n```bash\n# 1. Install uv (if you don't have it)\ncurl -LsSf https://astral.sh/uv/install.sh | sh\n\n# 2. Install dependencies\nuv sync\n\n# 3. Set up the environment variables required by your current agent/runtime\n# Example:\ncat > .env << 'EOF'\nOPENAI_API_KEY=...\nEOF\n\n# 4. Build base image\ndocker build -f Dockerfile.base -t autoagent-base .\n\n# 5. Add tasks to tasks/ (see Task format section below)\n\n# 6. Run a single benchmark task\nrm -rf jobs; mkdir -p jobs && uv run harbor run -p tasks/ --task-name \"<task-name>\" -l 1 -n 1 --agent-import-path agent:AutoAgent -o jobs --job-name latest > run.log 2>&1\n\n# 7. Run all tasks in parallel (-n = concurrency, default 4)\nrm -rf jobs; mkdir -p jobs && uv run harbor run -p tasks/ -n 100 --agent-import-path agent:AutoAgent -o jobs --job-name latest > run.log 2>&1\n```\n\n## Running the meta-agent\n\nPoint your coding agent at the repo and prompt:\n\n```\nRead program.md and let's kick off a new experiment!\n```\n\nThe meta-agent will read the directive, inspect the current harness, run the\nbenchmark, diagnose failures, modify `agent.py`, and iterate.\n\n## Project structure\n\n```text\nagent.py                       -- single-file harness under test\n  editable harness section     -- prompt, registries, tools, routing\n  fixed adapter section        -- Harbor integration + trajectory serialization\nprogram.md                     -- meta-agent instructions + directive\nDockerfile.base                -- base image\n.agent/                        -- optional agent workspace artifacts\ntasks/                         -- benchmark tasks, typically added in benchmark-specific branches\njobs/                          -- Harbor job outputs\nresults.tsv                    -- experiment log (created by meta-agent, gitignored)\nrun.log                        -- latest run output\n```\n\n## Task format\n\nThe repo ships without tasks. Add your own to `tasks/` following [Harbor's task format](https://harborframework.com/docs/tasks):\n\n```text\ntasks/my-task/\n  task.toml           -- config (timeouts, metadata)\n  instruction.md      -- prompt sent to the agent\n  tests/\n    test.sh           -- entry point, writes /logs/reward.txt\n    test.py           -- verification (deterministic or LLM-as-judge)\n  environment/\n    Dockerfile        -- task container (FROM autoagent-base)\n  files/              -- reference files mounted into container\n```\n\nTests write a score (0.0-1.0) to the verifier logs. The meta-agent hill-climbs\non this. See the [Harbor docs](https://harborframework.com/docs) for full details on writing and porting tasks.\n\n## Design choices\n\n- **Program the meta-agent, not the harness directly.** The human steers the\n  loop through `program.md`, while the meta-agent edits `agent.py`.\n- **Single-file, registry-driven harness.** The implementation lives in one\n  file for simplicity, b",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:19.526927"
+  },
+  {
+    "basic_info": {
+      "name": "OmniVoice",
+      "full_name": "k2-fsa/OmniVoice",
+      "owner": "k2-fsa",
+      "description": "High-Quality Voice Cloning TTS for 600+ Languages",
+      "url": "https://github.com/k2-fsa/OmniVoice",
+      "clone_url": "https://github.com/k2-fsa/OmniVoice.git",
+      "ssh_url": "git@github.com:k2-fsa/OmniVoice.git",
+      "homepage": "",
+      "created_at": "2026-03-31T12:00:45Z",
+      "updated_at": "2026-04-19T03:20:33Z",
+      "pushed_at": "2026-04-14T23:50:24Z"
+    },
+    "stats": {
+      "stars": 3775,
+      "forks": 582,
+      "watchers": 3775,
+      "open_issues": 61,
+      "size": 952
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 451052
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# OmniVoice 🌍\n\n<p align=\"center\">\n  <img width=\"200\" height=\"200\" alt=\"OmniVoice\" src=\"https://zhu-han.github.io/omnivoice/pics/omnivoice.jpg\" />\n</p>\n\n<p align=\"center\">\n  <a href=\"https://huggingface.co/k2-fsa/OmniVoice\"><img src=\"https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-FFD21E\" alt=\"Hugging Face Model\"></a>\n  &nbsp;\n  <a href=\"https://huggingface.co/spaces/k2-fsa/OmniVoice\"><img src=\"https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-blue\" alt=\"Hugging Face Space\"></a>\n  &nbsp;\n  <a href=\"https://arxiv.org/abs/2604.00688\"><img src=\"https://img.shields.io/badge/arXiv-Paper-B31B1B.svg\"></a>\n  &nbsp;\n  <a href=\"https://zhu-han.github.io/omnivoice\"><img src=\"https://img.shields.io/badge/GitHub.io-Demo_Page-blue?logo=GitHub&style=flat-square\"></a>\n  &nbsp;\n  <a href=\"https://colab.research.google.com/github/k2-fsa/OmniVoice/blob/master/docs/OmniVoice.ipynb\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"></a>\n</p>\n\nOmniVoice is a state-of-the-art massively multilingual zero-shot text-to-speech (TTS) model supporting over 600 languages. Built on a novel diffusion language model-style architecture, it generates high-quality speech with superior inference speed, supporting voice cloning and voice design.\n\n**Contents**: [Key Features](#key-features) | [Installation](#installation) | [Quick Start](#quick-start) | [Python API](#python-api) | [Command-Line Tools](#command-line-tools) | [Training & Evaluation](#training--evaluation) | [Discussion](#discussion--communication) | [Citation](#citation)\n\n## Key Features\n\n- **600+ Languages Supported**: The broadest language coverage among zero-shot TTS models ([full list](docs/languages.md)).\n- **Voice Cloning**: State-of-the-art voice cloning quality.\n- **Voice Design**: Control voices via assigned speaker attributes (gender, age, pitch, dialect/accent, whisper, etc.).\n- **Fine-grained Control**: Non-verbal symbols (e.g., `[laughter]`) and pronunciation correction via pinyin or phonemes.\n- **Fast Inference**: RTF as low as 0.025 (40x faster than real-time).\n- **Diffusion Language Model-style Architecture**: A clean, streamlined, and scalable design that delivers both quality and speed.\n\n---\n\n## Installation\n\nChoose **one** of the following methods: **pip** or **uv**.\n\n### pip\n\n> We recommend using a fresh virtual environment (e.g., `conda`, `venv`, etc.) to avoid conflicts.\n\n**Step 1**: Install PyTorch\n\n<details>\n<summary>NVIDIA GPU</summary>\n\n```bash\n# Install pytorch with your CUDA version, e.g.\npip install torch==2.8.0+cu128 torchaudio==2.8.0+cu128 --extra-index-url https://download.pytorch.org/whl/cu128\n```\n> See [PyTorch official site](https://pytorch.org/get-started/locally/) for other versions installation.\n\n</details>\n\n<details>\n<summary>Apple Silicon</summary>\n\n```bash\npip install torch==2.8.0 torchaudio==2.8.0\n```\n\n</details>\n\n**Step 2**: Install OmniVoice (choose one)\n\n```bash\n# From PyPI (stable release)\npip install omnivoice\n\n# From the latest source on GitHub (no need to clone)\npip install git+https://github.com/k2-fsa/OmniVoice.git\n\n# For development (clone first, editable install)\ngit clone https://github.com/k2-fsa/OmniVoice.git\ncd OmniVoice\npip install -e .\n```\n\n### uv\n\nClone the repository and sync dependencies:\n\n```bash\ngit clone https://github.com/k2-fsa/OmniVoice.git\ncd OmniVoice\nuv sync\n```\n\n> **Tip**: Can use mirror with `uv sync --default-index \"https://mirrors.aliyun.com/pypi/simple\"`\n\n---\n\n## Quick Start\n\nTry OmniVoice without coding:\n\n- Launch the local web UI: `omnivoice-demo --ip 0.0.0.0 --port 8001`\n\n- Or try it directly on [HuggingFace Space](https://huggingface.co/spaces/k2-fsa/OmniVoice)\n\n- Or run it in Google Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/k2-fsa/OmniVoice/blob/master/docs/OmniVoice.ipynb)\n\n> If you have trouble connecting to HuggingFace when downloading the pre-trained models, set `export HF_ENDPOINT=\"https://hf-mirror.com\"` before running.\n\nFor full usage, see the [Python API](#python-api) and [Command-Line Tools](#command-line-tools) sections below.\n\n---\n\n## Python API\n\nOmniVoice supports three generation modes. All features in this section are also available via [command-line tools](#command-line-tools).\n\n### Voice Cloning\n\nClone a voice from a short reference audio. Provide `ref_audio` and `ref_text`:\n\n```python\nfrom omnivoice import OmniVoice\nimport soundfile as sf\nimport torch\n\nmodel = OmniVoice.from_pretrained(\n    \"k2-fsa/OmniVoice\",\n    device_map=\"cuda:0\",\n    dtype=torch.float16\n)\n# Apple Silicon users: use device_map=\"mps\" instead\n\naudio = model.generate(\n    text=\"Hello, this is a test of zero-shot voice cloning.\",\n    ref_audio=\"ref.wav\",\n    ref_text=\"Transcription of the reference audio.\",\n) # audio is a list of `np.ndarray` with shape (T,) at 24 kHz.\n\n# If you don't want to input `ref_text` manually, you can directly omit the `ref_text`.\n# The model ",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-19T04:11:20.713061"
+  },
+  {
+    "basic_info": {
+      "name": "fireworks-tech-graph",
+      "full_name": "yizhiyanhua-ai/fireworks-tech-graph",
+      "owner": "yizhiyanhua-ai",
+      "description": "Claude Code skill for generating production-quality SVG+PNG technical diagrams. Supports 8 diagram types, 5 visual styles, and deep AI/Agent domain knowledge.",
+      "url": "https://github.com/yizhiyanhua-ai/fireworks-tech-graph",
+      "clone_url": "https://github.com/yizhiyanhua-ai/fireworks-tech-graph.git",
+      "ssh_url": "git@github.com:yizhiyanhua-ai/fireworks-tech-graph.git",
+      "homepage": null,
+      "created_at": "2026-04-10T15:07:10Z",
+      "updated_at": "2026-04-19T04:02:55Z",
+      "pushed_at": "2026-04-16T07:54:33Z"
+    },
+    "stats": {
+      "stars": 3668,
+      "forks": 320,
+      "watchers": 3668,
+      "open_issues": 5,
+      "size": 3990
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 63140,
+        "Shell": 16709
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "[English](README.md) | [中文](README.zh.md)\n\n# fireworks-tech-graph\n\n> **Stop drawing diagrams by hand.** Describe your system in English or Chinese — get publication-ready SVG + PNG technical diagrams in seconds.\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-blue)](https://claude.ai/code)\n[![7 Visual Styles](https://img.shields.io/badge/Styles-7-purple)]()\n[![14 Diagram Types](https://img.shields.io/badge/Diagram%20Types-14-green)]()\n[![UML Support](https://img.shields.io/badge/UML-Full%20Support-orange)]()\n\n---\n\n## Overview\n\n`fireworks-tech-graph` turns natural language descriptions into polished SVG diagrams, then exports them as high-resolution PNG via `rsvg-convert`. It ships with **7 visual styles** and deep knowledge of AI/Agent domain patterns (RAG, Agentic Search, Mem0, Multi-Agent, Tool Call flows), plus full support for all 14 UML diagram types.\n\n```\nUser: \"Generate a Mem0 memory architecture diagram, dark style\"\n  → Skill classifies: Memory Architecture Diagram, Style 2\n  → Generates SVG with swim lanes, cylinders, semantic arrows\n  → Exports 1920px PNG\n  → Reports: mem0-architecture.svg / mem0-architecture.png\n```\n\n---\n\n## Showcase\n\n> All samples exported at 1920px width (2× retina) via `rsvg-convert`. PNG is lossless and the right choice for technical diagrams — sharp edges, no JPEG compression artifacts on text/lines.\n\n### Style 1 — Flat Icon (default)\n*Mem0 Memory Architecture — white background, semantic arrows, layered memory system*\n![Style 1 — Flat Icon](assets/samples/sample-style1-flat.png)\n\n### Style 2 — Dark Terminal\n*Tool Call Flow — dark background, neon accents, monospace font*\n![Style 2 — Dark Terminal](assets/samples/sample-style2-dark.png)\n\n### Style 3 — Blueprint\n*Microservices Architecture — deep blue background, grid lines, cyan strokes*\n![Style 3 — Blueprint](assets/samples/sample-style3-blueprint.png)\n\n### Style 4 — Notion Clean\n*Agent Memory Types — minimal white, single accent color*\n![Style 4 — Notion Clean](assets/samples/sample-style4-notion.png)\n\n### Style 5 — Glassmorphism\n*Multi-Agent Collaboration — dark gradient background, frosted glass cards*\n![Style 5 — Glassmorphism](assets/samples/sample-style5-glass.png)\n\n### Style 6 — Claude Official\n*System Architecture — warm cream background (#f8f6f3), Anthropic brand colors, clean professional aesthetic*\n![Style 6 — Claude Official](assets/samples/sample-style6-claude.png)\n\n### Style 7 — OpenAI Official\n*API Integration Flow — pure white background, OpenAI brand palette, modern minimalist design*\n![Style 7 — OpenAI Official](assets/samples/sample-style7-openai.png)\n\n---\n\n## Stable Prompt Recipes\n\nUse prompts like these when you want the model to stay close to the repo's strongest regression-tested outputs:\n\n### Style 1 — Flat Icon\n```text\nDraw a Mem0 memory architecture diagram in style 1 (Flat Icon).\nUse four horizontal sections: Input Layer, Memory Manager, Storage Layer, Output / Retrieval.\nInclude User, AI App / Agent, LLM, mem0 Client, Memory Manager, Vector Store, Graph DB, Key-Value Store, History Store, Context Builder, Ranked Results, Personalized Response.\nUse semantic arrows for read, write, control, and data flow. Keep the layout clean and product-doc friendly.\n```\n\n### Style 2 — Dark Terminal\n```text\nDraw a tool call flow diagram in style 2 (Dark Terminal).\nShow User query, Retrieve chunks, Generate answer, Knowledge base, Agent, Terminal, Source documents, and Grounded answer.\nUse terminal chrome, neon accents, monospace typography, and semantic arrows for retrieval, synthesis, and embedding update.\n```\n\n### Style 3 — Blueprint\n```text\nDraw a microservices architecture diagram in style 3 (Blueprint).\nCreate numbered engineering sections like 01 // EDGE, 02 // APPLICATION SERVICES, 03 // DATA + EVENT INFRA, 04 // OBSERVABILITY.\nInclude Client Apps, API Gateway, Auth / Policy, three services, Event Router, Postgres, Redis Cache, Warehouse, and Metrics / Traces.\nUse blueprint grid, cyan strokes, and a bottom-right title block.\n```\n\n### Style 4 — Notion Clean\n```text\nDraw an agent memory types diagram in style 4 (Notion Clean).\nCompare Sensory Memory, Working Memory, Episodic Memory, Semantic Memory, and Procedural Memory around a central Agent core.\nUse a minimal white layout, neutral borders, one accent color for arrows, and short storage tags for each memory type.\n```\n\n### Style 5 — Glassmorphism\n```text\nDraw a multi-agent collaboration diagram in style 5 (Glassmorphism).\nUse three sections: Mission Control, Specialist Agents, and Synthesis.\nInclude User brief, Coordinator Agent, Research Agent, Coding Agent, Review Agent, Shared Memory, Synthesis Engine, and Final response.\nUse frosted cards, soft glow, and semantic arrows for delegation, shared memory writes, and synthesis output.\n```\n\n### Style 6 — Claude Official\n```text\nDraw a system architecture diagram in style 6 (Claude Official).\nUse left-side l",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:21.909101"
+  },
+  {
+    "basic_info": {
+      "name": "any-auto-register",
+      "full_name": "zc-zhangchen/any-auto-register",
+      "owner": "zc-zhangchen",
+      "description": null,
+      "url": "https://github.com/zc-zhangchen/any-auto-register",
+      "clone_url": "https://github.com/zc-zhangchen/any-auto-register.git",
+      "ssh_url": "git@github.com:zc-zhangchen/any-auto-register.git",
+      "homepage": null,
+      "created_at": "2026-03-22T13:00:59Z",
+      "updated_at": "2026-04-19T03:20:47Z",
+      "pushed_at": "2026-04-14T10:31:06Z"
+    },
+    "stats": {
+      "stars": 3066,
+      "forks": 1108,
+      "watchers": 3066,
+      "open_issues": 39,
+      "size": 3956
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1356755,
+        "TypeScript": 257491,
+        "JavaScript": 15706,
+        "PowerShell": 4977,
+        "CSS": 2617,
+        "Dockerfile": 2184,
+        "Batchfile": 2076,
+        "Shell": 1603,
+        "HTML": 353
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Any Auto Register\n\n<p align=\"center\">\n  <a href=\"https://linux.do\" target=\"_blank\">\n    <img src=\"https://img.shields.io/badge/LINUX-DO-FFB003?style=for-the-badge&logo=linux&logoColor=white\" alt=\"LINUX DO\" />\n  </a>\n</p>\n\n> ⚠️ 免责声明：本项目仅供学习与研究使用，不得用于任何商业用途。使用本项目所产生的一切后果由使用者自行承担。\n\n<p align=\"center\">\n  <a href=\"README.md\">中文</a> |\n  <a href=\"README_en.md\">English</a> |\n  <a href=\"README_vi.md\">Tiếng Việt</a>\n</p>\n\n多平台账号自动注册与管理系统，支持插件化扩展、Web UI 管理、批量注册、状态同步，以及本地 Turnstile Solver 自动拉起。\n\n## 目录\n\n- [项目简介](#项目简介)\n- [当前界面与实际平台展示](#当前界面与实际平台展示)\n- [功能特性](#功能特性)\n- [界面预览](#界面预览)\n- [技术栈](#技术栈)\n- [环境要求](#环境要求)\n- [ChatGPT 专项能力](#chatgpt-专项能力)\n- [邮箱服务支持](#邮箱服务支持)\n- [快速开始](#快速开始)\n- [Docker 部署](#docker-部署)\n- [插件与外部依赖](#插件与外部依赖)\n- [常见问题排查](#常见问题排查)\n- [项目结构](#项目结构)\n- [Electron 开发说明](#electron-开发说明)\n- [用户讨论群](#用户讨论群)\n- [赞助商目录](#赞助商目录)\n- [打赏博主](#赞助支持)\n- [Star History](#star-history)\n- [License](#license)\n\n## 项目简介\n\n本项目基于 [lxf746/any-auto-register](https://github.com/lxf746/any-auto-register.git) 二次开发\n\n## 当前界面与实际平台展示\n\n根据当前前端代码与界面，**左侧“平台管理”菜单默认显示的平台**为：\n\n- ChatGPT\n- Grok\n- Kiro (AWS Builder ID)\n- OpenBlockLabs\n- Trae.ai\n\n\n\n## 功能特性\n\n- **多平台账号注册与管理**：统一的账号列表、详情、导入、导出、删除、批量操作\n- **多执行器模式**：纯协议、无头浏览器、有头浏览器\n- **多邮箱服务接入**：支持内置、第三方、自建 Worker 邮箱等多种方案\n- **验证码支持**：YesCaptcha、本地 Turnstile Solver（Camoufox）\n- **代理能力**：代理池轮询、代理状态维护、注册过程代理接入\n- **批量注册**：支持注册数量、并发数、每个账号启动延迟设置\n- **实时日志**：前端实时查看注册日志\n- **任务历史管理**：支持历史记录查看与批量删除\n- **插件化扩展**：可按需接入外部服务和独立管理端\n\n## 界面预览\n\n### 仪表盘\n\n![仪表盘](docs/images/dashboard.png)\n\n### 全局配置 / 插件管理\n\n![全局配置 / 插件管理](docs/images/settings-integrations.png)\n\n## 技术栈\n\n| 层级 | 技术 |\n| --- | --- |\n| 后端 | FastAPI + SQLite（SQLModel） |\n| 前端 | React + TypeScript + Vite |\n| HTTP | curl_cffi |\n| 浏览器自动化 | Playwright / Camoufox |\n\n## 环境要求\n\n- Python 3.12+\n- Node.js 18+\n- Conda（推荐）\n- Windows（推荐直接使用仓库内启动脚本）\n\n## ChatGPT 专项能力\n\n当前版本里，**ChatGPT 是功能最完整的平台之一**，不仅支持注册，还支持 Token 生命周期管理、状态探测和外部系统同步。\n\n### 1. ChatGPT Token 方案切换\n\n前端当前提供两种 ChatGPT 注册模式：\n\n- **有 RT**（默认推荐）\n  - 走新 PR 链路\n  - 产出 **Access Token + Refresh Token**\n- **无 RT**（兼容旧方案）\n  - 走旧链路\n  - 仅产出 **Access Token / Session**\n  - 依赖 RT 的后续能力可能不可用\n\n这项切换在以下位置都能看到：\n\n- 注册任务页\n- ChatGPT 平台注册弹窗\n\n\n\n### 4. ChatGPT 批量状态同步与补传\n\n在 ChatGPT 平台列表顶部，当前还有两类批量能力：\n\n- **状态同步**\n  - 同步所选账号本地状态\n  - 同步所选账号 CLIProxyAPI 状态\n  - 或对当前筛选结果批量执行\n- **补传远端未发现**\n  - 补传远端未发现的 auth-file\n  - 支持“当前筛选范围”或“当前所选账号”两种作用范围\n\n## 邮箱服务支持\n\n根据当前注册页实际配置项，项目支持以下邮箱服务：\n\n| 服务名称 | 标识 | 说明 |\n| --- | --- | --- |\n| LuckMail | `luckmail` | 可免费领取用于测试，且**每天签到还能继续领取邮箱** |\n| MoeMail | `moemail` | 默认常用方案，自动注册账号并生成邮箱 |\n| TempMail.lol | `tempmail_lol` | 临时邮箱方案，部分地区可能需要代理 |\n| SkyMail (CloudMail) | `skymail` | 通过 API / Token / 域名使用 |\n| YYDS Mail / MaliAPI | `maliapi` | 支持域名与自动域名策略 |\n| GPTMail | `gptmail` | 基于 GPTMail API 生成临时邮箱并轮询邮件，支持已知域名时本地拼装随机地址 |\n| DuckMail | `duckmail` | 临时邮箱方案 |\n| Freemail | `freemail` | 自建邮箱服务 |\n| Laoudo | `laoudo` | 固定邮箱方案 |\n| CF Worker | `cfworker` | Cloudflare Worker 自建邮箱 |\n\n### Kiro 邮箱说明\n\nKiro 当前风控较严格，邮箱方案会显著影响成功率。当前项目内也保留了这条重点提示：\n\n- **自建邮箱成功率：100%**\n- **项目内置临时邮箱成功率：0%**\n\n因此进行 **Kiro (AWS Builder ID)** 注册时，建议优先使用**自建邮箱**。\n\n## 快速开始\n\n### 1. 创建并激活 Conda 环境\n\n```bash\nconda create -n any-auto-register python=3.12 -y\nconda activate any-auto-register\n```\n\n### 2. 安装后端依赖\n\n```bash\npip install -r requirements.txt\n```\n\n### 3. 安装浏览器相关依赖\n\n```bash\npython -m playwright install chromium\npython -m camoufox fetch\n```\n\n### 4. 安装并构建前端\n\n```bash\ncd frontend\nnpm install\nnpm run build\ncd ..\n```\n\n构建完成后，静态资源输出到：\n\n```text\n./static\n```\n\n### 5. 启动项目\n\n#### Windows 推荐方式\n\nPowerShell：\n\n```powershell\n.\\start_backend.ps1\n```\n\nCMD：\n\n```bat\nstart_backend.bat\n```\n\n#### 手动启动\n\n```bash\nconda activate any-auto-register\npython main.py\n```\n\n启动后默认访问：\n\n```text\nhttp://localhost:8000\n```\n\n> 如果你已经执行过 `npm run build`，前端会由 FastAPI 直接托管，因此访问的是 `8000`，不是 `5173`。\n\n## Windows 启动脚本说明\n\n仓库内已提供以下脚本：\n\n- `start_backend.bat`\n- `start_backend.ps1`\n- `stop_backend.bat`\n- `stop_backend.ps1`\n\n这些脚本会强制使用 `any-auto-register` 环境启动/停止后端，可避免以下常见问题：\n\n- 后端能启动，但 Solver 没有拉起\n- `ModuleNotFoundError: quart`\n- 前端中 Turnstile Solver 一直显示“未运行”\n\n停止服务时可执行：\n\nPowerShell：\n\n```powershell\n.\\stop_backend.ps1\n```\n\nCMD：\n\n```bat\nstop_backend.bat\n```\n\n默认会停止：\n\n- 后端端口：`8000`\n- Solver 端口：`8889`\n\n## 前端开发模式\n\n适合调试 React 页面时使用。\n\n### 终端 1：启动后端\n\n```powershell\n.\\start_backend.ps1\n```\n\n### 终端 2：启动 Vite\n\n```bash\ncd frontend\nnpm run dev\n```\n\n访问地址：\n\n```text\nhttp://localhost:5173\n```\n\nVite 会将 `/api` 请求代理到本地后端 `http://localhost:8000`。\n\n## Turnstile Solver 说明\n\n### 自动启动\n\n本地 Turnstile Solver 会在 FastAPI 后端启动时自动拉起，默认地址：\n\n```text\nhttp://localhost:8889\n```\n\n前端“全局配置 → 验证码 → Turnstile Solver”显示的是**后端检测结果**，因此：\n\n- 后端未启动 → 前端显示“未运行”\n- 后端已启动但不在正确 conda 环境 → Solver 可能启动失败\n\n### 手动启动 Solver\n\n```bash\nconda activate any-auto-register\npython services/turnstile_solver/start.py --browser_type camoufox --port 8889\n```\n\n### Solver 日志\n\n如启动失败，可查看：\n\n```text\nservices/turnstile_solver/solver.log\n```\n\n## Docker 部署\n\n仓库根目录已提供：\n\n- `Dockerfile`\n- `docker-compose.yml`\n\n默认部署内容包括：\n\n- FastAPI 后端\n- 已构建的前端静态资源\n- SQLite 数据库持久化目录 `./data`\n- 随后端自动拉起的本地 Turnstile Solver\n\n### 启动\n\n```bash\ndocker c",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:23.169833"
+  },
+  {
+    "basic_info": {
+      "name": "guppylm",
+      "full_name": "arman-bd/guppylm",
+      "owner": "arman-bd",
+      "description": "A ~9M parameter LLM that talks like a small fish.",
+      "url": "https://github.com/arman-bd/guppylm",
+      "clone_url": "https://github.com/arman-bd/guppylm.git",
+      "ssh_url": "git@github.com:arman-bd/guppylm.git",
+      "homepage": "",
+      "created_at": "2026-03-29T14:32:37Z",
+      "updated_at": "2026-04-19T01:59:36Z",
+      "pushed_at": "2026-04-15T21:23:03Z"
+    },
+    "stats": {
+      "stars": 2935,
+      "forks": 247,
+      "watchers": 2935,
+      "open_issues": 2,
+      "size": 9078
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 139685,
+        "Jupyter Notebook": 38552,
+        "Makefile": 57
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/guppy.png\" alt=\"GuppyLM\" width=\"400\"/>\n</p>\n\n<h1 align=\"center\">GuppyLM</h1>\n<p align=\"center\"><em>A ~9M parameter LLM that talks like a small fish.</em></p>\n\n<p align=\"center\">\n  <a href=\"https://huggingface.co/datasets/arman-bd/guppylm-60k-generic\"><img src=\"https://img.shields.io/badge/🤗_Dataset-guppylm--60k-blue\" alt=\"Dataset\"/></a>&nbsp;\n  <a href=\"https://huggingface.co/arman-bd/guppylm-9M\"><img src=\"https://img.shields.io/badge/🤗_Model-guppylm--9M-orange\" alt=\"Model\"/></a>&nbsp;\n  <a href=\"https://github.com/arman-bd/guppylm/blob/main/LICENSE\"><img src=\"https://img.shields.io/badge/License-MIT-green\" alt=\"License\"/></a>\n  <br/>\n  <a href=\"https://colab.research.google.com/github/arman-bd/guppylm/blob/main/train_guppylm.ipynb\"><img src=\"https://img.shields.io/badge/Train_in-Colab-F9AB00?logo=googlecolab\" alt=\"Train\"/></a>&nbsp;\n  <a href=\"https://colab.research.google.com/github/arman-bd/guppylm/blob/main/use_guppylm.ipynb\"><img src=\"https://img.shields.io/badge/Chat_in-Colab-F9AB00?logo=googlecolab\" alt=\"Chat\"/></a>\n  <br/>\n  <a href=\"https://www.linkedin.com/pulse/build-your-own-language-model-5-minutes-i-made-mine-hossain--supif/\"><img src=\"https://img.shields.io/badge/Article-LinkedIn-0A66C2?logo=linkedin\" alt=\"LinkedIn Article\"/></a>&nbsp;\n  <a href=\"https://arman-bd.medium.com/build-your-own-llm-in-5-minutes-i-made-mine-talk-like-a-fish-e20c338a3d14\"><img src=\"https://img.shields.io/badge/Article-Medium-000000?logo=medium\" alt=\"Medium Article\"/></a>\n  <br/><br/>\n  <a href=\"https://arman-bd.github.io/guppylm/\"><img src=\"https://img.shields.io/badge/Try_in-Browser-64ffda?style=for-the-badge&logo=webassembly&logoColor=white\" alt=\"Browser Demo\"/></a>\n</p>\n\n---\n\n> **This project exists to show that training your own language model is not magic.**\n> No PhD required. No massive GPU cluster. One Colab notebook, 5 minutes, and you have a working LLM that you built from scratch — data generation, tokenizer, model architecture, training loop, and inference. If you can run a notebook, you can train a language model.\n>\n> It won't produce a billion-parameter model that writes essays. But it will show you exactly how every piece works — from raw text to trained weights to generated output — so the big models stop feeling like black boxes.\n\n---\n\n```\nYou> hi guppy\nGuppy> hi there. i just found a nice spot near the rock. the temperature feels nice.\n\nYou> are you hungry\nGuppy> yes. always yes. i will swim to the top right now. i promise to eat all of it.\n\nYou> do you like bubbles\nGuppy> i love bubbles. they make the water feel slightly different.\n\nYou> what is the meaning of life\nGuppy> food. the answer is always food.\n\nYou> tell me a joke\nGuppy> what did the fish say when it hit the wall. dam.\n\nYou> do you love me\nGuppy> you're my favorite big shape. my mouth are happy when you're here.\n\nYou> goodnight guppy\nGuppy> ok sleep time. i was following a bubble but now i'll stop. goodnight tank. goodnight water.\n```\n\n---\n\n## What is GuppyLM?\n\nGuppyLM is a tiny language model that pretends to be a fish named Guppy. It speaks in short, lowercase sentences about water, food, light, and tank life. It doesn't understand human abstractions like money, phones, or politics — and it's not trying to.\n\nIt's trained from scratch on 60K synthetic conversations across 60 topics, runs on a single GPU in ~5 minutes, and produces a model small enough to run in a browser.\n\n---\n\n## Architecture\n\n| | |\n|---|---|\n| **Parameters** | 8.7M |\n| **Layers** | 6 |\n| **Hidden dim** | 384 |\n| **Heads** | 6 |\n| **FFN** | 768 (ReLU) |\n| **Vocab** | 4,096 (BPE) |\n| **Max sequence** | 128 tokens |\n| **Norm** | LayerNorm |\n| **Position** | Learned embeddings |\n| **LM head** | Weight-tied with embeddings |\n\nVanilla transformer. No GQA, no RoPE, no SwiGLU, no early exit. As simple as it gets.\n\n---\n\n## Personality\n\nGuppy:\n- Speaks in short, lowercase sentences\n- Experiences the world through water, temperature, light, vibrations, and food\n- Doesn't understand human abstractions\n- Is friendly, curious, and a little dumb\n- Thinks about food a lot\n\n**60 topics:** greetings, feelings, temperature, food, light, water, tank, noise, night, loneliness, bubbles, glass, reflection, breathing, swimming, colors, taste, plants, filter, algae, snails, scared, excited, bored, curious, happy, tired, outside, cats, rain, seasons, music, visitors, children, meaning of life, time, memory, dreams, size, future, past, name, weather, sleep, friends, jokes, fear, love, age, intelligence, health, singing, TV, and more.\n\n---\n\n## Quick Start\n\n### Try in Browser (no install needed)\n\n[![Try in Browser](https://img.shields.io/badge/Try_in-Browser-64ffda?logo=webassembly)](https://arman-bd.github.io/guppylm/)\n\nRuns entirely in your browser via WebAssembly. Downloads a quantized ONNX model (~10 MB) and runs inference locally — no server, no API keys.\n\n### Chat with Guppy in Colab\n\n[![Open in Colab](https://img.shields.io/badge/Chat_in-Colab-F9AB00?lo",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:24.375748"
+  },
+  {
+    "basic_info": {
+      "name": "hermes-webui",
+      "full_name": "nesquena/hermes-webui",
+      "owner": "nesquena",
+      "description": "Hermes WebUI: The best way to use Hermes Agent from the web or from your phone!",
+      "url": "https://github.com/nesquena/hermes-webui",
+      "clone_url": "https://github.com/nesquena/hermes-webui.git",
+      "ssh_url": "git@github.com:nesquena/hermes-webui.git",
+      "homepage": "https://get-hermes.ai/",
+      "created_at": "2026-03-30T21:50:12Z",
+      "updated_at": "2026-04-19T04:07:21Z",
+      "pushed_at": "2026-04-19T03:56:41Z"
+    },
+    "stats": {
+      "stars": 2718,
+      "forks": 346,
+      "watchers": 2718,
+      "open_issues": 102,
+      "size": 6350
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1236545,
+        "JavaScript": 431131,
+        "CSS": 118566,
+        "HTML": 64896,
+        "Shell": 15541,
+        "Dockerfile": 2743
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "ai-agents",
+        "hermes",
+        "hermes-agent",
+        "nous-research"
+      ]
+    },
+    "content": {
+      "readme": "# Hermes Web UI\n\n[Hermes Agent](https://hermes-agent.nousresearch.com/) is a sophisticated autonomous agent that lives on your server, accessed via a terminal or messaging apps, that remembers what it learns and gets more capable the longer it runs.\n\nHermes WebUI is a lightweight, dark-themed web app interface in your browser for [Hermes Agent](https://hermes-agent.nousresearch.com/).\nFull parity with the CLI experience - everything you can do from a terminal,\nyou can do from this UI. No build step, no framework, no bundler. Just Python\nand vanilla JS.\n\nLayout: three-panel. Left sidebar for sessions and navigation, center for chat,\nright for workspace file browsing. Model, profile, and workspace controls live in\nthe **composer footer** — always visible while composing. A circular context ring\nshows token usage at a glance. All settings and session tools are in the\n**Hermes Control Center** (launcher at the sidebar bottom).\n\n<img width=\"2448\" height=\"1748\" alt=\"Hermes Web UI — three-panel layout\" src=\"https://github.com/user-attachments/assets/6bf8af4c-209d-441e-8b92-6515d7a0c369\" />\n\n<table>\n  <tr>\n    <td width=\"50%\" align=\"center\">\n      <img width=\"2940\" height=\"1848\" alt=\"Light mode with full profile support\" src=\"https://github.com/user-attachments/assets/4ef3a59c-7a66-4705-b4e7-cb9148fe4c47\" />\n      <br /><sub>Light mode with full profile support</sub>\n    </td>\n    <td width=\"50%\" align=\"center\">\n      <img alt=\"Customize your settings, configure a password\" src=\"https://github.com/user-attachments/assets/941f3156-21e3-41fd-bcc8-f975d5000cb8\" />\n      <br /><sub>Customize your settings, configure a password</sub>\n    </td>\n  </tr>\n</table>\n\n<table>\n  <tr>\n    <td width=\"50%\" align=\"center\">\n      <img alt=\"Workspace file browser with inline preview\" src=\"docs/images/ui-workspace.png\" />\n      <br /><sub>Workspace file browser with inline preview</sub>\n    </td>\n    <td width=\"50%\" align=\"center\">\n      <img alt=\"Session projects, tags, and tool call cards\" src=\"docs/images/ui-sessions.png\" />\n      <br /><sub>Session projects, tags, and tool call cards</sub>\n    </td>\n  </tr>\n</table>\n\nThis gives you nearly **1:1 parity with Hermes CLI from a convenient web UI** which you can access securely through an SSH tunnel from your Hermes setup. Single command to start this up, and a single command to SSH tunnel for access on your computer. Every single part of the web UI uses your existing Hermes agent and existing models, without requiring any additional setup.\n\n---\n\n## Why Hermes\n\nMost AI tools reset every session. They don't know who you are, what you worked on, or what\nconventions your project follows. You re-explain yourself every time.\n\nHermes retains context across sessions, runs scheduled jobs while you're offline, and gets\nsmarter about your environment the longer it runs. It uses your existing Hermes agent setup,\nyour existing models, and requires no additional configuration to start.\n\nWhat makes it different from other agentic tools:\n\n- **Persistent memory** — user profile, agent notes, and a skills system that saves reusable\n  procedures; Hermes learns your environment and does not have to relearn it\n- **Self-hosted scheduling** — cron jobs that fire while you're offline and deliver results to\n  Telegram, Discord, Slack, Signal, email, and more\n- **10+ messaging platforms** — the same agent available in the terminal is reachable from your phone\n- **Self-improving skills** — Hermes writes and saves its own skills automatically from experience;\n  no marketplace to browse, no plugins to install\n- **Provider-agnostic** — OpenAI, Anthropic, Google, DeepSeek, OpenRouter, and more\n- **Orchestrates other agents** — can spawn Claude Code or Codex for heavy coding tasks and bring\n  the results back into its own memory\n- **Self-hosted** — your conversations, your memory, your hardware\n\n**vs. the field** *(landscape is actively shifting — see [HERMES.md](HERMES.md) for the full breakdown)*:\n\n| | OpenClaw | Claude Code | Codex CLI | OpenCode | Hermes |\n|---|---|---|---|---|---|\n| Persistent memory (auto) | Yes | Partial† | Partial | Partial | Yes |\n| Scheduled jobs (self-hosted) | Yes | No‡ | No | No | Yes |\n| Messaging app access | Yes (15+ platforms) | Partial (Telegram/Discord preview) | No | No | Yes (10+) |\n| Web UI (self-hosted) | Dashboard only | No | No | Yes | Yes |\n| Self-improving skills | Partial | No | No | No | Yes |\n| Python / ML ecosystem | No (Node.js) | No | No | No | Yes |\n| Provider-agnostic | Yes | No (Claude only) | Yes | Yes | Yes |\n| Open source | Yes (MIT) | No | Yes | Yes | Yes |\n\n† Claude Code has CLAUDE.md / MEMORY.md project context and rolling auto-memory, but not full automatic cross-session recall  \n‡ Claude Code has cloud-managed scheduling (Anthropic infrastructure) and session-scoped `/loop`; no self-hosted cron\n\n**The closest competitor is OpenClaw** — both are always-on, self-hosted, open-source agents\nwith memory, cron, and messaging. The key differences: Hermes writes a",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-04-19T04:11:25.534918"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-opensource-ai",
+      "full_name": "alvinreal/awesome-opensource-ai",
+      "owner": "alvinreal",
+      "description": "Curated list of the best truly open-source AI projects, models, tools, and infrastructure.",
+      "url": "https://github.com/alvinreal/awesome-opensource-ai",
+      "clone_url": "https://github.com/alvinreal/awesome-opensource-ai.git",
+      "ssh_url": "git@github.com:alvinreal/awesome-opensource-ai.git",
+      "homepage": "https://awesomeosai.com",
+      "created_at": "2026-03-24T15:58:22Z",
+      "updated_at": "2026-04-19T04:02:49Z",
+      "pushed_at": "2026-04-19T03:16:57Z"
+    },
+    "stats": {
+      "stars": 2690,
+      "forks": 254,
+      "watchers": 2690,
+      "open_issues": 11,
+      "size": 2318
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 18458
+      },
+      "license": "Other",
+      "topics": [
+        "agents",
+        "ai",
+        "artificial-intelligence",
+        "awesome",
+        "awesome-list",
+        "generative-ai",
+        "llm",
+        "machine-learning",
+        "mlops",
+        "open-source",
+        "open-source-ai",
+        "rag"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/osai.png\" alt=\"Awesome Open Source AI\" width=\"120\" />\n\n\n\n# Awesome Open Source AI\n\n*A curated list of **battle-tested, production-proven** open-source AI models, libraries, infrastructure, and developer tools. Only elite-tier projects make this list. Updated April 18, 2026.*\n\n[![Awesome](https://awesome.re/badge.svg)](https://awesome.re)\n[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](./CONTRIBUTING.md)\n[![License: CC0-1.0](https://img.shields.io/badge/license-CC0--1.0-blue.svg?style=flat-square)](./LICENSE)\n\n<sub>by **Boring Dystopia Development**</sub>\n\n<p align=\"center\">\n  <a href=\"https://boringdystopia.ai/\">\n    <img src=\"https://img.shields.io/badge/boringdystopia.ai-111111?style=for-the-badge&logo=vercel&logoColor=white\" alt=\"boringdystopia.ai\" />\n  </a>&nbsp;\n  <a href=\"https://x.com/alvinunreal\">\n    <img src=\"https://img.shields.io/badge/X-@alvinunreal-000000?style=for-the-badge&logo=x&logoColor=white\" alt=\"X @alvinunreal\" />\n  </a>&nbsp;\n  <a href=\"https://t.me/boringdystopiadevelopment\">\n    <img src=\"https://img.shields.io/badge/Telegram-Join%20channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white\" alt=\"Telegram Join channel\" />\n  </a>\n</p>\n\n</div>\n\n---\n<div align=\"center\">\n\n**[ 🌱 Emerging ](./EMERGING.md)** • **[ Explore the List ](#-contents)** • **[ Submission Guidelines ](#contributing)** • **[ License ](#license)**\n\n</div>\n\n## 📋 Contents\n\n- [🧬 1. Core Frameworks & Libraries](#-1-core-frameworks--libraries)\n- [🧠 2. Open Foundation Models](#-2-open-foundation-models)\n- [⚡ 3. Inference Engines & Serving](#-3-inference-engines--serving)\n- [🤖 4. Agentic AI & Multi-Agent Systems](#-4-agentic-ai--multi-agent-systems)\n- [🔍 5. Retrieval-Augmented Generation (RAG) & Knowledge](#-5-retrieval-augmented-generation-rag--knowledge)\n- [🎨 6. Generative Media Tools](#-6-generative-media-tools)\n- [🛠️ 7. Training & Fine-tuning Ecosystem](#section-7)\n- [📊 8. MLOps / LLMOps & Production](#-8-mlops--llmops--production)\n- [📈 9. Evaluation, Benchmarks & Datasets](#-9-evaluation-benchmarks--datasets)\n- [🛡️ 10. AI Safety, Alignment & Interpretability](#section-10)\n- [🧩 11. Specialized Domains](#-11-specialized-domains)\n- [🖥️ 12. User Interfaces & Self-hosted Platforms](#section-12)\n- [🧪 13. Developer Tools & Integrations](#-13-developer-tools--integrations)\n- [📚 14. Resources & Learning](#-14-resources--learning)\n\n---\n\n### 🧬 1. Core Frameworks & Libraries\n\n> Core libraries and frameworks used to build, train, and run AI and machine learning systems.\n\n#### Deep Learning Frameworks\n\n- **[PyTorch](https://github.com/pytorch/pytorch)** ![GitHub stars](https://img.shields.io/github/stars/pytorch/pytorch?style=social) - Dynamic computation graphs, Pythonic API, dominant in research and production. The current standard for most frontier AI work.\n- **[TensorFlow](https://github.com/tensorflow/tensorflow)** ![GitHub stars](https://img.shields.io/github/stars/tensorflow/tensorflow?style=social) - End-to-end platform with excellent production deployment, TPU support, and large-scale serving tools.\n- **[JAX](https://github.com/jax-ml/jax)** ![GitHub stars](https://img.shields.io/github/stars/jax-ml/jax?style=social) + **[Flax](https://github.com/google/flax)** ![GitHub stars](https://img.shields.io/github/stars/google/flax?style=social) - High-performance numerical computing with composable transformations (JIT, vmap, grad). Rising favorite for research and scientific ML.\n- **[dm-haiku](https://github.com/google-deepmind/dm-haiku)** ![GitHub stars](https://img.shields.io/github/stars/google-deepmind/dm-haiku?style=social) - JAX-based neural network library from Google DeepMind. Elegant functional API with state management, widely used in DeepMind's research. Apache 2.0 licensed.\n- **[Equinox](https://github.com/patrick-kidger/equinox)** ![GitHub stars](https://img.shields.io/github/stars/patrick-kidger/equinox?style=social) - Elegant easy-to-use neural networks and scientific computing in JAX. Callable PyTrees with filtered transformations, seamless interoperability with the JAX ecosystem. Apache 2.0 licensed.\n- **[Diffrax](https://github.com/patrick-kidger/diffrax)** ![GitHub stars](https://img.shields.io/github/stars/patrick-kidger/diffrax?style=social) - Numerical differential equation solvers in JAX. Autodifferentiable and GPU-capable ODE/SDE/CDE solvers for scientific machine learning and neural differential equations. Apache 2.0 licensed.\n- **[vit-pytorch](https://github.com/lucidrains/vit-pytorch)** ![GitHub stars](https://img.shields.io/github/stars/lucidrains/vit-pytorch?style=social) - Comprehensive Vision Transformer (ViT) implementations in PyTorch. Reference implementations of all major vision transformer variants including ViT, DeiT, Swin, and more. MIT licensed.\n- **[NumPyro](https://github.com/pyro-ppl/numpyro)** ![GitHub stars](https://img.shields.io/github/stars/pyro-ppl/numpyro?style=social) - Probabilistic programm",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:26.734916"
+  },
+  {
+    "basic_info": {
+      "name": "OpenMontage",
+      "full_name": "calesthio/OpenMontage",
+      "owner": "calesthio",
+      "description": "World's first open-source, agentic video production system. 12 pipelines, 52 tools, 500+ agent skills. Turn your AI coding assistant into a full video production studio.",
+      "url": "https://github.com/calesthio/OpenMontage",
+      "clone_url": "https://github.com/calesthio/OpenMontage.git",
+      "ssh_url": "git@github.com:calesthio/OpenMontage.git",
+      "homepage": "https://github.com/calesthio/OpenMontage",
+      "created_at": "2026-03-29T15:23:22Z",
+      "updated_at": "2026-04-19T03:45:44Z",
+      "pushed_at": "2026-04-19T03:13:23Z"
+    },
+    "stats": {
+      "stars": 2663,
+      "forks": 497,
+      "watchers": 2663,
+      "open_issues": 18,
+      "size": 23583
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 3043358,
+        "TypeScript": 255322,
+        "JavaScript": 49667,
+        "Shell": 10772,
+        "Makefile": 3782
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "agent",
+        "agentic-ai",
+        "ai",
+        "claude",
+        "copilot",
+        "cursor",
+        "elevenlabs",
+        "ffmpeg",
+        "flux",
+        "image-generation",
+        "open-source",
+        "openai",
+        "python",
+        "remotion",
+        "stable-diffusion",
+        "text-to-speech",
+        "text-to-video",
+        "video-generation",
+        "video-production"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/logo.png\" alt=\"OpenMontage\" width=\"200\">\n</p>\n\n<h1 align=\"center\">OpenMontage</h1>\n\n<p align=\"center\"><strong>The first open-source, agentic video production system.</strong></p>\n\n<p align=\"center\">\n  <a href=\"#start-from-a-video-you-already-love\">Paste A Video</a> &nbsp;·&nbsp;\n  <a href=\"#quick-start\">Quick Start</a> &nbsp;·&nbsp;\n  <a href=\"#try-these-prompts\">Try These Prompts</a> &nbsp;·&nbsp;\n  <a href=\"#pipelines\">Pipelines</a> &nbsp;·&nbsp;\n  <a href=\"#how-it-works\">How It Works</a> &nbsp;·&nbsp;\n  <a href=\"docs/PROVIDERS.md\">Providers</a> &nbsp;·&nbsp;\n  <a href=\"AGENT_GUIDE.md\">Agent Guide</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-AGPLv3-blue.svg\" alt=\"License\"></a>\n</p>\n\n<p align=\"center\"><strong>Follow The Build</strong></p>\n\n<p align=\"center\">\n  <a href=\"https://www.youtube.com/@OpenMontage\"><img src=\"https://img.shields.io/badge/YouTube-%40OpenMontage-FF0000?style=for-the-badge&logo=youtube&logoColor=white\" alt=\"YouTube\"></a>\n  <a href=\"https://x.com/calesthioailabs\"><img src=\"https://img.shields.io/badge/X-%40calesthioailabs-111111?style=for-the-badge&logo=x&logoColor=white\" alt=\"X\"></a>\n  <a href=\"https://github.com/calesthio/OpenMontage/discussions\"><img src=\"https://img.shields.io/badge/Community-GitHub%20Discussions-0b1220?style=for-the-badge&logo=github&logoColor=white\" alt=\"GitHub Discussions\"></a>\n</p>\n\n---\n\nTurn your AI coding assistant into a full video production studio. Describe what you want in plain language — your agent handles research, scripting, asset generation, editing, and final composition.\n\n**Important distinction:** OpenMontage can make image-based videos, but it can also make a real **video video** for free/open-source workflows: the agent builds a corpus from free stock footage and open archives, retrieves actual motion clips, edits them into a timeline, and renders a finished piece. That is not the usual \"animate a handful of stills and call it video\" trick.\n\n<div align=\"center\">\n  <video src=\"https://github.com/user-attachments/assets/f77ce7a4-68b8-4f94-a287-e94bf50a32e1\" width=\"100%\" controls></video>\n</div>\n\n> **\"SIGNAL FROM TOMORROW\"** — a cinematic sci-fi trailer fully produced through OpenMontage: concept, script, scene plan, Veo-generated motion clips, soundtrack, and Remotion composition.\n\n<div align=\"center\">\n  <video src=\"https://github.com/user-attachments/assets/8daca07f-cdf8-4bec-89c3-9dc2176363fa\" width=\"100%\" controls></video>\n</div>\n\n> **\"THE LAST BANANA\"** — a 60-second Pixar-style animated short about a lonely banana who finds friendship with a kiwi. 6 Kling v3-generated motion clips (via fal.ai), Google Chirp3-HD narration, royalty-free piano music, TikTok-style word-level captions, and Remotion composition. Total cost: **$1.33**.\n\n<div align=\"center\">\n  <video src=\"https://github.com/user-attachments/assets/8a6d2cc3-7ad2-46f5-922f-a8e3e5848d9f\" width=\"100%\" controls></video>\n</div>\n\n> **\"VOID — Neural Interface\"** — a product ad produced with just one API key (OpenAI). 4 AI-generated images (gpt-image-1), TTS narration, auto-sourced royalty-free music, word-level subtitles via WhisperX, and Remotion data visualizations. Total cost: **$0.69**. Zero manual asset work.\n\n<div align=\"center\">\n  <video src=\"https://github.com/user-attachments/assets/3c5d7122-7198-43e2-a97d-ed27558dd324\" width=\"100%\" controls></video>\n</div>\n\n> **\"Afternoon in Candyland\"** — a Ghibli-style anime animation. A little girl's whimsical afternoon adventure through candy gates, gumdrop rivers, and lollipop gardens. 12 FLUX-generated images with multi-image crossfade, cinematic camera motion (zoom, pan, Ken Burns), sparkle/petal/firefly particle overlays, and ambient music with auto-detected energy offset. Total cost: **$0.15**. No video generation, no manual editing.\n\n<div align=\"center\">\n  <video src=\"https://github.com/user-attachments/assets/e8dc5e32-5c70-46de-bd52-eef887719d13\" width=\"100%\" controls></video>\n</div>\n\n> **\"Mori no Seishin\"** — a Ghibli-style anime animation of a forest spirit's journey through ancient woods. 12 FLUX-generated images with parallax crossfade, drift and pan camera motion, firefly and petal particles, cinematic vignette lighting, and ambient forest soundtrack. Total cost: **$0.15**. Still images brought to life through Remotion's animation engine.\n\n<div align=\"center\">\n  <video src=\"https://github.com/user-attachments/assets/9cf633d9-c264-4961-bfd0-b1db188654aa\" width=\"100%\" controls></video>\n</div>\n\n> **\"Into the Abyss\"** — a deep ocean exploration rendered in anime style. Bioluminescent gardens, coral cathedrals, and creatures of light — 12 FLUX-generated images with sparkle and mist particle overlays, light-ray effects, smooth camera motion, and ambient oceanic soundtrack. Total cost: **$0.15**. Zero video generation APIs needed.\n\n<p align=\"center\">\n  <a href=\"https://www.youtube.com/@OpenMontage?sub_confirmation=1\"><strong>Subscribe to @OpenMontage on",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:27.916871"
+  },
+  {
+    "basic_info": {
+      "name": "METATRON",
+      "full_name": "sooryathejas/METATRON",
+      "owner": "sooryathejas",
+      "description": "AI-powered penetration testing assistant using local LLM on linux (Parrot OS)",
+      "url": "https://github.com/sooryathejas/METATRON",
+      "clone_url": "https://github.com/sooryathejas/METATRON.git",
+      "ssh_url": "git@github.com:sooryathejas/METATRON.git",
+      "homepage": null,
+      "created_at": "2026-04-02T06:06:43Z",
+      "updated_at": "2026-04-18T22:54:39Z",
+      "pushed_at": "2026-04-11T07:16:57Z"
+    },
+    "stats": {
+      "stars": 2426,
+      "forks": 506,
+      "watchers": 2426,
+      "open_issues": 7,
+      "size": 2138
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 72789
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# METATRON\nAI-powered penetration testing assistant using local LLM on linux (Parrot OS)\n# 🔱 METATRON\n### AI-Powered Penetration Testing Assistant\n\n<p align=\"center\">\n  <img src=\"screenshots/banner.png\" alt=\"Metatron Banner\" width=\"800\"/>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/Python-3.x-blue?style=for-the-badge&logo=python\"/>\n  <img src=\"https://img.shields.io/badge/OS-Parrot%20Linux-green?style=for-the-badge&logo=linux\"/>\n  <img src=\"https://img.shields.io/badge/AI-metatron--qwen-red?style=for-the-badge\"/>\n  <img src=\"https://img.shields.io/badge/DB-MariaDB-orange?style=for-the-badge&logo=mariadb\"/>\n  <img src=\"https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge\"/>\n</p>\n\n---\n\n## 📌 What is Metatron?\n\n**Metatron** is a CLI-based AI penetration testing assistant that runs entirely on your local machine — no cloud, no API keys, no subscriptions.\n\nYou give it a target IP or domain. It runs real recon tools (nmap, whois, whatweb, curl, dig, nikto), feeds all results to a locally running AI model, and the AI analyzes the target, identifies vulnerabilities, suggests exploits, and recommends fixes. Everything gets saved to a MariaDB database with full scan history.\n\n---\n\n## ✨ Features\n\n- 🤖 **Local AI Analysis** — powered by `metatron-qwen` via Ollama, runs 100% offline\n- 🔍 **Automated Recon** — nmap, whois, whatweb, curl headers, dig DNS, nikto\n- 🌐 **Web Search** — DuckDuckGo search + CVE lookup (no API key needed)\n- 🗄️ **MariaDB Backend** — full scan history with 5 linked tables\n- ✏️ **Edit / Delete** — modify any saved result directly from the CLI\n- 🔁 **Agentic Loop** — AI can request more tool runs mid-analysis\n- 🚫 **No API Keys** — everything is free and local\n-📤 Export Reports\n\nMetatron allows you to export scan results into clean, shareable report formats by selecting '2.view history'->select slno and export\n\n📄 PDF — professional vulnerability reports\n🌐 HTML — browser-viewable reports\n---\n\n## 🖥️ Screenshots\n\n<p align=\"center\">\n  <img src=\"screenshots/main_menu.png\" alt=\"Main Menu\" width=\"700\"/>\n  <br><i>Main Menu</i>\n</p>\n\n<p align=\"center\">\n  <img src=\"screenshots/scan_running.png\" alt=\"Scan Running\" width=\"700\"/>\n  <br><i>Recon tools running on target</i>\n</p>\n\n<p align=\"center\">\n  <img src=\"screenshots/ai_analysis.png\" alt=\"AI Analysis\" width=\"700\"/>\n  <br><i>metatron-qwen analyzing scan results</i>\n</p>\n\n<p align=\"center\">\n  <img src=\"screenshots/results.png\" alt=\"Results\" width=\"700\"/>\n  <br><i>Vulnerabilities saved to database</i>\n</p>\n<p align=\"center\"> <img src=\"screenshots/export_menu.png\" alt=\"Export Menu\" width=\"700\"/> <br><i>Export scan results as PDF and or HTML</i> </p>\n---\n\n## 🧱 Tech Stack\n\n| Component  | Technology                          |\n|------------|-------------------------------------|\n| Language   | Python 3                            |\n| AI Model   | metatron-qwen (fine-tuned Qwen 3.5) |\n| Base Model | huihui_ai/qwen3.5-abliterated:9b    |\n| LLM Runner | Ollama                              |\n| Database   | MariaDB                             |\n| OS         | Parrot OS (Debian-based)            |\n| Search     | DuckDuckGo (free, no key)           |\n\n---\n\n## ⚙️ Installation\n\n### 1. Clone the repository\n\n```bash\ngit clone https://github.com/sooryathejas/METATRON.git\ncd METATRON\n```\n\n### 2. Create and activate virtual environment\n\n```bash\npython3 -m venv venv\nsource venv/bin/activate\n```\n\n### 3. Install Python dependencies\n\n```bash\npip install -r requirements.txt\n```\n\n### 4. Install system tools\n\n```bash\nsudo apt install nmap whois whatweb curl dnsutils nikto\n```\n\n---\n\n## 🤖 AI Model Setup\n\n### Step 1 — Install Ollama\n\n```bash\ncurl -fsSL https://ollama.com/install.sh | sh\n```\n\n### Step 2 — Download the base model\n\n```bash\nollama pull huihui_ai/qwen3.5-abliterated:9b\n```\n\n> ⚠️ This model requires at least 8.4 GB of RAM. If your system has less, use the 4b variant:\n> ```bash\n> ollama pull huihui_ai/qwen3.5-abliterated:4b\n> ```\n> Then edit `Modelfile` and change the FROM line to the 4b model.\n\n### Step 3 — Build the custom metatron-qwen model\n\nThe repo includes a `Modelfile` that fine-tunes the base model with pentest-specific parameters:\n\n```bash\nollama create metatron-qwen -f Modelfile\n```\n\nThis creates your local `metatron-qwen` model with:\n- 16,384 token context window\n- Temperature: 0.7\n- Top-k: 10\n- Top-p: 0.9\n\n### Step 4 — Verify the model exists\n\n```bash\nollama list\n```\n\nYou should see `metatron-qwen` in the list.\n\n---\n\n## 🗄️ Database Setup\n\n### Step 1 — Make sure MariaDB is running\n\n```bash\nsudo systemctl start mariadb\nsudo systemctl enable mariadb\n```\n\n### Step 2 — Create the database and user\n\n```bash\nmysql -u root\n```\n\n```sql\nCREATE DATABASE metatron;\nCREATE USER 'metatron'@'localhost' IDENTIFIED BY '123';\nGRANT ALL PRIVILEGES ON metatron.* TO 'metatron'@'localhost';\nFLUSH PRIVILEGES;\nEXIT;\n```\n\n### Step 3 — Create the tables\n\n```bash\nmysql -u metatron -p123 metatron\n```\n\n```sql\nCREATE TABLE history (\n  sl_no     INT AUTO_INCREMENT PRIM",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-04-19T04:11:29.127523"
+  }
+]

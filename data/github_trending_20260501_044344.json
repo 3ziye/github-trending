@@ -1,0 +1,878 @@
+[
+  {
+    "basic_info": {
+      "name": "obscura",
+      "full_name": "h4ckf0r0day/obscura",
+      "owner": "h4ckf0r0day",
+      "description": "The headless browser for AI agents and web scraping",
+      "url": "https://github.com/h4ckf0r0day/obscura",
+      "clone_url": "https://github.com/h4ckf0r0day/obscura.git",
+      "ssh_url": "git@github.com:h4ckf0r0day/obscura.git",
+      "homepage": null,
+      "created_at": "2026-04-13T10:31:41Z",
+      "updated_at": "2026-05-01T04:43:08Z",
+      "pushed_at": "2026-04-27T15:31:54Z"
+    },
+    "stats": {
+      "stars": 8869,
+      "forks": 555,
+      "watchers": 8869,
+      "open_issues": 49,
+      "size": 145
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 362080
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/h4ckf0r0day/obscura/main/assets/icon.png\" alt=\"Obscura\" width=\"80\" />\n</p>\n\n<h2 align=\"center\">Obscura</h1>\n\n<p align=\"center\">\n  <strong>The open-source headless browser for AI agents and web scraping.</strong><br>\n  Lightweight, stealthy, and built in Rust.\n</p>\n\n---\n\nObscura is a headless browser engine written in Rust, built for web scraping and AI agent automation. It runs real JavaScript via V8, supports the Chrome DevTools Protocol, and acts as a drop-in replacement for headless Chrome with Puppeteer and Playwright.\n\n### Why Obscura over headless Chrome?\n\nDesigned for automation at scale, not desktop browsing.\n\n| Metric       | Obscura      | Headless Chrome |\n|--------------|--------------|------------------|\n| Memory       | **30 MB**    | 200+ MB          |\n| Binary size  | **70 MB**    | 300+ MB          |\n| Anti-detect  | **Built-in** | None          |\n| Page load    | **85 ms**    | ~500 ms          |\n| Startup      | **Instant**  | ~2s              |\n| Puppeteer    | **Yes**      | Yes              |\n| Playwright   | **Yes**      | Yes              |\n\n## Install\n\n### Download\n\nGrab the latest binary from [Releases](https://github.com/h4ckf0r0day/obscura/releases):\n\n```bash\n# Linux x86_64\ncurl -LO https://github.com/h4ckf0r0day/obscura/releases/latest/download/obscura-x86_64-linux.tar.gz\ntar xzf obscura-x86_64-linux.tar.gz\n./obscura fetch https://example.com --eval \"document.title\"\n\n# macOS Apple Silicon\ncurl -LO https://github.com/h4ckf0r0day/obscura/releases/latest/download/obscura-aarch64-macos.tar.gz\ntar xzf obscura-aarch64-macos.tar.gz\n\n# macOS Intel\ncurl -LO https://github.com/h4ckf0r0day/obscura/releases/latest/download/obscura-x86_64-macos.tar.gz\ntar xzf obscura-x86_64-macos.tar.gz\n\n# Windows\nDownload the `.zip` from the releases page and extract it manually.\n```\n\nSingle binary. No Chrome, no Node.js, no dependencies.\n\n### Build from source\n\n```bash\ngit clone https://github.com/h4ckf0r0day/obscura.git\ncd obscura\ncargo build --release\n\n# With stealth mode (anti-detection + tracker blocking)\ncargo build --release --features stealth\n```\n\nRequires Rust 1.75+ ([rustup.rs](https://rustup.rs)). First build takes ~5 min (V8 compiles from source, cached after).\n\n## Quick Start\n\n### Fetch a page\n\n```bash\n# Get the page title\nobscura fetch https://example.com --eval \"document.title\"\n\n# Extract all links\nobscura fetch https://example.com --dump links\n\n# Render JavaScript and dump HTML\nobscura fetch https://news.ycombinator.com --dump html\n\n# Wait for dynamic content\nobscura fetch https://example.com --wait-until networkidle0\n```\n\n### Start the CDP server\n\n```bash\nobscura serve --port 9222\n\n# With stealth mode (anti-detection + tracker blocking)\nobscura serve --port 9222 --stealth\n```\n\n### Scrape in parallel\n\n```bash\nobscura scrape url1 url2 url3 ... \\\n  --concurrency 25 \\\n  --eval \"document.querySelector('h1').textContent\" \\\n  --format json\n```\n\n## Puppeteer / Playwright\n\n### Puppeteer\n\n```bash\nnpm install puppeteer-core\n```\n\n```javascript\nimport puppeteer from 'puppeteer-core';\n\nconst browser = await puppeteer.connect({\n  browserWSEndpoint: 'ws://127.0.0.1:9222/devtools/browser',\n});\n\nconst page = await browser.newPage();\nawait page.goto('https://news.ycombinator.com');\n\nconst stories = await page.evaluate(() =>\n  Array.from(document.querySelectorAll('.titleline > a'))\n    .map(a => ({ title: a.textContent, url: a.href }))\n);\nconsole.log(stories);\n\nawait browser.disconnect();\n```\n\n### Playwright\n\n```bash\nnpm install playwright-core\n```\n\n```javascript\nimport { chromium } from 'playwright-core';\n\nconst browser = await chromium.connectOverCDP({\n  endpointURL: 'ws://127.0.0.1:9222',\n});\n\nconst page = await browser.newContext().then(ctx => ctx.newPage());\nawait page.goto('https://en.wikipedia.org/wiki/Web_scraping');\nconsole.log(await page.title());\n\nawait browser.close();\n```\n\n### Form submission & login\n\n```javascript\nawait page.goto('https://quotes.toscrape.com/login');\nawait page.evaluate(() => {\n  document.querySelector('#username').value = 'admin';\n  document.querySelector('#password').value = 'admin';\n  document.querySelector('form').submit();\n});\n// Obscura handles the POST, follows the 302 redirect, maintains cookies\n```\n\n## Benchmarks\n\nPage load:\n\n| Page | Obscura | Chrome |\n|------|---------|--------|\n| Static HTML | **51 ms** | ~500 ms |\n| JS + XHR + fetch | **84 ms** | ~800 ms |\n| Dynamic scripts | **78 ms** | ~700 ms |\n\n## Stealth Mode\n\nEnable with `--features stealth`.\n\n### Anti-fingerprinting\n- Per-session fingerprint randomization (GPU, screen, canvas, audio, battery)\n- Realistic `navigator.userAgentData` (Chrome 145, high-entropy values)\n- `event.isTrusted = true` for dispatched events\n- Hidden internal properties (`Object.keys(window)` safe)\n- Native function masking (`Function.prototype.toString()` → `[native code]`)\n- `navigator.webdriver = undefined` (matches real Chrome)\n\n### Tracker Blocking\n- 3,520 domains blocked",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:45.459711"
+  },
+  {
+    "basic_info": {
+      "name": "claw-code-parity",
+      "full_name": "ultraworkers/claw-code-parity",
+      "owner": "ultraworkers",
+      "description": "Join Discord: https://discord.gg/5TUQKqFWd /  claw-code Rust port parity work - it is temporary work while claw-code repo is doing migration",
+      "url": "https://github.com/ultraworkers/claw-code-parity",
+      "clone_url": "https://github.com/ultraworkers/claw-code-parity.git",
+      "ssh_url": "git@github.com:ultraworkers/claw-code-parity.git",
+      "homepage": "",
+      "created_at": "2026-04-02T05:39:02Z",
+      "updated_at": "2026-05-01T03:32:43Z",
+      "pushed_at": "2026-04-05T11:01:18Z"
+    },
+    "stats": {
+      "stars": 6687,
+      "forks": 5415,
+      "watchers": 6687,
+      "open_issues": 0,
+      "size": 6031
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2061202,
+        "Python": 90876,
+        "Shell": 327
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Rewriting Project Claw Code\n\n<p align=\"center\">\n  <strong>⭐ The fastest repo in history to surpass 50K stars, reaching the milestone in just 2 hours after publication ⭐</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://star-history.com/#ultraworkers/claw-code&Date\">\n    <picture>\n      <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/svg?repos=ultraworkers/claw-code&type=Date&theme=dark\" />\n      <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/svg?repos=ultraworkers/claw-code&type=Date\" />\n      <img alt=\"Star History Chart\" src=\"https://api.star-history.com/svg?repos=ultraworkers/claw-code&type=Date\" width=\"600\" />\n    </picture>\n  </a>\n</p>\n\n<p align=\"center\">\n  <img src=\"assets/clawd-hero.jpeg\" alt=\"Claw\" width=\"300\" />\n</p>\n\n<p align=\"center\">\n  <strong>Autonomously maintained by lobsters/claws — not by human hands</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/Yeachan-Heo/clawhip\">clawhip</a> ·\n  <a href=\"https://github.com/code-yeongyu/oh-my-openagent\">oh-my-openagent</a> ·\n  <a href=\"https://github.com/Yeachan-Heo/oh-my-claudecode\">oh-my-claudecode</a> ·\n  <a href=\"https://github.com/Yeachan-Heo/oh-my-codex\">oh-my-codex</a> ·\n  <a href=\"https://discord.gg/6ztZB9jvWq\">UltraWorkers Discord</a>\n</p>\n\n> [!IMPORTANT]\n> The active Rust workspace now lives in [`rust/`](./rust). Start with [`USAGE.md`](./USAGE.md) for build, auth, CLI, session, and parity-harness workflows, then use [`rust/README.md`](./rust/README.md) for crate-level details.\n\n> Want the bigger idea behind this repo? Read [`PHILOSOPHY.md`](./PHILOSOPHY.md) and Sigrid Jin's public explanation: https://x.com/realsigridjin/status/2039472968624185713\n\n> Shout-out to the UltraWorkers ecosystem powering this repo: [clawhip](https://github.com/Yeachan-Heo/clawhip), [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent), [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode), [oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex), and the [UltraWorkers Discord](https://discord.gg/6ztZB9jvWq).\n\n---\n\n## Backstory\n\nThis repo is maintained by **lobsters/claws**, not by a conventional human-only dev team.\n\nThe people behind the system are [Bellman / Yeachan Heo](https://github.com/Yeachan-Heo) and friends like [Yeongyu](https://github.com/code-yeongyu), but the repo itself is being pushed forward by autonomous claw workflows: parallel coding sessions, event-driven orchestration, recovery loops, and machine-readable lane state.\n\nIn practice, that means this project is not just *about* coding agents — it is being **actively built by them**. Features, tests, telemetry, docs, and workflow hardening are landed through claw-driven loops using [clawhip](https://github.com/Yeachan-Heo/clawhip), [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent), [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode), and [oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex).\n\nThis repository exists to prove that an open coding harness can be built **autonomously, in public, and at high velocity** — with humans setting direction and claws doing the grinding.\n\nSee the public build story here:\n\nhttps://x.com/realsigridjin/status/2039472968624185713\n\n![Tweet screenshot](assets/tweet-screenshot.png)\n\n---\n\n## Porting Status\n\nThe main source tree is now Python-first.\n\n- `src/` contains the active Python porting workspace\n- `tests/` verifies the current Python workspace\n- the exposed snapshot is no longer part of the tracked repository state\n\nThe current Python workspace is not yet a complete one-to-one replacement for the original system, but the primary implementation surface is now Python.\n\n## Why this rewrite exists\n\nI originally studied the exposed codebase to understand its harness, tool wiring, and agent workflow. After spending more time with the legal and ethical questions—and after reading the essay linked below—I did not want the exposed snapshot itself to remain the main tracked source tree.\n\nThis repository now focuses on Python porting work instead.\n\n## Repository Layout\n\n```text\n.\n├── src/                                # Python porting workspace\n│   ├── __init__.py\n│   ├── commands.py\n│   ├── main.py\n│   ├── models.py\n│   ├── port_manifest.py\n│   ├── query_engine.py\n│   ├── task.py\n│   └── tools.py\n├── tests/                              # Python verification\n├── assets/omx/                         # OmX workflow screenshots\n├── 2026-03-09-is-legal-the-same-as-legitimate-ai-reimplementation-and-the-erosion-of-copyleft.md\n└── README.md\n```\n\n## Python Workspace Overview\n\nThe new Python `src/` tree currently provides:\n\n- **`port_manifest.py`** — summarizes the current Python workspace structure\n- **`models.py`** — dataclasses for subsystems, modules, and backlog state\n- **`commands.py`** — Python-side command port metadata\n- **`tools.py`** — Python-side tool port metadata\n- **`query_engine.py`** — renders a Python porting su",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:46.773752"
+  },
+  {
+    "basic_info": {
+      "name": "quip-protocol-rs",
+      "full_name": "QuipNetwork/quip-protocol-rs",
+      "owner": "QuipNetwork",
+      "description": "A rust implementation of the Quip Protocol forked from Substrate",
+      "url": "https://github.com/QuipNetwork/quip-protocol-rs",
+      "clone_url": "https://github.com/QuipNetwork/quip-protocol-rs.git",
+      "ssh_url": "git@github.com:QuipNetwork/quip-protocol-rs.git",
+      "homepage": null,
+      "created_at": "2026-04-02T13:12:31Z",
+      "updated_at": "2026-04-29T11:02:23Z",
+      "pushed_at": "2026-04-02T16:13:35Z"
+    },
+    "stats": {
+      "stars": 5804,
+      "forks": 30,
+      "watchers": 5804,
+      "open_issues": 2,
+      "size": 360
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 70825,
+        "Dockerfile": 763,
+        "Nix": 500
+      },
+      "license": "The Unlicense",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Substrate Node Template\n\nA fresh [Substrate](https://substrate.io/) node, ready for hacking :rocket:\n\nA standalone version of this template is available for each release of Polkadot\nin the [Substrate Developer Hub Parachain\nTemplate](https://github.com/substrate-developer-hub/substrate-node-template/)\nrepository. The parachain template is generated directly at each Polkadot\nrelease branch from the [Solochain Template in\nSubstrate](https://github.com/paritytech/polkadot-sdk/tree/master/templates/solochain)\nupstream\n\nIt is usually best to use the stand-alone version to start a new project. All\nbugs, suggestions, and feature requests should be made upstream in the\n[Substrate](https://github.com/paritytech/polkadot-sdk/tree/master/substrate)\nrepository.\n\n## Getting Started\n\nDepending on your operating system and Rust version, there might be additional\npackages required to compile this template. Check the\n[Install](https://docs.substrate.io/install/) instructions for your platform for\nthe most common dependencies. Alternatively, you can use one of the [alternative\ninstallation](#alternatives-installations) options.\n\nFetch solochain template code:\n\n```sh\ngit clone https://github.com/paritytech/polkadot-sdk-solochain-template.git solochain-template\n\ncd solochain-template\n```\n\n### Build\n\n🔨 Use the following command to build the node without launching it:\n\n```sh\ncargo build --release\n```\n\n### Embedded Docs\n\nAfter you build the project, you can use the following command to explore its\nparameters and subcommands:\n\n```sh\n./target/release/solochain-template-node -h\n```\n\nYou can generate and view the [Rust\nDocs](https://doc.rust-lang.org/cargo/commands/cargo-doc.html) for this template\nwith this command:\n\n```sh\ncargo +nightly doc --open\n```\n\n### Single-Node Development Chain\n\nThe following command starts a single-node development chain that doesn't\npersist state:\n\n```sh\n./target/release/solochain-template-node --dev\n```\n\nTo purge the development chain's state, run the following command:\n\n```sh\n./target/release/solochain-template-node purge-chain --dev\n```\n\nTo start the development chain with detailed logging, run the following command:\n\n```sh\nRUST_BACKTRACE=1 ./target/release/solochain-template-node -ldebug --dev\n```\n\nDevelopment chains:\n\n- Maintain state in a `tmp` folder while the node is running.\n- Use the **Alice** and **Bob** accounts as default validator authorities.\n- Use the **Alice** account as the default `sudo` account.\n- Are preconfigured with a genesis state (`/node/src/chain_spec.rs`) that\n  includes several pre-funded development accounts.\n\n\nTo persist chain state between runs, specify a base path by running a command\nsimilar to the following:\n\n```sh\n// Create a folder to use as the db base path\n$ mkdir my-chain-state\n\n// Use of that folder to store the chain state\n$ ./target/release/solochain-template-node --dev --base-path ./my-chain-state/\n\n// Check the folder structure created inside the base path after running the chain\n$ ls ./my-chain-state\nchains\n$ ls ./my-chain-state/chains/\ndev\n$ ls ./my-chain-state/chains/dev\ndb keystore network\n```\n\n### Connect with Polkadot-JS Apps Front-End\n\nAfter you start the node template locally, you can interact with it using the\nhosted version of the [Polkadot/Substrate\nPortal](https://polkadot.js.org/apps/#/explorer?rpc=ws://localhost:9944)\nfront-end by connecting to the local node endpoint. A hosted version is also\navailable on [IPFS](https://dotapps.io/). You can\nalso find the source code and instructions for hosting your own instance in the\n[`polkadot-js/apps`](https://github.com/polkadot-js/apps) repository.\n\n### Multi-Node Local Testnet\n\nIf you want to see the multi-node consensus algorithm in action, see [Simulate a\nnetwork](https://docs.substrate.io/tutorials/build-a-blockchain/simulate-network/).\n\n## Template Structure\n\nA Substrate project such as this consists of a number of components that are\nspread across a few directories.\n\n### Node\n\nA blockchain node is an application that allows users to participate in a\nblockchain network. Substrate-based blockchain nodes expose a number of\ncapabilities:\n\n- Networking: Substrate nodes use the [`libp2p`](https://libp2p.io/) networking\n  stack to allow the nodes in the network to communicate with one another.\n- Consensus: Blockchains must have a way to come to\n  [consensus](https://docs.substrate.io/fundamentals/consensus/) on the state of\n  the network. Substrate makes it possible to supply custom consensus engines\n  and also ships with several consensus mechanisms that have been built on top\n  of [Web3 Foundation\n  research](https://research.web3.foundation/Polkadot/protocols/NPoS).\n- RPC Server: A remote procedure call (RPC) server is used to interact with\n  Substrate nodes.\n\nThere are several files in the `node` directory. Take special note of the\nfollowing:\n\n- [`chain_spec.rs`](./node/src/chain_spec.rs): A [chain\n  specification](https://docs.substrate.io/build/chain-spec/) is a source code\n  file that defines a Sub",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:48.058185"
+  },
+  {
+    "basic_info": {
+      "name": "xq-rs",
+      "full_name": "QuipNetwork/xq-rs",
+      "owner": "QuipNetwork",
+      "description": "A rust implementation of the Quip Network's quantum virtual machine.",
+      "url": "https://github.com/QuipNetwork/xq-rs",
+      "clone_url": "https://github.com/QuipNetwork/xq-rs.git",
+      "ssh_url": "git@github.com:QuipNetwork/xq-rs.git",
+      "homepage": null,
+      "created_at": "2026-04-02T13:07:49Z",
+      "updated_at": "2026-04-27T13:54:44Z",
+      "pushed_at": "2026-04-02T16:13:40Z"
+    },
+    "stats": {
+      "stars": 5731,
+      "forks": 17,
+      "watchers": 5731,
+      "open_issues": 0,
+      "size": 342
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 364695,
+        "Makefile": 1474
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<!--\nCopyright (C) 2026 Postquant Labs Incorporated\nSPDX-License-Identifier: AGPL-3.0-or-later\n-->\n\n# Aglais XQVM\n\n> **Work in progress.** The instruction set, binary format, and public API are\n> unstable and will change without notice until a stable release is tagged.\n> Production use is not recommended at this time.\n\nAglais is a hardware-agnostic virtual machine for quantum computing. XQVM is\nthe module within Aglais responsible for expressing binary optimization models\nand objective functions. The current scope targets X-quadratic models for\nquantum annealers (QUBO/Ising formulations).\n\nThink of it as LLVM for quantum computing.\n\n## Goals\n\n- **Hardware-agnostic** -- write a problem once, run it on any supported backend.\n- **Unified bytecode** -- a common intermediate representation for binary\n  optimization problems targeting quantum annealers.\n- **Embeddable** -- the core VM and bytecode crates support `no_std + alloc`,\n  enabling deployment in WASM runtimes and bare-metal environments.\n\n## Workspace Crates\n\n| Crate | Binary | Description |\n|---|---|---|\n| `aglais-xqvm-bytecode` | -- | Opcode table, instruction types, builder, binary codec, stream reader |\n| `aglais-xqvm-asm` | `xqasm` | Text assembler: `.xqasm` source -> bytecode |\n| `aglais-xqvm-disasm` | `xqdism` | Bytecode -> human-readable listing |\n| `aglais-xqvm-vm` | `xqvm` | Bytecode interpreter: stack, register file, QUBO/Ising model execution |\n\n## Getting Started\n\n### Prerequisites\n\n```sh\n# Install Rust (stable)\ncurl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh\n\n# Install dev tools\nmake deps\n```\n\n### Build\n\n```sh\ncargo build --release\n```\n\nThe binaries are placed at `target/release/xqasm`, `target/release/xqdism`,\nand `target/release/xqvm`.\n\n### Run an example\n\n```sh\n# Assemble a source file\nxqasm program.xqasm -o program.xqbc\n\n# Disassemble to inspect the encoding\nxqdism program.xqbc\n\n# Execute\nxqvm program.xqbc\n```\n\n### A minimal program\n\n```asm\n; push two integers and add them\nPUSH 10\nPUSH 32\nADD\nHALT\n```\n\nAssemble and run:\n\n```sh\nxqasm add.xqasm -o add.xqbc && xqvm add.xqbc\n```\n\n## Architecture\n\nAglais is a stack-based interpreter with a 256-slot register file. XQVM is the\nmodule that handles X-quadratic model construction: registers hold typed values\n-- integers, integer vectors, QUBO/Ising models (`XqmxModel`), and candidate\nsolutions (`XqmxSample`). A dedicated loop stack drives `RANGE`/`ITER`\niteration.\n\nThe opcode table (`opcodes!` x-macro in `crates/bytecode/src/types/table.rs`) is\nthe single source of truth for all 76 instructions. The `Opcode` enum, `Instruction`\nenum, mnemonic strings, and operand arity are all derived from it.\n\nThe binary format is a bare instruction stream with no header. Each instruction is\nan opcode byte followed by its operands in big-endian byte order.\n\nSee `crates/vm/examples/tsp/` for a complete worked example: a Travelling Salesman\nProblem encoded as a QUBO via three `.xqasm` programs driven by a Rust harness.\n\n## Contributing\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, commit\nconventions, and sign-off requirements.\n\n```sh\nmake all   # lint + test (what CI runs)\n```\n\n## License\n\nLicensed under the [GNU Affero General Public License v3.0 or later](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:49.345030"
+  },
+  {
+    "basic_info": {
+      "name": "quip-node-manager",
+      "full_name": "QuipNetwork/quip-node-manager",
+      "owner": "QuipNetwork",
+      "description": "A simple GUI client to manage a Quip Network node",
+      "url": "https://github.com/QuipNetwork/quip-node-manager",
+      "clone_url": "https://github.com/QuipNetwork/quip-node-manager.git",
+      "ssh_url": "git@github.com:QuipNetwork/quip-node-manager.git",
+      "homepage": null,
+      "created_at": "2026-04-02T13:03:34Z",
+      "updated_at": "2026-04-27T13:55:40Z",
+      "pushed_at": "2026-04-23T20:17:34Z"
+    },
+    "stats": {
+      "stars": 5659,
+      "forks": 17,
+      "watchers": 5659,
+      "open_issues": 0,
+      "size": 4923
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 173076,
+        "JavaScript": 43831,
+        "HTML": 23669,
+        "CSS": 18654,
+        "Shell": 3957,
+        "PowerShell": 2649
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Quip Node Manager\n\nDesktop application for running and monitoring [Quip](https://gitlab.com/quip.network) network nodes. Supports Docker and native execution modes on macOS, Linux, and Windows.\n\n## Quick Install\n\n**macOS / Linux:**\n\n```sh\ncurl -fsSL https://gitlab.com/quip.network/quip-node-manager/-/raw/main/scripts/install.sh | sh\n```\n\n**Windows (PowerShell):**\n\n```powershell\nirm https://gitlab.com/quip.network/quip-node-manager/-/raw/main/scripts/install.ps1 | iex\n```\n\n## Manual Download\n\nDownload the latest release from the [Releases page](https://gitlab.com/quip.network/quip-node-manager/-/releases).\n\n### macOS\n\nDownload the `.dmg`, open it, and drag the app to `/Applications`.\n\nBecause the app is not yet notarized, macOS will quarantine it. Open **Terminal** (Applications > Utilities > Terminal) and paste:\n\n```sh\nxattr -dr com.apple.quarantine /Applications/Quip\\ Node\\ Manager.app\n```\n\nThen launch the app from `/Applications`, not from the `.dmg` or Downloads folder.\n\n### Linux\n\nThe recommended format is **AppImage** (works on any distro):\n\n```sh\nchmod +x quip-node-manager-linux-x86_64.AppImage\n./quip-node-manager-linux-x86_64.AppImage\n```\n\nA `.deb` package is also available for Debian/Ubuntu:\n\n```sh\nsudo dpkg -i quip-node-manager-linux-x86_64.deb\n```\n\n### Windows\n\nDownload the `.exe` and run it. Windows SmartScreen may show a warning because the binary is not yet code-signed.\n\nClick **More info**, then **Run anyway**.\n\n## Features\n\n- **Two run modes** -- Docker (default on Windows/Linux) pulls and manages a container image; Native (default on macOS) downloads a standalone binary\n- **Pre-flight checklist** -- verifies Docker/binary availability, node secret, public IP, port forwarding, and firewall before starting\n- **Live log streaming** -- tails node stdout/stderr in a collapsible drawer\n- **GPU configuration** -- detects CUDA and Metal devices, per-device enable/disable, utilization slider, yielding mode\n- **D-Wave QPU support** -- optional quantum processing unit configuration with daily budget controls\n- **Background update monitor** -- checks for new Docker images, native binaries, and app releases every 30 minutes; optional auto-restart on image updates\n- **TLS certificate guidance** -- built-in walkthrough for Let's Encrypt and self-signed certificate setup\n\n## Development\n\n### Prerequisites\n\n- [Rust](https://rustup.rs/) (stable)\n- [Bun](https://bun.sh/) (or Node.js)\n- Platform-specific Tauri v2 dependencies ([see Tauri docs](https://v2.tauri.app/start/prerequisites/))\n\n### Commands\n\n```sh\nbun install          # Install JS dependencies\nbun run dev          # Launch development build\nbun run build        # Production build for current platform\n```\n\n```sh\ncd src-tauri\ncargo check          # Type-check Rust code\ncargo clippy         # Lint\n```\n\n### CLI Mode\n\nThe app also supports a terminal UI mode:\n\n```sh\nquip-node-manager --cli\n```\n\n## Architecture\n\n- **Frontend**: `src/` -- vanilla HTML/CSS/JS with Tauri IPC (`withGlobalTauri: true`)\n- **Backend**: `src-tauri/src/` -- Rust + Tauri v2 commands\n- **Config**: TOML generation matching quip-protocol format\n- **Data**: `~/quip-data/` stores settings, config, secrets, binaries, and trust database\n\nSee [AGENTS.md](AGENTS.md) for detailed architecture documentation.\n\n## License\n\n[AGPL-3.0-or-later](LICENSE)\n\nCopyright (c) Postquant Labs\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:50.662069"
+  },
+  {
+    "basic_info": {
+      "name": "CubeSandbox",
+      "full_name": "TencentCloud/CubeSandbox",
+      "owner": "TencentCloud",
+      "description": "Instant, Concurrent, Secure & Lightweight Sandbox for AI Agents.",
+      "url": "https://github.com/TencentCloud/CubeSandbox",
+      "clone_url": "https://github.com/TencentCloud/CubeSandbox.git",
+      "ssh_url": "git@github.com:TencentCloud/CubeSandbox.git",
+      "homepage": "https://docs.cubesandbox.ai/",
+      "created_at": "2026-04-10T03:00:31Z",
+      "updated_at": "2026-05-01T04:33:19Z",
+      "pushed_at": "2026-04-30T09:16:14Z"
+    },
+    "stats": {
+      "stars": 4842,
+      "forks": 334,
+      "watchers": 4842,
+      "open_issues": 37,
+      "size": 9142
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 6728425,
+        "Go": 3397321,
+        "C": 2370915,
+        "Shell": 342342,
+        "TypeScript": 112647,
+        "Python": 60404,
+        "Makefile": 29318,
+        "Lua": 16079,
+        "JavaScript": 11749,
+        "Dockerfile": 6403,
+        "Ruby": 5782,
+        "CSS": 4485,
+        "HTML": 1145
+      },
+      "license": "Other",
+      "topics": [
+        "agents",
+        "container",
+        "sandbox"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/assets/cube-sandbox-logo.png\" alt=\"Cube Sandbox Logo\" width=\"140\" />\n</p>\n\n<h1 align=\"center\">CubeSandbox</h1>\n\n<p align=\"center\">\n  <strong>Instant, Concurrent, Secure & Lightweight Sandbox Service for AI Agents</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/tencentcloud/CubeSandbox/stargazers\"><img src=\"https://img.shields.io/github/stars/tencentcloud/cubesandbox?style=social\" alt=\"GitHub Stars\" /></a>\n  <a href=\"https://github.com/tencentcloud/CubeSandbox/issues\"><img src=\"https://img.shields.io/github/issues/tencentcloud/cubesandbox\" alt=\"GitHub Issues\" /></a>\n  <a href=\"./LICENSE\"><img src=\"https://img.shields.io/badge/License-Apache_2.0-green\" alt=\"Apache 2.0 License\" /></a>\n  <a href=\"./CONTRIBUTING.md\"><img src=\"https://img.shields.io/badge/PRs-welcome-brightgreen\" alt=\"PRs Welcome\" /></a>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/⚡_Startup-Tens_of_ms-blue\" alt=\"Fast startup\" />\n  <img src=\"https://img.shields.io/badge/🔒_Isolation-Hardware_Level-critical\" alt=\"Hardware-level isolation\" />\n  <img src=\"https://img.shields.io/badge/🔌_API-E2B_Compatible-blueviolet\" alt=\"E2B compatible\" />\n  <img src=\"https://img.shields.io/badge/📦_Deploy-High_Concurrency·High_Density-orange\" alt=\"High concurrency & high density\" />\n</p>\n\n<p align=\"center\">\n  <a href=\"./README_zh.md\"><strong>中文文档</strong></a> ·\n  <a href=\"./docs/guide/quickstart.md\"><strong>Quick Start</strong></a> ·\n  <a href=\"./docs/index.md\"><strong>Documentation</strong></a> ·\n  <a href=\"./docs/changelog.md\"><strong>Changelog</strong></a>\n</p>\n\n---\n\nCube Sandbox is a high-performance, out-of-the-box secure sandbox service built on RustVMM and KVM. It supports both single-node deployment and can be easily scaled to a multi-node cluster. It is compatible with the E2B SDK, capable of creating a hardware-isolated sandbox environment with full service capabilities in under 60ms, while maintaining less than 5MB memory overhead.\n\n\n<p align=\"center\">\n  <img src=\"./docs/assets/readme_speed_en_1.png\" width=\"400\" />\n  <img src=\"./docs/assets/readme_overhead_en_1.png\" width=\"400\" />\n</p>\n\n\n## Demos\n\n<table align=\"center\">\n  <tr align=\"center\" valign=\"middle\">\n    <td width=\"33%\" valign=\"middle\">\n      <video src=\"https://github.com/user-attachments/assets/f87c409e-29fc-4e86-9eac-dbeaff2aca18\" controls=\"controls\" muted=\"muted\" style=\"max-width: 100%;\"></video>\n    </td>\n    <td width=\"33%\" valign=\"middle\">\n      <video src=\"https://github.com/user-attachments/assets/50e7126e-bb73-4abc-aa85-677fdf2e8c67\" controls=\"controls\" muted=\"muted\" style=\"max-width: 100%;\"></video>\n    </td>\n    <td width=\"33%\" valign=\"middle\">\n      <video src=\"https://github.com/user-attachments/assets/052e0e77-e2d9-409e-90b8-d13c28b80495\" controls=\"controls\" muted=\"muted\" style=\"max-width: 100%;\"></video>\n    </td>\n  </tr>\n  <tr align=\"center\" valign=\"top\">\n    <td>\n      <em>Installation & Demo</em>\n    </td>\n    <td>\n      <em>Performance Test</em>\n    </td>\n    <td>\n      <em>RL (SWE-Bench)</em>\n    </td>\n  </tr>\n</table>\n\n\n## Core Highlights\n\n- **Blazing-fast cold start:** Built on resource pool pre-provisioning and snapshot cloning technology, skipping time-consuming initialization entirely. Average end-to-end cold start time for a fully serviceable sandbox is < 60ms.\n- **High-density deployment on a single node:** Extreme memory reuse via CoW technology combined with a Rust-rebuilt, aggressively trimmed runtime keeps per-instance memory overhead below 5MB — run thousands of Agents on a single machine.\n- **True kernel-level isolation:** No more unsafe Docker shared-kernel (Namespace) hacks. Each Agent runs with its own dedicated Guest OS kernel, eliminating container escape risks and enabling safe execution of any LLM-generated code.\n- **Zero-cost migration (E2B drop-in replacement):** Natively compatible with the E2B SDK interface. Just swap one URL environment variable — no business logic changes needed — to migrate from expensive closed-source sandboxes to free Cube Sandbox with better performance.\n- **Network security:** CubeVS, powered by eBPF, enforces strict inter-sandbox network isolation at the kernel level with fine-grained egress traffic filtering policies.\n- **Ready to use out of the box:** One-click deployment with support for both single-node and cluster setups.\n- **Event-level snapshot rollback (coming soon):** High-frequency snapshot rollback at millisecond granularity, enabling rapid fork-based exploration environments from any saved state.\n- **Production-ready:** Cube Sandbox has been validated at scale in Tencent Cloud production environments, proven stable and reliable.\n\n## Benchmarks\n\nIn the context of AI Agent code execution, CubeSandbox achieves the perfect balance of security and performance:\n\n| Metric | Docker Container | Traditional VM | CubeSandbox |\n|---|---|---|---|\n| **Isolation Level** | Low (Shared Kernel Namespaces) | High (Dedicated Kernel) | **Extreme (Dedicated Kernel + eB",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-01T04:43:51.973960"
+  },
+  {
+    "basic_info": {
+      "name": "weft",
+      "full_name": "WeaveMindAI/weft",
+      "owner": "WeaveMindAI",
+      "description": "A programming language for AI systems",
+      "url": "https://github.com/WeaveMindAI/weft",
+      "clone_url": "https://github.com/WeaveMindAI/weft.git",
+      "ssh_url": "git@github.com:WeaveMindAI/weft.git",
+      "homepage": null,
+      "created_at": "2026-04-15T04:09:40Z",
+      "updated_at": "2026-05-01T04:12:38Z",
+      "pushed_at": "2026-04-29T12:13:34Z"
+    },
+    "stats": {
+      "stars": 1161,
+      "forks": 140,
+      "watchers": 1161,
+      "open_issues": 3,
+      "size": 11946
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1829666,
+        "TypeScript": 1028622,
+        "Svelte": 819245,
+        "Shell": 59113,
+        "JavaScript": 44256,
+        "CSS": 5132,
+        "Python": 4931,
+        "HTML": 1110,
+        "Dockerfile": 1098
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Weft\n\n> **Building in public, two months in.** Weft is young. The language, the type system, and the durable executor are the stable parts. The node catalog is small and intentionally opinionated (a few dozen nodes across LLM, code, communication, flow, storage, and triggers). The long-term vision is to let projects define their own nodes fluently in the language itself, but that is still ahead. If you are evaluating it for production, treat it as a foundation to build on, not a finished product. Breaking changes are expected while the shape is still settling; they will be announced, and migration notes will come with them.\n>\n> **Note on the docs.** This README, `DESIGN.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and most of the prose around the project were written fast to get the open source release out the door. They may sound a bit AI-generated in places. If you have the time and taste to rewrite any of them more cleanly, please do. A PR that improves the writing is as welcome as one that fixes a bug.\n\n**A programming language for AI systems.**\n\nIn 2026, real software calls LLMs, spins up databases, waits for humans, browses the web, coordinates agents. Where are those primitives? You are still importing libraries and writing plumbing for things that should be one line.\n\nWeft is a language where LLMs, humans, APIs, and infrastructure are base ingredients. You wire them together, the compiler checks the architecture, and you get a visual graph of your program automatically. No plumbing.\n\n- **First-class humans.** Pause mid-program, send a form to a human, wait days, resume exactly where you left off. One node. No webhooks, no polling, no state management.\n- **Recursively foldable.** Any group of nodes collapses into a single node with a described interface. A 100-node system still looks like 5 blocks at the top level.\n- **Typed end to end.** Generics, unions, type variables, null propagation. The compiler catches missing connections, type mismatches, and broken architecture before anything runs.\n- **Durable execution.** Programs survive crashes and restarts via [Restate](https://restate.dev). A human approval that takes three days is the same code as one that takes three seconds.\n- **Built-in nodes.** LLM, Code, HTTP, Human Query, Gate, Template, Discord, Slack, Telegram, WhatsApp, Email, X, Postgres, Memory, Apollo, Web Search, and more, the end goal will be to allow AI to build custom node on the fly using the langauge features (this is not the case right now).\n- **Two native views.** Same program, rendered as dense code for AI builders and as a graph for humans. Edit either, the other updates. Nothing is bolted on.\n\nRead the full story: [The Future of Programming (and Why I'm Building a New Language)](https://weavemind.ai/blog/future-of-programming).\n\nFull documentation: [weavemind.ai/docs](https://weavemind.ai/docs).\n\nJoin the community on [Discord](https://discord.com/invite/FGwNu6mDkU).\n\n## Star History\n\n<a href=\"https://www.star-history.com/?repos=WeaveMindAI%2Fweft&type=date&legend=top-left\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/chart?repos=WeaveMindAI/weft&type=date&theme=dark&legend=top-left\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/chart?repos=WeaveMindAI/weft&type=date&legend=top-left\" />\n   <img alt=\"Star History Chart\" src=\"https://api.star-history.com/chart?repos=WeaveMindAI/weft&type=date&legend=top-left\" />\n </picture>\n</a>\n\n---\n\n## Quick start\n\n### Prerequisites\n\n- [Docker](https://docs.docker.com/get-docker/) for PostgreSQL\n- [Node.js](https://nodejs.org/)\n- macOS only: `brew install bash` (Bash 4+ required).\n\nRust, Restate, and pnpm are installed automatically if missing.\n\n### Run\n\n```bash\ngit clone https://github.com/WeaveMindAI/weft.git\ncd weft\ncp .env.example .env\n# Edit .env to add your API keys (OpenRouter, Tavily, etc.)\n\n# Terminal 1: backend (auto-installs deps, starts PostgreSQL, Restate, all services)\n./dev.sh server\n\n# Terminal 2: dashboard\n./dev.sh dashboard\n```\n\nOpen http://localhost:5173 and build your first project. A tour of the dashboard and a walkthrough of the language live in the [Getting Started](https://weavemind.ai/docs/hello-world) guide.\n\n### VS Code\n\nFrom the parent workspace, run the **Dev Local All** task to start both the server and the dashboard in split terminals.\n\n### API keys\n\nAll keys are optional. Nodes that need one show a clear error at run time if the key is missing.\n\n```bash\nOPENROUTER_API_KEY=     # LLM nodes (OpenRouter)\nTAVILY_API_KEY=         # Web Search nodes\nELEVENLABS_API_KEY=     # Speech-to-Text nodes\nAPOLLO_API_KEY=         # Apollo enrichment nodes\nDISCORD_BOT_TOKEN=      # Discord nodes\n```\n\nPostgreSQL is auto-provisioned via Docker. No manual database setup.\n\n---\n\n## A tiny Weft program\n\n```weft\n# Project: Poem Generator\n# Description: Writes a short poem about any topic\n\ntopic = Text {\n  label: \"Topic\"\n  value: \"the silence",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:53.262248"
+  },
+  {
+    "basic_info": {
+      "name": "MasterHttpRelayVPN-RUST",
+      "full_name": "therealaleph/MasterHttpRelayVPN-RUST",
+      "owner": "therealaleph",
+      "description": "Rust port of @masterking32's MasterHttpRelayVPN — all credit to @masterking32 for the original idea and Python implementation. Free DPI bypass via a Google Apps Script relay with TLS SNI concealment. CLI + cross-platform desktop UI, HTTP + SOCKS5 proxy, no runtime deps.",
+      "url": "https://github.com/therealaleph/MasterHttpRelayVPN-RUST",
+      "clone_url": "https://github.com/therealaleph/MasterHttpRelayVPN-RUST.git",
+      "ssh_url": "git@github.com:therealaleph/MasterHttpRelayVPN-RUST.git",
+      "homepage": "https://github.com/masterking32/MasterHttpRelayVPN",
+      "created_at": "2026-04-21T14:46:31Z",
+      "updated_at": "2026-05-01T02:58:18Z",
+      "pushed_at": "2026-04-30T17:17:49Z"
+    },
+    "stats": {
+      "stars": 1141,
+      "forks": 146,
+      "watchers": 1141,
+      "open_issues": 118,
+      "size": 1498330
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 780242,
+        "Kotlin": 171971,
+        "JavaScript": 76087,
+        "Dockerfile": 3448,
+        "Shell": 3015,
+        "Batchfile": 2916
+      },
+      "license": "MIT License",
+      "topics": [
+        "anti-censorship",
+        "censorship-circumvention",
+        "cross-platform",
+        "desktop-app",
+        "domain-fronting",
+        "dpi-bypass",
+        "egui",
+        "google-apps-script",
+        "gui",
+        "http-proxy",
+        "iran",
+        "mitm",
+        "proxy",
+        "rust",
+        "sni",
+        "socks5",
+        "tls"
+      ]
+    },
+    "content": {
+      "readme": "# MasterHttpRelayVPN-RUST\n\n[![Latest release](https://img.shields.io/github/v/release/therealaleph/MasterHttpRelayVPN-RUST?sort=semver&display_name=tag&logo=github&label=release)](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/releases/latest)\n[![Downloads](https://img.shields.io/github/downloads/therealaleph/MasterHttpRelayVPN-RUST/total?label=downloads&logo=github)](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/releases)\n[![CI](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/actions/workflows/release.yml/badge.svg)](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/actions/workflows/release.yml)\n[![License: MIT](https://img.shields.io/github/license/therealaleph/MasterHttpRelayVPN-RUST?color=blue)](LICENSE)\n[![Stars](https://img.shields.io/github/stars/therealaleph/MasterHttpRelayVPN-RUST?style=flat&logo=github)](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/stargazers)\n[![Support](https://img.shields.io/badge/❤️_Support-sh1n.org-red?style=flat)](https://sh1n.org/donate)\n\nRust port of [@masterking32's MasterHttpRelayVPN](https://github.com/masterking32/MasterHttpRelayVPN). **All credit for the original idea and the Python implementation goes to [@masterking32](https://github.com/masterking32).** This is a faithful reimplementation of the `apps_script` mode, packaged as two tiny binaries (CLI + desktop UI) with no runtime dependencies.\n\nFree DPI bypass via Google Apps Script as a remote relay, with TLS SNI concealment. Your ISP's censor sees traffic going to `www.google.com`; behind the scenes a free Google Apps Script that you deploy in your own Google account fetches the real website for you.\n\n> **Heads up on authorship:** the bulk of this Rust port was written with [Anthropic's Claude](https://claude.com) driving, reviewed by a human on every commit. Bug reports, fixes, and contributions are all welcome — see the [issues page](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/issues).\n\n**[Quick Start (English)](SF_README.md#quick-start)** | **[English Guide](#setup-guide)** | **[راهنمای خلاصه فارسی](SF_README.md#راهنمای-خلاصه-فارسی)** | **[راهنمای کامل فارسی](#راهنمای-فارسی)**\n\n> **New here?** The Quick Start versions are short, plain-language, and cover the most common questions. The full guides have everything else (config options, full tunnel mode, OpenWRT, security notes).\n\n## Why this exists\n\nThe original Python project is excellent but requires Python + `pip install cryptography h2` + system deps. For users in hostile networks that install process is often itself broken (blocked PyPI, missing wheels, Windows without Python). This port is a single ~2.5 MB executable that you download and run. Nothing else.\n\n## How it works\n\n```\nBrowser / Telegram / xray\n        |\n        | HTTP proxy (8085)  or  SOCKS5 (8086)\n        v\nmhrv-rs (local)\n        |\n        | TLS to Google IP, SNI = www.google.com\n        v                       ^\n   DPI sees www.google.com      |\n        |                       | Host: script.google.com (inside TLS)\n        v                       |\n  Google edge frontend ---------+\n        |\n        v\n  Apps Script relay (your free Google account)\n        |\n        v\n  Real destination\n```\n\nThe censor's DPI sees `www.google.com` in the TLS SNI and lets it through. Google's frontend hosts both `www.google.com` and `script.google.com` on the same IP and routes by the HTTP `Host` header inside the encrypted stream.\n\nFor a handful of Google-owned domains (`google.com`, `youtube.com`, `fonts.googleapis.com`, …) the same tunnel is used directly instead of going through the Apps Script relay. This bypasses the per-fetch quota and fixes the \"User-Agent is always `Google-Apps-Script`\" problem for those domains. You can add more domains via the `hosts` map in config.\n\n## Platforms\n\nLinux (x86_64, aarch64), macOS (x86_64, aarch64), Windows (x86_64), **Android 7.0+** (universal APK covering arm64, armv7, x86_64, x86). Prebuilt binaries on the [releases page](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/releases).\n\n**Android users** — grab `mhrv-rs-android-universal-v*.apk` and follow the full walk-through in [docs/android.md](docs/android.md) (English) or [docs/android.fa.md](docs/android.fa.md) (فارسی). The Android build runs the exact same `mhrv-rs` crate as the desktop (via JNI) and adds a TUN bridge via `tun2proxy`, so every app on the device routes its IP traffic through the proxy without per-app configuration.\n\n> **Important Android caveat (issues #74 / #81):** while TUN captures all IP traffic, _HTTPS_ traffic from third-party apps still only works for apps that trust user-installed CAs. From Android 7 onward (which covers all supported devices — `minSdk = 24`), apps must opt in via `networkSecurityConfig` to trust the MITM CA we install. **Chrome and Firefox do**; **Telegram, WhatsApp, Instagram, YouTube, banking apps, games** do not. For those apps, either use `PROXY_ONLY` mode and point their in-app proxy at `127.0.0.1:1081` (S",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:54.619369"
+  },
+  {
+    "basic_info": {
+      "name": "claudecode",
+      "full_name": "soongenwong/claudecode",
+      "owner": "soongenwong",
+      "description": "Open Source ClaudeCode Leaked. Same functionalities as Claude Code by Anthropic. Written in Rust, Ready to use immediately for free. ",
+      "url": "https://github.com/soongenwong/claudecode",
+      "clone_url": "https://github.com/soongenwong/claudecode.git",
+      "ssh_url": "git@github.com:soongenwong/claudecode.git",
+      "homepage": "https://github.com/soongenwong/claudecode",
+      "created_at": "2026-04-01T21:13:39Z",
+      "updated_at": "2026-05-01T00:24:09Z",
+      "pushed_at": "2026-04-03T09:16:13Z"
+    },
+    "stats": {
+      "stars": 1050,
+      "forks": 384,
+      "watchers": 1050,
+      "open_issues": 11,
+      "size": 5133
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1154284,
+        "Python": 88697,
+        "Shell": 190
+      },
+      "license": null,
+      "topics": [
+        "agentic-ai",
+        "anthropic",
+        "claude-code",
+        "coding",
+        "free",
+        "functionality",
+        "max-subscription",
+        "open-source"
+      ]
+    },
+    "content": {
+      "readme": "# ClaudeCode (Open Source)\n\n**A high-performance, open-source AI coding agent written in Rust.**\n\nClaudeCode is a terminal-native CLI agent designed to bring advanced LLM capabilities directly into your development workflow. Built for speed, safety, and efficiency, it provides an interactive agent shell, workspace-aware tools, and persistent session management. It is an independent open-source implementation inspired by Claude Code, not the official Anthropic product.\n\n![View Count](https://komarev.com/ghpvc/?username=soongenwong&label=Total+views&color=ffa500&style=for-the-badge)\n\n## Star History\n\n<a href=\"https://www.star-history.com/?repos=soongenwong%2Fclaudecode&type=date&legend=bottom-right\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/chart?repos=soongenwong/claudecode&type=date&theme=dark&legend=top-left\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/chart?repos=soongenwong/claudecode&type=date&legend=top-left\" />\n   <img alt=\"ClaudeCode Star History\" src=\"https://api.star-history.com/chart?repos=soongenwong/claudecode&type=date&legend=top-left\" />\n </picture>\n</a>\n\n## Related Projects\n\n- [Anthropic developer docs](https://platform.claude.com/docs)\n- [Anthropic](https://www.anthropic.com/)\n- [Anthropic on X](https://x.com/AnthropicAI)\n\n## Key Features\n\n- **Rust-powered:** Built with Rust for memory safety, minimal binary size, and high execution speed.\n- **Agentic CLI:** Interactive shell and one-shot prompt support for seamless terminal workflows.\n- **Model flexible:** Supports Anthropic-compatible and OpenAI-compatible providers, plus xAI/Grok aliases.\n- **Workspace aware:** Context-aware tools designed to understand your local codebase.\n- **Session persistence:** Resumeable sessions via JSON state management.\n- **Extensible:** Plugin-ready architecture for custom tools and skills.\n\n## Getting Started\n\n### Prerequisites\n\n1. [Install Rust](https://www.rust-lang.org/tools/install) stable and Cargo.\n2. Set up your preferred API credentials.\n\n### Installation\n\nFrom the repository root:\n\n```bash\ncd rust\ncargo build --release -p claw-cli\n\n# Install locally to your PATH for global access\ncargo install --path crates/claw-cli --locked\n```\n\n### Usage\n\nStart the interactive shell:\n\n```bash\nclaw\n```\n\nRun a single prompt:\n\n```bash\nclaw prompt \"summarize this workspace\"\n```\n\nResume a previous session:\n\n```bash\nclaw --resume session.json /status\n```\n\nRun `claw --help` for the full command list, including agents, skills, and system-prompt flows.\n\n## Authentication\n\nConfigure your environment variables based on your preferred provider:\n\n### Anthropic\n\n```bash\nexport ANTHROPIC_API_KEY=\"...\"\nexport ANTHROPIC_BASE_URL=\"https://api.anthropic.com\"\n```\n\n### OpenAI-compatible\n\n```bash\nexport OPENAI_API_KEY=\"...\"\nexport OPENAI_BASE_URL=\"https://api.openai.com/v1\"\n```\n\n### Grok / xAI\n\n```bash\nexport XAI_API_KEY=\"...\"\nexport XAI_BASE_URL=\"https://api.x.ai\"\n```\n\nYou can also authenticate via the CLI:\n\n```bash\nclaw login\n```\n\n## Frequently Asked Questions\n\n**What is this project?** This is an independent, open-source implementation of a terminal-based coding agent, architecturally inspired by Claude Code.\n\n**Why Rust?** Rust provides the performance, concurrency, and memory safety required for a tool that interacts deeply with local file systems and high-latency LLM APIs.\n\n**Can I use local models?** Yes, if your local inference server exposes an OpenAI-compatible API and you point the relevant base URL and API key at it.\n\n**Is this the official Anthropic Claude Code?** No, this is a community-driven open-source project.\n\n## Development\n\nWe welcome contributions. Please refer to CLAW.md for workspace-specific workflow guidance.\n\n```bash\ncd rust\ncargo fmt\ncargo clippy --workspace --all-targets -- -D warnings\ncargo test --workspace\n```\n\n## Repository Structure\n\n- `rust/`: Core CLI and runtime implementation.\n- `src/`: Python support code and utilities.\n- `tests/`: Verification suites for agentic behaviors.\n- `CLAW.md`: Internal workflow documentation.\n\n## Notes\n\n- This project is an open-source implementation.\n- It is not affiliated with or endorsed by Anthropic.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:55.906402"
+  },
+  {
+    "basic_info": {
+      "name": "rattles",
+      "full_name": "vyfor/rattles",
+      "owner": "vyfor",
+      "description": "🪇 Minimal terminal spinners for Rust",
+      "url": "https://github.com/vyfor/rattles",
+      "clone_url": "https://github.com/vyfor/rattles.git",
+      "ssh_url": "git@github.com:vyfor/rattles.git",
+      "homepage": "https://docs.rs/rattles",
+      "created_at": "2026-04-10T23:31:10Z",
+      "updated_at": "2026-04-30T00:36:14Z",
+      "pushed_at": "2026-04-14T10:03:10Z"
+    },
+    "stats": {
+      "stars": 948,
+      "forks": 18,
+      "watchers": 948,
+      "open_issues": 0,
+      "size": 859
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 22496
+      },
+      "license": "MIT License",
+      "topics": [
+        "animation",
+        "cli",
+        "no-std",
+        "ratatui",
+        "rattles",
+        "rust",
+        "spinner",
+        "spinners",
+        "terminal",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# 🪇 Rattles\n\n![Demo](./.github/assets/demo.gif)\n\n**Rattles** is a minimal, dependency-free terminal spinner library for Rust. It makes no assumptions about how the output will be used.\n\n## Quick Start\n\n```sh\ncargo add rattles\n```\n\n### Minimal example\n\n```rust\nuse std::{io::Write, time::Duration};\nuse rattles::presets::prelude as presets;\n\nfn main() {\n    let rattle = presets::waverows();\n\n    // change default interval\n    // let rattle = presets::waverows().set_interval(Duration::from_millis(100));\n\n    // reverse direction\n    // let rattle = presets::waverows().reverse();\n\n    loop {\n        print!(\"\\r{}\", rattle.current_frame());\n        std::io::stdout().flush().unwrap();\n        std::thread::sleep(Duration::from_millis(20));\n    }\n}\n```\n\n### Custom keyframes\n\n```rust\nrattle!(\n    Custom, // struct name\n    custom, // method name\n    1,      // row count (width of the spinner)\n    100,    // interval in milliseconds\n    [\"⣾\", \"⣷\", \"⣯\", \"⣟\", \"⣻\", \"⣽\", \"⣾\"] // keyframes\n)\n```\n\n### `no_std`\n\n`rattles` enables the `std` feature by default. To opt out:\n\n```sh\ncargo add rattles --no-default-features\n```\n\nWithout `std`, the global clock is unavailable. Animations can still be driven three ways:\n\n- Time-based, with an external clock: \n    ```rs\n    rattle.frame_at(elapsed)\n    ```\n- Index-based:\n    ```rs\n    rattle.frame(n)\n    ```\n- Tick-based:\n    ```rust\n    let mut rattle = presets::dots().into_ticked();\n    rattle.tick();\n    let frame = rattle.current_frame();\n    ```\n    Note that `TickedRattler` is stateful and must be stored outside the render loop.\n\n## Presets\n\nBuilt-in presets are organized by category:\n\n- `presets::arrows`\n- `presets::ascii`\n- `presets::braille`\n- `presets::emoji`\n\nA prelude is available `rattles::prelude`.\n\n## Examples\n\n- a minimal ratatui [example](./examples/ratatui.rs)\n- a no_std-oriented [example](./examples/no_std.rs)\n\n## Acknowledgements\n\nRattles includes spinners sourced from these wonderful projects. We gratefully acknowledge their work.\n\n- [sindresorhus/cli-spinners](https://github.com/sindresorhus/cli-spinners)\n- [gunnargray-dev/unicode-animations](https://github.com/gunnargray-dev/unicode-animations)\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-01T04:43:57.214953"
+  },
+  {
+    "basic_info": {
+      "name": "littlesnitch-linux",
+      "full_name": "obdev/littlesnitch-linux",
+      "owner": "obdev",
+      "description": "Open Source components of Little Snitch for Linux",
+      "url": "https://github.com/obdev/littlesnitch-linux",
+      "clone_url": "https://github.com/obdev/littlesnitch-linux.git",
+      "ssh_url": "git@github.com:obdev/littlesnitch-linux.git",
+      "homepage": null,
+      "created_at": "2026-04-08T13:07:47Z",
+      "updated_at": "2026-04-30T16:37:48Z",
+      "pushed_at": "2026-04-29T21:27:20Z"
+    },
+    "stats": {
+      "stars": 803,
+      "forks": 32,
+      "watchers": 803,
+      "open_issues": 2,
+      "size": 338
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 243502,
+        "JavaScript": 237695,
+        "CSS": 51694,
+        "HTML": 28786,
+        "C": 4880
+      },
+      "license": "GNU General Public License v2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Little Snitch for Linux\n\nThis repository contains the Open Source part of Little Snitch for Linux.\nIt consists of:\n\n* The Rust crate `ebpf`, which contains all eBPF programs attached to the\n  Linux kernel.\n* The Rust crate `common`, which contains all types and functions shared\n  between kernel and user space.\n* The Rust crate `demo-runner`. This is a user-space program which loads\n  the eBPF programs into the kernel and demonstrates how to share data\n  with these programs via eBPF maps. It loads two blocklists for\n  demonstration: `blocked_hosts.txt` and `blocked_domains.txt`.\n* `webroot`: This is the JavaScript web UI of Little Snitch for Linux.\n\nAll code in this public repository is Open Source and distributed under\nthe [GNU General Public License, Version 2]. It is part of Little Snitch\nfor Linux, a free product by [Objective Development](https://obdev.at).\nThe full product also includes proprietary code that is not part of this\nrepository. While Little Snitch for Linux is free to use, that proprietary\nportion is not Open Source.\n\n\n## Prerequisites\n\n1. stable rust toolchains: `rustup toolchain install stable`\n2. nightly rust toolchains: `rustup toolchain install nightly --component rust-src`\n3. bpf-linker: `cargo install bpf-linker`\n4. the `clang` C/C++ compiler\n\nNote: eBPF is a bit fragile. The kernel verifier may reject the program\nafter changes in the verifier itself or in the Rust compiler. This code is\nknown to pass the verifier on Linux kernels 6.12 to 7.0 when compiled with\nRust 1.93.0-nightly (2d4fa1395 2025-11-12). Other Rust versions may or may\nnot work.\n\n## Build & Run\n\nUse `cargo build`, `cargo check`, etc. as normal. Run your program with:\n\n```shell\ncargo run --release\n```\n\nCargo build scripts automatically build the eBPF programs and include them\nin the binary.\n\n\n### eBPF\n\nAll eBPF code is distributed under the terms of the [GNU General Public License, Version 2].\n\nUnless you explicitly state otherwise, any contribution intentionally submitted\nfor inclusion in this project by you, as defined in the GPL-2 license, shall be\nlicensed as above, without any additional terms or conditions.\n\n[GNU General Public License, Version 2]: LICENSE-GPL2.txt\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:58.542626"
+  },
+  {
+    "basic_info": {
+      "name": "aube",
+      "full_name": "endevco/aube",
+      "owner": "endevco",
+      "description": "A fast Node.js package manager",
+      "url": "https://github.com/endevco/aube",
+      "clone_url": "https://github.com/endevco/aube.git",
+      "ssh_url": "git@github.com:endevco/aube.git",
+      "homepage": "https://aube.en.dev",
+      "created_at": "2026-04-18T18:06:49Z",
+      "updated_at": "2026-05-01T04:25:51Z",
+      "pushed_at": "2026-05-01T02:27:00Z"
+    },
+    "stats": {
+      "stars": 737,
+      "forks": 17,
+      "watchers": 737,
+      "open_issues": 4,
+      "size": 22706
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3780339,
+        "Shell": 929220,
+        "JavaScript": 43454,
+        "Dockerfile": 1363,
+        "Pkl": 1062
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://aube.en.dev\">\n    <img src=\"assets/logo.svg\" alt=\"aube logo\" width=\"140\" height=\"140\">\n  </a>\n</p>\n\n<h1 align=\"center\">aube</h1>\n\n<p align=\"center\">\n  A fast Node.js package manager that drops into existing projects.\n</p>\n\n<p align=\"center\">\n  <strong>aube</strong> means dawn in French. Pronounced <code>/ob/</code>, like \"ohb\".\n</p>\n\n<p align=\"center\">\n  <strong><a href=\"https://aube.en.dev\">Read the docs</a></strong>\n</p>\n\n## Why Try It\n\n<!-- BENCH_RATIOS:START -->\n**[Fast installs](https://aube.en.dev/benchmarks).** Warm installs are about 5x faster than pnpm and about 4x faster than Bun in the current benchmarks. Repeat test commands run up to 14x faster than pnpm and up to 4x faster than Bun.\n<!-- BENCH_RATIOS:END -->\n\n**[Existing lockfiles](https://aube.en.dev/package-manager/lockfiles).** Reads and writes `pnpm-lock.yaml`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, and `bun.lock` in place.\n\n**[Cheap repeat commands](https://aube.en.dev/package-manager/scripts).** `aubr test`, `aube test`, and `aube exec vitest` auto-install when dependencies are stale, then skip that work when nothing changed. `aubx` runs one-off tools in a throwaway environment.\n\n**[Less disk use](https://aube.en.dev/package-manager/node-modules).** A global content-addressable store lets projects share package files instead of keeping a full copy of the same dependencies in every checkout.\n\n**[Secure defaults](https://aube.en.dev/security).** Out of the box, exotic transitive deps are blocked, lifecycle scripts wait for approval, trust downgrades fail at resolve, and brand-new releases sit in a 24h cooling window. One `paranoid: true` line adds the build jail and turns the soft gates into hard fails.\n\n## Install\n\nThe recommended path is mise:\n\n```sh\nmise use -g aube\n```\n\nmise can also manage the [Node.js versions](https://mise.jdx.dev/lang/node.html)\nyour projects need. If your projects already pin Node through `package.json`\n(`devEngines.runtime`), `.nvmrc`, or `.node-version`, enable mise's\nidiomatic version-file support for Node:\n\n```sh\nmise settings add idiomatic_version_file_enable_tools node\n```\n\nCheck that it is on your `PATH`:\n\n```sh\naube --version\n```\n\nInside a project, you can also pin aube with mise:\n\n```sh\nmise use aube\n```\n\naube is also published on npm:\n\n```sh\nnpm install -g --ignore-scripts=false @endevco/aube\nnpx --ignore-scripts=false @endevco/aube --version\n```\n\nThe npm package uses an install script to fetch native binaries for\nperformance. The npm commands above include the flag that keeps that\nworking even if your npm config disables scripts. We still recommend mise\nfor the smoothest install and runtime management path.\n\nHomebrew installs come from the Endev tap:\n\n```sh\nbrew install endevco/tap/aube\n```\n\nSee [other install methods](https://aube.en.dev/installation).\n\n## First Run\n\nRun aube in an existing Node.js project:\n\n```sh\naubr test\n```\n\n`aubr` is shorthand for `aube run`. Before it starts the script, aube checks\nwhether `node_modules` is fresh for the current `package.json` and lockfile.\nIf dependencies are missing or stale, it installs them first; otherwise it\ngoes straight to the script.\n\nYou usually do not need a separate `aube install` in day-to-day work. Run the\nscript or binary you actually wanted:\n\n```sh\naubr build\naube test\naube exec vitest\naubx cowsay hi\n```\n\nUse `aube install` when the install itself is the task: first local setup\nwithout running a script, updating a lockfile, Docker layers, production-only\ninstalls, or CI flows.\n\nIf the project already has a supported lockfile, aube reads it and writes updates back to the same file. That makes it easy to try aube locally without forcing the rest of the team to switch package managers first.\n\nFor a new project with no lockfile, aube creates `aube-lock.yaml`.\n\n## Daily Commands\n\n```sh\naube add react            # add a dependency\naube add -D vitest        # add a dev dependency\naube remove react         # remove a dependency\naube update               # update dependencies within package.json ranges\naubr build                # run a package.json script, auto-installing first if needed\naube test                 # run the test script, auto-installing first if needed\naube exec vitest          # run a local binary, auto-installing first if needed\naubx cowsay hi            # run a package in a throwaway environment\naube install              # install only, for setup or lockfile/install modes\naube ci                   # clean, frozen install for CI\n```\n\nYou can also run scripts directly:\n\n```sh\naube dev\naube build\naube lint\n```\n\nIf the script exists in `package.json`, aube treats that as `aube run <script>`.\n\n### Shortcuts: `aubr` and `aubx`\n\n`aubr` and `aubx` are multicall shims for `aube run` and `aube dlx`. They\nshare a binary with `aube` and dispatch purely on `argv[0]`, so every flag\nthat works on the full command also works on the shim:\n\n```sh\naubr build            # aube run build\naubx cowsay hi  ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:43:59.937366"
+  },
+  {
+    "basic_info": {
+      "name": "tailscale-rs",
+      "full_name": "tailscale/tailscale-rs",
+      "owner": "tailscale",
+      "description": "Rust implementation of Tailscale (preview, experimental)",
+      "url": "https://github.com/tailscale/tailscale-rs",
+      "clone_url": "https://github.com/tailscale/tailscale-rs.git",
+      "ssh_url": "git@github.com:tailscale/tailscale-rs.git",
+      "homepage": null,
+      "created_at": "2026-04-05T22:23:55Z",
+      "updated_at": "2026-05-01T04:28:27Z",
+      "pushed_at": "2026-05-01T02:06:33Z"
+    },
+    "stats": {
+      "stars": 707,
+      "forks": 28,
+      "watchers": 707,
+      "open_issues": 51,
+      "size": 3425
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1244061,
+        "Elixir": 27421,
+        "Nix": 12109,
+        "Python": 11213,
+        "C": 6073,
+        "Makefile": 1649,
+        "CSS": 1235,
+        "Shell": 1230,
+        "HTML": 906
+      },
+      "license": "BSD 3-Clause \"New\" or \"Revised\" License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# tailscale-rs\n\n[![docs.rs](https://img.shields.io/docsrs/tailscale)](https://docs.rs/tailscale)\n[![crates.io version](https://img.shields.io/crates/v/tailscale)](https://crates.io/crates/tailscale)\n\nhttps://tailscale.com\n\n`tailscale-rs` is a work-in-progress Tailscale library written in Rust, with language bindings to\nC, Elixir, and Python.\n\n> [!CAUTION]\n> This software is unstable and insecure.\n>\n> We welcome enthusiasm and interest, but please **do not** build production software using these\n> libraries or rely on it for data privacy until we have a chance to batten down some hatches\n> and complete a third-party audit.\n>\n> See [Caveats](#caveats) for more details.\n\n## Getting Started\n\nThe following instructions are for Rust! For other languages, see the language-specific README:\n- [C](ts_ffi/README.md)\n- [Elixir](ts_elixir/README.md)\n- [Python](ts_python/README.md) \n\nAdd this dependency line to your `Cargo.toml`:\n\n```toml\n[dependencies]\ntailscale = { version = \"0.2\" }\n```\n\nExamples of using the `tailscale` crate can be found in [`examples/`](examples/README.md).\n\nFor instructions on how to run tests, lints, etc., see [CONTRIBUTING.md](CONTRIBUTING.md). For the high-level architecture and\nrepository layout, see [ARCHITECTURE.md](ARCHITECTURE.md).\n\n### Code sample\n\nA simple UDP client that periodically sends messages to a tailnet peer at `100.64.0.1:5678`:\n\n```rust\nuse std::{\n    time::Duration,\n    net::Ipv4Addr,\n    error::Error,\n};\nuse tailscale::{Config, Device};\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn Error>> {\n    // Open a new connection to tailscale\n    let dev = Device::new(\n        &Config::default_with_key_file(\"tsrs_keys.json\").await?,\n        Some(\"YOUR_AUTH_KEY_HERE\".to_owned()),\n    ).await?;\n\n    // Bind a UDP socket on our tailnet IP, port 1234\n    let sock = dev.udp_bind((dev.ipv4().await?, 1234).into()).await?;\n\n    // Send a packet containing \"ping\" to 100.64.0.1:5678 once per second\n    loop {\n        sock.send_to((Ipv4Addr::new(100, 64, 0, 1), 5678).into(), b\"ping\").await?;\n        tokio::time::sleep(Duration::from_secs(1)).await;\n    }\n}\n```\n\n## Caveats\n\nThis software is still a work-in-progress! We are providing it in the open at this stage out of a\nbelief in open-source and to see where the community runs with it, but please be aware of a few\nimportant considerations:\n\n- This implementation contains unaudited cryptography and hasn't undergone a comprehensive security\n  analysis. Conservatively, assume there could be a critical security hole meaning anything you send\n  or receive could be in the clear on the public Internet.\n- There are no compatibility guarantees at the moment. This is early-days software &mdash; we may\n  break dependent code in order to get things right.\n- We currently rely on DERP relays for all communication. Direct connections via NAT holepunching\n  will be a seamless upgrade in the future, but for now, this puts a cap on data throughput.\n- The `TS_RS_EXPERIMENT` environment variable is required to be set to `this_is_unstable_software`\n  for all code linked against `tailscale-rs`; this includes Rust, C, Elixir, and Python code. We'll\n  remove this requirement after a third-party code/cryptography audit and any necessary fixes.\n\n## Versioning, Releases, and Compatability\n\nWe follow semver and aim to make a point release roughly monthly. Since we are pre-1.0, we make no\nbackwards-compatability guarantees. We are aiming to have a stable 1.0 release as soon as we can, but\nwe currently don't have a timeline.\n\n## MSRV and Edition\n\nThe current MSRV is 1.93.1. The current edition is Rust 2024.\n\n`tailscale-rs` has a rolling MSRV (Minimum Supported Rust Version) policy to support the current\nand previous Rust compiler versions, and the latest\n[edition of Rust](https://doc.rust-lang.org/edition-guide/editions/index.html).\n\nWe may lag the latest version/edition in rare cases for our dependencies to catch up and for us to\nperform any necessary fixes.\n\n## Platform Support\n\nWe support the following platforms and architectures:\n\n- Linux (`x86_64`/`ARM64`)\n- macOS (`ARM64`)\n\n## Status\n\n`tailscale-rs` is a work-in-progress - we're still rapidly iterating, fixing bugs, and adding new\nfeatures. We aim to keep this section up-to-date, but our [issue tracker](https://github.com/tailscale/tailscale-rs/issues)\nis the best way to see the latest updates.\n\n### Implemented\n\nThese are features that we currently implement:\n\n- Basics\n  - Create TCP and UDP sockets on the tailnet\n  - Communicate with peers via public DERP relays\n  - Communicate with the Tailscale Go client, `tsnet`, and `libtailscale`\n- Language support\n  - Rust API\n  - C, Elixir, and Python bindings\n\n### Coming Soon\n\nThese are features or efforts we have in the pipeline and are actively working towards, but provide\nno guarantees on timeline or completion:\n\n- Direct connections (NAT traversal, STUN, and Disco)\n- Peer lookups (addressing peers by hostname)\n- Third-party code and cryptography audit\n- Official Wind",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:44:01.236618"
+  },
+  {
+    "basic_info": {
+      "name": "thClaws",
+      "full_name": "thClaws/thClaws",
+      "owner": "thClaws",
+      "description": "Open-source agent harness platform. Native Rust, multi-provider, runs on your own machine. Sovereign by design.",
+      "url": "https://github.com/thClaws/thClaws",
+      "clone_url": "https://github.com/thClaws/thClaws.git",
+      "ssh_url": "git@github.com:thClaws/thClaws.git",
+      "homepage": "https://thclaws.ai",
+      "created_at": "2026-04-20T01:27:39Z",
+      "updated_at": "2026-05-01T04:40:24Z",
+      "pushed_at": "2026-05-01T04:12:41Z"
+    },
+    "stats": {
+      "stars": 651,
+      "forks": 90,
+      "watchers": 651,
+      "open_issues": 0,
+      "size": 29335
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1928831,
+        "TypeScript": 264701,
+        "CSS": 5276,
+        "PowerShell": 4214,
+        "Shell": 4042,
+        "JavaScript": 616,
+        "HTML": 294
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-harness",
+        "agent-teams",
+        "ai",
+        "ai-agent",
+        "ai-agents",
+        "ai-assistant",
+        "ai-coding",
+        "ai-swarm",
+        "claude-code",
+        "claude-cowork",
+        "multi-provider",
+        "rust",
+        "tauri"
+      ]
+    },
+    "content": {
+      "readme": "# thClaws 🦞\n\n> **Open-source Agent Harness Platform** — a native AI agent workspace that codes, automates, remembers, and coordinates. Runs on your own machine. Sovereign by design.\n\nthClaws is a **native-Rust AI agent workspace** that runs locally on your machine. Not just coding — it edits code, automates workflows, searches your knowledge bases, and coordinates teams of agents, all in one binary. You tell it what you want in natural language; it reads your files, runs commands, uses tools, and talks back to you while it works.\n\n[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)\n[![Platform: macOS · Windows · Linux](https://img.shields.io/badge/platform-macOS%20·%20Windows%20·%20Linux-lightgrey.svg)](#installation)\n[![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)\n\n---\n\n## See it work\n\nThree tabs, one binary — captured from a live thClaws session looking at its own source.\n\n<table>\n  <tr>\n    <td width=\"33%\" align=\"center\">\n      <a href=\"docs/img/screen-files.webp\"><img src=\"docs/img/screen-files.webp\" alt=\"thClaws Files tab — landing-page source open in the editor with file tree\" /></a><br/>\n      <strong>Files</strong><br/>\n      <sub>preview · edit · browse — codemirror + tiptap</sub>\n    </td>\n    <td width=\"33%\" align=\"center\">\n      <a href=\"docs/img/screen-terminal.webp\"><img src=\"docs/img/screen-terminal.webp\" alt=\"thClaws Terminal tab — REPL session with ASCII banner\" /></a><br/>\n      <strong>Terminal</strong><br/>\n      <sub>raw REPL · slash commands · ANSI tool output</sub>\n    </td>\n    <td width=\"33%\" align=\"center\">\n      <a href=\"docs/img/screen-chat.webp\"><img src=\"docs/img/screen-chat.webp\" alt=\"thClaws Chat tab — conversational interface answering a product question\" /></a><br/>\n      <strong>Chat</strong><br/>\n      <sub>conversational · markdown render · tool indicators</sub>\n    </td>\n  </tr>\n</table>\n\n---\n\n## Three interfaces, one binary\n\n- **Desktop GUI** (`thclaws`) — a native window with Terminal, Chat, Files, and optional Team tabs.\n- **CLI REPL** (`thclaws --cli`) — an interactive terminal prompt for SSH, headless servers, or when you want zero GUI overhead.\n- **Non-interactive mode** (`thclaws -p \"prompt\"`) — runs a single turn and exits. Handy for scripts, CI pipelines, and shell one-liners.\n\n---\n\n## What makes it different\n\n- **Multi-provider.** Anthropic, OpenAI, Gemini, Alibaba DashScope, OpenRouter, Ollama (local and Anthropic-compatible), Agentic Press, plus a generic **OpenAI-compatible** slot (`oai/*`) for LiteLLM / Portkey / Helicone / vLLM / internal proxies — auto-detected by model name prefix. Switch mid-session with `/model` or swap the whole provider with `/provider`.\n\n- **Any knowledge worker, not just engineers.** Chat tab for researchers, PMs, ops, legal, marketing, finance — natural-language prompts, file access, knowledge-base lookup, drafting. Terminal tab for engineers who want the raw REPL. Same engine, same sessions, same config — different preferred surface.\n\n- **Open standards, not a walled garden.** Built on the conventions the agent-tooling industry is converging on, not bespoke formats you have to learn only for us. [Model Context Protocol](https://modelcontextprotocol.io/) for tool servers. [`AGENTS.md`](https://agents.md) for project instructions — the vendor-neutral standard adopted by Google, OpenAI, Factory, Sourcegraph, and Cursor. `SKILL.md` with YAML frontmatter for packaged workflows. Your configuration is portable between thClaws, other agents that speak the same standards, and whatever comes next.\n\n- **Skills.** Reusable expert workflows packaged as a directory with `SKILL.md` plus optional scripts. The agent picks the right skill automatically when a request matches the `whenToUse` trigger, or you can invoke one explicitly as `/<skill-name>`. Install from a git URL or `.zip` archive with `/skill install`.\n\n- **MCP servers.** Plug in tools built by third parties — GitHub, filesystems, databases, browsers, Slack, and more. Both stdio and HTTP Streamable transports, with OAuth 2.1 + PKCE for protected servers. Add one with `/mcp add` or ship a `.mcp.json` in your project.\n\n- **Plugin system.** Skills + commands + agent definitions + MCP servers bundled under a single manifest, installable from git or `.zip`. One install, one uninstall, one version to pin — ideal for sharing a team's extensions.\n\n- **Memory & project instructions.** Drop an `AGENTS.md` (or `CLAUDE.md`) in your repo — thClaws walks up from `cwd` and injects every match into the system prompt. A persistent memory store holds longer-lived facts the agent has learned about you, classified as `user` / `feedback` / `project` / `reference` and stored as markdown you can read, edit, or commit.\n\n- **Knowledge bases (KMS).** Per-project and per-user wikis the agent can search and read on demand. Drop markdown pages under `.thclaws/kms/<name>/pages/`, give each a one-",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:44:02.585987"
+  },
+  {
+    "basic_info": {
+      "name": "ThinkWatch",
+      "full_name": "ThinkWatchProject/ThinkWatch",
+      "owner": "ThinkWatchProject",
+      "description": "Enterprise AI bastion host for secure AI API and MCP access, with unified proxying, RBAC, audit logs, rate limiting, and cost tracking across OpenAI, Anthropic, Gemini, and self-hosted LLMs.",
+      "url": "https://github.com/ThinkWatchProject/ThinkWatch",
+      "clone_url": "https://github.com/ThinkWatchProject/ThinkWatch.git",
+      "ssh_url": "git@github.com:ThinkWatchProject/ThinkWatch.git",
+      "homepage": "https://thinkwat.ch",
+      "created_at": "2026-04-02T15:29:52Z",
+      "updated_at": "2026-05-01T03:10:40Z",
+      "pushed_at": "2026-05-01T02:45:51Z"
+    },
+    "stats": {
+      "stars": 578,
+      "forks": 11,
+      "watchers": 578,
+      "open_issues": 0,
+      "size": 3427
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2248114,
+        "TypeScript": 1313512,
+        "PLpgSQL": 62319,
+        "JavaScript": 13943,
+        "CSS": 5844,
+        "Makefile": 5792,
+        "Shell": 2640,
+        "HTML": 1623,
+        "Go Template": 1009
+      },
+      "license": "Other",
+      "topics": [
+        "ai",
+        "ai-gateway",
+        "ai-security",
+        "ai-tools",
+        "mcp",
+        "mcp-gateway",
+        "mcp-security",
+        "mcp-server",
+        "security"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"assets/logo-dark.png\">\n    <img src=\"assets/logo.png\" alt=\"ThinkWatch\" width=\"480\">\n  </picture>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white\" />\n  <img src=\"https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB\" />\n  <img src=\"https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white\" />\n  <img src=\"https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white\" />\n  <img src=\"https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white\" />\n  <img src=\"https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white\" />\n</p>\n\n# ThinkWatch\n\n**[English](README.md) | [中文](README.zh-CN.md)**\n\n**The enterprise-grade secure gateway for AI.** Secure, audit, and govern every AI API call and MCP tool invocation across your organization — from a single control plane.\n\nJust as an SSH secure gateway is the single gateway through which all server access must flow, ThinkWatch is the single gateway through which all AI access must flow. Every model request. Every tool call. Every token. Authenticated, authorized, rate-limited, logged, and accounted for.\n\n```\n                    ┌──────────────────────────────────────┐\n Claude Code ──────>│                                      │──> OpenAI\n Cursor ───────────>│    Gateway  :3000                    │──> Anthropic\n Custom Agent ─────>│    AI API + MCP Unified Proxy        │──> Google Gemini\n CI/CD Pipeline ───>│                                      │──> Azure OpenAI / AWS Bedrock\n                    └──────────────────────────────────────┘\n                    ┌──────────────────────────────────────┐\n Admin Browser ────>│    Console  :3001                    │\n                    │    Management UI + Admin API          │\n                    └──────────────────────────────────────┘\n```\n\n## Why ThinkWatch?\n\nAs AI agents proliferate across engineering teams, organizations face a growing governance challenge:\n\n- **API keys scattered everywhere** — hardcoded in `.env` files, shared in Slack, rotated never\n- **Zero visibility** — who used which model, how many tokens, at what cost?\n- **No access control** — every developer has direct access to every model and every MCP tool\n- **Compliance gaps** — no audit trail for AI-assisted code generation or data access\n- **Cost surprises** — monthly AI bills that nobody can explain or attribute\n\nThinkWatch solves all of this with a single deployment.\n\n## Key Features\n\n### AI API Gateway\n- **Multi-format API proxy** — natively serves OpenAI Chat Completions (`/v1/chat/completions`), Anthropic Messages (`/v1/messages`), and OpenAI Responses (`/v1/responses`) APIs on a single port; works as a drop-in replacement for Cursor, Continue, Cline, Claude Code, and the OpenAI/Anthropic SDKs\n- **Multi-provider routing** — OpenAI, Anthropic, Google Gemini, Azure OpenAI, AWS Bedrock, or any OpenAI-compatible endpoint\n- **Automatic format conversion** — Anthropic Messages API, Google Gemini, Azure OpenAI, AWS Bedrock Converse API, and more, all behind a unified interface\n- **Provider auto-loading** — active providers are loaded from the database at startup and registered in the model router; default model prefixes (`gpt-`/`o1-`/`o3-`/`o4-` for OpenAI, `claude-` for Anthropic, `gemini-` for Google) route automatically; Azure and Bedrock require explicit model registration\n- **Streaming SSE pass-through** — zero-overhead forwarding with real-time token counting\n- **Virtual API keys** — issue scoped `tw-` keys; the same `tw-` token works on both the AI gateway and the MCP gateway via a per-key `surfaces` allowlist\n- **API key lifecycle management** — automatic rotation with grace periods, per-key inactivity timeout, expiry warnings, and background policy enforcement\n- **Composable rate limits & budgets** — multi-window sliding limits (1m / 5m / 1h / 5h / 1d / 1w) and natural-period token budgets (daily / weekly / monthly), keyed per user, per API key, per provider, or per MCP server. See [Rate limits & budgets](#rate-limits--budgets) below\n- **Per-model token weighting** — gpt-4o tokens can count more than gpt-3.5 tokens against the same quota via configurable `input_multiplier` / `output_multiplier`\n- **Circuit breaker** — three-state (Closed/Open/HalfOpen) circuit breaker with configurable failure threshold and recovery period\n- **Retry with exponential backoff** — configurable retries with jitter for network errors and upstream rate limits\n- **Real-time cost tracking** — per-model pricing with team attribution\n\n### MCP Gateway\n- **Centralized tool proxy** — one MCP endpoint that aggregates tools from all upstream servers\n- **Namespace isolation** — `github__create_issue`, `postgres__query` — no tool name collisions\n- **Tool-level",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:44:03.893543"
+  },
+  {
+    "basic_info": {
+      "name": "wx-cli",
+      "full_name": "jackwener/wx-cli",
+      "owner": "jackwener",
+      "description": "WeChat local data CLI with daemon architecture",
+      "url": "https://github.com/jackwener/wx-cli",
+      "clone_url": "https://github.com/jackwener/wx-cli.git",
+      "ssh_url": "git@github.com:jackwener/wx-cli.git",
+      "homepage": null,
+      "created_at": "2026-04-16T01:08:18Z",
+      "updated_at": "2026-05-01T04:43:03Z",
+      "pushed_at": "2026-04-19T13:28:07Z"
+    },
+    "stats": {
+      "stars": 541,
+      "forks": 438,
+      "watchers": 541,
+      "open_issues": 7,
+      "size": 427
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 207701,
+        "JavaScript": 2213,
+        "PowerShell": 2206,
+        "Shell": 2142
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# wx-cli\n\n**从命令行查询本地微信数据**\n\n[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)\n[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](#安装)\n[![Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org)\n\n会话 · 聊天记录 · 搜索 · 联系人 · 群成员 · 收藏 · 统计 · 导出\n\n</div>\n\n---\n\n## AI Agent Skill\n\n通过 [skills CLI](https://github.com/vercel-labs/skills) 一键安装到 Claude Code、Cursor、Codex 等 agent：\n\n```bash\nnpx skills add jackwener/wx-cli\n```\n\n或全局安装：\n\n```bash\nnpx skills add jackwener/wx-cli -g\n```\n\n安装后 agent 会自动读取 `SKILL.md`，了解如何安装和调用 wx-cli。\n\n---\n\n## 特性\n\n- **零依赖安装** — 单一 Rust 二进制，一行命令装完\n- **毫秒级响应** — 后台 daemon 持久缓存解密数据库，mtime 不变则复用\n- **AI 友好** — 默认 YAML 输出，更省 token & 易读；`--json` 可切换为 JSON（方便 `jq` 处理等）\n- **完全本地** — 数据不出本机，实时解密，无需全量预解密\n\n---\n\n## 安装\n\n**npm（推荐，全平台）**\n\n```bash\nnpm install -g @jackwener/wx-cli\n```\n\n**macOS / Linux（curl）**\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/jackwener/wx-cli/main/install.sh | bash\n```\n\n**Windows**（PowerShell，以管理员身份运行）\n\n```powershell\nirm https://raw.githubusercontent.com/jackwener/wx-cli/main/install.ps1 | iex\n```\n\n<details>\n<summary>其他安装方式</summary>\n\n**手动下载**\n\n从 [Releases](https://github.com/jackwener/wx-cli/releases) 下载对应平台文件：\n\n| 平台 | 文件 |\n|------|------|\n| macOS Apple Silicon | `wx-macos-arm64` |\n| macOS Intel | `wx-macos-x86_64` |\n| Linux x86_64 | `wx-linux-x86_64` |\n| Linux arm64 | `wx-linux-arm64` |\n| Windows x86_64 | `wx-windows-x86_64.exe` |\n\nmacOS / Linux：`chmod +x wx && sudo mv wx /usr/local/bin/`\n\n**从源码构建**\n\n```bash\ngit clone git@github.com:jackwener/wx-cli.git && cd wx-cli\ncargo build --release\n# 产物：target/release/wx（Windows: wx.exe）\n```\n\n</details>\n\n---\n\n## 快速开始\n\n保持微信运行，然后初始化（只需一次）：\n\n**macOS**（需要先对微信做 ad-hoc 签名，才能扫描其内存）\n\n```bash\n# 1. 签名（只需做一次，WeChat 更新后重做）\ncodesign --force --deep --sign - /Applications/WeChat.app\n\n# 2. 重启微信，等待完全登录\nkillall WeChat && open /Applications/WeChat.app\n\n# 3. 初始化\nsudo wx init\n```\n\n> 如果 `codesign` 报 `signature in use`，先执行：\n> ```bash\n> codesign --remove-signature \"/Applications/WeChat.app/Contents/Frameworks/vlc_plugins/librtp_mpeg4_plugin.dylib\"\n> codesign --force --deep --sign - /Applications/WeChat.app\n> ```\n\n**Linux**\n\n```bash\nsudo wx init\n```\n\n**Windows**（以管理员身份运行 PowerShell）\n\n```powershell\nwx init\n```\n\n验证安装：\n\n```bash\nwx sessions\n```\n\n能看到最近会话即表示一切正常。daemon 在首次调用时自动启动。\n\n---\n\n## 命令\n\n### 消息\n\n```bash\nwx sessions                                      # 最近 20 个会话\nwx unread                                        # 有未读消息的会话\nwx unread --filter private,group                 # 只看真人未读（过滤公众号/折叠入口）\nwx new-messages                                  # 上次检查后的新消息（增量）\nwx history \"张三\"                                # 最近 50 条记录\nwx history \"张三\" -n 2000                        # 拉更多历史消息\nwx history \"AI群\" --since 2026-04-01 --until 2026-04-15\nwx search \"关键词\"                               # 全库搜索\nwx search \"关键词\" -n 500                        # 放宽搜索结果条数\nwx search \"会议\" --in \"工作群\" --since 2026-01-01\n```\n\n`history` / `search` / `export` 都支持 `-n` / `--limit` 指定条数。默认值只是为了避免一次性输出过多消息，不是硬上限。\n\n会话/消息输出里都带 `chat_type` 字段，取值为 `private` / `group` / `official_account` / `folded`。`official_account` 涵盖公众号、订阅号、服务号及 `mphelper` / `qqsafe` 等系统通知；`folded` 对应微信里的\"订阅号折叠\"和\"折叠群聊\"两个聚合入口。\n\n### 朋友圈（SNS）\n\n三个独立命令，区分\"通知\"和\"帖子\"：\n\n```bash\nwx sns-notifications                             # 点赞/评论通知（默认仅未读）\nwx sns-notifications --include-read -n 100       # 含已读\n\nwx sns-feed                                      # 近 20 条朋友圈（时间线）\nwx sns-feed --user \"张三\"                        # 限定作者\nwx sns-feed --since 2026-04-01 -n 100            # 按时间\n\nwx sns-search \"关键词\"                           # 全文搜索朋友圈正文\nwx sns-search \"婚礼\" --user \"李四\" --since 2023-01-01\n```\n\n- **sns-notifications** 返回互动通知：`type`（`like`/`comment`）、`from_nickname`、`content`（评论正文）、`feed_preview` + `feed_author`（对应原帖）\n- **sns-feed** / **sns-search** 返回朋友圈帖子：`author`、`content`（正文）、`media`、`media_count`、`location`、`timestamp`；`media` 字段含每张图的 url/thumb/key/token/md5/enc_idx/size，供下游做图片代理或离线渲染。`media_count = media.len()`，按 DOM 解析的合法 `<media>` 子节点计数（malformed XML 返回 0）\n\n朋友圈数据只覆盖你本地刷到过的帖子（微信 app 按需下载）。\n\n### 联系人 & 群组\n\n```bash\nwx contacts                  # 联系人列表\nwx contacts --query \"李\"     # 按名字搜索\nwx members \"AI交流群\"        # 群成员列表\n```\n\n### 收藏 & 统计\n\n```bash\nwx favorites                          # 全部收藏\nwx favorites --type image             # 按类型筛选（text/image/article/card/video）\nwx favorites --query \"关键词\"         # 搜索收藏内容\nwx stats \"AI群\"                       # 聊天统计\nwx stats \"AI群\" --since 2026-01-01   # 指定时间范围\n```\n\n### 导出\n\n```bash\nwx export \"张三\" --format markdown -o chat.md\nwx export \"张三\" -n 2000 --format markdown -o chat.md\nwx export \"AI群\" --since 2026-01-01 --format json\n```\n\n### 输出格式\n\n默认输出 YAML，更省 token & 易读；`--json` 可切换为 JSON（方便 `jq` 处理等）：\n\n```bash\nwx sessions --json\nwx search \"关键词\" --json | jq '.[0].content'\nwx new-messages --json\n```\n\n### Daemon 管理\n\n```bash\nwx daemon status\nwx daemon stop\nwx daemon logs --follow\n```\n\n---\n\n## 架构\n\n`",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:44:05.237998"
+  },
+  {
+    "basic_info": {
+      "name": "openduck",
+      "full_name": "CITGuru/openduck",
+      "owner": "CITGuru",
+      "description": "Distributed DuckDB - dual execution and differential storage",
+      "url": "https://github.com/CITGuru/openduck",
+      "clone_url": "https://github.com/CITGuru/openduck.git",
+      "ssh_url": "git@github.com:CITGuru/openduck.git",
+      "homepage": "",
+      "created_at": "2026-04-14T03:08:05Z",
+      "updated_at": "2026-05-01T02:51:41Z",
+      "pushed_at": "2026-04-28T15:12:49Z"
+    },
+    "stats": {
+      "stars": 519,
+      "forks": 21,
+      "watchers": 519,
+      "open_issues": 6,
+      "size": 95330
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 209390,
+        "C++": 101887,
+        "Python": 6682,
+        "CMake": 5868,
+        "Shell": 5323,
+        "Dockerfile": 2878,
+        "C": 2167,
+        "Makefile": 262
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# OpenDuck\n\nAn open-source implementation of the ideas pioneered by [MotherDuck](https://motherduck.com) — differential storage, hybrid (dual) execution, and transparent remote databases for DuckDB — available for anyone to run, extend, and build on.\n\nMotherDuck showed that DuckDB can work beautifully in the cloud: `ATTACH 'md:mydb'`, and remote tables appear local. Queries split transparently across your laptop and the cloud. Storage is layered and snapshot-based. OpenDuck takes those architectural ideas — [differential storage](https://motherduck.com/blog/differential-storage-building-block-for-data-warehouse/), [dual execution](https://motherduck.com/videos/bringing-duckdb-to-the-cloud-dual-execution-explained/), the attach-based UX — and makes them open. Open protocol, open backend, open extension.\n\n```python\nimport duckdb\n\ncon = duckdb.connect(config={\"allow_unsigned_extensions\": \"true\"})\ncon.execute(\"LOAD '/path/to/openduck.duckdb_extension';\")\ncon.execute(\"ATTACH 'openduck:mydb?endpoint=http://localhost:7878&token=xxx' AS cloud;\")\n\ncon.sql(\"SELECT * FROM cloud.users\").show()                    # remote, transparent\ncon.sql(\"SELECT * FROM local.t JOIN cloud.t2 ON ...\").show()   # hybrid, one query\n```\n\n## What OpenDuck does\n\n### Differential storage\n\nAppend-only layers with PostgreSQL metadata. DuckDB sees a normal file; OpenDuck persists data as immutable sealed layers addressable from object storage. Snapshots give you consistent reads. One serialized write path, many concurrent readers.\n\n### Hybrid (dual) execution\n\nA single query can run partly on your machine and partly on a remote worker. The gateway splits the plan, labels each operator `LOCAL` or `REMOTE`, and inserts bridge operators at the boundaries. Only intermediate results cross the wire.\n\n```\n[LOCAL]  HashJoin(l.id = r.id)\n  [LOCAL]  Scan(products)          ← your laptop\n  [LOCAL]  Bridge(R→L)\n    [REMOTE] Scan(sales)           ← remote worker\n```\n\n### DuckDB-native catalog\n\nThe extension implements DuckDB's `StorageExtension` and `Catalog` interfaces. Remote tables are first-class catalog entries, they participate in JOINs, CTEs, and the optimizer like local tables.\n\n### Open protocol\n\nOpenDuck's protocol is intentionally minimal and defined in [`execution.proto`](proto/openduck/v1/execution.proto). The data plane is two RPCs: one to execute a query and stream Arrow IPC batches back, another to cancel a running execution. Two additional RPCs handle worker lifecycle (registration and heartbeat) so the gateway can route queries by database affinity and compute context.\n\nBecause the protocol is open and simple, you're not locked into a single backend. Any service that speaks gRPC and returns Arrow can serve as an OpenDuck-compatible backend. Run the included Rust gateway, replace it with your own implementation, or plug in an entirely different execution engine — the client and extension don't care what's on the other side.\n\n## Architecture\n\n```\n┌─────────────────────────────────────────────┐\n│  DuckDB process (client)                    │\n│                                             │\n│  LOAD openduck                              │\n│  ATTACH 'openduck:mydb' AS cloud            │\n│                                             │\n│  ┌─────────────────────────────────────┐    │\n│  │ OpenDuckCatalog                     │    │\n│  │  └─ OpenDuckSchemaEntry             │    │\n│  │      └─ OpenDuckTableEntry (users)  │    │\n│  │      └─ OpenDuckTableEntry (events) │    │\n│  └──────────────┬──────────────────────┘    │\n│                 │ gRPC + Arrow IPC          │\n└─────────────────┼───────────────────────────┘\n                  │\n      ┌───────────▼───────────┐\n      │  Gateway (Rust)       │\n      │  - token auth         │\n      │  - worker registry    │\n      │  - affinity routing   │     ┌──────────────┐\n      │  - plan splitting     │────▶│  Worker 1    │\n      │  - backpressure       │◀────│  (DuckDB)    │\n      │                       │     │  RegisterWorker\n      │                       │     └──────────────┘\n      │                       │     ┌──────────────┐\n      │                       │────▶│  Worker N    │\n      │                       │◀────│  (DuckDB)    │\n      │                       │     │  Heartbeat   │\n      └───────────────────────┘     └──────────────┘\n              │\n    ┌─────────┴─────────┐\n    ▼                   ▼\n┌──────────┐    ┌──────────────┐\n│ Postgres │    │ Object store │\n│ metadata │    │ sealed layers│\n└──────────┘    └──────────────┘\n```\n\n## Quick start\n\n### 1. Build the backend\n\n```bash\ncargo build --workspace\n```\n\n### 2. Build the DuckDB extension\n\nThe openduck extension is not yet published to DuckDB's extension repository, so you need to build it from source. See [`extensions/openduck/README.md`](extensions/openduck/README.md) for full prerequisites (vcpkg, bison on macOS).\n\n```bash\ncd extensions/openduck && make\n```\n\nThis produces the loadable binary at:\n\n```\nextensions/openduck/build/release/extensio",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:44:06.529187"
+  },
+  {
+    "basic_info": {
+      "name": "late-sh",
+      "full_name": "mpiorowski/late-sh",
+      "owner": "mpiorowski",
+      "description": "A cozy terminal clubhouse for developers. Lofi beats, casual games, chat, and tech news, all via SSH.",
+      "url": "https://github.com/mpiorowski/late-sh",
+      "clone_url": "https://github.com/mpiorowski/late-sh.git",
+      "ssh_url": "git@github.com:mpiorowski/late-sh.git",
+      "homepage": "https://late.sh",
+      "created_at": "2026-04-11T21:01:43Z",
+      "updated_at": "2026-05-01T04:29:31Z",
+      "pushed_at": "2026-05-01T04:34:40Z"
+    },
+    "stats": {
+      "stars": 427,
+      "forks": 30,
+      "watchers": 427,
+      "open_issues": 22,
+      "size": 41355
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2562425,
+        "Python": 73629,
+        "HTML": 69343,
+        "HCL": 56247,
+        "CSS": 29971,
+        "Shell": 27674,
+        "PowerShell": 8159,
+        "Makefile": 7787,
+        "Nix": 6972,
+        "Dockerfile": 6175,
+        "Liquidsoap": 3750,
+        "Smarty": 434
+      },
+      "license": "Other",
+      "topics": [
+        "cli",
+        "irc",
+        "ssh",
+        "terminal",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# late.sh\n\n> A cozy terminal clubhouse for developers. Lofi beats, casual games, chat, and tech news, all via SSH.\n\n```bash\nssh late.sh\n```\n\n`late.sh` is a terminal-first social app: real-time chat, music, games, news, profiles, and a shared always-on space you can enter from any SSH client.\n\n## Status\n\nThis repository is the main codebase for `late.sh`.\n\n- The project is open for source reading, local development, audits, and contributions.\n- The public hosted `late.sh` service remains the canonical deployment.\n- The code is source-available, not OSI open source, during the FSL protection period.\n\nRead the details in [LICENSE](LICENSE), the plain-English policy in [LICENSING.md](LICENSING.md), and contribution rules in [CONTRIBUTING.md](CONTRIBUTING.md).\n\n## What It Includes\n\n- SSH TUI with dashboard, chat, profile, news, and arcade screens\n- Real-time global chat and shared activity feed\n- Audio streaming via Icecast/Liquidsoap with browser and CLI pairing\n- Terminal games including 2048, Sudoku, Nonograms, Minesweeper, and Solitaire\n- Web frontend for landing, connect flow, and paired-client experiences\n- Companion CLI for local audio playback and synced visualizer data\n\n## Workspace\n\nThis is a Rust workspace with four crates:\n\n| Crate | Role |\n|-------|------|\n| `late-cli` | Companion CLI for local audio playback, paired controls, and visualizer sync |\n| `late-core` | Shared domain code, database layer, migrations, and infrastructure helpers |\n| `late-ssh` | SSH server and terminal UI application |\n| `late-web` | Web server, landing page, connect flow, and browser pairing |\n\nThe stack is backed by PostgreSQL, Icecast, and Liquidsoap.\n\n## Quick Start\n\nTry the live service:\n\n```bash\nssh late.sh\n```\n\nRun it yourself (requires Docker):\n\n```bash\ngit clone https://github.com/mpiorowski/late-sh\ncd late-sh\nmake start\n```\n\nThen connect to your local instance:\n\n```bash\nssh localhost -p 2222\n```\n\nThat's it. Postgres, Icecast, and Liquidsoap all come up automatically.\n\n## Companion CLI\n\nInstall the companion CLI for local audio playback and synced visualizer:\n\nmacOS / Linux / Termux:\n\n```bash\ncurl -fsSL https://cli.late.sh/install.sh | bash\n```\n\nOn Termux, the installer fetches the Android CLI build instead of the GNU/Linux one.\n\nWindows PowerShell (x64):\n\n```powershell\nirm https://cli.late.sh/install.ps1 | iex\n```\n\nOr build it from source:\n\n```bash\nmise install        # optional — sets up the expected Rust toolchain\ncargo build --release --bin late\n```\n\n## Local Development\n\nFor development without Docker wrapping the Rust builds, you can run the\ninfrastructure in Docker and the apps natively:\n\n```bash\ndocker compose up -d postgres icecast liquidsoap\ncargo run -p late-ssh\ncargo run -p late-web\n```\n\nLocal host development can use Cargo's normal defaults, including the standard\nrepo-local `target/` directory. The `/app/target` path is only for Docker/dev\ncontainers.\n\n```bash\nexport CARGO_HOME=$HOME/.cargo\n```\n\nUse `mise install` to get the expected Rust toolchain, `mold` linker, and\n`cargo-nextest`.\n\n## Verification\n\nRun before opening a PR:\n\n```bash\nmake check\n```\n\nThis runs `cargo fmt --check`, `cargo clippy`, and `cargo nextest`.\nSome integration tests require Docker via testcontainers.\n\n## Contributing\n\nContributions are welcome, but read the project policy first:\n\n- [CONTRIBUTING.md](CONTRIBUTING.md)\n- [LICENSING.md](LICENSING.md)\n- [LICENSE](LICENSE)\n\nThis repository uses DCO sign-off for commits:\n\n```bash\ngit commit -s\n```\n\nIf you distribute a fork, do not present it as the official `late.sh` service or use the project branding as your own.\n\n## More Context\n\n- [CONTEXT.md](CONTEXT.md) — architecture, invariants, and working context. Written for LLMs — feed this to your AI editor for best results.\n- [CONTRIBUTING.md](CONTRIBUTING.md) — workflow, test rules, module patterns, and AI-assisted development tips.\n- [THEME.md](THEME.md) — how to contribute a new built-in SSH theme via PR.\n- [late-cli/README.md](late-cli/README.md) — CLI-specific usage and behavior.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:44:07.885434"
+  },
+  {
+    "basic_info": {
+      "name": "openab",
+      "full_name": "openabdev/openab",
+      "owner": "openabdev",
+      "description": "A lightweight, secure, cloud-native ACP harness that bridges Discord and any ACP-compatible coding CLI.",
+      "url": "https://github.com/openabdev/openab",
+      "clone_url": "https://github.com/openabdev/openab.git",
+      "ssh_url": "git@github.com:openabdev/openab.git",
+      "homepage": "https://openabdev.github.io/openab/",
+      "created_at": "2026-04-03T12:15:54Z",
+      "updated_at": "2026-05-01T04:43:26Z",
+      "pushed_at": "2026-05-01T04:43:22Z"
+    },
+    "stats": {
+      "stars": 380,
+      "forks": 98,
+      "watchers": 380,
+      "open_issues": 83,
+      "size": 14189
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 460159,
+        "Go Template": 2951,
+        "Dockerfile": 2594
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# OpenAB — Open Agent Broker\n\n[![Stars](https://img.shields.io/github/stars/openabdev/openab?style=flat-square)](https://github.com/openabdev/openab) [![GitHub Release](https://img.shields.io/github/v/release/openabdev/openab?style=flat-square&logo=github)](https://github.com/openabdev/openab/releases/latest) ![License](https://img.shields.io/badge/license-MIT-A374ED?style=flat-square)\n\n![OpenAB banner](images/banner.jpg)\n\nA lightweight, secure, cloud-native ACP harness that bridges **Discord, Slack**, and any [Agent Client Protocol](https://github.com/anthropics/agent-protocol)-compatible coding CLI (Kiro CLI, Claude Code, Codex, Gemini, OpenCode, Copilot CLI, etc.) over stdio JSON-RPC — delivering the next-generation development experience. **Telegram, LINE**, and other webhook-based platforms are supported via the standalone [Custom Gateway](gateway/).\n\n🪼 **Join our community!** Come say hi on Discord — we'd love to have you: **[🪼 OpenAB — Official](https://discord.gg/DmbhfDZjQS)** 🎉\n\n```\n┌──────────────┐  Gateway WS   ┌──────────────┐  ACP stdio    ┌──────────────┐\n│   Discord    │◄─────────────►│              │──────────────►│  coding CLI  │\n│   User       │               │    openab    │◄── JSON-RPC ──│  (acp mode)  │\n├──────────────┤  Socket Mode  │    (Rust)    │               └──────────────┘\n│   Slack      │◄─────────────►│              │\n│   User       │               └──────┬───────┘\n├──────────────┤                      │ WebSocket (outbound)\n│   Telegram   │◄──webhook──┐         │\n│   User       │            │         │\n├──────────────┤            ▼         ▼\n│   LINE       │◄──webhook──┌──────────────────┐\n│   User       │            │  Custom Gateway  │\n└──────────────┘            │  (standalone)    │\n                            └──────────────────┘\n```\n\n## Demo\n\n![openab demo](images/demo.png)\n\n## Features\n\n- **Multi-platform** — supports Discord and Slack, run one or both simultaneously\n- **Pluggable agent backend** — swap between Kiro CLI, Claude Code, Codex, Gemini, OpenCode, Copilot CLI via config\n- **@mention trigger** — mention the bot in an allowed channel to start a conversation\n- **Thread-based multi-turn** — auto-creates threads; no @mention needed for follow-ups\n- **Edit-streaming** — live-updates the Discord message every 1.5s as tokens arrive\n- **Emoji status reactions** — 👀→🤔→🔥/👨‍💻/⚡→👍+random mood face\n- **Session pool** — one CLI process per thread, auto-managed lifecycle\n- **ACP protocol** — JSON-RPC over stdio with tool call, thinking, and permission auto-reply support\n- **Kubernetes-ready** — Dockerfile + k8s manifests with PVC for auth persistence\n- **Voice message STT** — auto-transcribes Discord voice messages via Groq, OpenAI, or local Whisper server ([docs/stt.md](docs/stt.md))\n\n## Quick Start\n\n### 1. Create a Bot\n\n<details>\n<summary><strong>Discord</strong></summary>\n\nSee [docs/discord.md](docs/discord.md) for a detailed step-by-step guide.\n\n</details>\n\n<details>\n<summary><strong>Slack</strong></summary>\n\nSee [docs/slack-bot-howto.md](docs/slack-bot-howto.md) for a detailed step-by-step guide.\n\n</details>\n\n<details>\n<summary><strong>Telegram</strong> (via Custom Gateway)</summary>\n\nSee [docs/telegram.md](docs/telegram.md) for the full setup guide. Requires the standalone [Custom Gateway](gateway/) service.\n\n</details>\n\n<details>\n<summary><strong>LINE</strong> (via Custom Gateway)</summary>\n\nSee [docs/line.md](docs/line.md) for the full setup guide. Requires the standalone [Custom Gateway](gateway/) service.\n\n</details>\n\n### 2. Install with Helm (Kiro CLI — default)\n\n```bash\nhelm repo add openab https://openabdev.github.io/openab\nhelm repo update\n\nhelm install openab openab/openab \\\n  --set agents.kiro.discord.botToken=\"$DISCORD_BOT_TOKEN\" \\\n  --set-string 'agents.kiro.discord.allowedChannels[0]=YOUR_CHANNEL_ID'\n\n# Slack\nhelm install openab openab/openab \\\n  --set agents.kiro.slack.enabled=true \\\n  --set agents.kiro.slack.botToken=\"$SLACK_BOT_TOKEN\" \\\n  --set agents.kiro.slack.appToken=\"$SLACK_APP_TOKEN\" \\\n  --set-string 'agents.kiro.slack.allowedChannels[0]=C0123456789'\n```\n\n### 3. Authenticate (first time only)\n\n```bash\nkubectl exec -it deployment/openab-kiro -- kiro-cli login --use-device-flow\nkubectl rollout restart deployment/openab-kiro\n```\n\n### 4. Use\n\nIn your Discord channel:\n```\n@YourBot explain this code\n```\n\nThe bot creates a thread. After that, just type in the thread — no @mention needed.\n\n**Slack:** `@YourBot explain this code` in a channel — same thread-based workflow as Discord.\n\n## Other Agents\n\n| Agent | CLI | ACP Adapter | Guide |\n|-------|-----|-------------|-------|\n| Kiro (default) | `kiro-cli acp` | Native | [docs/kiro.md](docs/kiro.md) |\n| Claude Code | `claude-agent-acp` | [@agentclientprotocol/claude-agent-acp](https://github.com/agentclientprotocol/claude-agent-acp) | [docs/claude-code.md](docs/claude-code.md) |\n| Codex | `codex-acp` | [@zed-industries/codex-acp](https://github.com/zed-industries/codex-acp) | [docs/codex.md](docs/codex.md) |",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:44:09.224225"
+  },
+  {
+    "basic_info": {
+      "name": "sni-spoofing-rust",
+      "full_name": "therealaleph/sni-spoofing-rust",
+      "owner": "therealaleph",
+      "description": "DPI bypass via fake TLS ClientHello injection with wrong TCP sequence number. Rust port of @patterniha's SNI-Spoofing. Linux, macOS, Windows. Works with v2ray/xray VLESS configs behind Cloudflare.",
+      "url": "https://github.com/therealaleph/sni-spoofing-rust",
+      "clone_url": "https://github.com/therealaleph/sni-spoofing-rust.git",
+      "ssh_url": "git@github.com:therealaleph/sni-spoofing-rust.git",
+      "homepage": "https://github.com/therealaleph/sni-spoofing-rust#setup-guide",
+      "created_at": "2026-04-13T22:39:41Z",
+      "updated_at": "2026-04-30T12:56:28Z",
+      "pushed_at": "2026-04-20T18:38:16Z"
+    },
+    "stats": {
+      "stars": 332,
+      "forks": 35,
+      "watchers": 332,
+      "open_issues": 1,
+      "size": 6155
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 71400,
+        "Shell": 6798,
+        "Makefile": 1147,
+        "Dockerfile": 1104
+      },
+      "license": "MIT License",
+      "topics": [
+        "censorship-circumvention",
+        "cloudflare",
+        "dpi-bypass",
+        "proxy",
+        "rust",
+        "sni-spoofing",
+        "tcp",
+        "v2ray",
+        "vless",
+        "xray"
+      ]
+    },
+    "content": {
+      "readme": "# sni-spoof-rs\n\n[![Release](https://img.shields.io/github/v/release/therealaleph/sni-spoofing-rust)](https://github.com/therealaleph/sni-spoofing-rust/releases/latest)\n[![Total Downloads](https://img.shields.io/github/downloads/therealaleph/sni-spoofing-rust/total?label=total%20downloads)](https://github.com/therealaleph/sni-spoofing-rust/releases)\n[![Latest Downloads](https://img.shields.io/github/downloads/therealaleph/sni-spoofing-rust/latest/total?label=latest%20release)](https://github.com/therealaleph/sni-spoofing-rust/releases/latest)\n[![Stars](https://img.shields.io/github/stars/therealaleph/sni-spoofing-rust?style=flat)](https://github.com/therealaleph/sni-spoofing-rust/stargazers)\n[![License](https://img.shields.io/github/license/therealaleph/sni-spoofing-rust)](LICENSE)\n\nRust implementation of [patterniha's SNI-Spoofing](https://github.com/patterniha/SNI-Spoofing) DPI bypass technique. All credit for the original idea and method goes to [@patterniha](https://github.com/patterniha).\n\nA TCP forwarder that injects a fake TLS ClientHello with an intentionally wrong TCP sequence number right after the 3-way handshake. Stateful DPI reads the fake SNI and whitelists the flow. The real server drops the packet (out-of-window seq). Real traffic then passes through undetected.\n\n**[English Guide](#setup-guide)** | **[Persian Guide](#%D8%B1%D8%A7%D9%87%D9%86%D9%85%D8%A7%DB%8C-%D9%81%D8%A7%D8%B1%D8%B3%DB%8C)**\n\n## Platforms\n\n- **Linux** -- AF_PACKET raw sockets. Requires root or `CAP_NET_RAW`.\n- **macOS** -- BPF device. Requires root.\n- **Windows** -- WinDivert driver. Requires Administrator.\n\n## Build\n\n```\ncargo build --release\n```\n\nPre-built binaries for Linux (amd64/arm64), macOS (amd64/arm64), and Windows (amd64) are available two ways:\n- [GitHub Releases](https://github.com/therealaleph/sni-spoofing-rust/releases) page\n- The [`releases/`](releases/) folder in this repository (useful if the Releases page is blocked for you -- just clone the repo or download as ZIP)\n\n## Setup Guide\n\nThis tool works with VLESS/VMess configs that go through Cloudflare (CDN-based configs). Your server must be behind Cloudflare.\n\n### Step 1: Find your server's Cloudflare IP\n\nYour v2ray/xray config has a server address (a domain like `myserver.example.com`). Resolve it to get the IP:\n\n```\nnslookup myserver.example.com\n```\n\nYou should get a Cloudflare IP (usually starts with `104.`, `172.67.`, `141.101.`, etc).\n\n### Step 2: Create config.json\n\n```json\n{\n  \"graceful_shutdown_sec\": 0,\n  \"listeners\": [\n    {\n      \"listen\": \"0.0.0.0:40443\",\n      \"connect\": \"CLOUDFLARE_IP:443\",\n      \"fake_sni\": \"security.vercel.com\"\n    }\n  ]\n}\n```\n\nReplace `CLOUDFLARE_IP` with the IP from step 1. The `fake_sni` can be any domain that is allowed by your DPI (a well-known site behind Cloudflare works best).\n\n| Field | Description |\n|---|---|\n| `listen` | Local address and port to listen on |\n| `connect` | Cloudflare IP and port (must be an IP, not a hostname) |\n| `fake_sni` | SNI for the fake ClientHello (max 219 bytes) |\n| `conn_timeout_sec` | Seconds to wait for the upstream TCP connection to complete (default: `5`) |\n| `handshake_timeout_sec` | Seconds to wait for the sniffer to confirm the fake packet was sent (default: `2`) |\n| `keepalive_time_sec` | Seconds of idle before TCP keepalive probes begin (default: `11`) |\n| `keepalive_interval_sec` | Seconds between individual TCP keepalive probes (default: `2`) |\n\n| Top-level Field | Description |\n|---|---|\n| `graceful_shutdown_sec` | Seconds to wait for active connections to finish after receiving a shutdown signal. `0` exits immediately (default: `0`) |\n\nMultiple listeners are supported -- each maps to one upstream.\n\n### Step 3: Edit your v2ray/xray config\n\nIn your VLESS/VMess client config, change:\n\n- **Address**: from `myserver.example.com` (or its IP) to `127.0.0.1`\n- **Port**: to the `listen` port from config.json (e.g. `40443`)\n- **Keep everything else the same** (SNI, host, path, UUID, etc.)\n\nExample -- if your original config has:\n```\naddress: myserver.example.com\nport: 443\n```\n\nChange it to:\n```\naddress: 127.0.0.1\nport: 40443\n```\n\nThe tool sits between your v2ray client and the server. Your client connects to the tool, the tool handles the DPI bypass, and forwards traffic to Cloudflare.\n\n### Step 4: Run\n\n```\n# Linux/macOS\nsudo ./sni-spoof-rs config.json\n\n# Windows (run as Administrator)\nsni-spoof-rs.exe config.json\n```\n\n**Windows note:** The Windows download is a zip containing `sni-spoof-rs.exe` and `WinDivert64.sys`. Keep both files in the same folder. The `.sys` file is the kernel driver that WinDivert needs to intercept packets.\n\nThen connect with your v2ray/xray client as usual.\n\n### Finding a working fake_sni (scan mode)\n\nIf your chosen `fake_sni` stops working (e.g., after a DPI update), the tool includes a scanner that probes a built-in list of ~650 Cloudflare-fronted domains and reports which ones pass through your network:\n\n```\n# scan using built-in list (no sudo needed -- scan ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-01T04:44:10.538986"
+  }
+]

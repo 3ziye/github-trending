@@ -1,0 +1,862 @@
+[
+  {
+    "basic_info": {
+      "name": "obscura",
+      "full_name": "h4ckf0r0day/obscura",
+      "owner": "h4ckf0r0day",
+      "description": "The headless browser for AI agents and web scraping",
+      "url": "https://github.com/h4ckf0r0day/obscura",
+      "clone_url": "https://github.com/h4ckf0r0day/obscura.git",
+      "ssh_url": "git@github.com:h4ckf0r0day/obscura.git",
+      "homepage": null,
+      "created_at": "2026-04-13T10:31:41Z",
+      "updated_at": "2026-05-08T04:10:41Z",
+      "pushed_at": "2026-05-04T22:01:34Z"
+    },
+    "stats": {
+      "stars": 10980,
+      "forks": 713,
+      "watchers": 10980,
+      "open_issues": 55,
+      "size": 255
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 379476
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/h4ckf0r0day/obscura/main/assets/icon.png\" alt=\"Obscura\" width=\"80\" />\n</p>\n\n<h2 align=\"center\">Obscura</h2>\n\n<p align=\"center\">\n  <strong>The open-source headless browser for AI agents and web scraping.</strong><br>\n  Lightweight, stealthy, and built in Rust.\n</p>\n\n---\n\nObscura is a headless browser engine written in Rust, built for web scraping and AI agent automation. It runs real JavaScript via V8, supports the Chrome DevTools Protocol, and acts as a drop-in replacement for headless Chrome with Puppeteer and Playwright.\n\n### Why Obscura over headless Chrome?\n\nDesigned for automation at scale, not desktop browsing.\n\n| Metric       | Obscura      | Headless Chrome |\n|--------------|--------------|------------------|\n| Memory       | **30 MB**    | 200+ MB          |\n| Binary size  | **70 MB**    | 300+ MB          |\n| Anti-detect  | **Built-in** | None          |\n| Page load    | **85 ms**    | ~500 ms          |\n| Startup      | **Instant**  | ~2s              |\n| Puppeteer    | **Yes**      | Yes              |\n| Playwright   | **Yes**      | Yes              |\n\n## 🎉 10,000 stars and what's next\n\nI'm working on **Obscura Cloud** the hosted version, with managed infrastructure, residential proxies, and dedicated support. For people who want the engine without operating it themselves.\n\nThe open-source engine stays Apache-2.0, fully featured. No feature gating, ever.\n\n**[Get on the waitlist →](https://tally.so/r/gDWzdD)**\n\n## Install\n\n### Download\n\nGrab the latest binary from [Releases](https://github.com/h4ckf0r0day/obscura/releases):\n\n```bash\n# Linux x86_64\ncurl -LO https://github.com/h4ckf0r0day/obscura/releases/latest/download/obscura-x86_64-linux.tar.gz\ntar xzf obscura-x86_64-linux.tar.gz\n./obscura fetch https://example.com --eval \"document.title\"\n\n# macOS Apple Silicon\ncurl -LO https://github.com/h4ckf0r0day/obscura/releases/latest/download/obscura-aarch64-macos.tar.gz\ntar xzf obscura-aarch64-macos.tar.gz\n\n# macOS Intel\ncurl -LO https://github.com/h4ckf0r0day/obscura/releases/latest/download/obscura-x86_64-macos.tar.gz\ntar xzf obscura-x86_64-macos.tar.gz\n\n# Windows\nDownload the `.zip` from the releases page and extract it manually.\n```\n\nNo Chrome, no Node.js, no dependencies. Release archives include both\n`obscura` and `obscura-worker`; keep them in the same directory for the\nparallel `scrape` command.\n\nLinux release builds target Ubuntu 22.04 so the downloaded binary remains\nusable on common LTS servers with glibc 2.35+.\n\n### Build from source\n\n```bash\ngit clone https://github.com/h4ckf0r0day/obscura.git\ncd obscura\ncargo build --release\n\n# With stealth mode (anti-detection + tracker blocking)\ncargo build --release --features stealth\n```\n\nRequires Rust 1.75+ ([rustup.rs](https://rustup.rs)). First build takes ~5 min (V8 compiles from source, cached after).\n\n## Quick Start\n\n### Fetch a page\n\n```bash\n# Get the page title\nobscura fetch https://example.com --eval \"document.title\"\n\n# Extract all links\nobscura fetch https://example.com --dump links\n\n# Render JavaScript and dump HTML\nobscura fetch https://news.ycombinator.com --dump html\n\n# Wait for dynamic content\nobscura fetch https://example.com --wait-until networkidle0\n\n# Bound navigation time for slow or broken pages\nobscura fetch https://example.com --timeout 10\n```\n\n### Start the CDP server\n\n```bash\nobscura serve --port 9222\n\n# With stealth mode (anti-detection + tracker blocking)\nobscura serve --port 9222 --stealth\n```\n\n### Scrape in parallel\n\n```bash\nobscura scrape url1 url2 url3 ... \\\n  --concurrency 25 \\\n  --eval \"document.querySelector('h1').textContent\" \\\n  --format json\n```\n\n## Puppeteer / Playwright\n\n### Puppeteer\n\n```bash\nnpm install puppeteer-core\n```\n\n```javascript\nimport puppeteer from 'puppeteer-core';\n\nconst browser = await puppeteer.connect({\n  browserWSEndpoint: 'ws://127.0.0.1:9222/devtools/browser',\n});\n\nconst page = await browser.newPage();\nawait page.goto('https://news.ycombinator.com');\n\nconst stories = await page.evaluate(() =>\n  Array.from(document.querySelectorAll('.titleline > a'))\n    .map(a => ({ title: a.textContent, url: a.href }))\n);\nconsole.log(stories);\n\nawait browser.disconnect();\n```\n\n### Playwright\n\n```bash\nnpm install playwright-core\n```\n\n```javascript\nimport { chromium } from 'playwright-core';\n\nconst browser = await chromium.connectOverCDP({\n  endpointURL: 'ws://127.0.0.1:9222',\n});\n\nconst page = await browser.newContext().then(ctx => ctx.newPage());\nawait page.goto('https://en.wikipedia.org/wiki/Web_scraping');\nconsole.log(await page.title());\n\nawait browser.close();\n```\n\n### Form submission & login\n\n```javascript\nawait page.goto('https://quotes.toscrape.com/login');\nawait page.evaluate(() => {\n  document.querySelector('#username').value = 'admin';\n  document.querySelector('#password').value = 'admin';\n  document.querySelector('form').submit();\n});\n// Obscura handles the POST, follows the 302 redirect, maintains cookies\n```\n\n## Benchmarks\n\nPage loa",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:41.098720"
+  },
+  {
+    "basic_info": {
+      "name": "CubeSandbox",
+      "full_name": "TencentCloud/CubeSandbox",
+      "owner": "TencentCloud",
+      "description": "Instant, Concurrent, Secure & Lightweight Sandbox for AI Agents.",
+      "url": "https://github.com/TencentCloud/CubeSandbox",
+      "clone_url": "https://github.com/TencentCloud/CubeSandbox.git",
+      "ssh_url": "git@github.com:TencentCloud/CubeSandbox.git",
+      "homepage": "https://docs.cubesandbox.ai/",
+      "created_at": "2026-04-10T03:00:31Z",
+      "updated_at": "2026-05-08T03:42:40Z",
+      "pushed_at": "2026-05-08T02:45:35Z"
+    },
+    "stats": {
+      "stars": 5147,
+      "forks": 369,
+      "watchers": 5147,
+      "open_issues": 33,
+      "size": 9320
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 6728338,
+        "Go": 3404987,
+        "C": 2370915,
+        "Shell": 343404,
+        "TypeScript": 112647,
+        "Python": 60404,
+        "Makefile": 29318,
+        "Lua": 16079,
+        "JavaScript": 11749,
+        "Dockerfile": 6417,
+        "Ruby": 5782,
+        "CSS": 4485,
+        "HTML": 1145
+      },
+      "license": "Other",
+      "topics": [
+        "agents",
+        "container",
+        "sandbox"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/assets/cube-sandbox-logo.png\" alt=\"Cube Sandbox Logo\" width=\"140\" />\n</p>\n\n<h1 align=\"center\">CubeSandbox</h1>\n\n<p align=\"center\">\n  <strong>Instant, Concurrent, Secure & Lightweight Sandbox Service for AI Agents</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/tencentcloud/CubeSandbox/stargazers\"><img src=\"https://img.shields.io/github/stars/tencentcloud/cubesandbox?style=social\" alt=\"GitHub Stars\" /></a>\n  <a href=\"https://github.com/tencentcloud/CubeSandbox/issues\"><img src=\"https://img.shields.io/github/issues/tencentcloud/cubesandbox\" alt=\"GitHub Issues\" /></a>\n  <a href=\"./LICENSE\"><img src=\"https://img.shields.io/badge/License-Apache_2.0-green\" alt=\"Apache 2.0 License\" /></a>\n  <a href=\"./CONTRIBUTING.md\"><img src=\"https://img.shields.io/badge/PRs-welcome-brightgreen\" alt=\"PRs Welcome\" /></a>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/⚡_Startup-Tens_of_ms-blue\" alt=\"Fast startup\" />\n  <img src=\"https://img.shields.io/badge/🔒_Isolation-Hardware_Level-critical\" alt=\"Hardware-level isolation\" />\n  <img src=\"https://img.shields.io/badge/🔌_API-E2B_Compatible-blueviolet\" alt=\"E2B compatible\" />\n  <img src=\"https://img.shields.io/badge/📦_Deploy-High_Concurrency·High_Density-orange\" alt=\"High concurrency & high density\" />\n</p>\n\n<p align=\"center\">\n  <a href=\"./README_zh.md\"><strong>中文文档</strong></a> ·\n  <a href=\"./docs/guide/quickstart.md\"><strong>Quick Start</strong></a> ·\n  <a href=\"./docs/index.md\"><strong>Documentation</strong></a> ·\n  <a href=\"./docs/changelog.md\"><strong>Changelog</strong></a>\n</p>\n\n---\n\nCube Sandbox is a high-performance, out-of-the-box secure sandbox service built on RustVMM and KVM. It supports both single-node deployment and can be easily scaled to a multi-node cluster. It is compatible with the E2B SDK, capable of creating a hardware-isolated sandbox environment with full service capabilities in under 60ms, while maintaining less than 5MB memory overhead.\n\n\n<p align=\"center\">\n  <img src=\"./docs/assets/readme_speed_en_1.png\" width=\"400\" />\n  <img src=\"./docs/assets/readme_overhead_en_1.png\" width=\"400\" />\n</p>\n\n\n## Demos\n\n<table align=\"center\">\n  <tr align=\"center\" valign=\"middle\">\n    <td width=\"33%\" valign=\"middle\">\n      <video src=\"https://github.com/user-attachments/assets/f87c409e-29fc-4e86-9eac-dbeaff2aca18\" controls=\"controls\" muted=\"muted\" style=\"max-width: 100%;\"></video>\n    </td>\n    <td width=\"33%\" valign=\"middle\">\n      <video src=\"https://github.com/user-attachments/assets/50e7126e-bb73-4abc-aa85-677fdf2e8c67\" controls=\"controls\" muted=\"muted\" style=\"max-width: 100%;\"></video>\n    </td>\n    <td width=\"33%\" valign=\"middle\">\n      <video src=\"https://github.com/user-attachments/assets/052e0e77-e2d9-409e-90b8-d13c28b80495\" controls=\"controls\" muted=\"muted\" style=\"max-width: 100%;\"></video>\n    </td>\n  </tr>\n  <tr align=\"center\" valign=\"top\">\n    <td>\n      <em>Installation & Demo</em>\n    </td>\n    <td>\n      <em>Performance Test</em>\n    </td>\n    <td>\n      <em>RL (SWE-Bench)</em>\n    </td>\n  </tr>\n</table>\n\n\n## Core Highlights\n\n- **Blazing-fast cold start:** Built on resource pool pre-provisioning and snapshot cloning technology, skipping time-consuming initialization entirely. Average end-to-end cold start time for a fully serviceable sandbox is < 60ms.\n- **High-density deployment on a single node:** Extreme memory reuse via CoW technology combined with a Rust-rebuilt, aggressively trimmed runtime keeps per-instance memory overhead below 5MB — run thousands of Agents on a single machine.\n- **True kernel-level isolation:** No more unsafe Docker shared-kernel (Namespace) hacks. Each Agent runs with its own dedicated Guest OS kernel, eliminating container escape risks and enabling safe execution of any LLM-generated code.\n- **Zero-cost migration (E2B drop-in replacement):** Natively compatible with the E2B SDK interface. Just swap one URL environment variable — no business logic changes needed — to migrate from expensive closed-source sandboxes to free Cube Sandbox with better performance.\n- **Network security:** CubeVS, powered by eBPF, enforces strict inter-sandbox network isolation at the kernel level with fine-grained egress traffic filtering policies.\n- **Ready to use out of the box:** One-click deployment with support for both single-node and cluster setups.\n- **Event-level snapshot rollback (coming soon):** High-frequency snapshot rollback at millisecond granularity, enabling rapid fork-based exploration environments from any saved state.\n- **Production-ready:** Cube Sandbox has been validated at scale in Tencent Cloud production environments, proven stable and reliable.\n\n## Benchmarks\n\nIn the context of AI Agent code execution, CubeSandbox achieves the perfect balance of security and performance:\n\n| Metric | Docker Container | Traditional VM | CubeSandbox |\n|---|---|---|---|\n| **Isolation Level** | Low (Shared Kernel Namespaces) | High (Dedicated Kernel) | **Extreme (Dedicated Kernel + eB",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-08T04:12:42.308218"
+  },
+  {
+    "basic_info": {
+      "name": "MasterHttpRelayVPN-RUST",
+      "full_name": "therealaleph/MasterHttpRelayVPN-RUST",
+      "owner": "therealaleph",
+      "description": "Rust port of @masterking32's MasterHttpRelayVPN — all credit to @masterking32 for the original idea and Python implementation. Free DPI bypass via a Google Apps Script relay with TLS SNI concealment. CLI + cross-platform desktop UI, HTTP + SOCKS5 proxy, no runtime deps.",
+      "url": "https://github.com/therealaleph/MasterHttpRelayVPN-RUST",
+      "clone_url": "https://github.com/therealaleph/MasterHttpRelayVPN-RUST.git",
+      "ssh_url": "git@github.com:therealaleph/MasterHttpRelayVPN-RUST.git",
+      "homepage": "https://github.com/masterking32/MasterHttpRelayVPN",
+      "created_at": "2026-04-21T14:46:31Z",
+      "updated_at": "2026-05-08T04:01:51Z",
+      "pushed_at": "2026-05-08T03:16:19Z"
+    },
+    "stats": {
+      "stars": 2011,
+      "forks": 281,
+      "watchers": 2011,
+      "open_issues": 129,
+      "size": 2130865
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 959175,
+        "Kotlin": 178484,
+        "JavaScript": 80979,
+        "TypeScript": 5705,
+        "Dockerfile": 3448,
+        "Shell": 3015,
+        "Batchfile": 2916
+      },
+      "license": "MIT License",
+      "topics": [
+        "anti-censorship",
+        "censorship-circumvention",
+        "cross-platform",
+        "desktop-app",
+        "domain-fronting",
+        "dpi-bypass",
+        "egui",
+        "google-apps-script",
+        "gui",
+        "http-proxy",
+        "iran",
+        "mitm",
+        "proxy",
+        "rust",
+        "sni",
+        "socks5",
+        "tls"
+      ]
+    },
+    "content": {
+      "readme": "# mhrv-rs — bypass censorship for free, with your own Google account\n\n[![Latest release](https://img.shields.io/github/v/release/therealaleph/MasterHttpRelayVPN-RUST?display_name=tag&logo=github&label=release&color=blue&cacheSeconds=300)](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/releases/latest)\n[![Downloads](https://img.shields.io/github/downloads/therealaleph/MasterHttpRelayVPN-RUST/total.svg?label=downloads&logo=github&cacheSeconds=300)](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/releases)\n[![CI](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/actions/workflows/release.yml/badge.svg)](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/actions/workflows/release.yml)\n[![License: MIT](https://img.shields.io/github/license/therealaleph/MasterHttpRelayVPN-RUST?color=blue)](LICENSE)\n[![Stars](https://img.shields.io/github/stars/therealaleph/MasterHttpRelayVPN-RUST?style=flat&logo=github)](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/stargazers)\n[![Support](https://img.shields.io/badge/❤️_Support-sh1n.org-red?style=flat)](https://sh1n.org/donate)\n\n**A small program that runs on your computer and lets you visit blocked websites for free, using a Google Apps Script you deploy in your own free Google account. Your ISP only sees encrypted traffic to `www.google.com` — it can't tell what you're really visiting.**\n\n🇬🇧 [English Quick Start](#quick-start) · [Full Guide (advanced topics)](docs/guide.md)\n🇮🇷 [راه‌اندازی سریع فارسی](#راه‌اندازی-سریع) · [راهنمای کامل (مباحث پیشرفته)](docs/guide.fa.md)\n\n<p align=\"center\" dir=\"rtl\">\n  ۱. <a href=\"https://www.youtube.com/watch?v=voCwxgvWR5U\" target=\"_blank\" rel=\"noopener noreferrer\">راهنمای تصویری راه اندازی به زبان فارسی</a> (YouTube)\n  <br>\n  ۲. <a href=\"https://kian-irani.github.io/mhrv-setup-full-tunell/\" target=\"_blank\" rel=\"noopener noreferrer\">راهنمای جامع متنی راه اندازی به زبان فارسی</a> با تشکر از <a href=\"https://github.com/KIAN-IRANi\" target=\"_blank\" rel=\"noopener noreferrer\">Kian Irani</a>\n</p>\n\n---\n\n## What you get\n\n- 🌐 **Bypasses DPI / SNI blocking** by using Google's edge as a relay\n- 💯 **Completely free** — runs on your own Google account's free tier\n- ⚡ **One small file** (~3 MB), no Python, no Node.js, no dependencies\n- 🖥️ **Works on** Mac, Windows, Linux, Android, OpenWRT routers\n- 🦊 **Any browser or app** that supports HTTP proxy or SOCKS5\n\n## How it works (the simple picture)\n\n```\n   you  →  browser  →  mhrv-rs  ──┐\n                                  │ ISP only sees:  www.google.com\n                                  ▼\n                          Google's network\n                                  │\n                                  ▼\n              your free Apps Script  fetches  the real site\n                                  │\n                                  ▼\n                Twitter / ChatGPT / blocked-site of your choice\n```\n\nISPs can't read inside encrypted HTTPS. They only see the address — `www.google.com`. The actual page lookup happens inside Google's network, hidden in the encrypted tunnel.\n\n## Quick Start\n\n**About 5 minutes.** You need:\n\n- A free Google account (any Gmail works)\n- A computer (Mac, Windows, or Linux)\n- Firefox or Chrome\n\n### Step 1 — Make the Google Apps Script (one-time)\n\n1. Go to **[script.google.com](https://script.google.com)**, sign in with your Google account\n2. Click **New project** at the top left\n3. Delete the default code in the editor\n4. Open the file [`assets/apps_script/Code.gs`](assets/apps_script/Code.gs) in this repo, copy all of it, paste into the Apps Script editor (replacing what was there)\n5. Find this line near the top:\n   ```js\n   const AUTH_KEY = \"CHANGE_ME_TO_A_STRONG_SECRET\";\n   ```\n   Change `CHANGE_ME_TO_A_STRONG_SECRET` to a long random string of your own. **Keep this string** — you'll paste it into the app in Step 3. Treat it like a password.\n6. Click 💾 **Save** (or `Ctrl/Cmd+S`)\n7. Click **Deploy** (top right) → **New deployment**\n8. Click the gear icon ⚙ next to \"Select type\" → choose **Web app**\n9. Set:\n   - **Execute as:** *Me* (your Google account)\n   - **Who has access:** *Anyone*\n10. Click **Deploy**. Google may ask for permissions — click **Authorize access** and approve\n11. Google shows a **Deployment ID** (a long random string). **Copy it** — you'll need it in Step 3.\n\n> **Tip:** if you ever update `Code.gs` later, don't make a new deployment. Edit the code, then go to **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. The Deployment ID stays the same.\n\n### Step 2 — Download mhrv-rs\n\nGo to the [latest release page](https://github.com/therealaleph/MasterHttpRelayVPN-RUST/releases/latest) and download the file for your computer:\n\n| You're on | Download this |\n|---|---|\n| Mac with Apple Silicon (M1 / M2 / M3 / M4 chip) | `mhrv-rs-macos-arm64-app.zip` |\n| Mac with Intel chip | `mhrv-rs-macos-amd64-app.zip` |\n| Windows | `mhrv-rs-windows-amd64.zip` |\n| Linux (Ubuntu / Mint / Fedora / Debian / Arch) | `mhrv-rs-linux-amd64.tar.gz`",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:43.485194"
+  },
+  {
+    "basic_info": {
+      "name": "weft",
+      "full_name": "WeaveMindAI/weft",
+      "owner": "WeaveMindAI",
+      "description": "A programming language for AI systems",
+      "url": "https://github.com/WeaveMindAI/weft",
+      "clone_url": "https://github.com/WeaveMindAI/weft.git",
+      "ssh_url": "git@github.com:WeaveMindAI/weft.git",
+      "homepage": null,
+      "created_at": "2026-04-15T04:09:40Z",
+      "updated_at": "2026-05-08T03:35:45Z",
+      "pushed_at": "2026-04-29T12:13:34Z"
+    },
+    "stats": {
+      "stars": 1224,
+      "forks": 143,
+      "watchers": 1224,
+      "open_issues": 3,
+      "size": 11946
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1829666,
+        "TypeScript": 1028622,
+        "Svelte": 819245,
+        "Shell": 59113,
+        "JavaScript": 44256,
+        "CSS": 5132,
+        "Python": 4931,
+        "HTML": 1110,
+        "Dockerfile": 1098
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Weft\n\n> **Building in public, two months in.** Weft is young. The language, the type system, and the durable executor are the stable parts. The node catalog is small and intentionally opinionated (a few dozen nodes across LLM, code, communication, flow, storage, and triggers). The long-term vision is to let projects define their own nodes fluently in the language itself, but that is still ahead. If you are evaluating it for production, treat it as a foundation to build on, not a finished product. Breaking changes are expected while the shape is still settling; they will be announced, and migration notes will come with them.\n>\n> **Note on the docs.** This README, `DESIGN.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and most of the prose around the project were written fast to get the open source release out the door. They may sound a bit AI-generated in places. If you have the time and taste to rewrite any of them more cleanly, please do. A PR that improves the writing is as welcome as one that fixes a bug.\n\n**A programming language for AI systems.**\n\nIn 2026, real software calls LLMs, spins up databases, waits for humans, browses the web, coordinates agents. Where are those primitives? You are still importing libraries and writing plumbing for things that should be one line.\n\nWeft is a language where LLMs, humans, APIs, and infrastructure are base ingredients. You wire them together, the compiler checks the architecture, and you get a visual graph of your program automatically. No plumbing.\n\n- **First-class humans.** Pause mid-program, send a form to a human, wait days, resume exactly where you left off. One node. No webhooks, no polling, no state management.\n- **Recursively foldable.** Any group of nodes collapses into a single node with a described interface. A 100-node system still looks like 5 blocks at the top level.\n- **Typed end to end.** Generics, unions, type variables, null propagation. The compiler catches missing connections, type mismatches, and broken architecture before anything runs.\n- **Durable execution.** Programs survive crashes and restarts via [Restate](https://restate.dev). A human approval that takes three days is the same code as one that takes three seconds.\n- **Built-in nodes.** LLM, Code, HTTP, Human Query, Gate, Template, Discord, Slack, Telegram, WhatsApp, Email, X, Postgres, Memory, Apollo, Web Search, and more, the end goal will be to allow AI to build custom node on the fly using the langauge features (this is not the case right now).\n- **Two native views.** Same program, rendered as dense code for AI builders and as a graph for humans. Edit either, the other updates. Nothing is bolted on.\n\nRead the full story: [The Future of Programming (and Why I'm Building a New Language)](https://weavemind.ai/blog/future-of-programming).\n\nFull documentation: [weavemind.ai/docs](https://weavemind.ai/docs).\n\nJoin the community on [Discord](https://discord.com/invite/FGwNu6mDkU).\n\n## Star History\n\n<a href=\"https://www.star-history.com/?repos=WeaveMindAI%2Fweft&type=date&legend=top-left\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/chart?repos=WeaveMindAI/weft&type=date&theme=dark&legend=top-left\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/chart?repos=WeaveMindAI/weft&type=date&legend=top-left\" />\n   <img alt=\"Star History Chart\" src=\"https://api.star-history.com/chart?repos=WeaveMindAI/weft&type=date&legend=top-left\" />\n </picture>\n</a>\n\n---\n\n## Quick start\n\n### Prerequisites\n\n- [Docker](https://docs.docker.com/get-docker/) for PostgreSQL\n- [Node.js](https://nodejs.org/)\n- macOS only: `brew install bash` (Bash 4+ required).\n\nRust, Restate, and pnpm are installed automatically if missing.\n\n### Run\n\n```bash\ngit clone https://github.com/WeaveMindAI/weft.git\ncd weft\ncp .env.example .env\n# Edit .env to add your API keys (OpenRouter, Tavily, etc.)\n\n# Terminal 1: backend (auto-installs deps, starts PostgreSQL, Restate, all services)\n./dev.sh server\n\n# Terminal 2: dashboard\n./dev.sh dashboard\n```\n\nOpen http://localhost:5173 and build your first project. A tour of the dashboard and a walkthrough of the language live in the [Getting Started](https://weavemind.ai/docs/hello-world) guide.\n\n### VS Code\n\nFrom the parent workspace, run the **Dev Local All** task to start both the server and the dashboard in split terminals.\n\n### API keys\n\nAll keys are optional. Nodes that need one show a clear error at run time if the key is missing.\n\n```bash\nOPENROUTER_API_KEY=     # LLM nodes (OpenRouter)\nTAVILY_API_KEY=         # Web Search nodes\nELEVENLABS_API_KEY=     # Speech-to-Text nodes\nAPOLLO_API_KEY=         # Apollo enrichment nodes\nDISCORD_BOT_TOKEN=      # Discord nodes\n```\n\nPostgreSQL is auto-provisioned via Docker. No manual database setup.\n\n---\n\n## A tiny Weft program\n\n```weft\n# Project: Poem Generator\n# Description: Writes a short poem about any topic\n\ntopic = Text {\n  label: \"Topic\"\n  value: \"the silence",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:44.706862"
+  },
+  {
+    "basic_info": {
+      "name": "rattles",
+      "full_name": "vyfor/rattles",
+      "owner": "vyfor",
+      "description": "🪇 Minimal terminal spinners for Rust",
+      "url": "https://github.com/vyfor/rattles",
+      "clone_url": "https://github.com/vyfor/rattles.git",
+      "ssh_url": "git@github.com:vyfor/rattles.git",
+      "homepage": "https://docs.rs/rattles",
+      "created_at": "2026-04-10T23:31:10Z",
+      "updated_at": "2026-05-07T19:27:06Z",
+      "pushed_at": "2026-04-14T10:03:10Z"
+    },
+    "stats": {
+      "stars": 961,
+      "forks": 18,
+      "watchers": 961,
+      "open_issues": 0,
+      "size": 859
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 22496
+      },
+      "license": "MIT License",
+      "topics": [
+        "animation",
+        "cli",
+        "no-std",
+        "ratatui",
+        "rattles",
+        "rust",
+        "spinner",
+        "spinners",
+        "terminal",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# 🪇 Rattles\n\n![Demo](./.github/assets/demo.gif)\n\n**Rattles** is a minimal, dependency-free terminal spinner library for Rust. It makes no assumptions about how the output will be used.\n\n## Quick Start\n\n```sh\ncargo add rattles\n```\n\n### Minimal example\n\n```rust\nuse std::{io::Write, time::Duration};\nuse rattles::presets::prelude as presets;\n\nfn main() {\n    let rattle = presets::waverows();\n\n    // change default interval\n    // let rattle = presets::waverows().set_interval(Duration::from_millis(100));\n\n    // reverse direction\n    // let rattle = presets::waverows().reverse();\n\n    loop {\n        print!(\"\\r{}\", rattle.current_frame());\n        std::io::stdout().flush().unwrap();\n        std::thread::sleep(Duration::from_millis(20));\n    }\n}\n```\n\n### Custom keyframes\n\n```rust\nrattle!(\n    Custom, // struct name\n    custom, // method name\n    1,      // row count (width of the spinner)\n    100,    // interval in milliseconds\n    [\"⣾\", \"⣷\", \"⣯\", \"⣟\", \"⣻\", \"⣽\", \"⣾\"] // keyframes\n)\n```\n\n### `no_std`\n\n`rattles` enables the `std` feature by default. To opt out:\n\n```sh\ncargo add rattles --no-default-features\n```\n\nWithout `std`, the global clock is unavailable. Animations can still be driven three ways:\n\n- Time-based, with an external clock: \n    ```rs\n    rattle.frame_at(elapsed)\n    ```\n- Index-based:\n    ```rs\n    rattle.frame(n)\n    ```\n- Tick-based:\n    ```rust\n    let mut rattle = presets::dots().into_ticked();\n    rattle.tick();\n    let frame = rattle.current_frame();\n    ```\n    Note that `TickedRattler` is stateful and must be stored outside the render loop.\n\n## Presets\n\nBuilt-in presets are organized by category:\n\n- `presets::arrows`\n- `presets::ascii`\n- `presets::braille`\n- `presets::emoji`\n\nA prelude is available `rattles::prelude`.\n\n## Examples\n\n- a minimal ratatui [example](./examples/ratatui.rs)\n- a no_std-oriented [example](./examples/no_std.rs)\n\n## Acknowledgements\n\nRattles includes spinners sourced from these wonderful projects. We gratefully acknowledge their work.\n\n- [sindresorhus/cli-spinners](https://github.com/sindresorhus/cli-spinners)\n- [gunnargray-dev/unicode-animations](https://github.com/gunnargray-dev/unicode-animations)\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-08T04:12:45.866024"
+  },
+  {
+    "basic_info": {
+      "name": "aube",
+      "full_name": "endevco/aube",
+      "owner": "endevco",
+      "description": "A fast Node.js package manager",
+      "url": "https://github.com/endevco/aube",
+      "clone_url": "https://github.com/endevco/aube.git",
+      "ssh_url": "git@github.com:endevco/aube.git",
+      "homepage": "https://aube.en.dev",
+      "created_at": "2026-04-18T18:06:49Z",
+      "updated_at": "2026-05-08T03:33:45Z",
+      "pushed_at": "2026-05-07T16:52:36Z"
+    },
+    "stats": {
+      "stars": 922,
+      "forks": 20,
+      "watchers": 922,
+      "open_issues": 3,
+      "size": 24442
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4331537,
+        "Shell": 1033556,
+        "JavaScript": 44500,
+        "Dockerfile": 1363,
+        "Pkl": 1062
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://aube.en.dev\">\n    <img src=\"assets/logo.svg\" alt=\"aube logo\" width=\"140\" height=\"140\">\n  </a>\n</p>\n\n<h1 align=\"center\">aube</h1>\n\n<p align=\"center\">\n  A fast Node.js package manager that drops into existing projects.\n</p>\n\n<p align=\"center\">\n  <strong>aube</strong> means dawn in French. Pronounced <code>/ob/</code>, like \"ohb\".\n</p>\n\n<p align=\"center\">\n  <strong><a href=\"https://aube.en.dev\">Read the docs</a></strong>\n</p>\n\n## Why Try It\n\n<!-- BENCH_RATIOS:START -->\n**[Fast installs](https://aube.en.dev/benchmarks).** Warm installs are about 7x faster than pnpm and about 7x faster than Bun in the current benchmarks. Repeat test commands run up to 26x faster than pnpm and up to 6x faster than Bun.\n<!-- BENCH_RATIOS:END -->\n\n**[Existing lockfiles](https://aube.en.dev/package-manager/lockfiles).** Reads and writes `pnpm-lock.yaml`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, and `bun.lock` in place.\n\n**[Cheap repeat commands](https://aube.en.dev/package-manager/scripts).** `aubr test`, `aube test`, and `aube exec vitest` auto-install when dependencies are stale, then skip that work when nothing changed. `aubx` uses a local binary when one is installed, or a throwaway environment for one-off tools.\n\n**[Less disk use](https://aube.en.dev/package-manager/node-modules).** A global content-addressable store lets projects share package files instead of keeping a full copy of the same dependencies in every checkout.\n\n**[Secure defaults](https://aube.en.dev/security).** Out of the box, exotic transitive deps are blocked, lifecycle scripts wait for approval, trust downgrades fail at resolve, and brand-new releases sit in a 24h cooling window. One `paranoid: true` line adds the build jail and turns the soft gates into hard fails.\n\n## Install\n\nThe recommended path is mise:\n\n```sh\nmise use -g aube\n```\n\nmise can also manage the [Node.js versions](https://mise.jdx.dev/lang/node.html)\nyour projects need. If your projects already pin Node through `package.json`\n(`devEngines.runtime`), `.nvmrc`, or `.node-version`, enable mise's\nidiomatic version-file support for Node:\n\n```sh\nmise settings add idiomatic_version_file_enable_tools node\n```\n\nCheck that it is on your `PATH`:\n\n```sh\naube --version\n```\n\nInside a project, you can also pin aube with mise:\n\n```sh\nmise use aube\n```\n\naube is also published on npm:\n\n```sh\nnpm install -g --ignore-scripts=false @endevco/aube\nnpx --ignore-scripts=false @endevco/aube --version\n```\n\nThe npm package uses an install script to fetch native binaries for\nperformance. The npm commands above include the flag that keeps that\nworking even if your npm config disables scripts. We still recommend mise\nfor the smoothest install and runtime management path.\n\nHomebrew installs come from the Endev tap:\n\n```sh\nbrew install endevco/tap/aube\n```\n\nSee [other install methods](https://aube.en.dev/installation).\n\n## First Run\n\nRun aube in an existing Node.js project:\n\n```sh\naubr test\n```\n\n`aubr` is shorthand for `aube run`. Before it starts the script, aube checks\nwhether `node_modules` is fresh for the current `package.json` and lockfile.\nIf dependencies are missing or stale, it installs them first; otherwise it\ngoes straight to the script.\n\nYou usually do not need a separate `aube install` in day-to-day work. Run the\nscript or binary you actually wanted:\n\n```sh\naubr build\naube test\naube exec vitest\naubx cowsay hi\n```\n\nUse `aube install` when the install itself is the task: first local setup\nwithout running a script, updating a lockfile, Docker layers, production-only\ninstalls, or CI flows.\n\nIf the project already has a supported lockfile, aube reads it and writes updates back to the same file. That makes it easy to try aube locally without forcing the rest of the team to switch package managers first.\n\nFor a new project with no lockfile, aube creates `aube-lock.yaml`.\n\n## Daily Commands\n\n```sh\naube add react            # add a dependency\naube add -D vitest        # add a dev dependency\naube remove react         # remove a dependency\naube update               # update dependencies within package.json ranges\naubr build                # run a package.json script, auto-installing first if needed\naube test                 # run the test script, auto-installing first if needed\naube exec vitest          # run a local binary, auto-installing first if needed\naubx cowsay hi            # run a local bin, or fetch one in a throwaway environment\naube install              # install only, for setup or lockfile/install modes\naube ci                   # clean, frozen install for CI\n```\n\nYou can also run scripts directly:\n\n```sh\naube dev\naube build\naube lint\n```\n\nIf the script exists in `package.json`, aube treats that as `aube run <script>`.\n\n### Shortcuts: `aubr` and `aubx`\n\n`aubr` and `aubx` are multicall shims for `aube run` and `aube dlx`. They\nshare a binary with `aube` and dispatch purely on `argv[0]`, so every flag\nthat works on the full command also works on the shim:\n\n```",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:47.055048"
+  },
+  {
+    "basic_info": {
+      "name": "thClaws",
+      "full_name": "thClaws/thClaws",
+      "owner": "thClaws",
+      "description": "Open-source agent harness platform. Native Rust, multi-provider, runs on your own machine. Sovereign by design.",
+      "url": "https://github.com/thClaws/thClaws",
+      "clone_url": "https://github.com/thClaws/thClaws.git",
+      "ssh_url": "git@github.com:thClaws/thClaws.git",
+      "homepage": "https://thclaws.ai",
+      "created_at": "2026-04-20T01:27:39Z",
+      "updated_at": "2026-05-08T02:06:25Z",
+      "pushed_at": "2026-05-07T11:01:04Z"
+    },
+    "stats": {
+      "stars": 843,
+      "forks": 112,
+      "watchers": 843,
+      "open_issues": 2,
+      "size": 29990
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3034901,
+        "TypeScript": 351999,
+        "CSS": 5813,
+        "PowerShell": 4214,
+        "Shell": 4042,
+        "JavaScript": 616,
+        "HTML": 294
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-harness",
+        "agent-teams",
+        "ai",
+        "ai-agent",
+        "ai-agents",
+        "ai-assistant",
+        "ai-coding",
+        "ai-swarm",
+        "claude-code",
+        "claude-cowork",
+        "multi-provider",
+        "rust",
+        "tauri"
+      ]
+    },
+    "content": {
+      "readme": "# thClaws 🦞\n\n> **Open-source Agent Harness Platform** — a native AI agent workspace that codes, automates, remembers, and coordinates. Runs on your own machine. Sovereign by design.\n\nthClaws is a **native-Rust AI agent workspace** that runs locally on your machine. Not just coding — it edits code, automates workflows, searches your knowledge bases, and coordinates teams of agents, all in one binary. You tell it what you want in natural language; it reads your files, runs commands, uses tools, and talks back to you while it works.\n\n[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)\n[![Platform: macOS · Windows · Linux](https://img.shields.io/badge/platform-macOS%20·%20Windows%20·%20Linux-lightgrey.svg)](#installation)\n[![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)\n\n---\n\n## See it work\n\nThree tabs, one binary — captured from a live thClaws session looking at its own source.\n\n<table>\n  <tr>\n    <td width=\"33%\" align=\"center\">\n      <a href=\"docs/img/screen-files.webp\"><img src=\"docs/img/screen-files.webp\" alt=\"thClaws Files tab — landing-page source open in the editor with file tree\" /></a><br/>\n      <strong>Files</strong><br/>\n      <sub>preview · edit · browse — codemirror + tiptap</sub>\n    </td>\n    <td width=\"33%\" align=\"center\">\n      <a href=\"docs/img/screen-terminal.webp\"><img src=\"docs/img/screen-terminal.webp\" alt=\"thClaws Terminal tab — REPL session with ASCII banner\" /></a><br/>\n      <strong>Terminal</strong><br/>\n      <sub>raw REPL · slash commands · ANSI tool output</sub>\n    </td>\n    <td width=\"33%\" align=\"center\">\n      <a href=\"docs/img/screen-chat.webp\"><img src=\"docs/img/screen-chat.webp\" alt=\"thClaws Chat tab — conversational interface answering a product question\" /></a><br/>\n      <strong>Chat</strong><br/>\n      <sub>conversational · markdown render · tool indicators</sub>\n    </td>\n  </tr>\n</table>\n\n---\n\n## Four surfaces, one engine\n\nThe same `Agent` loop, `Session`, and `ToolRegistry` back every UX:\n\n- **Desktop GUI** (`thclaws`) — a native window with Terminal, Chat, Files, and optional Team tabs.\n- **CLI REPL** (`thclaws --cli`) — an interactive terminal prompt for SSH, headless servers, or when you want zero GUI overhead.\n- **Non-interactive mode** (`thclaws -p \"prompt\"`) — runs a single turn and exits. Handy for scripts, CI pipelines, and shell one-liners. Add `-v` to see per-turn token usage on stderr.\n- **Webapp** (`thclaws --serve --port 7878`) — same engine over WebSocket/HTTP, served from your laptop. Reach it remotely via SSH tunnel for \"Claude Code anywhere\" without opening a port.\n\n---\n\n## What makes it different\n\n- **Multi-provider.** Anthropic (native + Claude Agent SDK via Claude Code auth), OpenAI (Chat Completions + Responses/Codex), Google Gemini & Gemma, Alibaba DashScope (Qwen), DeepSeek, Z.ai (GLM Coding Plan), NVIDIA NIM, NSTDA Thai LLM (OpenThaiGPT, Typhoon, Pathumma, THaLLE), OpenRouter, Agentic Press, Azure AI Foundry, Ollama (local, local Anthropic-compatible, and Ollama Cloud), LMStudio, plus a generic **OpenAI-compatible** slot (`oai/*`) for LiteLLM / Portkey / Helicone / vLLM / internal proxies — auto-detected by model name prefix. Switch mid-session with `/model` or swap the whole provider with `/provider`.\n\n- **Any knowledge worker, not just engineers.** Chat tab for researchers, PMs, ops, legal, marketing, finance — natural-language prompts, file access, knowledge-base lookup, drafting. Terminal tab for engineers who want the raw REPL. Same engine, same sessions, same config — different preferred surface.\n\n- **Open standards, not a walled garden.** Built on the conventions the agent-tooling industry is converging on, not bespoke formats you have to learn only for us. [Model Context Protocol](https://modelcontextprotocol.io/) for tool servers. [`AGENTS.md`](https://agents.md) for project instructions — the vendor-neutral standard adopted by Google, OpenAI, Factory, Sourcegraph, and Cursor. `SKILL.md` with YAML frontmatter for packaged workflows. Your configuration is portable between thClaws, other agents that speak the same standards, and whatever comes next.\n\n- **Skills.** Reusable expert workflows packaged as a directory with `SKILL.md` plus optional scripts. The agent picks the right skill automatically when a request matches the `whenToUse` trigger, or you can invoke one explicitly as `/<skill-name>`. Install from a git URL or `.zip` archive with `/skill install`.\n\n- **MCP servers.** Plug in tools built by third parties — GitHub, filesystems, databases, browsers, Slack, and more. Both stdio and HTTP Streamable transports, with OAuth 2.1 + PKCE for protected servers. Add one with `/mcp add` or ship a `.mcp.json` in your project.\n\n- **Plugin system.** Skills + commands + agent definitions + MCP servers bundled under a single manifest, installable from git or `.zip`. One install, one uninstall, one version to pin — ideal for shar",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:48.237512"
+  },
+  {
+    "basic_info": {
+      "name": "littlesnitch-linux",
+      "full_name": "obdev/littlesnitch-linux",
+      "owner": "obdev",
+      "description": "Open Source components of Little Snitch for Linux",
+      "url": "https://github.com/obdev/littlesnitch-linux",
+      "clone_url": "https://github.com/obdev/littlesnitch-linux.git",
+      "ssh_url": "git@github.com:obdev/littlesnitch-linux.git",
+      "homepage": null,
+      "created_at": "2026-04-08T13:07:47Z",
+      "updated_at": "2026-05-08T03:11:27Z",
+      "pushed_at": "2026-05-06T12:23:40Z"
+    },
+    "stats": {
+      "stars": 823,
+      "forks": 32,
+      "watchers": 823,
+      "open_issues": 4,
+      "size": 369
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 243478,
+        "JavaScript": 242573,
+        "CSS": 54097,
+        "HTML": 29593,
+        "C": 4880
+      },
+      "license": "GNU General Public License v2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Little Snitch for Linux\n\nThis repository contains the Open Source part of Little Snitch for Linux.\nIt consists of:\n\n* The Rust crate `ebpf`, which contains all eBPF programs attached to the\n  Linux kernel.\n* The Rust crate `common`, which contains all types and functions shared\n  between kernel and user space.\n* The Rust crate `demo-runner`. This is a user-space program which loads\n  the eBPF programs into the kernel and demonstrates how to share data\n  with these programs via eBPF maps. It loads two blocklists for\n  demonstration: `blocked_hosts.txt` and `blocked_domains.txt`.\n* `webroot`: This is the JavaScript web UI of Little Snitch for Linux.\n\nAll code in this public repository is Open Source and distributed under\nthe [GNU General Public License, Version 2]. It is part of Little Snitch\nfor Linux, a free product by [Objective Development](https://obdev.at).\nThe full product also includes proprietary code that is not part of this\nrepository. While Little Snitch for Linux is free to use, that proprietary\nportion is not Open Source.\n\n\n## Prerequisites\n\n1. stable rust toolchains: `rustup toolchain install stable`\n2. nightly rust toolchains: `rustup toolchain install nightly --component rust-src`\n3. bpf-linker: `cargo install bpf-linker`\n4. the `clang` C/C++ compiler\n\nNote: eBPF is a bit fragile. The kernel verifier may reject the program\nafter changes in the verifier itself or in the Rust compiler. This code is\nknown to pass the verifier on Linux kernels 6.12 to 7.0 when compiled with\nRust 1.93.0-nightly (2d4fa1395 2025-11-12). Other Rust versions may or may\nnot work.\n\n## Build & Run\n\nUse `cargo build`, `cargo check`, etc. as normal. Run your program with:\n\n```shell\ncargo run --release\n```\n\nCargo build scripts automatically build the eBPF programs and include them\nin the binary.\n\n\n### eBPF\n\nAll eBPF code is distributed under the terms of the [GNU General Public License, Version 2].\n\nUnless you explicitly state otherwise, any contribution intentionally submitted\nfor inclusion in this project by you, as defined in the GPL-2 license, shall be\nlicensed as above, without any additional terms or conditions.\n\n[GNU General Public License, Version 2]: LICENSE-GPL2.txt\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:49.430671"
+  },
+  {
+    "basic_info": {
+      "name": "wx-cli",
+      "full_name": "jackwener/wx-cli",
+      "owner": "jackwener",
+      "description": "WeChat local data CLI with daemon architecture",
+      "url": "https://github.com/jackwener/wx-cli",
+      "clone_url": "https://github.com/jackwener/wx-cli.git",
+      "ssh_url": "git@github.com:jackwener/wx-cli.git",
+      "homepage": null,
+      "created_at": "2026-04-16T01:08:18Z",
+      "updated_at": "2026-05-07T12:42:19Z",
+      "pushed_at": "2026-04-19T13:28:07Z"
+    },
+    "stats": {
+      "stars": 579,
+      "forks": 454,
+      "watchers": 579,
+      "open_issues": 13,
+      "size": 427
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 207701,
+        "JavaScript": 2213,
+        "PowerShell": 2206,
+        "Shell": 2142
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# wx-cli\n\n**从命令行查询本地微信数据**\n\n[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)\n[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](#安装)\n[![Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org)\n\n会话 · 聊天记录 · 搜索 · 联系人 · 群成员 · 收藏 · 统计 · 导出\n\n</div>\n\n---\n\n## AI Agent Skill\n\n通过 [skills CLI](https://github.com/vercel-labs/skills) 一键安装到 Claude Code、Cursor、Codex 等 agent：\n\n```bash\nnpx skills add jackwener/wx-cli\n```\n\n或全局安装：\n\n```bash\nnpx skills add jackwener/wx-cli -g\n```\n\n安装后 agent 会自动读取 `SKILL.md`，了解如何安装和调用 wx-cli。\n\n---\n\n## 特性\n\n- **零依赖安装** — 单一 Rust 二进制，一行命令装完\n- **毫秒级响应** — 后台 daemon 持久缓存解密数据库，mtime 不变则复用\n- **AI 友好** — 默认 YAML 输出，更省 token & 易读；`--json` 可切换为 JSON（方便 `jq` 处理等）\n- **完全本地** — 数据不出本机，实时解密，无需全量预解密\n\n---\n\n## 安装\n\n**npm（推荐，全平台）**\n\n```bash\nnpm install -g @jackwener/wx-cli\n```\n\n**macOS / Linux（curl）**\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/jackwener/wx-cli/main/install.sh | bash\n```\n\n**Windows**（PowerShell，以管理员身份运行）\n\n```powershell\nirm https://raw.githubusercontent.com/jackwener/wx-cli/main/install.ps1 | iex\n```\n\n<details>\n<summary>其他安装方式</summary>\n\n**手动下载**\n\n从 [Releases](https://github.com/jackwener/wx-cli/releases) 下载对应平台文件：\n\n| 平台 | 文件 |\n|------|------|\n| macOS Apple Silicon | `wx-macos-arm64` |\n| macOS Intel | `wx-macos-x86_64` |\n| Linux x86_64 | `wx-linux-x86_64` |\n| Linux arm64 | `wx-linux-arm64` |\n| Windows x86_64 | `wx-windows-x86_64.exe` |\n\nmacOS / Linux：`chmod +x wx && sudo mv wx /usr/local/bin/`\n\n**从源码构建**\n\n```bash\ngit clone git@github.com:jackwener/wx-cli.git && cd wx-cli\ncargo build --release\n# 产物：target/release/wx（Windows: wx.exe）\n```\n\n</details>\n\n---\n\n## 快速开始\n\n保持微信运行，然后初始化（只需一次）：\n\n**macOS**（需要先对微信做 ad-hoc 签名，才能扫描其内存）\n\n```bash\n# 1. 签名（只需做一次，WeChat 更新后重做）\ncodesign --force --deep --sign - /Applications/WeChat.app\n\n# 2. 重启微信，等待完全登录\nkillall WeChat && open /Applications/WeChat.app\n\n# 3. 初始化\nsudo wx init\n```\n\n> 如果 `codesign` 报 `signature in use`，先执行：\n> ```bash\n> codesign --remove-signature \"/Applications/WeChat.app/Contents/Frameworks/vlc_plugins/librtp_mpeg4_plugin.dylib\"\n> codesign --force --deep --sign - /Applications/WeChat.app\n> ```\n\n**Linux**\n\n```bash\nsudo wx init\n```\n\n**Windows**（以管理员身份运行 PowerShell）\n\n```powershell\nwx init\n```\n\n验证安装：\n\n```bash\nwx sessions\n```\n\n能看到最近会话即表示一切正常。daemon 在首次调用时自动启动。\n\n---\n\n## 命令\n\n### 消息\n\n```bash\nwx sessions                                      # 最近 20 个会话\nwx unread                                        # 有未读消息的会话\nwx unread --filter private,group                 # 只看真人未读（过滤公众号/折叠入口）\nwx new-messages                                  # 上次检查后的新消息（增量）\nwx history \"张三\"                                # 最近 50 条记录\nwx history \"张三\" -n 2000                        # 拉更多历史消息\nwx history \"AI群\" --since 2026-04-01 --until 2026-04-15\nwx search \"关键词\"                               # 全库搜索\nwx search \"关键词\" -n 500                        # 放宽搜索结果条数\nwx search \"会议\" --in \"工作群\" --since 2026-01-01\n```\n\n`history` / `search` / `export` 都支持 `-n` / `--limit` 指定条数。默认值只是为了避免一次性输出过多消息，不是硬上限。\n\n会话/消息输出里都带 `chat_type` 字段，取值为 `private` / `group` / `official_account` / `folded`。`official_account` 涵盖公众号、订阅号、服务号及 `mphelper` / `qqsafe` 等系统通知；`folded` 对应微信里的\"订阅号折叠\"和\"折叠群聊\"两个聚合入口。\n\n### 朋友圈（SNS）\n\n三个独立命令，区分\"通知\"和\"帖子\"：\n\n```bash\nwx sns-notifications                             # 点赞/评论通知（默认仅未读）\nwx sns-notifications --include-read -n 100       # 含已读\n\nwx sns-feed                                      # 近 20 条朋友圈（时间线）\nwx sns-feed --user \"张三\"                        # 限定作者\nwx sns-feed --since 2026-04-01 -n 100            # 按时间\n\nwx sns-search \"关键词\"                           # 全文搜索朋友圈正文\nwx sns-search \"婚礼\" --user \"李四\" --since 2023-01-01\n```\n\n- **sns-notifications** 返回互动通知：`type`（`like`/`comment`）、`from_nickname`、`content`（评论正文）、`feed_preview` + `feed_author`（对应原帖）\n- **sns-feed** / **sns-search** 返回朋友圈帖子：`author`、`content`（正文）、`media`、`media_count`、`location`、`timestamp`；`media` 字段含每张图的 url/thumb/key/token/md5/enc_idx/size，供下游做图片代理或离线渲染。`media_count = media.len()`，按 DOM 解析的合法 `<media>` 子节点计数（malformed XML 返回 0）\n\n朋友圈数据只覆盖你本地刷到过的帖子（微信 app 按需下载）。\n\n### 联系人 & 群组\n\n```bash\nwx contacts                  # 联系人列表\nwx contacts --query \"李\"     # 按名字搜索\nwx members \"AI交流群\"        # 群成员列表\n```\n\n### 收藏 & 统计\n\n```bash\nwx favorites                          # 全部收藏\nwx favorites --type image             # 按类型筛选（text/image/article/card/video）\nwx favorites --query \"关键词\"         # 搜索收藏内容\nwx stats \"AI群\"                       # 聊天统计\nwx stats \"AI群\" --since 2026-01-01   # 指定时间范围\n```\n\n### 导出\n\n```bash\nwx export \"张三\" --format markdown -o chat.md\nwx export \"张三\" -n 2000 --format markdown -o chat.md\nwx export \"AI群\" --since 2026-01-01 --format json\n```\n\n### 输出格式\n\n默认输出 YAML，更省 token & 易读；`--json` 可切换为 JSON（方便 `jq` 处理等）：\n\n```bash\nwx sessions --json\nwx search \"关键词\" --json | jq '.[0].content'\nwx new-messages --json\n```\n\n### Daemon 管理\n\n```bash\nwx daemon status\nwx daemon stop\nwx daemon logs --follow\n```\n\n---\n\n## 架构\n\n`",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:50.695019"
+  },
+  {
+    "basic_info": {
+      "name": "late-sh",
+      "full_name": "mpiorowski/late-sh",
+      "owner": "mpiorowski",
+      "description": "A cozy terminal clubhouse for developers. Lofi beats, casual games, chat, and tech news, all via SSH.",
+      "url": "https://github.com/mpiorowski/late-sh",
+      "clone_url": "https://github.com/mpiorowski/late-sh.git",
+      "ssh_url": "git@github.com:mpiorowski/late-sh.git",
+      "homepage": "https://late.sh",
+      "created_at": "2026-04-11T21:01:43Z",
+      "updated_at": "2026-05-08T02:45:30Z",
+      "pushed_at": "2026-05-07T22:01:07Z"
+    },
+    "stats": {
+      "stars": 511,
+      "forks": 39,
+      "watchers": 511,
+      "open_issues": 11,
+      "size": 41427
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3269185,
+        "HTML": 103600,
+        "Python": 73629,
+        "HCL": 61568,
+        "CSS": 33659,
+        "Shell": 27674,
+        "PowerShell": 8159,
+        "Makefile": 7886,
+        "Nix": 6972,
+        "Dockerfile": 6175,
+        "Liquidsoap": 3750,
+        "Smarty": 434
+      },
+      "license": "Other",
+      "topics": [
+        "cli",
+        "irc",
+        "ssh",
+        "terminal",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# late.sh\n\n> A cozy terminal clubhouse for developers. Lofi beats, casual games, chat, and tech news, all via SSH.\n\n```bash\nssh late.sh\n```\n\n`late.sh` is a terminal-first social app: real-time chat, music, games, news, profiles, and a shared always-on space you can enter from any SSH client.\n\n## Status\n\nThis repository is the main codebase for `late.sh`.\n\n- The project is open for source reading, local development, audits, and contributions.\n- The public hosted `late.sh` service remains the canonical deployment.\n- The code is source-available, not OSI open source, during the FSL protection period.\n\nRead the details in [LICENSE](LICENSE), the plain-English policy in [LICENSING.md](LICENSING.md), and contribution rules in [CONTRIBUTING.md](CONTRIBUTING.md).\n\n## What It Includes\n\n- SSH TUI with dashboard, chat, profile, news, and arcade screens\n- Real-time global chat and shared activity feed\n- Audio streaming via Icecast/Liquidsoap with browser and CLI pairing\n- Terminal games including 2048, Sudoku, Nonograms, Minesweeper, and Solitaire\n- Web frontend for landing, connect flow, and paired-client experiences\n- Companion CLI for local audio playback and synced visualizer data\n\n## Workspace\n\nThis is a Rust workspace with four crates:\n\n| Crate | Role |\n|-------|------|\n| `late-cli` | Companion CLI for local audio playback, paired controls, and visualizer sync |\n| `late-core` | Shared domain code, database layer, migrations, and infrastructure helpers |\n| `late-ssh` | SSH server and terminal UI application |\n| `late-web` | Web server, landing page, connect flow, and browser pairing |\n\nThe stack is backed by PostgreSQL, Icecast, and Liquidsoap.\n\n## Quick Start\n\nTry the live service:\n\n```bash\nssh late.sh\n```\n\nRun it yourself (requires Docker):\n\n```bash\ngit clone https://github.com/mpiorowski/late-sh\ncd late-sh\nmake start\n```\n\nThen connect to your local instance:\n\n```bash\nssh localhost -p 2222\n```\n\nThat's it. Postgres, Icecast, and Liquidsoap all come up automatically.\n\n## Companion CLI\n\nInstall the companion CLI for local audio playback and synced visualizer:\n\nmacOS / Linux / Termux:\n\n```bash\ncurl -fsSL https://cli.late.sh/install.sh | bash\n```\n\nOn Termux, the installer fetches the Android CLI build instead of the GNU/Linux one.\n\nWindows PowerShell (x64):\n\n```powershell\nirm https://cli.late.sh/install.ps1 | iex\n```\n\nOr build it from source:\n\n```bash\nmise install        # optional — sets up the expected Rust toolchain\ncargo build --release --bin late\n```\n\n## Local Development\n\nFor development without Docker wrapping the Rust builds, you can run the\ninfrastructure in Docker and the apps natively:\n\n```bash\ndocker compose up -d postgres icecast liquidsoap\ncargo run -p late-ssh\ncargo run -p late-web\n```\n\nLocal host development can use Cargo's normal defaults, including the standard\nrepo-local `target/` directory. The `/app/target` path is only for Docker/dev\ncontainers.\n\n```bash\nexport CARGO_HOME=$HOME/.cargo\n```\n\nUse `mise install` to get the expected Rust toolchain, `mold` linker, and\n`cargo-nextest`.\n\n## Verification\n\nRun before opening a PR:\n\n```bash\nmake check\n```\n\nThis runs `cargo fmt --check`, `cargo clippy`, and `cargo nextest`.\nSome integration tests require Docker via testcontainers.\n\n## Contributing\n\nContributions are welcome, but read the project policy first:\n\n- [CONTRIBUTING.md](CONTRIBUTING.md)\n- [LICENSING.md](LICENSING.md)\n- [LICENSE](LICENSE)\n\nThis repository uses DCO sign-off for commits:\n\n```bash\ngit commit -s\n```\n\nIf you distribute a fork, do not present it as the official `late.sh` service or use the project branding as your own.\n\n## More Context\n\n- [CONTEXT.md](CONTEXT.md) — architecture, invariants, and working context. Written for LLMs — feed this to your AI editor for best results.\n- [CONTRIBUTING.md](CONTRIBUTING.md) — workflow, test rules, module patterns, and AI-assisted development tips.\n- [THEME.md](THEME.md) — how to contribute a new built-in SSH theme via PR.\n- [late-cli/README.md](late-cli/README.md) — CLI-specific usage and behavior.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:51.918136"
+  },
+  {
+    "basic_info": {
+      "name": "syswatch",
+      "full_name": "matthart1983/syswatch",
+      "owner": "matthart1983",
+      "description": "Single-host system diagnostics TUI. Sibling to netwatch. Twelve tabs, plain-English insights, session scrubber. macOS + Linux.",
+      "url": "https://github.com/matthart1983/syswatch",
+      "clone_url": "https://github.com/matthart1983/syswatch.git",
+      "ssh_url": "git@github.com:matthart1983/syswatch.git",
+      "homepage": "https://netwatchlabs.com",
+      "created_at": "2026-05-02T03:18:06Z",
+      "updated_at": "2026-05-08T03:15:44Z",
+      "pushed_at": "2026-05-06T20:29:32Z"
+    },
+    "stats": {
+      "stars": 387,
+      "forks": 16,
+      "watchers": 387,
+      "open_issues": 0,
+      "size": 6176
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 285019,
+        "Ruby": 612
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <h1 align=\"center\">SysWatch</h1>\n  <p align=\"center\">\n    <strong>Single-host system diagnostics in your terminal. The terminal you open when something feels off — before you reach for htop, iostat, nettop, powermetrics, and a notebook full of one-liners.</strong>\n  </p>\n  <p align=\"center\">\n    <img src=\"https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue\" alt=\"Platform\">\n    <img src=\"https://img.shields.io/badge/license-MIT-green\" alt=\"License\">\n    <img src=\"https://img.shields.io/badge/status-v0.1-yellow\" alt=\"Status\">\n  </p>\n</p>\n\n<p align=\"center\">\n  <em>Sibling to <a href=\"https://github.com/matthart1983/netwatch\">NetWatch</a>. Same chrome. Same palette. Twelve tabs covering everything that runs on one box.</em>\n</p>\n\n<p align=\"center\">\n  <img src=\"demo.gif\" alt=\"SysWatch — Overview, CPU, Memory, Procs, Power, Services, Timeline, Insights\" width=\"800\">\n</p>\n\n---\n\n## What it shows\n\n| # | Tab | Replaces |\n|---|---|---|\n| 1 | Overview | dashboard view of all subsystems |\n| 2 | CPU | `htop` CPU panel, `top -d`, `mpstat` |\n| 3 | Memory | `free`, `vm_stat`, `htop` mem panel |\n| 4 | Disks | `iostat`, `iotop` (aggregate) |\n| 5 | Filesystems | `df -h`, `df -i`, `mount` |\n| 6 | Procs | `htop`, `ps auxf`, `pstree` |\n| 7 | GPU | `ioreg AGXAccelerator PerformanceStatistics` / `/sys/class/drm` |\n| 8 | Power | `pmset`, `ioreg AppleSmartBattery` / `/sys/class/power_supply` |\n| 9 | Services | `launchctl list` / `systemctl list-units` |\n| 0 | Net | `nettop`, `iftop` |\n| - | Timeline | (no equivalent — session log + scrubber) |\n| + | Insights | (no equivalent — plain-English anomaly cards) |\n\nWhere `htop` shows you *what's running*, SysWatch shows you *what's happening* — across CPU, memory, IO, GPU, power, services — and tells you why in plain English when something's anomalous.\n\n## Install\n\n```bash\ngit clone https://github.com/matthart1983/syswatch.git && cd syswatch\ncargo build --release\n./target/release/syswatch\n```\n\n**Prerequisites:** Rust 1.75+. No system dependencies on Linux. macOS links against the system frameworks.\n\n> Crates.io / Homebrew / pre-built binaries land with v0.1 release.\n\n## Usage\n\n```bash\nsyswatch                       # default 1Hz tick\nsyswatch --tick 500            # 2Hz\nsyswatch --tab procs           # boot straight into a tab\n```\n\n### Keys\n\n```text\n1 2 3 4 5 6 7 8 9   →  Overview / CPU / Mem / Disks / FS / Procs / GPU / Power / Services\n0 - +               →  Net / Timeline / Insights\nTab / Shift-Tab     →  Cycle tabs\n↑ / ↓               →  Select row (Procs, Services)\ns                   →  Cycle sort (Procs, Services)\n← / →               →  Scrub session backward / forward\nHome / End          →  Oldest sample / live\np                   →  Pause\nq / Ctrl-C          →  Quit\n```\n\n## What's distinctive\n\n**Insights tab.** Heuristic anomaly detection over the rolling session — swap thrash, runaway processes, disk full, memory pressure, high load, zombie parties — surfaced as plain-English cards with a suggested tab. The Overview's bottom strip and the tab bar's `[+]` badge keep them in sight from anywhere.\n\n**Session-wide scrubbing.** The Timeline tab's `←/→` rewinds the entire app — every panel transparently shows historical state. The session ring is the foundation Snapshot/Diff and Recording will sit on (v0.2).\n\n**Honest about platform limits.** Where data needs sudo (`powermetrics` for fans, per-component power, GPU util on Apple Silicon) the tab shows what we *can* get for free and a one-line note about what's gated. Nothing is faked, nothing prompts.\n\n## Anti-goals\n\n- **Not multi-host.** For fleet view, use NetWatch's web dashboard.\n- **Not a daemon.** No long-running collector, no Prometheus push. The session is the database.\n- **Not interactive remediation.** Read-only, deliberately. We don't kill, renice, unmount, or restart.\n- **Not a logging product.** We surface OOM kills as a *signal* in Memory; we are not a log search UI.\n- **Not pretty charts for screenshots.** Block sparklines, real numbers, no smooth curves, no themes-of-the-week.\n\n## v0.1 scope\n\nAll twelve tabs render real data on macOS and Linux. Cross-platform collection via `sysinfo`. Net interface counters and aggregate disk IO route through [`netwatch-sdk`](https://github.com/matthart1983/netwatch-sdk) so SysWatch and the NetWatch agent share a single source of truth for those parsers.\n\n**Deferred to v0.2** — Snapshot+Diff (footer S/D), Profiles (P), Recording/Replay (R), Settings (`,`), Help (`?`), filter (`/`).\n\n**Deferred behind sudo** — fans, per-component power, GPU temperature + per-rail power (all need `powermetrics`); macOS thermal zone temps (need IOReport private FFI). GPU **utilization** and used memory on Apple Silicon are no-sudo via ioreg's `AGXAccelerator PerformanceStatistics`. Linux gets thermal zones for free via sysfs.\n\n**Deferred behind features** — NVIDIA live GPU stats (`gpu-nvidia` cargo feature, `nvml-wrapper`), SMART disk health (`smart` cargo feature, `smartctl --",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:53.114269"
+  },
+  {
+    "basic_info": {
+      "name": "sni-spoofing-rust",
+      "full_name": "therealaleph/sni-spoofing-rust",
+      "owner": "therealaleph",
+      "description": "DPI bypass via fake TLS ClientHello injection with wrong TCP sequence number. Rust port of @patterniha's SNI-Spoofing. Linux, macOS, Windows. Works with v2ray/xray VLESS configs behind Cloudflare.",
+      "url": "https://github.com/therealaleph/sni-spoofing-rust",
+      "clone_url": "https://github.com/therealaleph/sni-spoofing-rust.git",
+      "ssh_url": "git@github.com:therealaleph/sni-spoofing-rust.git",
+      "homepage": "https://github.com/therealaleph/sni-spoofing-rust#setup-guide",
+      "created_at": "2026-04-13T22:39:41Z",
+      "updated_at": "2026-05-07T10:54:09Z",
+      "pushed_at": "2026-04-20T18:38:16Z"
+    },
+    "stats": {
+      "stars": 364,
+      "forks": 36,
+      "watchers": 364,
+      "open_issues": 1,
+      "size": 6155
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 71400,
+        "Shell": 6798,
+        "Makefile": 1147,
+        "Dockerfile": 1104
+      },
+      "license": "MIT License",
+      "topics": [
+        "censorship-circumvention",
+        "cloudflare",
+        "dpi-bypass",
+        "proxy",
+        "rust",
+        "sni-spoofing",
+        "tcp",
+        "v2ray",
+        "vless",
+        "xray"
+      ]
+    },
+    "content": {
+      "readme": "# sni-spoof-rs\n\n[![Release](https://img.shields.io/github/v/release/therealaleph/sni-spoofing-rust)](https://github.com/therealaleph/sni-spoofing-rust/releases/latest)\n[![Total Downloads](https://img.shields.io/github/downloads/therealaleph/sni-spoofing-rust/total?label=total%20downloads)](https://github.com/therealaleph/sni-spoofing-rust/releases)\n[![Latest Downloads](https://img.shields.io/github/downloads/therealaleph/sni-spoofing-rust/latest/total?label=latest%20release)](https://github.com/therealaleph/sni-spoofing-rust/releases/latest)\n[![Stars](https://img.shields.io/github/stars/therealaleph/sni-spoofing-rust?style=flat)](https://github.com/therealaleph/sni-spoofing-rust/stargazers)\n[![License](https://img.shields.io/github/license/therealaleph/sni-spoofing-rust)](LICENSE)\n\nRust implementation of [patterniha's SNI-Spoofing](https://github.com/patterniha/SNI-Spoofing) DPI bypass technique. All credit for the original idea and method goes to [@patterniha](https://github.com/patterniha).\n\nA TCP forwarder that injects a fake TLS ClientHello with an intentionally wrong TCP sequence number right after the 3-way handshake. Stateful DPI reads the fake SNI and whitelists the flow. The real server drops the packet (out-of-window seq). Real traffic then passes through undetected.\n\n**[English Guide](#setup-guide)** | **[Persian Guide](#%D8%B1%D8%A7%D9%87%D9%86%D9%85%D8%A7%DB%8C-%D9%81%D8%A7%D8%B1%D8%B3%DB%8C)**\n\n## Platforms\n\n- **Linux** -- AF_PACKET raw sockets. Requires root or `CAP_NET_RAW`.\n- **macOS** -- BPF device. Requires root.\n- **Windows** -- WinDivert driver. Requires Administrator.\n\n## Build\n\n```\ncargo build --release\n```\n\nPre-built binaries for Linux (amd64/arm64), macOS (amd64/arm64), and Windows (amd64) are available two ways:\n- [GitHub Releases](https://github.com/therealaleph/sni-spoofing-rust/releases) page\n- The [`releases/`](releases/) folder in this repository (useful if the Releases page is blocked for you -- just clone the repo or download as ZIP)\n\n## Setup Guide\n\nThis tool works with VLESS/VMess configs that go through Cloudflare (CDN-based configs). Your server must be behind Cloudflare.\n\n### Step 1: Find your server's Cloudflare IP\n\nYour v2ray/xray config has a server address (a domain like `myserver.example.com`). Resolve it to get the IP:\n\n```\nnslookup myserver.example.com\n```\n\nYou should get a Cloudflare IP (usually starts with `104.`, `172.67.`, `141.101.`, etc).\n\n### Step 2: Create config.json\n\n```json\n{\n  \"graceful_shutdown_sec\": 0,\n  \"listeners\": [\n    {\n      \"listen\": \"0.0.0.0:40443\",\n      \"connect\": \"CLOUDFLARE_IP:443\",\n      \"fake_sni\": \"security.vercel.com\"\n    }\n  ]\n}\n```\n\nReplace `CLOUDFLARE_IP` with the IP from step 1. The `fake_sni` can be any domain that is allowed by your DPI (a well-known site behind Cloudflare works best).\n\n| Field | Description |\n|---|---|\n| `listen` | Local address and port to listen on |\n| `connect` | Cloudflare IP and port (must be an IP, not a hostname) |\n| `fake_sni` | SNI for the fake ClientHello (max 219 bytes) |\n| `conn_timeout_sec` | Seconds to wait for the upstream TCP connection to complete (default: `5`) |\n| `handshake_timeout_sec` | Seconds to wait for the sniffer to confirm the fake packet was sent (default: `2`) |\n| `keepalive_time_sec` | Seconds of idle before TCP keepalive probes begin (default: `11`) |\n| `keepalive_interval_sec` | Seconds between individual TCP keepalive probes (default: `2`) |\n\n| Top-level Field | Description |\n|---|---|\n| `graceful_shutdown_sec` | Seconds to wait for active connections to finish after receiving a shutdown signal. `0` exits immediately (default: `0`) |\n\nMultiple listeners are supported -- each maps to one upstream.\n\n### Step 3: Edit your v2ray/xray config\n\nIn your VLESS/VMess client config, change:\n\n- **Address**: from `myserver.example.com` (or its IP) to `127.0.0.1`\n- **Port**: to the `listen` port from config.json (e.g. `40443`)\n- **Keep everything else the same** (SNI, host, path, UUID, etc.)\n\nExample -- if your original config has:\n```\naddress: myserver.example.com\nport: 443\n```\n\nChange it to:\n```\naddress: 127.0.0.1\nport: 40443\n```\n\nThe tool sits between your v2ray client and the server. Your client connects to the tool, the tool handles the DPI bypass, and forwards traffic to Cloudflare.\n\n### Step 4: Run\n\n```\n# Linux/macOS\nsudo ./sni-spoof-rs config.json\n\n# Windows (run as Administrator)\nsni-spoof-rs.exe config.json\n```\n\n**Windows note:** The Windows download is a zip containing `sni-spoof-rs.exe` and `WinDivert64.sys`. Keep both files in the same folder. The `.sys` file is the kernel driver that WinDivert needs to intercept packets.\n\nThen connect with your v2ray/xray client as usual.\n\n### Finding a working fake_sni (scan mode)\n\nIf your chosen `fake_sni` stops working (e.g., after a DPI update), the tool includes a scanner that probes a built-in list of ~650 Cloudflare-fronted domains and reports which ones pass through your network:\n\n```\n# scan using built-in list (no sudo needed -- scan ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:54.335492"
+  },
+  {
+    "basic_info": {
+      "name": "cortex",
+      "full_name": "by-scott/cortex",
+      "owner": "by-scott",
+      "description": "Cognitive runtime for language models with memory, metacognition, multimodal channels, native plugins, and a self-evolving Executive.",
+      "url": "https://github.com/by-scott/cortex",
+      "clone_url": "https://github.com/by-scott/cortex.git",
+      "ssh_url": "git@github.com:by-scott/cortex.git",
+      "homepage": null,
+      "created_at": "2026-04-22T14:02:59Z",
+      "updated_at": "2026-05-08T03:29:20Z",
+      "pushed_at": "2026-05-06T11:41:26Z"
+    },
+    "stats": {
+      "stars": 355,
+      "forks": 2,
+      "watchers": 355,
+      "open_issues": 0,
+      "size": 2387
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3002881,
+        "Shell": 42336,
+        "JavaScript": 33141,
+        "CSS": 22223,
+        "HTML": 13969,
+        "Dockerfile": 516
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <h1 align=\"center\">Cortex</h1>\n  <p align=\"center\"><strong>Cognitive Harness for Language Models</strong></p>\n  <p align=\"center\">\n    <a href=\"https://github.com/by-scott/cortex/releases\"><img src=\"https://img.shields.io/github/v/release/by-scott/cortex?display_name=tag\" alt=\"Release\"></a>\n    <a href=\"https://crates.io/crates/cortex-sdk\"><img src=\"https://img.shields.io/crates/v/cortex-sdk\" alt=\"Crates.io\"></a>\n    <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-blue.svg\" alt=\"License\"></a>\n  </p>\n  <p align=\"center\">\n    <a href=\"docs/quickstart.md\">Quick Start</a> ·\n    <a href=\"docs/safe-use.md\">Safe Use</a> ·\n    <a href=\"docs/policy-profiles.md\">Policy Profiles</a> ·\n    <a href=\"docs/local-coding-agent.md\">Local Coding</a> ·\n    <a href=\"docs/local-models.md\">Local Models</a> ·\n    <a href=\"docs/usage.md\">Usage</a> ·\n    <a href=\"docs/config.md\">Configuration</a> ·\n    <a href=\"docs/plugins.md\">Plugins</a> ·\n    <a href=\"docs/roadmap.md\">Roadmap</a> ·\n    <a href=\"README.zh.md\">中文</a>\n  </p>\n</p>\n\n---\n\nCortex is a local-first runtime surface for long-running AI model work. It gives replaceable models a user-owned operating layer for durable memory, retrieval evidence, tools, permissions, channels, journal/replay, evaluation, plugin governance, and operator control.\n\nCortex is a cognitive harness substrate for language-model systems. In practice, that means it is infrastructure for driving, observing, evaluating, and hardening model behavior across real interfaces instead of treating one model call as the product.\n\nUse Cortex when you want a local coding, research, or tool-using model workflow whose state stays with you: memory, journals, policies, plugin trust, retrieval corpora, traces, and operator decisions survive model/provider changes.\n\nCortex does not claim biological consciousness, biological wisdom, complete prompt-injection defense, hostile multi-tenant hardening, or mature sandbox containment. Policy and risk gates improve review and control, but they are not a replacement for OS/container isolation.\n\n## What It Provides\n\n- Long-running sessions across CLI, HTTP, socket, Telegram, QQ, WhatsApp, MCP, and ACP bridge clients.\n- Actor-scoped identity for sessions, memory, tasks, audit data, transport bindings, and channel subscriptions.\n- Event-sourced runtime state with SQLite WAL, externalized blobs, replay checkpoints, compaction boundaries, side-effect substitution, and replay digests.\n- Durable memory with provenance, trust, owner actor, contradiction links, validity windows, usage outcomes, and graph relationships.\n- RAG evidence that is cited, scoped, taint-aware, reranked, compressed, support-checked, and kept separate from durable memory.\n- Tool execution with declared effects, risk policy, confirmation, preview, verification, commit records, receipts, and rollback posture.\n- Plugin governance for process-isolated JSON tools and trusted native ABI extensions.\n- ACP client support through configured external processes exposed by the `acp_agent` tool.\n- Operator status, journal timelines, token and provider cache read/write tokens, policy simulation, replay, release gates, and dashboard surfaces.\n- Protected runtime-home governance so prompt, config, and state evolution use checked runtime paths rather than ordinary file or script tools.\n\nCortex is not a hosted multi-tenant service. The current distribution is a daemon and Rust workspace for controlled operation of language-model behavior.\n\n## Safe Today\n\nCortex is intended for a trusted local machine, reviewed plugins, and explicit operator control.\n\n| Use | Current guidance |\n|-----|------------------|\n| Personal local coding or research | Recommended, with `balanced` or `strict` permissions. |\n| Reviewed process plugins | Recommended when the manifest, signature, capabilities, and effects have been inspected. |\n| Trusted native plugins | Treat as trusted in-process code, not as a sandboxed extension. |\n| Unreviewed plugins, shared machines, or external side effects | Use conservative policies, confirmation, and narrow tool allowlists. |\n| Hostile multi-tenant deployment | Not a current target. |\n\nSee [Safe Use](docs/safe-use.md) and [Maturity and Production Notes](docs/maturity.md) before enabling broad tools, native plugins, messaging channels, or `open` permissions.\n\n## Install\n\nPrerequisites:\n\n- Linux x86_64\n- systemd\n- one LLM provider key\n\n```bash\ncurl -sSf https://raw.githubusercontent.com/by-scott/cortex/main/scripts/cortex.sh | \\\n  CORTEX_API_KEY=\"your-key\" \\\n  CORTEX_PERMISSION_LEVEL=\"balanced\" bash -s -- install\n```\n\nManage the daemon:\n\n```bash\ncortex demo\ncortex start\ncortex status\ncortex doctor\ncortex restart\ncortex stop\n```\n\nUse Cortex:\n\n```bash\ncortex                            # REPL\ncortex \"summarize this project\"   # one-shot turn\necho \"data\" | cortex \"summarize\"  # pipe input\ncortex --acp                      # ACP bridge for a running daemon\ncortex --mcp-server            ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:55.598666"
+  },
+  {
+    "basic_info": {
+      "name": "firnflow",
+      "full_name": "gordonmurray/firnflow",
+      "owner": "gordonmurray",
+      "description": "The cost efficiency of S3 with the speed of local RAM. A multi-tenant vector and full-text search engine featuring a tiered RAM → NVMe → S3 architecture for microsecond latency on   top of object storage",
+      "url": "https://github.com/gordonmurray/firnflow",
+      "clone_url": "https://github.com/gordonmurray/firnflow.git",
+      "ssh_url": "git@github.com:gordonmurray/firnflow.git",
+      "homepage": "https://firnflow.io/",
+      "created_at": "2026-04-12T11:13:03Z",
+      "updated_at": "2026-05-07T13:30:15Z",
+      "pushed_at": "2026-05-04T11:23:56Z"
+    },
+    "stats": {
+      "stars": 338,
+      "forks": 16,
+      "watchers": 338,
+      "open_issues": 16,
+      "size": 1166
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 335249,
+        "Shell": 7308,
+        "Dockerfile": 1616
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "foyer",
+        "lance",
+        "lancedb",
+        "s3"
+      ]
+    },
+    "content": {
+      "readme": "# Firn\n\n**Firn** is a high-performance, multi-tenant vector and full-text search engine backed by object storage (AWS S3, MinIO, Cloudflare R2, Tigris, DigitalOcean Spaces). It is designed as a credible open-source alternative to turbopuffer, proving that a professional-grade tiered storage architecture (**RAM → NVMe → S3**) is achievable entirely from open-source components. See [Storage backends](#storage-backends) for the full compatibility matrix.\n\nThe cost efficiency of S3 with the speed of local RAM. A multi-tenant vector and full-text search engine backed by S3. Built with LanceDB and Foyer for microsecond-scale search latency on top of object storage.\n\n## 25 Seconds to 72 Microseconds\n\nOn real-world cloud infrastructure (AWS S3), a raw linear scan of 100,000 vectors can take **25 seconds** per query. By pairing **LanceDB** with a tiered **foyer** (RAM + NVMe) cache, **Firn** collapses that bottleneck:\n\n*   **Cold Query (S3 Linear Scan):** ~25.1s\n*   **Cold Query (ANN Indexed):** ~979ms (**25x faster**)\n*   **Warm Query (Internal Engine):** **~72µs** (**350,000x faster**)\n*   **End-to-End HTTP (Warm):** **< 5ms** (including network RTT and JSON overhead)\n\nEvery cache hit results in **zero** S3 requests, directly reducing your cloud bill while providing \"instant\" search response times.\n\n### Demo\n\nCold query, warm query, full-text search, and cache proof, all in 60 seconds. This demo runs against local MinIO; on real AWS S3 the cold query takes 25 seconds instead of 109ms, making the cache speedup even more dramatic.\n\n![Firn demo](bench/demo.gif)\n\n## Architecture\n\n**Firn** is built on a \"Tiered Storage\" philosophy:\n\n1.  **L1: RAM Cache** (via foyer): Sub-microsecond access for the most frequent queries.\n2.  **L2: NVMe Cache** (via foyer): Fast, durable cache for high-volume search results.\n3.  **L3: Object Storage** (via LanceDB + S3/MinIO): The \"Source of Truth\" where every namespace is isolated under its own S3 prefix.\n\n### Key Technologies\n*   **axum:** High-performance async REST API.\n*   **LanceDB:** Vector and BM25 search engine that runs natively on object storage.\n*   **foyer:** Advanced hybrid cache (RAM + NVMe) with LFU/LRU eviction.\n*   **Prometheus:** Full operational visibility into cache hits, misses, and S3 request savings.\n\n## Storage backends\n\nFirn's correctness depends on S3's `If-None-Match: *` precondition behaving as a strictly linearisable compare-and-swap across concurrent writers. LanceDB's commit protocol uses it to serialise manifest updates, so a backend that ignores or incorrectly handles this header will silently lose writes. Every provider below has been tested with the same two checks: a sequential conditional-PUT pre-flight, and an 8-writer x 100-row concurrent stress (the passing backends additionally survive 100 consecutive runs). The test harness is in `crates/firnflow-core/tests/`.\n\n| Provider | Supported | Reason |\n| --- | :---: | --- |\n| **AWS S3** (`eu-west-1` validated) | ✅ | Strict CAS, clean pass on 100-run stress. |\n| **MinIO** (self-hosted / local) | ✅ | Reference implementation for the S3 protocol; clean pass on 100-run stress. |\n| **Cloudflare R2** | ✅ | `If-None-Match: *` honoured correctly; 100-run stress clean. Per-iteration latency is roughly 7x AWS due to R2's multi-region commit path, but correctness is what the gate checks. Zero egress makes this the most interesting non-AWS target. Use path-style addressing. |\n| **Backblaze B2** (S3 compat layer) | ❌ | Returns `HTTP 501 NotImplemented` on the first PutObject with `If-None-Match: *`. B2's native API supports conditional writes via `X-Bz-*` headers, but the S3-compat gateway does not translate them. Loud failure: easy to detect, not usable for Firn. |\n| **Tigris** (dual-region + single-region) | ✅ | `If-None-Match: *` honoured on concurrent commits; 100-run stress clean on both dual-region and single-region buckets as of 2026-04-19 after an upstream CAS fix. Use path-style addressing on `t3.storage.dev`. |\n| **DigitalOcean Spaces** (`lon1` validated) | ✅ | Strict CAS, 100-run stress clean. Per-iteration latency ~3.10s, in the same band as AWS `eu-west-1` and the fastest non-AWS backend tested. Use the regional endpoint (`https://<region>.digitaloceanspaces.com`), not the virtual-hosted form, with path-style addressing. |\n| **Google Cloud Storage** (via S3 interop) | ❌ | Silently ignores `If-None-Match: *`: the second conditional PUT returns `200 OK` instead of `412`. Concurrent stress loses 6/8 writers every run, deterministically. GCS's native `x-goog-if-generation-match: 0` works correctly; only the S3-interop translation is broken. A future release could support GCS via LanceDB's native GCS backend rather than the S3 layer. |\n\nThe two dedicated tests live at `crates/firnflow-core/tests/s3_conditional_writes.rs` and `crates/firnflow-core/tests/lance_concurrent_writes.rs`. Both are `#[ignore]`'d and require credentials to run. If you want to evaluate a backend not in the table, copy a block from eith",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:56.805169"
+  },
+  {
+    "basic_info": {
+      "name": "smfs",
+      "full_name": "supermemoryai/smfs",
+      "owner": "supermemoryai",
+      "description": "A filesystem designed for agents, with SOTA retrieval, automatic memory profiles, sync engine. Drop any file type (pdf, images, videos), and grep through them.",
+      "url": "https://github.com/supermemoryai/smfs",
+      "clone_url": "https://github.com/supermemoryai/smfs.git",
+      "ssh_url": "git@github.com:supermemoryai/smfs.git",
+      "homepage": "https://smfs.ai",
+      "created_at": "2026-04-14T19:00:51Z",
+      "updated_at": "2026-05-07T23:20:17Z",
+      "pushed_at": "2026-05-07T23:31:20Z"
+    },
+    "stats": {
+      "stars": 318,
+      "forks": 22,
+      "watchers": 318,
+      "open_issues": 0,
+      "size": 482
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 344043,
+        "Python": 333114,
+        "TypeScript": 151410,
+        "Shell": 3912
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agents",
+        "ai-memory",
+        "filesystem",
+        "memory",
+        "rag"
+      ]
+    },
+    "content": {
+      "readme": "<img width=\"728\" height=\"288\" alt=\"SMFS - folder icon\" src=\"https://github.com/user-attachments/assets/81aa246b-a1c9-489e-a643-0db0c875fa0a\" />\n\n\n# smfs\n\nYour Supermemory container, exposed as a filesystem. Read, write, and `grep` your memory like any local directory.\n\nTwo access flows depending on the runtime:\n\n- **Mount it as a directory.** A real local folder for editors, scripts, and any tool that reads files. Works wherever a kernel and filesystem exist (macOS, Linux, devcontainers, Codespaces, Docker, microVMs).\n- **Plug the virtual bash tool into the agent's tool-set.** A TypeScript package for runtimes with no local filesystem at all: Cloudflare Workers, serverless functions, edge runtimes, browser-based agents.\n\n## Contents\n\n- [Install](#install)\n- [Quickstart](#quickstart)\n- [Memory generation paths](#memory-generation-paths)\n- [Commands](#commands)\n- [Mount flags](#mount-flags)\n- [Semantic search](#semantic-search)\n- [`bash/` virtual bash tool](#bash-virtual-bash-tool)\n- [Build from source](#build-from-source)\n- [License](#license)\n\n## Install\n\n```sh\ncurl -fsSL https://smfs.ai/install | bash\n```\n\nSupports macOS (arm64, x64) and Linux (arm64, x64).\n\nYou'll need a Supermemory API key. Get one at [supermemory.ai](https://supermemory.ai).\n\n## Quickstart\n\n```sh\nsmfs login                  # one-time, stores your API key\nsmfs mount agent_memory     # mounts the container tag at ./agent_memory/\nls agent_memory/\ncat agent_memory/memory/notes.md\n```\n\n`smfs mount <container_tag>` mounts the named Supermemory container as a real directory. By default the folder name matches the container tag and lands in your current working directory. Override with `--path /somewhere/else`.\n\nInside the mount, files behave like any other folder: edit them, `cat` them, `grep` them, point your editor at them. Writes upload to Supermemory in the background; remote changes pull in every 30 seconds.\n\nUnmount when done:\n\n```sh\nsmfs unmount agent_memory\n```\n\n## Memory generation paths\n\nFiles stored in a mount are durable everywhere, but only files under the container's **memory paths** get processed by Supermemory's memory pipeline (the part that extracts structured facts and makes them semantically searchable). Everything else is plain durable storage.\n\nBy default the server applies its built-in path scope per container. Override it for a mount with `--memory-paths`:\n\n```sh\n# Scope memory generation to specific paths\n# Trailing slash = match any file inside that folder recursively\n# No trailing slash = exact file match\nsmfs mount agent_memory --memory-paths \"/notes/,/journal.md,/work/\"\n\n# Disable memory generation entirely (mount becomes pure storage)\nsmfs mount agent_memory --memory-paths \"\"\n\n# Omit the flag entirely to leave the existing server config alone\nsmfs mount agent_memory\n```\n\nThe flag writes the configuration to the container tag, so the next mount sees the same scope until you change it again.\n\n## Commands\n\n```\nsmfs login                      one-time auth, stores API key locally\nsmfs whoami                     show current user, org, API endpoint\nsmfs mount <tag>                mount a container tag\nsmfs unmount <tag>              unmount and drain pending pushes\nsmfs list                       show all running mounts\nsmfs status <tag>               daemon health and queue depth\nsmfs logs <tag>                 tail the daemon log\nsmfs sync <tag>                 force a sync cycle now\nsmfs grep \"query\" [path]        semantic search inside a container\nsmfs init                       install the grep shell wrapper\nsmfs install                    self-install the binary to ~/.local/bin\nsmfs logout                     remove stored credentials\n```\n\nRun `smfs --help` or `smfs <command> --help` for full flag listings.\n\n## Mount flags\n\n```\n--path <DIR>             override the mount path (default: ./<tag>/)\n--backend fuse|nfs       defaults: fuse on Linux, nfs on macOS\n--foreground             run in foreground instead of detaching\n--memory-paths \"<csv>\"   which paths produce memories (see above)\n--ephemeral              in-memory cache; nothing persists after unmount\n--clean                  wipe local cache before mounting\n--sync-interval <secs>   pull interval, default 30\n--no-sync                disable the pull side; local writes still push\n--drain-timeout <secs>   max wait at unmount to drain the push queue, default 30\n--key <KEY>              API key (otherwise resolved from stored credentials)\n--api-url <URL>          override the API base URL\n```\n\n## Semantic search via plain `grep`\n\nRun `smfs init` once. After that, `grep` inside any mount routes through Supermemory's semantic index automatically when called without flags. No new command to learn, no new tool to teach an agent.\n\n```sh\ncd agent_memory/\n\ngrep \"OAuth refresh tokens\"          # semantic: finds files about the topic\ngrep \"design review notes\" work/     # semantic, scoped to a directory\n\ngrep -F \"exact string\" notes.md      # any flag falls through to r",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:58.034068"
+  },
+  {
+    "basic_info": {
+      "name": "dockerfile-roast",
+      "full_name": "immanuwell/dockerfile-roast",
+      "owner": "immanuwell",
+      "description": "a dockerfile linter that actually has opinions 🔥",
+      "url": "https://github.com/immanuwell/dockerfile-roast",
+      "clone_url": "https://github.com/immanuwell/dockerfile-roast.git",
+      "ssh_url": "git@github.com:immanuwell/dockerfile-roast.git",
+      "homepage": "https://ewry.net/droast-dockerfile-linter/",
+      "created_at": "2026-04-12T17:44:23Z",
+      "updated_at": "2026-05-05T12:20:01Z",
+      "pushed_at": "2026-04-25T05:47:19Z"
+    },
+    "stats": {
+      "stars": 310,
+      "forks": 8,
+      "watchers": 310,
+      "open_issues": 4,
+      "size": 2214
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 151268,
+        "Shell": 15683,
+        "TypeScript": 7715,
+        "Ruby": 1291,
+        "Go Template": 756,
+        "Dockerfile": 516
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "![](media/dockerfile-image.png)\n\n![](media/screenshot-1.png)\n\n![](media/screenshot-2.png)\n\n![](media/screenshot-3.png)\n\n# droast\n\na dockerfile linter that actually has opinions. it catches bad practices and tells you about them in the least diplomatic way possible.\n\nthink of it as code review from a senior dev who's seen too many prod incidents and has stopped being polite about it.\n\n## vs code extension\n\ninstall from the marketplace and get inline squiggles as you type:\n\n![VS Code](https://img.shields.io/badge/VSCode-007ACC?logo=visualstudiocode&logoColor=white&style=flat)\n\n**[droast — Dockerfile Linter](https://marketplace.visualstudio.com/items?itemName=ImmanuelTikhonov.droast)**\n\n```bash\ncode --install-extension ImmanuelTikhonov.droast\n```\n\nthe binary is bundled — no separate install needed. findings appear in real time with roast messages on hover.\n\n## install\n\n**one-liner** (macOS and Linux, detects Homebrew automatically):\n\n```bash\ncurl -fsL ewry.net/droast/install.sh | sh\n```\n\n**Homebrew** (macOS and Linux):\n\n```bash\nbrew tap immanuwell/droast https://github.com/immanuwell/homebrew-droast.git\nbrew install immanuwell/droast/droast\n```\n\n**from source:**\n\n```bash\ncargo install dockerfile-roast\n```\n\nor grab a prebuilt binary from the releases page if you'd rather not wait for the rust compiler to do its thing.\n\n## usage\n\n```bash\n# the basics\ndroast Dockerfile\n\n# lint an entire project\ndroast **/Dockerfile\n\n# boring mode (no roasts, just facts)\ndroast --no-roast Dockerfile\n\n# only care about real problems\ndroast --min-severity warning Dockerfile\n\n# disagree with a rule? valid, we respect it\ndroast --skip DF001,DF012 Dockerfile\n\n# ci-friendly output\ndroast --format github Dockerfile    # github actions annotations\ndroast --format json Dockerfile      # machine-readable\ndroast --format compact Dockerfile   # one line per finding\ndroast --format sarif Dockerfile     # SARIF 2.1.0 for GitHub Advanced Security / IDEs\n```\n\n## configuration\n\ndroast works out of the box with zero configuration. for teams that want to commit project-level defaults, drop a `droast.toml` in the repo root:\n\n```toml\n# droast.toml — all fields optional\nskip        = [\"DF012\", \"DF022\"]  # rules to suppress project-wide\nmin-severity = \"warning\"          # hide info-level findings\nno-roast    = false               # true = technical output only\nno-fail     = false               # true = never block CI\nformat      = \"terminal\"          # terminal | json | github | compact\n```\n\ndroast searches for `droast.toml` starting from the current directory, walking up to the nearest `.git` root. CLI flags always take precedence over the file — the file just sets the defaults so you don't repeat yourself.\n\n`skip` is the most useful field for CI pipelines: add rules your team has consciously accepted (e.g. you ship without HEALTHCHECK by design) so developers don't drown in noise they can't act on.\n\n## github action\n\nadd droast to any repo in 5 lines:\n\n```yaml\n- uses: immanuwell/dockerfile-roast@1.3.0\n```\n\nfull example (`.github/workflows/lint.yml`):\n\n```yaml\nname: Lint Dockerfiles\n\non: [push, pull_request]\n\njobs:\n  droast:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: immanuwell/dockerfile-roast@1.3.0\n```\n\nfindings show up as inline annotations on the PR diff. no configuration required.\n\navailable inputs (all optional):\n\n| input | default | description |\n|-------|---------|-------------|\n| `files` | `Dockerfile` | file(s) or glob to lint |\n| `min-severity` | `info` | `info`, `warning`, or `error` |\n| `skip` | — | comma-separated rule IDs to ignore |\n| `no-roast` | `false` | technical output only, no jokes |\n| `no-fail` | `false` | advisory mode — never blocks the build |\n| `image-tag` | `latest` | pin to a specific droast release, e.g. `1.3.0` |\n\nexample with options:\n\n```yaml\n- uses: immanuwell/dockerfile-roast@1.3.0\n  with:\n    files: '**/Dockerfile'\n    min-severity: warning\n    skip: DF012,DF022\n    no-fail: true        # report findings but don't block the PR\n```\n\n## docker\n\npull from ghcr and use immediately, no install needed:\n\n```bash\n# lint a Dockerfile in the current directory\ndocker run --rm -v \"$(pwd)/Dockerfile\":/Dockerfile ghcr.io/immanuwell/droast /Dockerfile\n\n# lint any file, anywhere\ndocker run --rm -v /path/to/your/Dockerfile:/Dockerfile ghcr.io/immanuwell/droast /Dockerfile\n\n# pass flags as usual\ndocker run --rm -v \"$(pwd)/Dockerfile\":/Dockerfile ghcr.io/immanuwell/droast \\\n    --no-roast --min-severity warning /Dockerfile\n```\n\nor build locally from source:\n\n```bash\ndocker build -t droast .\ndocker run --rm -v \"$(pwd)/Dockerfile\":/Dockerfile droast /Dockerfile\n```\n\nthe image is published automatically to `ghcr.io/immanuwell/droast` on every release tag.\n\n## shell completions\n\nadd this once, never mistype `--min-severity` again:\n\n```bash\n# bash — add to .bashrc\nsource <(droast completion bash)\n\n# zsh — add to .zshrc\ndroast completion zsh > ~/.zfunc/_droast\n\n# fish — add to config.fish\ndroast co",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:12:59.297797"
+  },
+  {
+    "basic_info": {
+      "name": "awawausb",
+      "full_name": "ArcaneNibble/awawausb",
+      "owner": "ArcaneNibble",
+      "description": "WebUSB for fopses",
+      "url": "https://github.com/ArcaneNibble/awawausb",
+      "clone_url": "https://github.com/ArcaneNibble/awawausb.git",
+      "ssh_url": "git@github.com:ArcaneNibble/awawausb.git",
+      "homepage": null,
+      "created_at": "2026-04-20T00:16:32Z",
+      "updated_at": "2026-05-07T05:58:20Z",
+      "pushed_at": "2026-04-24T23:01:15Z"
+    },
+    "stats": {
+      "stars": 302,
+      "forks": 1,
+      "watchers": 302,
+      "open_issues": 6,
+      "size": 1848
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 331597,
+        "JavaScript": 114586,
+        "Dockerfile": 6553,
+        "HTML": 2079,
+        "Shell": 1565,
+        "CSS": 1562,
+        "Batchfile": 955
+      },
+      "license": "BSD Zero Clause License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# WebUSB extension for Firefox\n\nThis extension adds WebUSB functionality to Firefox by making use of [native messaging](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging).\n\nIn order to use this, you need to _both_ install the extension in your browser and install a small program (separate from the browser) on your computer. This extra program is called the \"native stub\".\n\n## Feature support\n\nThis extension is supposed to be compatible with Chrome's implementation. Please report any differences you encounter that result in software not working.\n\nHowever, unlike Chrome, this API is only exposed on the main page and is not available in [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers).\n\nAndroid cannot be supported, because it does not have native messaging capabilities.\n\n## WebUSB vs other interfaces\n\nThis extension only supports WebUSB. WebUSB is only one of several ways for web pages to access physical devices (even if the device is physically plugged in to your computer using _USB connectors_).\n\nPlease read [this document](Documentation/what-is-webusb.md) for a detailed explanation.\n\n## Installation instructions\n\nYou can install this extension by downloading binaries from the GitHub \"Releases\" section (in the right-hand column), or you can build from source.\n\n### Installing the extension\n\nTo install a signed version of the extension, download the .xpi file and open it in Firefox.\n\nTo load a _testing_ version of the extension in Firefox Developer Edition, open `about:debugging`, select \"This Firefox\" in the left-hand list, then \"Load Temporary Add-on…\", and then browse to the `manifest.json` inside the `extension/` directory.\n\n### Installing the native stub\n\nIf you are using prebuilt binaries, unzip _all_ of the files and then run either `./install.sh` (on Linux or macOS) or `install.bat` (on Windows). These installers will try to automatically copy the appropriate files into a sensible location and then configure a [native manifest](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests) so that the browser can find it.\n\nPrebuilt binaries are available for the following platforms:\n\n- macOS x86_64 and ARM64\n- Linux x86_64 and aarch64\n- Windows AMD64 and ARM64\n\nIf you are not using prebuilt binaries, see [below](#compiling-from-source).\n\n### \"Unusual\" configurations\n\nThe default installer is known to have problems with uncommon configurations such as:\n\n- sharing a \\*nix home directory across different computers with different CPU architectures\n- Windows roaming user profiles across computers with different CPU architectures\n\nThe root cause of this is because the \"native manifest\" mechanism was not designed well to take these situations into account (for example, through its use of absolute paths). If you are in one of these situations, you will unfortunately need to invent an ad-hoc workaround.\n\n## System requirements\n\nThis native stub tries to avoid doing anything too \"exciting\", but, due to development and testing resource constraints, it focuses on \"reasonably modern\" desktop platforms.\n\n### macOS\n\nmacOS 10.15 or later is required, matching Firefox's system requirements. However, older systems are not very well-tested. Expect macOS 12 to be a much more reasonable baseline.\n\n### Windows\n\nWindows 10 or later is required, due to the requirements of the Rust platform support. This also matches Firefox system requirements. Backporting to Windows 8/8.1 might theoretically be possible, but any older is not expected to work (due to limitations in WinUSB).\n\n### Linux\n\nLinux kernel version 4.8 or later is required. (More specifically, a kernel containing commit `5cce438` and `USBDEVFS_CAP_REAP_AFTER_DISCONNECT` is _strongly_ recommended, and a kernel supporting `USBDEVFS_DISCONNECT_CLAIM` is required.)\n\nYour system must have `/dev` and `/sys` mounted.\n\nIn order to detect USB devices being connected, a userspace with [udev](https://man7.org/linux/man-pages/man7/udev.7.html) or a compatible daemon is required. Specifically, a daemon which broadcasts `0xfeedcafe`-format messages on `NETLINK_KOBJECT_UEVENT` group `2` is required.\n\n## Compiling from source\n\nIn general, this native stub is written entirely in Rust and can be built using `cargo build` in the `native-stub` directory. Cross-compiling _is_ supported and is configured by default for the supported platforms.\n\nIf this does not \"just work\", the following notes might help:\n\n### macOS\n\nThis _really_ should just work. The repository contains a vendored copy of all the `.tbd` files needed to link the final binary. If that is somehow causing problems, disable the appropriate entries in `.cargo/config.toml` (which will then require you to have a macOS SDK installed).\n\n### Linux\n\nLinux prebuilt binaries are set up to use [musl libc](https://www.musl-libc.org/) with Rust's default of static linking. The goal of this is to produce binaries which work acro",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:13:00.521942"
+  },
+  {
+    "basic_info": {
+      "name": "lighthouse-router",
+      "full_name": "evanphi7/lighthouse-router",
+      "owner": "evanphi7",
+      "description": "Off-chain DEX route discovery on Solana — pool decoders, multi-hop quoting, and arbitrage cycle detection",
+      "url": "https://github.com/evanphi7/lighthouse-router",
+      "clone_url": "https://github.com/evanphi7/lighthouse-router.git",
+      "ssh_url": "git@github.com:evanphi7/lighthouse-router.git",
+      "homepage": null,
+      "created_at": "2026-05-04T08:42:52Z",
+      "updated_at": "2026-05-08T03:44:30Z",
+      "pushed_at": "2026-05-04T08:43:00Z"
+    },
+    "stats": {
+      "stars": 279,
+      "forks": 177,
+      "watchers": 279,
+      "open_issues": 0,
+      "size": 33
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 40393
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Lighthouse Router\n\nOff-chain DEX route discovery for Solana. Built so that I'd stop hand-rolling\nthe same constant-product math in every script I write.\n\n![Rust](https://img.shields.io/badge/rust-1.74+-orange?style=flat-square)\n![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)\n![Solana](https://img.shields.io/badge/solana-1.18-9945FF?style=flat-square)\n\n## Why?\n\nWhen you want to quote a swap across Solana DEXs without delegating it to a\nthird-party router, you end up reimplementing pool math, account decoding,\nand shortest-path search. This crate is the small set of primitives I use\nfor that, kept honest by tests.\n\nIt is **not** a Jupiter replacement. It is small, dependency-light, and\npredictable. If you need cross-program invocation, MEV bundle building, or\nslippage protection in production: keep using something else.\n\n## What's in here\n\n- Pool decoders for Raydium AMM v4, Orca Whirlpool, and Phoenix order books\n  (the last is a typed model — feed it from `phoenix-sdk`).\n- Constant-product and concentrated-liquidity quote math, with tests.\n- A token graph and a depth-limited router for multi-hop quotes.\n- Bellman-Ford negative-cycle detection for marginal-price arbitrage scans.\n- A `lighthouse` CLI that wires it all up against an RPC endpoint.\n\n## Architecture\n\n```\n┌────────────────┐     ┌──────────────────┐     ┌──────────────┐\n│  Solana RPC    │ ──► │  client::fetch_  │ ──► │  decoders    │\n│  (mainnet/RPC) │     │  many (parallel) │     │  raydium /   │\n└────────────────┘     └──────────────────┘     │  orca /      │\n                                                │  phoenix     │\n                                                └──────┬───────┘\n                                                       │ AnyPool\n                                                       ▼\n                              ┌────────────┐   ┌───────────────┐\n                              │  cache     │ ◄─┤  pool::Quoter │\n                              │  (TTL)     │   └──────┬────────┘\n                              └────────────┘          │\n                                                      ▼\n                                              ┌───────────────┐\n                                              │  graph::Graph │\n                                              └──┬──────────┬─┘\n                                                 │          │\n                                       router::best_route   │\n                                                            ▼\n                                                arbitrage::find_negative_cycle\n```\n\nThe `Quoter` trait is the seam between pool decoding and routing — every\nDEX integration needs to provide `mints()`, `quote()`, and `is_active()`.\n`AnyPool` is the runtime sum type the graph stores, so the router doesn't\nneed to be generic over each concrete venue.\n\n## Install & Run\n\n```bash\ncargo add lighthouse-router      # as a library\n# or, for the CLI:\ncargo install --path .\n```\n\nQuote a route:\n\n```bash\nlighthouse quote \\\n  --from EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \\\n  --to   So11111111111111111111111111111111111111112  \\\n  --amount 1_000_000_000 \\\n  --max-hops 3\n```\n\n## Library usage\n\n```rust\nuse lighthouse_router::{best_route, AnyPool, Graph, Pool};\n\nlet pools: Vec<AnyPool> = load_pools_from_somewhere();\nlet graph = Graph::build(pools);\n\nlet route = best_route(&graph, usdc_mint, sol_mint, 1_000_000, 3)?;\nprintln!(\"out = {}\", route.amount_out);\nfor step in &route.steps {\n    println!(\"  {} via {}\", step.pool_idx, step.venue);\n}\n```\n\nSee `examples/quote.rs` and `examples/find_arb.rs` for runnable end-to-end\nexamples that don't need an RPC connection.\n\n## Configuration\n\n| Flag                | Default                                | Notes                                |\n|---------------------|----------------------------------------|--------------------------------------|\n| `--rpc`             | `https://api.mainnet-beta.solana.com`  | Read from `SOLANA_RPC_URL` if unset. |\n| `--max-hops`        | `3`                                    | Routing depth ceiling.               |\n| `--probe` (arb)     | `1_000_000`                            | Probe size for marginal-price weights. |\n\n## Status\n\nEarly but useful. The bits I rely on day-to-day (CP math, the graph builder,\nand the CLI quote command) are stable. The Whirlpool quoter is honest about\nits single-tick-range limitation: it refuses to quote rather than lie when\na swap would cross a tick. Phoenix is a typed model — you wire it up.\n\n## License\n\nApache-2.0. See [LICENSE](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:13:01.726559"
+  },
+  {
+    "basic_info": {
+      "name": "cell",
+      "full_name": "garritfra/cell",
+      "owner": "garritfra",
+      "description": "A fast terminal spreadsheet editor with Vim keybindings",
+      "url": "https://github.com/garritfra/cell",
+      "clone_url": "https://github.com/garritfra/cell.git",
+      "ssh_url": "git@github.com:garritfra/cell.git",
+      "homepage": "",
+      "created_at": "2026-04-08T21:42:51Z",
+      "updated_at": "2026-05-07T13:56:18Z",
+      "pushed_at": "2026-05-07T13:53:49Z"
+    },
+    "stats": {
+      "stars": 278,
+      "forks": 6,
+      "watchers": 278,
+      "open_issues": 20,
+      "size": 1265
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 477886
+      },
+      "license": "MIT License",
+      "topics": [
+        "rust",
+        "spreadsheet",
+        "spreadsheets",
+        "vim"
+      ]
+    },
+    "content": {
+      "readme": "# cell\n\nA terminal spreadsheet editor with Vim keybindings, written in Rust.\n\n![cell screenshot](assets/cell.png)\n\n## Install\n\nFrom [crates.io](https://crates.io/crates/cell-sheet-tui):\n\n```sh\ncargo install cell-sheet-tui\n```\n\nPre-built binaries for Linux, macOS, and Windows are available on the [GitHub Releases](https://github.com/garritfra/cell/releases) page.\n\n### Build from source\n\n```sh\ngit clone https://github.com/garritfra/cell.git\ncd cell\ncargo build --release\n# Binary at target/release/cell\n```\n\n## Usage\n\n```sh\ncell                          # empty sheet\ncell data.csv                 # open CSV\ncell data.tsv                 # open TSV\ncell sheet.cell               # open native format\ncell data.psv --delimiter '|' # open with a custom field delimiter\ncat data.csv | cell           # read from stdin (pipe input)\n```\n\nTo explore an example sheet with formulas, ranges, and IF logic:\n\n```sh\ncell examples/demo.cell\n```\n\nThe CSV/TSV delimiter is auto-detected from file content; pass\n`--delimiter` to override. The native `.cell` format is auto-detected\nvia its `# cell v` magic header.\n\n## Headless mode\n\nFor shell pipelines, Makefiles, and CI, `cell` can read from and write to a\nfile without launching the TUI:\n\n```sh\ncell sales.cell --read A1                 # print one cell's computed value\ncell sales.cell --read B1:B10             # print a range as TSV\ncell sales.cell --eval '=SUM(B1:B10)'     # evaluate a formula (no save)\ncell sales.cell --write A1 42             # set a cell, recalc, save in place\ncell sales.cell --write A1 42 --write B1 7 # batch multiple writes into one save\ncell sales.cell --write Total '=SUM(B:B)' --read Total  # write a formula, then print it\ncat data.csv | cell --read A1             # read from stdin\ncell data.psv --delimiter '|' --read A1   # custom delimiter\n```\n\n- Cell references are 1-indexed and Excel-style (`A1`, `AA10`, `A1:B3`).\n- The `=` prefix on `--eval` is optional.\n- Writes whose value starts with `=` are stored as formulas; others are auto-typed (number vs text).\n- Operations apply in a fixed order per invocation: writes → save → reads → evals.\n- Errors print to stderr; the process exits non-zero on bad refs, parse errors, or missing files.\n- Stdin input supports CSV, TSV, and the native `.cell` format. The delimiter\n  is auto-detected; pass `--delimiter` to override (CSV/TSV only). `--write`\n  requires a file argument when reading from stdin.\n\n## Keybindings\n\nIf you know Vim, you know cell.\n\nAll motions and operators accept a `[count]` prefix (`5j`, `10G`, `3dd`,\n`4yy`, `2w`). Counts also work between an operator and its motion (`d3j`,\n`y2k`); outer and inner counts multiply (`5d2j` clears 10 rows). The\nin-progress count and operator render in the status line as you type.\n\n### Normal Mode\n\n#### Motion\n\n| Key                  | Action                                 |\n| -------------------- | -------------------------------------- |\n| `h` `j` `k` `l`      | Move cursor (one cell)                 |\n| `gg`                 | First row (or row N with `[count]gg`)  |\n| `G`                  | Last row (or row N with `[count]G`)    |\n| `0`                  | First column                           |\n| `$`                  | Last column                            |\n| `w` / `b`            | Next / previous non-empty cell in row  |\n| `Ctrl-D` / `Ctrl-U`  | Half-page down / up                    |\n| `Ctrl-F` / `Ctrl-B`  | Full page down / up                    |\n| `{` / `}`            | Previous / next block boundary in column |\n| `H` / `M` / `L`      | Cursor to top / middle / bottom of viewport |\n| `zz` / `zt` / `zb`   | Recenter / scroll-to-top / scroll-to-bottom around cursor |\n| `Ctrl-e` / `Ctrl-y`  | Scroll viewport one row without moving cursor |\n| `Ctrl-o` / `Ctrl-i` (or Tab) | Jump back / forward in jump list |\n\n#### Marks\n\n| Key            | Action                              |\n| -------------- | ----------------------------------- |\n| `m{a-z}`       | Set mark at cursor                  |\n| `'{a-z}`       | Jump to marked row (column 0)       |\n| `` `{a-z} ``   | Jump to exact marked cell           |\n\n#### Editing\n\n| Key                  | Action                                 |\n| -------------------- | -------------------------------------- |\n| `i` / `a` / `Enter`  | Edit cell (Insert mode)                |\n| `x`                  | Clear cell                             |\n| `dd`                 | Delete row (`[count]dd` for N rows)    |\n| `d{motion}`          | Clear cells along motion (`dj`, `d3l`, `dh`, `dk`) |\n| `yy`                 | Yank row (`[count]yy` for N rows)      |\n| `y{motion}`          | Yank cells along motion (`yj`, `y3l`, `yh`, `yk`) |\n| `p` / `P`            | Paste below / above                    |\n| `Ctrl-A` / `Ctrl-X`  | Increment / decrement number in cell (`[count]` accepted) |\n| `~`                  | Toggle case of first character, advance cursor |\n| `guu` / `gUU`        | Lowercase / uppercase entire cell      |\n| `g~~`                |",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-08T04:13:02.924671"
+  },
+  {
+    "basic_info": {
+      "name": "selfsync",
+      "full_name": "loyalpartner/selfsync",
+      "owner": "loyalpartner",
+      "description": "Self-hosted Chrome / Edge Sync server. 自托管 Chrome / Edge 同步服务器 — 书签、密码、偏好等浏览器数据留在本地，不经过 Google 或 Microsoft",
+      "url": "https://github.com/loyalpartner/selfsync",
+      "clone_url": "https://github.com/loyalpartner/selfsync.git",
+      "ssh_url": "git@github.com:loyalpartner/selfsync.git",
+      "homepage": "",
+      "created_at": "2026-04-15T16:41:01Z",
+      "updated_at": "2026-05-07T08:51:22Z",
+      "pushed_at": "2026-05-05T16:26:12Z"
+    },
+    "stats": {
+      "stars": 260,
+      "forks": 13,
+      "watchers": 260,
+      "open_issues": 0,
+      "size": 507
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 78957,
+        "Dockerfile": 406
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"lazycat/icon.png\" alt=\"selfsync\" width=\"120\" />\n</p>\n\n<h1 align=\"center\">selfsync</h1>\n\n<p align=\"center\"><em>Your own Chrome &amp; Edge sync server. Bookmarks, passwords, settings — synced between your devices, stored only on your machine.</em></p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img alt=\"License\" src=\"https://img.shields.io/github/license/loyalpartner/selfsync\"></a>\n  <a href=\"https://github.com/loyalpartner/selfsync/releases\"><img alt=\"Release\" src=\"https://img.shields.io/github/v/release/loyalpartner/selfsync\"></a>\n  <a href=\"#lazycat-one-click\"><img alt=\"Lazycat AppStore\" src=\"https://img.shields.io/badge/Lazycat-cloud.lazycat.app.chromesync-orange\"></a>\n</p>\n\n<p align=\"center\"><a href=\"README.md\">English</a> · <a href=\"README.zh-CN.md\">中文</a></p>\n\n## What you get\n\n- Bookmarks, passwords, autofill, history, tabs, extensions and settings synced between your Chrome / Edge installs.\n- Data stays on your hardware. No Google account, no Microsoft account.\n- Single binary, single SQLite file. Back it up by copying one file.\n- Runs on Linux, macOS, Windows, Docker, or one click on Lazycat.\n\n## Install\n\n### Docker / Docker Compose\n\n```bash\ndocker compose up -d\n```\n\nData persists in a named Docker volume. The image is published at `ghcr.io/loyalpartner/selfsync`.\n\n### Pre-built binary\n\nGrab a release for your platform from [GitHub Releases](https://github.com/loyalpartner/selfsync/releases) — Linux (x86_64 / aarch64), Windows, macOS (Intel / Apple Silicon). Unpack and run `selfsync-server`.\n\n### Lazycat one-click\n\nIf you run a Lazycat box, search \"SelfSync\" in your AppStore, or open it directly at `https://appstore.<your-box>.heiyu.space/#/shop/detail/cloud.lazycat.app.chromesync` (replace `<your-box>` with your device name).\n\n> [!NOTE]\n> selfsync has no login screen — anything that can reach the port can read your synced data. Run it on your home LAN, NAS, or homelab. To access it from outside your network, put it behind Tailscale, WireGuard, or Cloudflare Zero Trust.\n\n## Connect your browser\n\nLaunch your browser pointed at the server, sign in with any account, and turn sync on. No export/import needed — your local data uploads automatically.\n\n```bash\ngoogle-chrome-stable --sync-url=http://127.0.0.1:8080\nmicrosoft-edge       --sync-url=http://127.0.0.1:8080\n```\n\n> **Edge note**: if multiple people share one selfsync instance with Edge, their data merges into one profile (Edge doesn't tell the server which account is signed in). For separate Edge users, run a separate instance per person. Chrome users on the same instance are kept separate automatically.\n\n### Linux: persistent flags\n\nMost Linux Chromium / Chrome packages (Arch `chromium`, AUR `google-chrome`, Manjaro, etc.) ship a launcher wrapper that reads extra flags from a config file, so you don't have to type `--sync-url` every time. Write one line to whichever applies:\n\n- Chromium: `~/.config/chromium-flags.conf`\n- Google Chrome: `~/.config/chrome-flags.conf`\n- Microsoft Edge: `~/.config/microsoft-edge-flags.conf`\n- Flatpak: same filenames under `~/.var/app/<app-id>/config/`\n\n```text\n--sync-url=http://127.0.0.1:8080\n```\n\nRestart the browser. Distros that ship no launcher wrapper (e.g. Debian's official `google-chrome` deb) ignore this file — use a `.desktop` override or your own wrapper script instead.\n\n### Android Chrome\n\nWith the device plugged in via ADB:\n\n```bash\nadb shell am set-debug-app --persistent com.android.chrome\nadb shell 'echo \"chrome --sync-url=http://<host>:8080\" > /data/local/tmp/chrome-command-line'\nadb shell am force-stop com.android.chrome\n```\n\nReplace `<host>` with your selfsync host (LAN IP, NAS hostname, or Tailscale name). After Chrome relaunches, open `chrome://sync-internals` and confirm `Sync Service URL` shows your address. No APK rebuild needed.\n\n## Configuration\n\n<!-- AUTO-GENERATED:cli-env -->\n| Variable | Default | Description |\n|----------|---------|-------------|\n| `SELFSYNC_ADDR` | `127.0.0.1:8080` | TCP address to bind |\n| `SELFSYNC_DB` | `selfsync.db` | SQLite database path |\n| `RUST_LOG` | `selfsync_server=info,http=info` | Log filter (tracing-subscriber syntax) |\n<!-- /AUTO-GENERATED -->\n\nIn the Docker image the defaults are overridden to `0.0.0.0:8080` and `/data/selfsync.db`.\n\n## For developers\n\nRust 1.85+, `cargo build --release`. Protocol details, HTTP routes, schema, and contributor notes live in [docs/architecture.md](docs/architecture.md). Common gotchas in [docs/faq.md](docs/faq.md).\n\n## License\n\nCopyright (C) 2026 Lee &lt;loyalpartner@163.com&gt;. Licensed under [GPL-3.0-or-later](LICENSE).\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-08T04:13:04.119381"
+  }
+]

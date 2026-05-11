@@ -1,0 +1,929 @@
+[
+  {
+    "basic_info": {
+      "name": "RedSun",
+      "full_name": "Nightmare-Eclipse/RedSun",
+      "owner": "Nightmare-Eclipse",
+      "description": "The Red Sun vulnerability repository",
+      "url": "https://github.com/Nightmare-Eclipse/RedSun",
+      "clone_url": "https://github.com/Nightmare-Eclipse/RedSun.git",
+      "ssh_url": "git@github.com:Nightmare-Eclipse/RedSun.git",
+      "homepage": null,
+      "created_at": "2026-04-15T21:37:07Z",
+      "updated_at": "2026-05-11T01:11:43Z",
+      "pushed_at": "2026-04-15T22:53:04Z"
+    },
+    "stats": {
+      "stars": 1885,
+      "forks": 406,
+      "watchers": 1885,
+      "open_issues": 10,
+      "size": 56
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 27276
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# RedSun\nThe Red Sun vulnerability repository\n\nNow, normally I would just drop the PoC code and let people figure it out. But I can't for this one, it's way too funny.\nWhen Windows Defender realizes that a malicious file has a cloud tag, for whatever stupid and hilarious reason, the antivirus that's supposed to protect decides that it is a good idea to just rewrite the file it found again to it's original location. The PoC abuses this behaviour to overwrite system files and gain administrative privileges.\n\nI think antimalware products are supposed to remove malicious files not be sure they are there but that's just me.\n\n![BottomText](redsun.jpg)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:35.986600"
+  },
+  {
+    "basic_info": {
+      "name": "openduck",
+      "full_name": "CITGuru/openduck",
+      "owner": "CITGuru",
+      "description": "Distributed DuckDB - dual execution and differential storage",
+      "url": "https://github.com/CITGuru/openduck",
+      "clone_url": "https://github.com/CITGuru/openduck.git",
+      "ssh_url": "git@github.com:CITGuru/openduck.git",
+      "homepage": "",
+      "created_at": "2026-04-14T03:08:05Z",
+      "updated_at": "2026-05-09T16:21:54Z",
+      "pushed_at": "2026-05-06T12:52:12Z"
+    },
+    "stats": {
+      "stars": 533,
+      "forks": 23,
+      "watchers": 533,
+      "open_issues": 7,
+      "size": 95344
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 368536,
+        "Rust": 323989,
+        "HTML": 113505,
+        "Shell": 30166,
+        "CMake": 8925,
+        "Python": 6682,
+        "Dockerfile": 2878,
+        "C": 2167,
+        "Makefile": 262
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# OpenDuck\n\nOpenDuck makes DuckDB work like a cloud database without giving up its embedded-DB feel. You attach a remote database in one line — `ATTACH 'openduck:mydb'` — tables resolve transparently, a single query can split its work across your laptop and a remote worker, and storage underneath is layered, snapshot-based, and concurrency-safe. It's a DuckDB extension plus a small Rust gateway/worker speaking an open gRPC + Arrow IPC protocol, so you self-host the whole thing or plug your own backend in.\n\nThe architecture follows the path [MotherDuck](https://motherduck.com) pioneered with [differential storage](https://motherduck.com/blog/differential-storage-building-block-for-data-warehouse/), [dual execution](https://motherduck.com/videos/bringing-duckdb-to-the-cloud-dual-execution-explained/), and the `md:` attach scheme. OpenDuck reimplements those ideas as an open protocol and an open backend you can run yourself.\n\n```python\nimport duckdb\n\ncon = duckdb.connect(config={\"allow_unsigned_extensions\": \"true\"})\ncon.execute(\"LOAD '/path/to/openduck.duckdb_extension';\")\ncon.execute(\"ATTACH 'openduck:mydb?endpoint=http://localhost:7878&token=xxx' AS cloud;\")\n\ncon.sql(\"SELECT * FROM cloud.users\").show()                    # remote, transparent\ncon.sql(\"SELECT * FROM local.t JOIN cloud.t2 ON ...\").show()   # hybrid, one query\n```\n\n## What OpenDuck does\n\n### Differential storage\n\nAppend-only layers with PostgreSQL metadata. DuckDB sees a normal file; OpenDuck persists data as immutable sealed layers addressable from object storage. Snapshots give you consistent reads. One serialized write path, many concurrent readers.\n\n### Hybrid (dual) execution\n\nA single query can run partly on your machine and partly on a remote worker. The gateway splits the plan, labels each operator `LOCAL` or `REMOTE`, and inserts bridge operators at the boundaries. Only intermediate results cross the wire.\n\n```\n[LOCAL]  HashJoin(l.id = r.id)\n  [LOCAL]  Scan(products)          ← your laptop\n  [LOCAL]  Bridge(R→L)\n    [REMOTE] Scan(sales)           ← remote worker\n```\n\n### DuckDB-native catalog\n\nThe extension implements DuckDB's `StorageExtension` and `Catalog` interfaces. Remote tables are first-class catalog entries, they participate in JOINs, CTEs, and the optimizer like local tables.\n\n### Open protocol\n\nOpenDuck's protocol is intentionally minimal and defined in [`execution.proto`](proto/openduck/v1/execution.proto). The data plane is two RPCs: one to execute a query and stream Arrow IPC batches back, another to cancel a running execution. Two additional RPCs handle worker lifecycle (registration and heartbeat) so the gateway can route queries by database affinity and compute context.\n\nBecause the protocol is open and simple, you're not locked into a single backend. Any service that speaks gRPC and returns Arrow can serve as an OpenDuck-compatible backend. Run the included Rust gateway, replace it with your own implementation, or plug in an entirely different execution engine — the client and extension don't care what's on the other side.\n\n## Architecture\n\n```\n┌─────────────────────────────────────────────┐\n│  DuckDB process (client)                    │\n│                                             │\n│  LOAD openduck                              │\n│  ATTACH 'openduck:mydb' AS cloud            │\n│                                             │\n│  ┌─────────────────────────────────────┐    │\n│  │ OpenDuckCatalog                     │    │\n│  │  └─ OpenDuckSchemaEntry             │    │\n│  │      └─ OpenDuckTableEntry (users)  │    │\n│  │      └─ OpenDuckTableEntry (events) │    │\n│  └──────────────┬──────────────────────┘    │\n│                 │ gRPC + Arrow IPC          │\n└─────────────────┼───────────────────────────┘\n                  │\n      ┌───────────▼───────────┐\n      │  Gateway (Rust)       │\n      │  - token auth         │\n      │  - worker registry    │\n      │  - affinity routing   │     ┌──────────────┐\n      │  - plan splitting     │────▶│  Worker 1    │\n      │  - backpressure       │◀────│  (DuckDB)    │\n      │                       │     │  RegisterWorker\n      │                       │     └──────────────┘\n      │                       │     ┌──────────────┐\n      │                       │────▶│  Worker N    │\n      │                       │◀────│  (DuckDB)    │\n      │                       │     │  Heartbeat   │\n      └───────────────────────┘     └──────────────┘\n              │\n    ┌─────────┴─────────┐\n    ▼                   ▼\n┌──────────┐    ┌──────────────┐\n│ Postgres │    │ Object store │\n│ metadata │    │ sealed layers│\n└──────────┘    └──────────────┘\n```\n\n## Quick start\n\n### 1. Build the backend\n\n```bash\ncargo build --workspace\n```\n\n### 2. Build the DuckDB extension\n\nThe openduck extension is not yet published to DuckDB's extension repository, so you need to build it from source. See [`extensions/openduck/README.md`](extensions/openduck/README.md) for full prerequisites (vcpkg, bison on macOS).\n\n```bash",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:37.212928"
+  },
+  {
+    "basic_info": {
+      "name": "slothdb",
+      "full_name": "SouravRoy-ETL/slothdb",
+      "owner": "SouravRoy-ETL",
+      "description": "SlothDB is an embedded SQL database that runs everywhere: on your laptop, on a server, and in the browser. Built from scratch. Up to 5x faster where it counts.",
+      "url": "https://github.com/SouravRoy-ETL/slothdb",
+      "clone_url": "https://github.com/SouravRoy-ETL/slothdb.git",
+      "ssh_url": "git@github.com:SouravRoy-ETL/slothdb.git",
+      "homepage": "https://slothdb.org",
+      "created_at": "2026-04-15T12:56:46Z",
+      "updated_at": "2026-05-09T09:43:53Z",
+      "pushed_at": "2026-04-30T07:18:12Z"
+    },
+    "stats": {
+      "stars": 515,
+      "forks": 3,
+      "watchers": 515,
+      "open_issues": 6,
+      "size": 6964
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1591620,
+        "C": 405422,
+        "Python": 40805,
+        "CMake": 12529,
+        "JavaScript": 6947,
+        "Shell": 5214,
+        "Ruby": 710
+      },
+      "license": "MIT License",
+      "topics": [
+        "analytics",
+        "arrow",
+        "avro",
+        "columnar-database",
+        "cplusplus",
+        "cpp",
+        "csv",
+        "database",
+        "dataframe",
+        "duckdb",
+        "embedded-database",
+        "natural-language-sql",
+        "olap",
+        "parquet",
+        "python",
+        "query-engine",
+        "sql",
+        "wasm"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/hero.svg\" alt=\"SlothDB\" width=\"100%\">\n\n<h3>Run analytics faster.</h3>\n\n<p>SlothDB is an embedded SQL database that runs everywhere: on your laptop, on a server, and in the browser. Built from scratch. <b>Up to 5x faster</b> where it counts.</p>\n\n<p align=\"center\">\n  <a href=\"https://discord.gg/XJWyGmX5G\">\n    <img src=\"assets/discord-cta.svg\" alt=\"Join the SlothDB Discord\" width=\"340\">\n  </a>\n</p>\n\n[![PyPI](https://img.shields.io/pypi/v/slothdb?color=3775A9&logo=pypi&logoColor=white&cacheSeconds=60)](https://pypi.org/project/slothdb/)\n[![npm](https://img.shields.io/npm/v/@slothdb/wasm?color=CB3837&logo=npm&label=npm)](https://www.npmjs.com/package/@slothdb/wasm)\n[![PyPI downloads](https://static.pepy.tech/badge/slothdb)](https://pepy.tech/project/slothdb)\n[![npm downloads](https://img.shields.io/npm/dt/@slothdb/wasm?label=npm%20downloads&color=CB3837)](https://www.npmjs.com/package/@slothdb/wasm)\n[![CI](https://github.com/SouravRoy-ETL/slothdb/actions/workflows/ci.yml/badge.svg)](https://github.com/SouravRoy-ETL/slothdb/actions/workflows/ci.yml)\n[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n[![Stars](https://img.shields.io/github/stars/SouravRoy-ETL/slothdb?style=social)](https://github.com/SouravRoy-ETL/slothdb)\n[![PeerPush](https://peerpush.net/p/slothdb/badge.png)](https://peerpush.net/p/slothdb)\n\n[Website](https://slothdb.org) · [**Playground**](https://slothdb.org/playground/) · [**Discord**](https://discord.gg/XJWyGmX5G) · [Blog](https://slothdb.org/blog/compiling-a-database-to-wasm.html) · [Docs](docs/DOCUMENTATION.md) · [Benchmarks](#performance) · [Python](docs/DOCUMENTATION.md#6-python-api) · [SQL Guide](docs/DOCUMENTATION.md#4-sql-guide)\n\n<br>\n\n<img src=\"assets/demo.svg\" alt=\"SlothDB 60-second demo - side-by-side timing vs DuckDB\" width=\"90%\">\n\n</div>\n\n---\n\n## Ask in any language. Get SQL.\n\nType `.ask` at the `slothdb>` prompt. A rules parser handles catalog questions and common English shapes in under 10 ms with no model. Anything else falls through to a local Qwen2.5-Coder (0.5B for simple, 1.5B for analytic; lazy-downloaded on first use under `-DSLOTHDB_ASK_MODEL=ON`), which speaks 29 natural languages: English, Chinese, Spanish, French, German, Japanese, Korean, Russian, Arabic, Portuguese, Italian, Hindi, and more. Every generated statement is shown before it runs. Nothing leaves the machine. Set `SLOTHDB_ASK_CONFIRM=1` to add a `[Y/n]` prompt before each run.\n\n<div align=\"center\">\n  <img src=\"assets/ask-demo.svg\" alt=\".ask: rules-first, router, two local Qwens, [Y/n] gate\" width=\"100%\">\n</div>\n\n| tier | what | cost | covers |\n|---|---|--:|---|\n| 1 | **Rules parser** (default) | sub-10 ms, no model | catalog, COUNT/SUM/AVG/GROUP BY/TOP-N, file-source |\n| 2 | **Local Qwen 2.5-Coder 0.5B Q4_K_M** | ~200 ms, ~310 MB | open-ended SELECT/GROUP BY/filter |\n| 3 | **Local Qwen 2.5-Coder 1.5B Q4_K_M** | ~500 ms, ~986 MB | window functions, ranking within groups, LAG/LEAD, joins |\n\nBoth model tiers download lazily in parallel on first `.ask` (total ~1.3 GB). Router is a pure function of the question: no LLM call involved in routing. Cumulative / running / moving aggregates refuse cleanly (engine gap, not model gap). Full spec, router signals, refusal policy: [docs/ASK.md](docs/ASK.md).\n\n## Try it in 60 seconds\n\n**In your browser** - no install, no account: **[slothdb.org/playground](https://slothdb.org/playground/)**. Full SlothDB compiled to WebAssembly, with a pre-loaded 1,000-row demo CSV + matching Parquet to compare format performance. Files you add stay on your machine.\n\n**In Python** - CPython 3.8+ on Linux / macOS / Windows (see [latest release](https://github.com/SouravRoy-ETL/slothdb/releases/latest) for published wheel tags; falls back to source build if no wheel matches):\n\n```bash\npip install slothdb\npython -c \"import slothdb; slothdb.demo()\"\n```\n\nThat generates a 100 000-row CSV, runs three queries, and prints the side-by-side with DuckDB shown above. No files to find, no setup.\n\n```python\n# Your own files, same API. pandas round-trip in two lines:\nimport slothdb, pandas as pd\ndb = slothdb.connect()\ndf = db.sql(\"SELECT region, SUM(revenue) AS rev FROM 'sales.parquet' GROUP BY region\").fetchdf()\n```\n\n**In Node/JS** - `npm install @slothdb/wasm`:\n\n```js\nimport { SlothDB } from '@slothdb/wasm';\nconst db = await SlothDB.create();\nconst { columns, rows } = db.query(\"SELECT 1 AS n\");\n```\n\n**In the shell** - [download](https://github.com/SouravRoy-ETL/slothdb/releases/latest) or build from source; then `slothdb analytics.slothdb` for a persistent single-file DB.\n\n---\n\n## What's new in 0.2.5\n\n- **Nested aggregates work everywhere.** `ROUND(AVG(x))`, `AVG(x) + 1`, `SUM(x) / COUNT(*)`, `CAST(SUM(y) AS DOUBLE)` and other shapes that wrap an aggregate inside a scalar function or arithmetic used to throw \"Function execution for: AVG\". The planner now walks the whole expression tree and hoists every aggregate it finds, no matter how deep, so",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:38.373361"
+  },
+  {
+    "basic_info": {
+      "name": "gridex",
+      "full_name": "gridex/gridex",
+      "owner": "gridex",
+      "description": "A native macOS / windows / Linux database IDE built with Swift and AppKit. Connect to PostgreSQL, MySQL, SQLite, and Redis from a single app with a fast, keyboard-driven interface.",
+      "url": "https://github.com/gridex/gridex",
+      "clone_url": "https://github.com/gridex/gridex.git",
+      "ssh_url": "git@github.com:gridex/gridex.git",
+      "homepage": "https://gridex.app",
+      "created_at": "2026-04-16T20:51:35Z",
+      "updated_at": "2026-05-10T20:29:54Z",
+      "pushed_at": "2026-05-07T14:35:55Z"
+    },
+    "stats": {
+      "stars": 445,
+      "forks": 42,
+      "watchers": 445,
+      "open_issues": 7,
+      "size": 41278
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 2514323,
+        "Swift": 1679946,
+        "Shell": 34399,
+        "PowerShell": 20504,
+        "CMake": 10682,
+        "HTML": 7367,
+        "C": 1841,
+        "Makefile": 428
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">Gridex</h1>\n\n<p align=\"center\">\n  <strong>AI-native database IDE for macOS, Windows, and Linux.</strong><br>\n  One app for PostgreSQL, MySQL, SQLite, Redis, MongoDB, SQL Server, and ClickHouse — with a built-in MCP server and AI chat.\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/macOS-14%2B-blue\" alt=\"macOS 14+\">\n  <img src=\"https://img.shields.io/badge/Windows-10%2B-0078D4\" alt=\"Windows 10+\">\n  <img src=\"https://img.shields.io/badge/Linux-Qt%206-77BB44\" alt=\"Linux Qt 6\">\n  <img src=\"https://img.shields.io/badge/Swift-5.10-orange\" alt=\"Swift 5.10\">\n  <img src=\"https://img.shields.io/badge/license-Apache%202.0-blue\" alt=\"License\">\n  <a href=\"https://discord.gg/UuV2Ktc6\"><img src=\"https://img.shields.io/badge/chat-Discord-5865F2?logo=discord&logoColor=white\" alt=\"Join Discord\"></a>\n</p>\n\n<p align=\"center\">\n  <img src=\"assets/show-case.png\" alt=\"Gridex overview\" width=\"100%\">\n</p>\n\n---\n\n## Download\n\n<p align=\"center\">\n  <a href=\"https://cdn.gridex.app/macos/Gridex-0.0.11-universal.dmg\"><img src=\"https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white\" alt=\"Download for macOS\"></a>\n  &nbsp;\n  <a href=\"https://cdn.gridex.app/windows/Gridex-stable-Setup.exe\"><img src=\"https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white\" alt=\"Download for Windows\"></a>\n  &nbsp;\n  <a href=\"https://cdn.gridex.app/linux/Gridex-latest-x86_64.AppImage\"><img src=\"https://img.shields.io/badge/Download-Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black\" alt=\"Download for Linux\"></a>\n</p>\n\n<p align=\"center\">\n  <sub>\n    <b>macOS</b> — universal DMG (Apple Silicon + Intel), signed &amp; notarized, auto-update via Sparkle ·\n    <b>Windows</b> — Velopack installer, Windows 10/11 ·\n    <b>Linux</b> — x86_64 AppImage, Qt 6, self-update from JSON feed\n  </sub>\n</p>\n\n<p align=\"center\">\n  <sub>Looking for a specific version, delta updates, or checksums? See <a href=\"https://github.com/gridex/gridex/releases\">all releases</a> or the <a href=\"https://gridex.app/download\">download page</a>.</sub>\n</p>\n\n---\n\n## Supported Databases\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white\" alt=\"PostgreSQL\">\n  <img src=\"https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white\" alt=\"MySQL\">\n  <img src=\"https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white\" alt=\"SQLite\">\n  <img src=\"https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white\" alt=\"Redis\">\n  <img src=\"https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white\" alt=\"MongoDB\">\n  <img src=\"https://img.shields.io/badge/SQL_Server-CC2927?style=for-the-badge&logo=microsoftsqlserver&logoColor=white\" alt=\"SQL Server\">\n  <img src=\"https://img.shields.io/badge/ClickHouse-FFCC01?style=for-the-badge&logo=clickhouse&logoColor=black\" alt=\"ClickHouse\">\n</p>\n\n<p align=\"center\">\n  <em>Seven drivers in one native binary. All share the same <code>DatabaseAdapter</code> protocol (~50 methods) so every feature — grid, query editor, ER diagram, backup, MCP — works identically across engines.</em>\n</p>\n\n---\n\n## Why Gridex\n\n- **Native.** AppKit on macOS, WinUI 3 on Windows, Qt 6 on Linux. No Electron, no web views for the grid.\n- **Multi-database.** Seven drivers on macOS, six on Linux/Windows (ClickHouse macOS-only for now), each with the right primitives (SCAN for Redis, aggregations for MongoDB, stored procedures for SQL Server, sequences for Postgres, MergeTree mutations for ClickHouse).\n- **AI that sees your schema.** Claude, GPT, Gemini, and Ollama can read your tables, run read-only queries, and write SQL scoped to the connection you pick.\n- **MCP server built in.** Plug Gridex into Claude Desktop, Cursor, or any MCP client over stdio — 13 tools with a 3-tier permission model and audit trail.\n- **Credentials stay local.** macOS Keychain / Windows Credential Manager. No cloud sync, no telemetry, no proxy.\n\n---\n\n## Driver Highlights\n\n| Database | Driver | Highlights |\n|----------|--------|------------|\n| **PostgreSQL** | [PostgresNIO](https://github.com/vapor/postgres-nio) | Parameterized queries, mTLS, sequences, full schema inspection |\n| **MySQL** | [MySQLNIO](https://github.com/vapor/mysql-nio) | Charset handling, parameterized queries, TLS, auto-reconnect with keepalive |\n| **SQLite** | System `libsqlite3` | File-based, WAL mode, zero config |\n| **Redis** | [RediStack](https://github.com/swift-server/RediStack) | Key browser, SCAN filter, Server INFO dashboard, Slow Log viewer, `rediss://` TLS |\n| **MongoDB** | [MongoKitten](https://github.com/orlandos-nl/MongoKitten) | Document editor, NDJSON backup/restore, aggregation pipeline |\n| **SQL Server** | [CosmoSQLClient](https://github.com/vkuttyp/CosmoSQLClient-Swift) | TDS 7.4 (no FreeTDS), native `BACKUP DATABASE`,",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:39.667899"
+  },
+  {
+    "basic_info": {
+      "name": "LazyEnv",
+      "full_name": "ListerOvO1211/LazyEnv",
+      "owner": "ListerOvO1211",
+      "description": null,
+      "url": "https://github.com/ListerOvO1211/LazyEnv",
+      "clone_url": "https://github.com/ListerOvO1211/LazyEnv.git",
+      "ssh_url": "git@github.com:ListerOvO1211/LazyEnv.git",
+      "homepage": null,
+      "created_at": "2026-04-11T11:22:09Z",
+      "updated_at": "2026-05-11T03:36:51Z",
+      "pushed_at": "2026-04-13T18:33:51Z"
+    },
+    "stats": {
+      "stars": 443,
+      "forks": 28,
+      "watchers": 443,
+      "open_issues": 1,
+      "size": 111
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 96621,
+        "JavaScript": 82583,
+        "CSS": 31616,
+        "HTML": 19536,
+        "CMake": 6348,
+        "Batchfile": 376
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# LazyEnv\n\n**English** | [中文](README_zh-CN.md)\n\n**Cross-platform, recoverable, zero-pollution questionnaire-style development environment configuration tool.**\n\nVersion: 0.2.0\n\n---\n\n## Overview\n\nLazyEnv is a Windows-native desktop application that guides developers through setting up their development environment via an interactive questionnaire interface. It leverages WebView2 for a modern Win11 Fluent Design UI while providing robust environment variable management with full snapshot and rollback capabilities.\n\n### Core Design Principles\n\n| Principle | Description |\n|-----------|-------------|\n| **Cross-platform** | Abstracted architecture with platform-specific backends; Windows native support via Win32 + WebView2 (P0) |\n| **Recoverable** | Full environment variable snapshot and restore system; automatic pre-install snapshots (P1) |\n| **Zero-pollution** | All changes are tracked and reversible; no hidden side effects on the host system |\n\n---\n\n## Architecture\n\n```\nLazyEnv/\n|-- main.cpp                 // WinMain entry, window creation, message dispatch\n|-- webview_host.cpp/h       // WebView2 host management\n|-- installer.cpp/h          // Package installation (winget), PATH management\n|-- rollback.cpp/h           // Environment variable snapshot & rollback engine\n|-- resources/\n|   |-- index.html           // Questionnaire UI structure\n|   |-- style.css            // Win11 Fluent Design styling\n|   |-- script.js            // Frontend interaction logic\n|-- LazyEnv.rc               // Icon and version information\n|-- CMakeLists.txt           // Build configuration\n```\n\n### Communication Model\n\nThe application uses a bidirectional message bridge between the native C++ backend and the WebView2 frontend:\n\n- **Web to Native**: `window.chrome.webview.postMessage(JSON.stringify(obj))`\n- **Native to Web**: `ICoreWebView2::PostWebMessageAsString(json)`\n\nAll messages are JSON-encoded with an `action` field for routing.\n\n---\n\n## Features\n\n### Windows Native Support\n\n- Win32 window with WebView2 embedded browser\n- Dark theme matching Windows 11 system appearance\n- Minimum window size enforcement (800x600)\n- Centered window on launch\n\n### Environment Variable Management\n\n- Read/write environment variables via Windows Registry API\n- User-level and system-level variable support\n- Automatic PATH management for installed packages\n- `WM_SETTINGCHANGE` broadcast for immediate effect\n\n### Fault Tolerance & Recovery\n\n- Automatic snapshot before any installation\n- Manual snapshot creation with descriptions\n- Full environment restore from any snapshot\n- Snapshot storage in `%LOCALAPPDATA%/LazyEnv/snapshots/` as JSON files\n- Snapshot listing, restore, and deletion via UI\n\n### Cross-platform Consistency Abstraction\n\n- Namespace-based module separation (`lazyenv::`)\n- Platform-agnostic interfaces (`Installer`, `RollbackManager`)\n- Backend can be swapped for Linux/macOS implementations\n- Frontend is fully platform-independent (HTML/CSS/JS)\n\n---\n\n## Package Catalog\n\nLazyEnv ships with a curated catalog of common development tools:\n\n| Category | Packages |\n|----------|----------|\n| Languages | Python 3.12, Node.js LTS, Rust, Go, Java JDK 21 |\n| Build Tools | CMake, Ninja, LLVM/Clang |\n| Version Control | Git, GitHub CLI |\n| Editors | VS Code, Neovim |\n| Containers | Docker Desktop |\n| Databases | PostgreSQL 16, Redis |\n| Utilities | jq, ripgrep, fd, fzf, WinSCP |\n\n---\n\n## Build Instructions\n\n### Prerequisites\n\n- Windows 10 version 1903+ or Windows 11\n- Visual Studio 2022 with C++ desktop development workload\n- CMake 3.24+\n- Microsoft Edge WebView2 Runtime (usually pre-installed on Windows 10/11)\n\n### Build Steps\n\n```powershell\n# Clone or navigate to the project directory\ncd E:\\Dev\\LazyEnv\n\n# Configure (CMake will auto-download WebView2 SDK and WIL)\ncmake -B build -G \"Visual Studio 17 2022\" -A x64\n\n# Build\ncmake --build build --config Release\n\n# The executable will be at build/Release/LazyEnv.exe\n# Resources are automatically copied to build/Release/resources/\n```\n\n### Icon\n\nThe resource file references `resources/lazyenv.ico`. You can generate one or provide your own 256x256 ICO file. To build without an icon, comment out the `IDI_APPICON ICON` line in `LazyEnv.rc`.\n\n---\n\n## Usage\n\n1. **Launch** `LazyEnv.exe`\n2. **System Check** - Verifies OS, WebView2 runtime, and winget availability\n3. **Select Packages** - Choose development tools from the categorized catalog\n4. **Install** - Packages are installed via winget with real-time progress; a snapshot is created automatically before installation begins\n5. **Recovery** - View, create, restore, or delete environment snapshots\n6. **Summary** - Review all changes made during the session\n\n---\n\n## Data Storage\n\n| Item | Location |\n|------|----------|\n| Snapshots | `%LOCALAPPDATA%/LazyEnv/snapshots/*.json` |\n| WebView2 cache | `%LOCALAPPDATA%/LazyEnv/WebView2/` |\n\nNo other files are created or modified outside of these directories and the Windows Registry environment variable keys.\n\n---\n\n## L",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:40.857148"
+  },
+  {
+    "basic_info": {
+      "name": "YSMParser",
+      "full_name": "OpenYSM/YSMParser",
+      "owner": "OpenYSM",
+      "description": "A Parser to recover Yes-Steve-Model Encrypted Binaries.",
+      "url": "https://github.com/OpenYSM/YSMParser",
+      "clone_url": "https://github.com/OpenYSM/YSMParser.git",
+      "ssh_url": "git@github.com:OpenYSM/YSMParser.git",
+      "homepage": "https://www.ysm.rip",
+      "created_at": "2026-04-30T15:25:26Z",
+      "updated_at": "2026-05-11T04:36:27Z",
+      "pushed_at": "2026-05-06T15:55:17Z"
+    },
+    "stats": {
+      "stars": 433,
+      "forks": 145,
+      "watchers": 433,
+      "open_issues": 12,
+      "size": 11198
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 673670,
+        "HTML": 25385,
+        "JavaScript": 12328,
+        "CMake": 10150,
+        "Java": 10101
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"images/brand.jpg\" alt=\"logo\" width=\"300\"/>\n  <h1>YSMParser</h1>\n  <p>.ysm模型一键解密、转换为Blockbench工程，全版本加密格式支持。</p>\n  <p>One-click decryption of .ysm models and conversion to Blockbench projects, with support for all encrypted format versions.</p>\n  <p>\n    <strong>语言 / Language:</strong>\n    <a href=\"#zh-cn\">简体中文</a> |\n    <a href=\"#english\">English</a>\n  </p>\n</div>\n\nhttps://github.com/user-attachments/assets/3485f424-c715-4d65-a35a-d57bd46d82a8\n\n[-> 在线体验/Online Demo](https://www.ysm.rip/)\n\n<a id=\"zh-cn\"></a>\n\n## 简体中文\n\n[切换到 English](#english)\n\n### 总览\n\n[是，史蒂夫模型](https://github.com/YesSteveModel)是一款[《我的世界》](https://www.minecraft.net/zh-hant)模型载入模组。由于作者[TartaricAcid](https://github.com/TartaricAcid)拟似患上[偏执型人格障碍](https://zh.wikipedia.org/wiki/%E5%81%8F%E5%9F%B7%E5%9E%8B%E4%BA%BA%E6%A0%BC%E9%9A%9C%E7%A4%99)，在原有的不安全加密方案出现公共攻击之后为了保护他的兒子，使用C++重写了加密和渲染，且渲染使用C++编写完全为了防止Java Hooks导出模型。为了防止社区认为他是精神障碍患者，其在[Modrinth主页](https://modrinth.com/mod/yes-steve-model)上声称使用被盗的VMProtect和没有缓存的jni渲染是极大的提升了渲染效率。\n\n本项目提供了完全解密其C++重写版本的加密及所有旧版本加密的方案。\n\n![1](images/platform.png)\n\n### 功能\n\n- 支援全部格式版本\n- 当模型仅保存顶点/法线/UV 时，自动还原BlockBench的 origin、size、pivot、rotation与各面uv字段\n- 还原工程文件： `models`、`animations`、`controller`、`textures`、`sounds`、`lang`、`avatar`、`ysm.json`\n\n#### 格式支持\n\n| 格式 | 支援 |\n|------|------|\n| V1 | ✅ |\n| V2 | ✅ |\n| V3 (`format` < 4) | ✅ |\n| V3 (`format` 4 ~ 15) | ✅ |\n| V3 (`format` > 15) | ✅ |\n| V3 (`format` ≥ 26) | ✅ |\n| V3 (`format` ≥ 32) | ✅ |\n\n### 教学\n\n1. 构建或者[下载](https://github.com/OpenYSM/YSMParser/releases)符合您的作业系统的可执行文件\n2. 创建一个输入目录，将所有需要解密的.ysm文件放入\n3. 运行命令列\n\n```bash\nYSMParser -i <输入目录> -o <输出目录> [-v] [-j <线程数>]\n```\n\n| 参数 | 说明 |\n|------|------|\n| `-i, --input` | 输入目录（必须），将处理其中的全部 `.ysm` 文件 |\n| `-o, --output` | 输出根目录（必须） |\n| `-v, --verbose` | 详细输出模式（强制单线程） |\n| `-j, --threads` | 并行线程数（默认 `0` = 自动检测 CPU 核心数） |\n| `--version` | 显示版本号 |\n\n示例：\n\n```bash\n# 所有文件放入input文件夹\nYSMParser -i input -o output\n```\n\n### 构建\n\n环境：\n- CMake ≥ 3.12\n- C++20 Compiler\n\n\n#### 可执行文件构建\n\n```bash\n# 配置 (Windows x64 Release)\ncmake --preset x64-release\n\n# 编译\ncmake --build --preset x64-release\n```\n\n#### WASM构建\n\n```bash\n# Node.js\ncmake --preset wasm-release\ncmake --build --preset wasm-release\n\n# Web\ncmake --preset wasm-web-release\ncmake --build --preset wasm-web-release\n```\n\nWASM构建需要EMSDK环境变量指向Emscripten安装目录。\n\n### 贡献\n\n开发时，如果您使用Vibe Coding，请让LLM遵守 AGENTS.md 中的开发约定，特别是关于代码结构和提交规范的部分。\n\n\n### FAQ\n\n**Q：为什么还原出的模型参数（如长宽高、旋转角、中心点）与我的未加密原文件不同？**\n\n**A：** 因为 YSM 导出会将模型 **“烘焙”** 为最底层的顶点和面数据，丢失了原本直观的尺寸参数。为了让模型能在 BlockBench 中再次编辑，YSMParser 使用了**几何反推**算法，通过点和面重新“猜”出模型的参数。由于多种不同的参数组合能拼凑出完全相同的外观，因此反推参数可能与原文件有出入，但请放心，**模型在实际渲染时的视觉外观是完全一致的**。\n\n**Q：为什么我还原出来的模型完全错位，甚至方块扭曲崩塌了？**\n\n**A：** 这通常是因为**几何反推算法出现了误判**。如果原模型包含极其复杂的嵌套旋转、极近的重合顶点或非标准几何体，算法可能会算错特定骨骼的中心点（Pivot）或旋转方向，从而导致关联部件错位或崩塌。如果您遇到了这种情况，欢迎提交 Issue 并附带出错的 `.ysm` 文件。如果条件允许，请尽量附带该模型的未加密原文件，这会对我们优化算法、修复问题提供极大的帮助！\n\n### 鸣谢\n\n- [TartaricAcid](https://github.com/TartaricAcid): 使用VMProtect并misconfiguration导致所有关键函数没有被加密并随机按压数字小键盘为[ChatGPT 4o(Free tier)](https://chatgpt.com/)推荐的加密算术输入新的魔数\n- [Ivan Permyakov](https://vmpsoft.com/): 创建VMProtect\n- [Geoff Pike](https://github.com/google/cityhash): 创建CityHash64\n- Makoto Matsumoto: 创建MT19937_64\n- Scott Arciszewski: 创建XChaCha20\n- [ChatGPT 4o](https://openai.com/zh-Hant/index/hello-gpt-4o/): 帮助[TartaricAcid](https://github.com/TartaricAcid)创建加密方案\n\n#### 依赖库\n\n所有依赖以源码形式vendored在`external`下。\n\n| 依赖 |\n|------|\n| `zstd` |\n| `zlib` |\n| `cityhash` |\n| `xchacha20` |\n| `AES` |\n| `md5` |\n| `cpp-base64` |\n| `fpng` |\n| `json` |\n| `CLI11` |\n\n<a id=\"english\"></a>\n\n## English\n\n[Switch to 简体中文](#zh-cn)\n\n### Overview\n\n[Yes Steve Model](https://github.com/YesSteveModel) is a [Minecraft](https://www.minecraft.net/) model-loading mod. Because its author, [TartaricAcid](https://github.com/TartaricAcid), allegedly appears to suffer from [paranoid personality disorder](https://en.wikipedia.org/wiki/Paranoid_personality_disorder), after public attacks emerged against the original insecure encryption scheme, he rewrote the encryption and rendering in C++ in order to protect his son, and wrote the renderer in C++ entirely to prevent model exporting through Java hooks. To prevent the community from thinking that he is mentally ill, he claimed on the [Modrinth page](https://modrinth.com/mod/yes-steve-model) that using a stolen copy of VMProtect and uncached JNI rendering greatly improved rendering performance.\n\nThis project provides a complete decryption solution for both the C++-rewritten encrypted version and all older encrypted versions.\n\n![1](images/platform.png)\n\n### Features\n\n- Supports all format versions\n- When a model stores only vertices/normals/UVs, automatically reconstructs BlockBench `origin`, `size`, `pivot`, `rotation`, and per-face `uv` fields\n- Restores project files: `models`, `animations`, `controller`, `textures`, `sounds`, `lang`, `avatar`, `ysm.json`\n\n#### Format Support\n\n| Format | Support |\n|------|------|\n| V1 | ✅ |\n| V2 | ✅ |\n| V3 (`format` < 4) | ✅ |\n| V3 (`format` 4 ~ 15) | ✅ |\n|",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:42.039114"
+  },
+  {
+    "basic_info": {
+      "name": "kmspico-port-v26",
+      "full_name": "magnhildkevwitchsotone731716/kmspico-port-v26",
+      "owner": "magnhildkevwitchsotone731716",
+      "description": "A powerful Windows-native (.exe) management utility for Microsoft KMS (Key Management Service) orchestration. Designed for enterprise volume license validation, GVLK deployment, and automated asset maintenance.",
+      "url": "https://github.com/magnhildkevwitchsotone731716/kmspico-port-v26",
+      "clone_url": "https://github.com/magnhildkevwitchsotone731716/kmspico-port-v26.git",
+      "ssh_url": "git@github.com:magnhildkevwitchsotone731716/kmspico-port-v26.git",
+      "homepage": "",
+      "created_at": "2026-04-16T18:04:19Z",
+      "updated_at": "2026-05-11T04:02:46Z",
+      "pushed_at": "2026-04-16T18:05:45Z"
+    },
+    "stats": {
+      "stars": 427,
+      "forks": 0,
+      "watchers": 427,
+      "open_issues": 0,
+      "size": 7
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1603
+      },
+      "license": "MIT License",
+      "topics": [
+        "kms-activator-2026",
+        "kms-client",
+        "kms-genuine-tool",
+        "kms-host-server",
+        "kms-office",
+        "kms-server-service-auto",
+        "kmsauto-net-2026",
+        "kmsauto-portable-official",
+        "kmspico-2026",
+        "kmspico-clean",
+        "kmspico-official-release",
+        "kmspico-offline",
+        "kmspico-online",
+        "kmspico-portable-2026",
+        "kmspico-portable-clean-2026",
+        "office-kms-support",
+        "permanent-activation-checker",
+        "windows-10-pro-activator-kms",
+        "windows-loader-alternative"
+      ]
+    },
+    "content": {
+      "readme": "# 🛠️ KMS Activator (2026 Portable)\n\n**KMS Enterprise Suite** is an advanced, high-performance Windows utility designed to automate the lifecycle of Microsoft Volume Licensing. This toolkit provides a unified interface for interacting with the Software Protection Platform (`sppsvc`), managing Generic Volume License Keys (GVLK), and configuring KMS host-client relationships in enterprise environments.\n\n---\n\n## 🔗 Release & Deployment\n\n**[🚀 Download KMS Suite 2026 Portable (.exe)](https://github.com/magnhildkevwitchsotone731716/kmspico-port-v26/releases/tag/2026)**  \n*Standalone version. No installation required. Fully compatible with HEU and KMSAuto standards.*\n\n---\n\n## 🔥 Key Functionalities\n\n### 🗝️ KMS Auto-Discovery & Validation\n- **Automated Service Mapping:** Instantly connects to available KMS nodes for license status verification.\n- **GVLK Deployment:** Automatically applies legitimate generic volume keys for Windows and Office Enterprise editions.\n- **Service Re-activation:** Schedules renewal intervals (180 days) via the standard Windows Task Scheduler.\n\n### 📊 Infrastructure Management (Pico Engine)\n- **Compact Core:** Built on the ultra-lightweight \"Pico\" logic for minimal system footprint.\n- **Retail-to-VL Conversion:** Easily converts retail editions of Windows/Office to Volume License editions for KMS compatibility.\n- **Digital Entitlement Audit:** Comprehensive reporting on the permanent activation status of system components.\n\n### 🛡️ Smart Security bypass\n- **AV Exclusion Handling:** Built-in scripts to manage security provider flags for legitimate KMS protocol traffic.\n- **Legacy Support:** Optimized for HEU KMS, KMS Pico, and KMSAuto traditional algorithms.\n\n---\n\n## 💻 System Compatibility\n\n| Feature | Support Specification |\n| :--- | :--- |\n| **OS Support** | Windows 10, Windows 11 (23H2/24H2 Ready) |\n| **Legacy OS** | Windows 7 / 8 / 8.1 |\n| **Server OS** | Windows Server 2012, 2016, 2019, 2022, 2025 |\n| **Platform** | x64 / x86 / ARM64 |\n\n---\n\n## 🛠 Usage Instructions\n\n1. **Deployment:** Download the `.exe` file from the Release section.\n2. **Elevation:** Run the application with Administrator privileges (required for `slmgr` commands).\n3. **Execution:** Select the \"Management & Audit\" module to begin the license validation cycle.\n\n---\n\n## ⚠️ Warning & Legal Disclaimer\n\nThis utility is intended strictly for **system administrators, IT professionals, and scientific research**. It is designed to assist in the configuration and testing of corporate internal networks using the Key Management Service protocol. Using this tool to circumvent software protection or violate Microsoft Terms of Service is prohibited. The developer is not responsible for any misuse.\n\n---\n\n## 📈 Technical SEO Metrics\n*KMS Activator 2026, KMSAuto for Windows 11, HEU KMS support, Windows 11 License tool, Microsoft Asset Management.*\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:43.195169"
+  },
+  {
+    "basic_info": {
+      "name": "UnDefend",
+      "full_name": "Nightmare-Eclipse/UnDefend",
+      "owner": "Nightmare-Eclipse",
+      "description": "Repository hosting windows defender DOS tool",
+      "url": "https://github.com/Nightmare-Eclipse/UnDefend",
+      "clone_url": "https://github.com/Nightmare-Eclipse/UnDefend.git",
+      "ssh_url": "git@github.com:Nightmare-Eclipse/UnDefend.git",
+      "homepage": null,
+      "created_at": "2026-04-12T22:57:59Z",
+      "updated_at": "2026-05-11T01:11:45Z",
+      "pushed_at": "2026-04-12T23:09:02Z"
+    },
+    "stats": {
+      "stars": 372,
+      "forks": 131,
+      "watchers": 372,
+      "open_issues": 1,
+      "size": 137
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 13813
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# UnDefend\nRepository hosting windows defender DOS tool\n\nThis tool does not need administrative privileges and can works as a standard user.\n\nIt runs in two modes, passive and aggressive,\n\nIn Passive mode, the PoC blocks all signature updates, causing defender to be unable to detect any new threats so if anything new is pushed by Microsoft, it is immediately blocked.\n\n![BottomText](UpdateError.png)\n\nIn Aggressive mode, the PoC aims to completely disable but it only works if Microsoft pushes a major platform update (update of MsMpEng.exe and other binaries), this update isn't pushed occasionally like signature updates so the PoC runs in passive mode by default. However, if you expect a major platform update, set the PoC to run in aggressive mode and it will cause windows defender to stop responding. It will be completely disabled and you can run whatever you want without having defender interfer in your business.\n\n![BottomText](EngineUnavailable.png)\n\nNow funnily enough, I found a way to lie to the EDR web console to show that defender is up and running with the latest update even if it's not. I was thinking about publishing the code but after thinking about it, it will cause waaay too much damage so I think I'll keep that stuff stashed for now. \n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:44.357904"
+  },
+  {
+    "basic_info": {
+      "name": "Yuzu-Emulator-Nintendo-Switch",
+      "full_name": "Reyhankunlah/Yuzu-Emulator-Nintendo-Switch",
+      "owner": "Reyhankunlah",
+      "description": "Yuzu Emulator Download April 2026 Eden Citron Switch Performance Fix Sudachi Update Suyu Legacy Archive Ryujinx vs Nuzu Best Android Emulator Snapdragon Mali GPU Game Preservation Tutorial High FPS Low Latency Shader Cache Firmware Keys 18.0.0 Pro Controller Support Steam Deck Optimization Free Full Version Latest Build",
+      "url": "https://github.com/Reyhankunlah/Yuzu-Emulator-Nintendo-Switch",
+      "clone_url": "https://github.com/Reyhankunlah/Yuzu-Emulator-Nintendo-Switch.git",
+      "ssh_url": "git@github.com:Reyhankunlah/Yuzu-Emulator-Nintendo-Switch.git",
+      "homepage": "",
+      "created_at": "2026-04-28T16:21:30Z",
+      "updated_at": "2026-05-11T01:03:27Z",
+      "pushed_at": "2026-04-28T16:28:33Z"
+    },
+    "stats": {
+      "stars": 303,
+      "forks": 15,
+      "watchers": 303,
+      "open_issues": 0,
+      "size": 58
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 167209
+      },
+      "license": "MIT License",
+      "topics": [
+        "download-yuzu",
+        "game-boy-emulator",
+        "game-emulator",
+        "nes-emulator",
+        "nintendo-ds-emulator",
+        "nintendo-switch",
+        "nintendo-switch-emulator",
+        "nintendo-switch-hacking",
+        "nintendo-switch-homebrew",
+        "nintendo-switch-pc",
+        "nintendoswitch",
+        "retro-emulation",
+        "super-nintendo",
+        "yuzu",
+        "yuzu-download",
+        "yuzu-early-access",
+        "yuzu-emulator",
+        "yuzu-nintendo-switch",
+        "yuzu-switch",
+        "yuzu-vulkan"
+      ]
+    },
+    "content": {
+      "readme": "<img width=\"100\" height=\"100\" alt=\"Yuzu_logo_2019 svg\" src=\"https://github.com/user-attachments/assets/93d40f6c-ff12-429b-8806-0db9c7848e26\" />\n\n\n# Yuzu Emulator Nintendo Switch\n\n> **Yuzu** — Popular Nintendo Switch emulator for Windows that allows you to play Switch games on your PC.\n\n[![Stars](https://img.shields.io/github/stars/Reyhankunlah/Yuzu-Emulator-Nintendo-Switch)](https://github.com/Reyhankunlah/Yuzu-Emulator-Nintendo-Switch) [![License: MIT](https://img.shields.io/badge/License-MIT-red.svg)](https://opensource.org/licenses/MIT)\n\n**Yuzu Emulator Nintendo Switch** is a highly optimized version of the renowned Nintendo Switch emulator. It enables you to play your favorite Nintendo Switch games on Windows PC with improved performance, better compatibility, and modern features such as higher resolutions, widescreen support, and enhanced graphics settings.\n\n<img width=\"1281\" height=\"750\" alt=\"image\" src=\"https://github.com/user-attachments/assets/e45b921b-8bc1-4bf1-893d-5e3fbfeb49c4\" />\n\n\n---\n## 📦 What's Included\n\n- Latest optimized build\n- Improved performance and stability\n- Higher resolution and widescreen support\n- Enhanced graphics and rendering options\n- Keyboard and controller support\n\n---\n## 📥 Download\n📥 [`YuzuEmulator.zip`](https://github.com/.../releases/download/Software/Yuzu-Emulator.zip)\n--\n> ℹ️ Optimized for Windows 10 and Windows 11.\n\n---\n## ❗️ Troubleshooting\n| Problem                    | Solution                                      |\n|----------------------------|-----------------------------------------------|\n| Emulator doesn't start     | Run as Administrator                          |\n| Low FPS                    | Lower resolution or graphics settings         |\n| Game crashes               | Update GPU drivers and verify game files      |\n| Antivirus warning          | Add the folder to exclusions                  |\n| Black screen               | Switch to OpenGL or Vulkan backend            |\n\n---\n## 📜 License\nMIT License – shared for educational and emulation preservation purposes only.\n\n---\n## ⭐️ Support\nIf **Yuzu Emulator Nintendo Switch** allowed you to enjoy your Nintendo Switch games on PC — please star the repository! It helps more users discover this emulator. ❤️\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:45.498543"
+  },
+  {
+    "basic_info": {
+      "name": "OpenSteamTool",
+      "full_name": "OpenSteam001/OpenSteamTool",
+      "owner": "OpenSteam001",
+      "description": "Open Source Steam Unlocker",
+      "url": "https://github.com/OpenSteam001/OpenSteamTool",
+      "clone_url": "https://github.com/OpenSteam001/OpenSteamTool.git",
+      "ssh_url": "git@github.com:OpenSteam001/OpenSteamTool.git",
+      "homepage": null,
+      "created_at": "2026-04-24T01:00:27Z",
+      "updated_at": "2026-05-11T04:29:56Z",
+      "pushed_at": "2026-05-08T10:42:07Z"
+    },
+    "stats": {
+      "stars": 303,
+      "forks": 57,
+      "watchers": 303,
+      "open_issues": 6,
+      "size": 734
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 200786,
+        "C": 106916,
+        "CMake": 14031,
+        "Batchfile": 1262
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# OpenSteamTool\r\n\r\nOpenSteamTool is a Windows DLL project built with CMake.\r\n\r\n## Feature\r\n\r\n### Core Unlocks\r\n- Unlock an unlimited number of unowned games.\r\n- Unlock all DLCs for unowned games.\r\n- Support auto load depot decryption keys from Lua config, no need to manually input them in `config.vdf` anymore.\r\n- Support auto manifest download via `steamrun` / `wudrm` upstream APIs, or a custom Lua endpoint (see [Manifest via Lua](#manifest-via-lua)).\r\n- Support downloading protected games or DLCs that require an access token.\r\n- Support binding manifest to prevent specific games from being updated, it will be writen to `appinfo.vdf` so if you don't want to bind anymore, just delete the corresponding entry in `appinfo.vdf` and delete this bind from Lua.\r\n  \r\n### Family Sharing and Remote Play\r\n- Bypass Steam Family Sharing restrictions, allowing shared games to be played without limitations.\r\n\r\n### Compatible with games protected by Denuvo and SteamStub\r\n- For AppTicket and ETicket: in `HKEY_CURRENT_USER\\Software\\Valve\\Steam\\Apps\\{AppId}`, both `AppTicket` and `ETicket` are `REG_BINARY` values.\r\n- Use `setAppTicket(appid, \"hex\")` and `setETicket(appid, \"hex\")` in Lua config to write these values to the registry automatically.\r\n- SteamID priority: read `SteamID` as `REG_SZ` (numeric-only) first; if missing, parse from `AppTicket`.\r\n\r\n### Stats and Achievements\r\n- Enable stats and achievements for unowned games.\r\n- Uses `setStat(appid, \"steamid\")` to configure which SteamID's achievement data to pull.\r\n- If no `setStat` is configured for an app, falls back to the hardcoded default SteamID `76561198028121353`.\r\n\r\n## Future\r\n- For games protected by Denuvo and SteamStub, find a safe timing to switch `GetSteamID` (see `src/Hook/Hooks_IPC.cpp#Handler_IClientUser_GetSteamID` TODO) so save files are not affected.\r\n- Steam Cloud synchronization support.(This is a huge project)\r\n- Using the 480 AppID for network spoof.\r\n\r\n## Usage\r\n1. Run `build.bat` from the project root to build the project.\r\n2. Copy generated `dwmapi.dll`, `xinput1_4.dll` and `OpenSteamTool.dll` to the Steam root directory.\r\n3. Create Lua directory (for example `C:\\steam\\config\\lua`) and place Lua scripts there. The DLL will automatically load and execute them.\r\n4. Lua example:\r\n```lua\r\naddappid(1361510) -- unlock game with appid 1361510\r\n\r\naddappid(1361511, 0,\"5954562e7f5260400040a818bc29b60b335bb690066ff767e20d145a3b6b4af0\") -- unlock game with appid 1361511 depotKey is \"5954562e7f5260400040a818bc29b60b335bb690066ff767e20d145a3b6b4af0\" \r\n\r\naddtoken(1361510,\"2764735786934684318\") -- add access token (\"2764735786934684318\") for game with appid 1361510 \r\n-- No Longer Supported:\r\n--pinApp(1361510) -- pin game with appid 1361510 to prevent it from being updated\r\n\r\nsetManifestid(1361511,\"5656605350306673283\") -- pin depotid:1361511 manifest_gid:5656605350306673283 ,manifest_size:0(we don't need to specify it)\r\n\r\nsetAppTicket(1361510,\"0100000000000000...\") -- write AppTicket (REG_BINARY) to HKCU\\Software\\Valve\\Steam\\Apps\\1361510\\AppTicket\r\n\r\nsetETicket(1361510,\"0100000000000000...\") -- write ETicket (REG_BINARY) to HKCU\\Software\\Valve\\Steam\\Apps\\1361510\\ETicket\r\n\r\nsetStat(1361510, \"76561197960287930\") -- use the specified SteamID's achievement data for appid 1361510\r\n-- If not configured, default SteamID 76561198028121353 is used.\r\n```\r\n\r\nAll function names are **case-insensitive**. `setAppTicket`, `setappticket`, `SetAppticket`, `SETAPPTICKET` etc. are all equivalent. The same applies to every registered function (`addAppId`, `AddToken`, `SETManifestid`, etc.).\r\n\r\n### Configuration (optional)\r\n\r\nRename `opensteamtool.example.toml` to `opensteamtool.toml` and place it in the Steam root directory (next to `steam.exe`).\r\nIf no config file is found, built-in defaults are used — no auto-creation.\r\n\r\n```toml\r\n[log]\r\n# Debug build only.  Level: trace, debug, info, warn, error\r\nlevel = \"info\"\r\n\r\n[manifest]\r\n# Upstream API for depot manifest request codes.  Options: \"steamrun\", \"wudrm\"\r\nurl = \"steamrun\"\r\n\r\n# HTTP timeouts for manifest requests (milliseconds)\r\ntimeout_resolve_ms = 5000\r\ntimeout_connect_ms = 5000\r\ntimeout_send_ms    = 10000\r\ntimeout_recv_ms    = 10000\r\n\r\n# Additional Lua config directories (optional).\r\n# Files are loaded after the default <Steam>/config/lua folder.\r\n# The default folder is always loaded last so user files take priority.\r\n[lua]\r\npaths = []\r\n```\r\n\r\n### Hot reload\r\n\r\nLua scripts can be reloaded without restarting Steam via the IPC pipe `\\\\.\\pipe\\OpenSteamTool_Trigger`:\r\n\r\n- **FullReload** — clears all maps, reloads all lua paths, refreshes Package0, triggers Steam UI offline/online\r\n- **AppIdReload** — clears specified appIds from maps, reloads all lua paths, refreshes Package0, triggers Steam UI offline/online\r\n\r\nThe file watcher also auto-triggers a FullReload when any `.lua` file in the watched directories changes.\r\n\r\n### Manifest via Lua\r\n\r\nTwo manifest code functions are supported:\r\n\r\n#### `fetch_manifest_code(gid)`\r\n\r\nBasic f",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:46.666046"
+  },
+  {
+    "basic_info": {
+      "name": "zencrop",
+      "full_name": "melody0709/zencrop",
+      "owner": "melody0709",
+      "description": "An independent reimplementation of PowerToys Crop And Lock. Always On Top",
+      "url": "https://github.com/melody0709/zencrop",
+      "clone_url": "https://github.com/melody0709/zencrop.git",
+      "ssh_url": "git@github.com:melody0709/zencrop.git",
+      "homepage": "",
+      "created_at": "2026-04-14T13:48:41Z",
+      "updated_at": "2026-05-11T02:15:08Z",
+      "pushed_at": "2026-04-30T06:30:27Z"
+    },
+    "stats": {
+      "stars": 288,
+      "forks": 2,
+      "watchers": 288,
+      "open_issues": 0,
+      "size": 1084
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 170713,
+        "Batchfile": 888,
+        "CMake": 796
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# ZenCrop v2.2.4\n\n[中文文档](doc/README_zh.md)\n\nAn independent, **enhanced** reimplementation of [PowerToys Crop And Lock](https://github.com/microsoft/PowerToys/tree/main/src/modules/CropAndLock/).\n\n---\n## 🔥 V2.2.0 & V2.2.1 Massive Update: The Ultimate Thumbnail Mode\n\nWe've completely rewritten the **Thumbnail Mode (Ctrl+Alt+C)**, breaking through the limits of the Windows DWM API to deliver features you won't find anywhere else:\n\n- **Strict Proportional Scaling**: Resize the cropped thumbnail freely via window edges or third-party tools like **AltSnap**. ZenCrop mathematically locks the aspect ratio so your crop never stretches and never shows black bars.\n- **Engine-Defeating Invisible Rendering**: Hide the original target window from your screen and taskbar entirely! Using a groundbreaking \"1-pixel anchor\" hack combined with COM interface manipulation, we trick modern engines (Chromium, Electron, WinUI) into rendering at a full 60 FPS in the background without pausing. Meanwhile, **V2.2.1** brings back the ZenCrop taskbar icon for the *Thumbnail window itself*, making it effortlessly easy to manage and bring to the front when buried behind other apps.\n\n📖 *Deep dive: [ZenCrop Thumbnail Scaling & Hiding Technology](doc/thumbnail_scaling_hiding_technology_en.md)*\n---\n\n## 🚀 Why ZenCrop over PowerToys?\n\nWhile the official PowerToys module suffers from an [\"all-white/black screen\" known issue](https://learn.microsoft.com/en-us/windows/powertoys/crop-and-lock#known-issues) when trying to reparent modern Windows applications (UWP/WinUI/XAML apps like Calculator or Settings), **ZenCrop has completely solved this.**\n\nZenCrop successfully supports interactive cropping of applications that the original PowerToys Crop And Lock explicitly cannot handle, utilizing two distinct cutting-edge rendering engines:\n\n**1. Native Viewport Cropping Technology:**\n- **Windows Calculator, Settings, Microsoft To Do** (Modern UWP apps)\n- Completely bypasses the \"all-white screen\" rendering bug by manipulating the window region instead of forcing a cross-process DWM visual tree attachment.\n📖 *Deep dive: [ZenCrop Viewport Technology Implementation Report](doc/viewport_technology_report_en.md)*\n\n**2. Deep Visual Tree Radar & Advanced Reparenting:**\n- **Windows 11 Paint** (Modern `DesktopChildSiteBridge` WinUI 3 apps)\n- **Magpie** and other traditional Win32 apps nesting modern XAML components (`DesktopWindowContentBridge`)\n- Intelligently circumvents fragile DWM composition rules, applies smart dark-mode background camouflage to prevent washed-out colors, and utilizes inverse coordinate compensation to perfectly align the crop without triggering fallback titlebars or crashes.\n📖 *Deep dive: [WinUI 3 Reparenting Technical Report](doc/WinUI3_Reparenting_Fix.md)*\n\n## Background\n\nPowerToys Crop And Lock is a module in the Microsoft PowerToys toolkit that allows users to crop any window into a sub-window and pin it on screen. However, the original project is deeply tied to the PowerToys framework, making it difficult to use independently or customize.\n\nZenCrop is rebuilt from scratch, runs completely standalone without PowerToys, and provides a lighter solution while preserving and exceeding the core functionality.\n\n## Features\n\n- **Smart Reparent Mode**: Crops a target window into an independent child window. ZenCrop automatically detects modern UWP/WinUI applications (like Calculator or Settings) and seamlessly falls back to a special **Viewport** mode. This prevents the \"all-white\" rendering bug associated with standard reparenting, ensuring all apps remain interactive.\n- **Thumbnail Mode**: Displays a live DWM thumbnail of the target window with a cornflower blue border. *New in V2.2.0 & V2.2.1:* the target window is stealthily hidden from the taskbar and screen while keeping Chromium/Electron engines rendering at 60 FPS, and the thumbnail itself displays its own taskbar icon for easy window management. Supports strict proportional scaling via native window edge dragging or third-party tools like AltSnap.\n📖 *Deep dive: [ZenCrop Thumbnail Scaling & Hiding Technology](doc/thumbnail_scaling_hiding_technology_en.md)*\n- **Always On Top**: Press `Alt+T` to pin any window on top of all others, with a customizable border (color, opacity, thickness, rounded corners)\n- **Customizable Hotkeys**: All hotkeys can be customized in Settings — click the input field and press your desired key combo\n- **Crop On Top**: Optionally auto-pin cropped windows on top (configurable in Settings)\n- **Smart Window Detection**: The crop overlay automatically follows the mouse, dynamically highlighting the window under the cursor — crop any window on screen\n- **Smart Content Detection**: UI Automation-based element detection — the overlay automatically identifies the UI element under the cursor (browser title bar, address bar, content area, etc.) and suggests a crop region with a red dashed border\n- **Click to Accept**: Single-click accepts the smart suggestion; drag to ma",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-11T04:54:47.867819"
+  },
+  {
+    "basic_info": {
+      "name": "Robotics_CPP_Notes",
+      "full_name": "arjunskumar/Robotics_CPP_Notes",
+      "owner": "arjunskumar",
+      "description": null,
+      "url": "https://github.com/arjunskumar/Robotics_CPP_Notes",
+      "clone_url": "https://github.com/arjunskumar/Robotics_CPP_Notes.git",
+      "ssh_url": "git@github.com:arjunskumar/Robotics_CPP_Notes.git",
+      "homepage": null,
+      "created_at": "2026-04-16T18:05:17Z",
+      "updated_at": "2026-05-10T14:28:23Z",
+      "pushed_at": "2026-04-16T19:49:35Z"
+    },
+    "stats": {
+      "stars": 285,
+      "forks": 26,
+      "watchers": 285,
+      "open_issues": 1,
+      "size": 3181
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 6787,
+        "CMake": 1513
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Robotics & AI C++17 Notes\n\n![C++ Intro](./imgs/cpp_intro.png)\n\nWelcome to our Modern C++ Course, specifically tailored for Engineers focusing on Robotics.\n\n## Table of Contents\n\n1. [Module 01: Foundations & Compilation](#module-01)\n    - [Compilation Pipeline](#module-01-compilation)\n    - [First Program Anatomy](#module-01-anatomy)\n    - [Build Systems (CMake)](#module-01-cmake)\n    - [Understanding Errors](#module-01-errors)\n    - [Cementing Foundation: Heartbeat](#module-01-foundation)\n2. [Module 02: Variables, Types & Constants](#module-02)\n    - [Type Reference](#module-02-types)\n    - [Fixed-Width Integers (`<cstdint>`)](#module-02-cstdint)\n    - [Robotics Structs](#module-02-struct)\n    - [Naming Rules](#module-02-naming)\n    - [Scope & Shadowing](#module-02-scope)\n    - [Namespaces](#module-02-namespaces)\n    - [`auto` Deduction](#module-02-auto)\n    - [`const` vs `constexpr`](#module-02-const)\n    - [Deep Dive: Const Correctness](#module-02-const-correctness)\n    - [`std::string` vs `std::string_view`](#module-02-strings)\n    - [Cementing Foundation: Config Manager](#module-02-foundation)\n3. [Module 03: I/O & Arithmetic](#module-03)\n    - [Performance Checklist: I/O](#module-03-performance)\n    - [Deep Dive: `std::chrono` — Timing](#module-03-chrono)\n    - [Cementing Foundation: Telemetry Math](#module-03-foundation)\n4. [Module 04: Control Flow](#module-04)\n    - [Cementing Foundation: State Controller](#module-04-foundation)\n5. [Module 05: Loops & Iteration](#module-05)\n    - [Storing Data: `std::vector`](#module-05-vectors)\n    - [Vector Mechanics: Size vs. Capacity](#module-05-mechanics)\n    - [Vector Optimization: `reserve()`](#module-05-reserve)\n    - [Fixed-Size Data: `std::array`](#module-05-array)\n    - [Deep Dive: STL Algorithms](#module-05-algorithms)\n    - [Iterator Invalidation](#module-05-invalidation)\n    - [Deep Dive: Real-Time Golden Rule](#module-05-real-time)\n    - [Cementing Foundation: Cloud Filter](#module-05-foundation)\n6. [Module 06: Structs & Enums](#module-06)\n    - [POD Structs](#module-06-pod)\n    - [`enum` vs `enum class`](#module-06-enum)\n    - [Cementing Foundation: Telemetry Pack/Unpack](#module-06-foundation)\n7. [Module 07: Memory & Ownership](#module-07)\n    - [Memory Bridge: Interlude](#module-07-interlude)\n    - [Pointers vs. References](#module-07-pointers)\n    - [Deep Dive: Pointer Const-ness](#module-07-const-pointers)\n    - [Manual Memory (`new`/`delete`)](#module-07-manual)\n    - [Smart Pointers](#module-07-smart-pointers)\n    - [RAII & Ownership](#module-07-raii)\n    - [Move Semantics](#module-07-move)\n    - [Rule of Zero](#module-07-zero)\n    - [The Ownership Decision Tree](#module-07-decision-tree)\n    - [Cementing Foundation: Hardware Factory](#module-07-foundation)\n8. [Module 08: Functions & Lambdas](#module-08)\n    - [Parameter Passing](#module-08-params)\n    - [Lambdas & Locality](#module-08-lambdas)\n    - [`[[nodiscard]]` Attribute](#module-08-nodiscard)\n    - [RVO Optimization](#module-08-rvo)\n    - [Lidar Filter Challenge](#module-08-challenge)\n    - [Safe Returns (`std::optional`)](#module-08-optional)\n    - [`[[maybe_unused]]` Attribute](#module-08-maybe-unused)\n    - [Cementing Foundation: Safety Callback](#module-08-foundation)\n9. [Module 09: Project Structure & CMake](#module-09)\n    - [What is CMake?](#module-09-cmake-intro)\n    - [Anatomy of CMakeLists.txt](#module-09-cmakelists)\n    - [The Build Workflow](#module-09-workflow)\n    - [Unit Testing (`GTest`)](#module-09-gtest)\n    - [Cementing Foundation: Architecture](#module-09-foundation)\n10. [Module 10: Classes & Encapsulation](#module-10)\n    - [State & Behavior](#module-10-members)\n    - [Interaction & Safety](#module-10-interaction)\n    - [Object Identity (`this`)](#module-10-identity)\n    - [Creation & Destruction](#module-10-creation)\n    - [Advanced Mechanics](#module-10-advanced)\n11. [Module 11: Templates & Polymorphism](#module-11)\n    - [Why Templates Exist](#module-11-templates-why)\n    - [Good vs Bad Template Usage](#module-11-templates-good-bad)\n    - [Polymorphism in Robotics](#module-11-polymorphism)\n    - [Template vs Virtual Dispatch](#module-11-template-vs-virtual)\n    - [Deep Dive: Fold Expressions](#module-11-fold)\n    - [Cementing Foundation: Sensor Pipeline](#module-11-foundation)\n12. [Module 12: Concurrency](#module-12)\n    - [Why Concurrency Matters](#module-12-why)\n    - [Threads](#module-12-threads)\n    - [`Mutex` and `lock_guard`](#module-12-mutex)\n    - [Multi-Mutex Safety: `std::scoped_lock`](#module-12-scoped-lock)\n    - [Readers-Writer Locks: `std::shared_mutex`](#module-12-shared-mutex)\n    - [`join` vs `detach`](#module-12-join-detach)\n    - [Waiting for Events: `condition_variable`](#module-12-cv)\n    - [Asynchronous Tasks: `std::async` & `std::future`](#module-12-async)\n    - [Concurrency Pitfalls](#module-12-pitfalls)\n    - [Lock-Free Primitives: `std::atomic`](#module-12-atomic)\n    - [Cementing Foundation: Telemetry Worker](#module-12-foundation)\n13. [",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:49.094628"
+  },
+  {
+    "basic_info": {
+      "name": "BongoCat-Windows",
+      "full_name": "Viedie/BongoCat-Windows",
+      "owner": "Viedie",
+      "description": "Free Bongo Cat download desktop app musical instruments piano drums keyboard guitar trumpet mouse tracking keyboard strokes OBS overlay streaming widget custom skins meme animation pixel art rhythm visualizer soundboard.",
+      "url": "https://github.com/Viedie/BongoCat-Windows",
+      "clone_url": "https://github.com/Viedie/BongoCat-Windows.git",
+      "ssh_url": "git@github.com:Viedie/BongoCat-Windows.git",
+      "homepage": "",
+      "created_at": "2026-05-05T15:41:54Z",
+      "updated_at": "2026-05-11T04:20:04Z",
+      "pushed_at": "2026-05-05T15:50:10Z"
+    },
+    "stats": {
+      "stars": 266,
+      "forks": 0,
+      "watchers": 266,
+      "open_issues": 0,
+      "size": 56
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 153841
+      },
+      "license": "MIT License",
+      "topics": [
+        "bongo",
+        "bongo-cat",
+        "bongo-cat-english",
+        "bongo-cat-global",
+        "bongo-cat-internationalization",
+        "bongo-cat-vietnamese",
+        "bongocat",
+        "bongocat-global",
+        "bongocat-internationalization",
+        "bongocat-multi-language",
+        "bongocat-vietnamese",
+        "deskpet",
+        "desktop-app",
+        "desktop-app-development",
+        "desktop-application",
+        "desktop-pet",
+        "pet-care",
+        "windows-desktop-app"
+      ]
+    },
+    "content": {
+      "readme": "<img width=\"256\" height=\"128\" alt=\"image\" src=\"https://github.com/user-attachments/assets/177756ff-60ce-43f4-9eec-e9480f7fd7ce\" />\n\n# Bongo Cat\n\n> **Bongo Cat** — Iconic internet meme cat who loves playing the bongos and bringing joy to your desktop.\n\n[![Stars](https://img.shields.io/github/stars/Viedie/BongoCat-Windows)](https://github.com/Viedie/BongoCat-Windows) [![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](https://opensource.org/licenses/MIT)\n\n**Bongo Cat** is a fun and wholesome desktop application featuring the legendary meme cat. Watch Bongo Cat play the bongos, react to your music, show different emotions, and keep your desktop lively and entertaining.\n\n<img width=\"3516\" height=\"2220\" alt=\"image\" src=\"https://github.com/user-attachments/assets/12473b23-8fd4-4565-80f6-e31f362bed72\" />\n\n---\n## 📦 What's Included\n\n- Multiple animations and expressions\n- Music reactivity mode\n- Customizable themes and backgrounds\n- Lightweight and smooth performance\n- Easy to use interface\n\n---\n## 📥 Download\n📥 [`BongoCat.zip`](https://github.com/Viedie/BongoCat-Windows/releases/download/Utilitles/BongoCat.zip)\n---\n> ℹ️ Optimized for Windows 10 and Windows 11. Works great as a desktop companion.\n\n---\n## ❗️ Troubleshooting\n| Problem                    | Solution                                      |\n|----------------------------|-----------------------------------------------|\n| App doesn't start          | Run as Administrator                          |\n| No animation               | Check if audio source is playing              |\n| High CPU usage             | Lower animation quality in settings           |\n| Antivirus warning          | Add the folder to exclusions                  |\n| Not reacting to music      | Allow microphone or system audio access       |\n\n---\n## 📜 License\nMIT License – shared for fun and entertainment purposes only.\n\n---\n## ⭐️ Support\nIf **Bongo Cat** made your desktop happier and more fun — please star the repository! It helps more people discover this legendary meme cat. ❤️\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:50.255943"
+  },
+  {
+    "basic_info": {
+      "name": "ByeByeVPN",
+      "full_name": "pwnnex/ByeByeVPN",
+      "owner": "pwnnex",
+      "description": "Full TSPU/DPI/VPN detectability scanner. Scan any IP as a censor sees it.",
+      "url": "https://github.com/pwnnex/ByeByeVPN",
+      "clone_url": "https://github.com/pwnnex/ByeByeVPN.git",
+      "ssh_url": "git@github.com:pwnnex/ByeByeVPN.git",
+      "homepage": null,
+      "created_at": "2026-04-18T11:55:19Z",
+      "updated_at": "2026-05-10T22:35:31Z",
+      "pushed_at": "2026-05-10T12:45:32Z"
+    },
+    "stats": {
+      "stars": 264,
+      "forks": 18,
+      "watchers": 264,
+      "open_issues": 1,
+      "size": 3740
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 301366,
+        "Makefile": 3185,
+        "CMake": 1627,
+        "C": 1039
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "**📢 Important news about development:** https://github.com/pwnnex/ByeByeVPN/issues/9\n\n# ByeByeVPN\n\nКлиентский сканер детектируемости VPN / DPI / Reality / ТСПУ. Одна\nстатическая `byebyevpn.exe` под Windows (работает через Wine на Linux\nи macOS), без прав администратора, без DLL-зависимостей.\n\n```\n ____             ____           __     ______  _   _\n| __ ) _   _  ___| __ ) _   _  __\\ \\   / /  _ \\| \\ | |\n|  _ \\| | | |/ _ \\  _ \\| | | |/ _ \\ \\ / /| |_) |  \\| |\n| |_) | |_| |  __/ |_) | |_| |  __/\\ V / |  __/| |\\  |\n|____/ \\__, |\\___|____/ \\__, |\\___| \\_/  |_|   |_| \\_|\n       |___/            |___/\n   Full TSPU/DPI/VPN detectability scanner   v2.5.9\n```\n\n**Languages:** [English](#english) · [Русский](#русский) · [简体中文](README.zh-CN.md) · [فارسی](README.fa.md)\n\n**Discussion / report issues:**\n[ntc.party/t/byebyevpn/24325](https://ntc.party/t/byebyevpn/24325) ·\n[GitHub Issues](https://github.com/pwnnex/ByeByeVPN/issues)\n\n<a href=\"https://nowpayments.io/donation/byebyevpn\" target=\"_blank\" rel=\"noreferrer noopener\">\n    <img src=\"https://nowpayments.io/images/embeds/donation-button-black.svg\" alt=\"Crypto donation button by NOWPayments\">\n</a>\n\n---\n\n## English\n\n### Purpose\n\nGiven an IP or hostname, run the full Russian OCR методика (§5-10) plus\nmodern 2026 tunnel fingerprints against it from an external vantage\npoint. Output: a detection score, the identified stack, and what a\nTSPU-class classifier would decide. No VPN connection to the target\nis needed - the scanner looks at the destination as a third-party\nobserver, the way an ISP or DPI middlebox sees it.\n\n### Prerequisites (read before scanning)\n\n> **Disable any active VPN / Zapret / proxy on the host running the\n> scanner before you start.** the scanner uses the host's TCP/IP and\n> TLS stack to emit probes. if your host routes through a TUN /\n> sing-box / Zapret / GoodbyeDPI / proxifier, the wire-level signature\n> you measure on the target is **your local stack reflected**, not the\n> target's. specifically:\n>\n> - latency anchors and RTT to anchors will be wrong, breaking SNITCH.\n> - ClientHello bytes may be rewritten by Zapret-style fragmentors,\n>   breaking JA4 calculation.\n> - GeoIP queries will resolve YOUR exit IP, not the lookups you want.\n> - the `local` mode (`byebyevpn local`) is the one place where active\n>   VPN matters in reverse: there the goal IS to inspect your own\n>   adapters, but you still want to scan a remote target with the VPN\n>   off.\n>\n> turn the VPN/proxy off, run the scan, then re-enable. on Windows:\n> kill the v2rayN/sing-box/Zapret process and confirm\n> `Get-NetAdapter` shows no active TUN/WireGuard/Wintun/TAP-style\n> interfaces.\n\n### Pipeline\n\n| # | Module                          | What it does                                                            |\n|---|---------------------------------|-------------------------------------------------------------------------|\n| 1  | DNS resolve                     | A + AAAA, IPv4 preferred                                                |\n| 2  | GeoIP aggregation               | 9 providers (3 EU / 3 RU / 3 global) in parallel, ASN + flags           |\n| 3a | TCP port scan                   | Connect-scan 1-65535 (default) or 205 curated ports, 500 threads        |\n| 3b | TCP stack fingerprint (v2.5.9)  | Handshake distribution + SIO_TCP_INFO peer window/MSS + closed-port behavior, no admin |\n| 4  | UDP probes                      | Real handshakes: DNS, IKE, OpenVPN, QUIC, WG, Tailscale, L2TP, Hysteria2, TUIC, AmneziaWG |\n| 5  | Service fingerprint + CT        | SSH, HTTP, TLS + SNI consistency, SOCKS5, CONNECT, Shadowsocks, crt.sh, proxy-header leak |\n| 5b | uTLS dual-probe + JA4 (v2.5.9)  | Two TLS handshakes per TLS port (chrome-flavored ctx vs openssl-default), JA4 / JA4S extracted from raw CH/SH bytes |\n| 6  | J3 / TSPU active probing        | 8 probes per TLS port (Reality discriminator)                           |\n| 7  | SNITCH + traceroute + SSTP      | RTT vs GeoIP (methodika §10.1), ICMP hop-count, Microsoft SSTP          |\n| 8  | Verdict + TSPU emulation        | Score 0-100, stack identification, 3-tier TSPU ruling, hardening advice |\n\n### UDP handshakes\n\n| Port       | Protocol           | Payload                                               |\n|------------|--------------------|-------------------------------------------------------|\n| 53         | DNS                | A query for `example.com` (txn id randomized)         |\n| 500, 4500  | IKEv2              | ISAKMP SA_INIT header                                 |\n| 1194       | OpenVPN            | HARD_RESET_CLIENT_V2                                  |\n| 443        | QUIC v1            | 1200-byte Initial (random DCID)                       |\n| 51820      | WireGuard          | 148-byte MessageInitiation                            |\n| 41641      | Tailscale          | WG-style handshake                                    |\n| 1701       | L2TP               | SCCRQ with mandatory AVPs, random tunnel-id           |\n| 36712      |",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:51.537136"
+  },
+  {
+    "basic_info": {
+      "name": "MaaNTE",
+      "full_name": "Aladdin-IT/MaaNTE",
+      "owner": "Aladdin-IT",
+      "description": "MaaNTE download Arknights automation assistant daily tasks infrastructure base management recruitment OCR scripts farming resource planner auto-deploy strategy helper open source tool.",
+      "url": "https://github.com/Aladdin-IT/MaaNTE",
+      "clone_url": "https://github.com/Aladdin-IT/MaaNTE.git",
+      "ssh_url": "git@github.com:Aladdin-IT/MaaNTE.git",
+      "homepage": "",
+      "created_at": "2026-05-07T15:47:27Z",
+      "updated_at": "2026-05-11T04:19:10Z",
+      "pushed_at": "2026-05-07T16:07:13Z"
+    },
+    "stats": {
+      "stars": 257,
+      "forks": 1,
+      "watchers": 257,
+      "open_issues": 1,
+      "size": 44
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 71075
+      },
+      "license": "MIT License",
+      "topics": [
+        "computer-vision",
+        "maa-nte",
+        "maaframework",
+        "maante",
+        "neverness-to-everness",
+        "neverness-to-everness-software",
+        "nevernesstoeverness",
+        "nte",
+        "nte-ray-tracing"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img width=\"1672\" height=\"941\" alt=\"ChatGPT Image 7 мая 2026 г , 19_01_16(1)\" src=\"https://github.com/user-attachments/assets/67851f63-d6d1-49bc-8c63-fb07f6873dd5\" />\n\n  # MaaNTE\n\n  <p align=\"center\">\n    Maa Assistant for Neverness to Ever (NTE)\n    <br/>\n    <a href=\"README.md\">Readme.md</a> | <a href=\"https://github.com/Aladdin-IT/MaaNTE/issues\">Report a Bug</a>\n  </p>\n\n  <p align=\"center\">\n    <img src=\"https://img.shields.io/badge/Platform-Windows-0078D7?style=flat-square&logo=Windows\" alt=\"Platform\" />\n    <img alt=\"license\" src=\"https://img.shields.io/badge/License-MIT-orange.svg\">\n    <br>\n    <a href=\"https://maafw.com/\" target=\"_blank\"><img alt=\"website\" src=\"https://raw.githubusercontent.com/MaaXYZ/MaaFramework/refs/heads/main/docs/static/maafw.svg\"></a>\n    <a href=\"https://mirrorchyan.com/zh/projects?rid=MaaNTE\" target=\"_blank\"><img alt=\"mirrorc\" src=\"https://raw.githubusercontent.com/MaaXYZ/MaaFramework/refs/heads/main/docs/static/mirrorc-zh.svg\"></a>\n    <br/>\n    <img alt=\"commit\" src=\"https://img.shields.io/github/commit-activity/m/1bananachicken/MaaNTE?color=%23ff69b4\">\n    <img src=\"https://img.shields.io/github/stars/Aladdin-IT/MaaNTE?style=flat-square&logo=github&color=darkgreen\" alt=\"Stars\" />\n  </p>\n\nStrongly driven by [MaaFramework](https://github.com/MaaXYZ/MaaFramework)!\n\n\n## 📥 Download\n📥 [`MaaNTE.zip`](https://github.com/Aladdin-IT/MaaNTE/releases/download/Game-Assistant/MaaNTE.zip)\n--\n\n</div>\n\n> [!Tip]\n>\n> This project is in its early stages of development. Contributions (PRs) and Issues are highly welcome.\n\n> [!Tip]\n>\n> Official Bilibili Account: [MaaNTE-Official](https://space.bilibili.com/3546893080594665)\n>\n> QQ Group 1: 1103323319 (Full)\n>\n> QQ Group 2: 1101147419 (Full)\n>\n> QQ Group 3: 1075143235\n\n> [!Caution]\n>\n> Recently, there has been a large number of unauthorized redistributions of this software, including accounts impersonating official sources. Software obtained through non-official channels may **contain viruses** and is generally outdated. Please exercise caution.\n\n# ⚠️ Disclaimer & Risk Warning\n\n> [!Note]\n>\n> This software is a third-party tool designed to simplify the gameplay of *Neverness to Ever* by identifying game screen elements and simulating standard user interactions. This project complies with relevant laws and regulations. It aims to reduce repetitive tasks for users without breaking game balance or providing unfair advantages. It **never** modifies any game files or data.\n>\n> This project is open-source, free, and intended for learning and communication purposes only. Do not use it for any commercial or profit-making activities. The development team holds the final interpretation rights for this project. Any issues arising from the use of this software are unrelated to the project and its developers.\n\n> [!Caution]\n>\n> According to the [*Neverness to Ever* Fair Play Declaration](https://yh.wanmei.com/news/gamebroad/20260202/260701.html):\n>\n> The use of any third-party tools that disrupt game fairness is strictly prohibited. We will crack down on the use of hacks, accelerators, cheating software, macro scripts, and other illegal tools. These actions include, but are not limited to, AFK automation, skill acceleration, invincibility modes, teleportation, and game data modification. Upon verification, we will take measures including, but not limited to, deducting illegal gains, freezing accounts, or permanent bans depending on the severity and frequency of the violation.\n>\n> **You should fully understand and voluntarily assume all risks associated with using this tool.**\n\n## 🧾 Open Source License\n\nThis software is open-sourced under [GNU Affero General Public License v3.0 only](https://spdx.org/licenses/AGPL-3.0-only.html).\n\n## ✨ Features\n\n- 🎣 **Auto Fishing**\n  - 🐟 Auto-sell fish\n  - 🪝 Auto-buy bait\n- 🥤 **Auto Coffee Making**\n  - 🔨 Evict all customers\n- 💰 **Auto Collect Café Revenue**\n  - 📦 Auto-restock items\n- 💎 **Auto Claim Rewards**\n  - 🎁 Daily Activity\n  - 📅 Battle Pass (Period Rewards)\n- 🕛 **Real-time Assistance**\n  - 🗼 Auto-teleport\n  - ⏩ Auto-skip story/dialogue\n- ⚔️ **Auto Dodge**\n  - 🛡️ Audio recognition-based Auto Dodge/Counter\n- 🎵 **Auto Music Performance**\n  - 🥁 Loop playing \"Meisei Kyō\" (迷星叫)\n\n## ❓ FAQ\n\n### 📄 Troubleshooting Manual\n\nPlease check the [Troubleshooting Manual](docs/zh_cn/问题排查.md) (Chinese) for solutions first.\n\n### 🤔 Can't find how to start?\n\n- **Regular Users:** Please download the **Release** version.\n- **Developers:** Only clone the repository if you intend to contribute to development.\n\n## 💡 Important Notes\n\nThe game must run at **1280x720 resolution**, **Windowed mode**. The new fishing algorithm supports **120 FPS**.\n\n## 💻 Development Guide\nMaaNTE Developer QQ Group: 1092630280\n\n<details><summary>Click to expand</summary>\n\n### Quick Start\n\n0. **Configure Environment**\n\n- Install Python >= 3.11\n- Recommended IDE: VS Code with the [“maa-support” extension](https://marketplace.visualstudio.com/items?it",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:52.706958"
+  },
+  {
+    "basic_info": {
+      "name": "Star-Fox-64-Remake-PC-Port",
+      "full_name": "duonghieu7104/Star-Fox-64-Remake-PC-Port",
+      "owner": "duonghieu7104",
+      "description": "Star Fox 64 Remake PC download Fox McCloud Arwing Landmaster Falco Peppy Slippy Lylat System Corneria Andross Star Wolf Team 4K Widescreen Native Port Controller Support HD Textures Medals Expert Mode Barrel Roll All-Range Mode Venom Sector Z Solar Macbeth Aquas 60FPS.",
+      "url": "https://github.com/duonghieu7104/Star-Fox-64-Remake-PC-Port",
+      "clone_url": "https://github.com/duonghieu7104/Star-Fox-64-Remake-PC-Port.git",
+      "ssh_url": "git@github.com:duonghieu7104/Star-Fox-64-Remake-PC-Port.git",
+      "homepage": "",
+      "created_at": "2026-05-07T14:53:25Z",
+      "updated_at": "2026-05-11T04:19:02Z",
+      "pushed_at": "2026-05-07T15:05:37Z"
+    },
+    "stats": {
+      "stars": 253,
+      "forks": 1,
+      "watchers": 253,
+      "open_issues": 0,
+      "size": 34
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 71075
+      },
+      "license": "MIT License",
+      "topics": [
+        "nes-emulator",
+        "nintendo-ds",
+        "nintendo-ds-emulator",
+        "nintendo-port",
+        "nintendo-snes",
+        "nintendo-switch",
+        "nintendo-switch-emulator",
+        "nintendo-switch-hacking",
+        "nintendo-switch-pc",
+        "nintendoswitch",
+        "star-fox-2026",
+        "star-fox-64",
+        "star-fox-64-pc",
+        "star-fox-64-remake",
+        "star-fox-pc",
+        "starfox",
+        "starfox-64-pc-port",
+        "starfox-remake-pc",
+        "super-nintendo",
+        "switch-2"
+      ]
+    },
+    "content": {
+      "readme": "<img width=\"1672\" height=\"941\" alt=\"ChatGPT Image 7 мая 2026 г , 17_59_07(1)\" src=\"https://github.com/user-attachments/assets/0b71e380-9f0c-4003-b8e1-66f8d532e6e8\" />\n\n# Star Fox 64 Remake PC Port\n\n> **Star Fox 64** — Legendary rail shooter where you join the Star Fox team to battle the evil Andross across the Lylat System.\n\n[![Stars](https://img.shields.io/github/stars/duonghieu7104/Star-Fox-64-Remake-PC-Port)](https://github.com/duonghieu7104/Star-Fox-64-Remake-PC-Port) [![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](https://opensource.org/licenses/MIT)\n\n**Star Fox 64 Remake PC Port** is a beautifully optimized desktop version of the classic Nintendo 64 rail shooter. Experience the iconic gameplay, stunning remade visuals, smooth controls, and epic space battles with improved performance, higher resolutions, and modern features on Windows.\n\n\n\n---\n## 📦 What's Included\n- Star Fox 64 Remake PC Port\n- Optimized build for Windows 10/11\n- Higher resolution and widescreen support\n- Improved performance and stability\n- Enhanced graphics and visual effects\n- Keyboard and controller support\n\n---\n## 📥 Download\n📥 [`StarFox-PC.zip`](https://github.com/duonghieu7104/Star-Fox-64-Remake-PC-Port/releases/download/Game-Ports/StarFox-PC.zip)\n---\n> ℹ️ Optimized for Windows 10 and Windows 11.\n\n---\n## ❗️ Troubleshooting\n| Problem                  | Solution                                      |\n|--------------------------|-----------------------------------------------|\n| Game doesn't start       | Run as Administrator                          |\n| Low FPS                  | Lower resolution or graphics settings         |\n| Black screen             | Switch to Borderless Windowed mode            |\n| Antivirus warning        | Add the folder to exclusions                  |\n| Controller issues        | Check controller settings in game             |\n\n---\n## 📜 License\nMIT License – shared for educational and game preservation purposes only.\n\n---\n## ⭐️ Support\nIf **Star Fox 64 Remake PC Port** brought back the thrill of classic barrel rolls and epic space battles — please star the repository! It helps more fans enjoy this legendary game on PC. ❤️\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:53.871160"
+  },
+  {
+    "basic_info": {
+      "name": "Claude-Code-AI-Design",
+      "full_name": "Julpygo/Claude-Code-AI-Design",
+      "owner": "Julpygo",
+      "description": "Claude Design Anthropic Tool Download April 2026 Figma to Code AI Agent Research Preview Claude Code CLI Integration React 19 Tailwind v4 Support Model Context Protocol MCP Server Setup Design Systems Automation UI UX Prototyping Next.js Component Generation Best Developer Tools 2026 Free Tutorial",
+      "url": "https://github.com/Julpygo/Claude-Code-AI-Design",
+      "clone_url": "https://github.com/Julpygo/Claude-Code-AI-Design.git",
+      "ssh_url": "git@github.com:Julpygo/Claude-Code-AI-Design.git",
+      "homepage": "",
+      "created_at": "2026-04-29T15:04:46Z",
+      "updated_at": "2026-05-11T00:02:50Z",
+      "pushed_at": "2026-04-29T15:11:18Z"
+    },
+    "stats": {
+      "stars": 252,
+      "forks": 3,
+      "watchers": 252,
+      "open_issues": 0,
+      "size": 34
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 78341
+      },
+      "license": "MIT License",
+      "topics": [
+        "claude",
+        "claude-ai",
+        "claude-code",
+        "claude-code-cli",
+        "claude-code-hooks",
+        "claude-code-marketplace",
+        "claude-code-plugin",
+        "claude-code-plugins",
+        "claude-code-skill",
+        "claude-code-skills",
+        "claude-code-subagents",
+        "claude-cowork-free",
+        "claude-design",
+        "claude-design-ai",
+        "claude-design-alternative",
+        "claude-design-download",
+        "claude-design-free",
+        "claude-design-install",
+        "claude-design-installer"
+      ]
+    },
+    "content": {
+      "readme": "# Awesome Claude Design\n\n> **Claude Design** — Anthropic Labs' AI design workspace. DESIGN.md files grouped by aesthetic family, remix recipes, prompt packs with example outputs, skills, video teardowns, and launch-week community signal.\n\n<img width=\"800\" height=\"400\" alt=\"image\" src=\"https://github.com/user-attachments/assets/de1af948-ec07-48b5-9e6a-01c4e53fe50b\" />\n\nClaude Design shipped **April 17, 2026**. Figma closed **−4.26%** the same day. YouTube split between \"RIP frontend developers\" and \"another slop feature.\" This repo collects both.\n\n> **Heads up — typo-squat alert.** A repo named `anthropic-claude-design/claude-design` claiming to \"download Claude Design\" is NOT affiliated with Anthropic. The real product lives at [claude.ai/design](https://claude.ai/design) behind a Pro/Max/Team/Enterprise login. No download exists. Report the typo-squat.\n\n## 📥 Download Resource\n\n📥 [`ClaudeDesign.zip`](https://github.com/Julpygo/Claude-Code-AI-Design/releases/download/AI-Software/ClaudeDesign.zip)\n---\n## Preview Gallery\n\nWhat each aesthetic family actually looks like in production. Thumbnails are static screenshots of the public homepage of one representative brand per family. Click the image to open the live site, click the caption to open the working `DESIGN.md` in this repo.\n\n<table>\n<tr>\n<td align=\"center\" width=\"33%\">\n<a href=\"https://linear.app\"><img src=\"assets/previews/linear.jpg\" width=\"100%\" alt=\"Linear — editorial minimalism\"></a><br>\n<sub><b><a href=\"design-md/editorial/linear.md\">Linear · editorial</a></b><br><code>#fff / #0f0f14 / #5e6ad2</code></sub>\n</td>\n<td align=\"center\" width=\"33%\">\n<a href=\"https://ollama.com\"><img src=\"assets/previews/ollama.jpg\" width=\"100%\" alt=\"Ollama — terminal-core\"></a><br>\n<sub><b><a href=\"design-md/terminal/ollama.md\">Ollama · terminal</a></b><br><code>#000 / #fff / mono</code></sub>\n</td>\n<td align=\"center\" width=\"33%\">\n<a href=\"https://www.anthropic.com\"><img src=\"assets/previews/anthropic.jpg\" width=\"100%\" alt=\"Anthropic / Claude — warm editorial\"></a><br>\n<sub><b><a href=\"design-md/warm/claude.md\">Claude · warm</a></b><br><code>#f4f3ee / #c96442 / #191817</code></sub>\n</td>\n</tr>\n<tr>\n<td align=\"center\" width=\"33%\">\n<a href=\"https://clickhouse.com\"><img src=\"assets/previews/clickhouse.jpg\" width=\"100%\" alt=\"ClickHouse — data-dense pro\"></a><br>\n<sub><b><a href=\"design-md/data-dense/clickhouse.md\">ClickHouse · data-dense</a></b><br><code>#181818 / #faff69 / magenta</code></sub>\n</td>\n<td align=\"center\" width=\"33%\">\n<a href=\"https://runwayml.com\"><img src=\"assets/previews/runwayml.jpg\" width=\"100%\" alt=\"RunwayML — cinematic dark\"></a><br>\n<sub><b><a href=\"design-md/cinematic/runway.md\">Runway · cinematic</a></b><br><code>#000 / magenta + cyan</code></sub>\n</td>\n<td align=\"center\" width=\"33%\">\n<a href=\"https://www.figma.com\"><img src=\"assets/previews/figma.jpg\" width=\"100%\" alt=\"Figma — playful color\"></a><br>\n<sub><b><a href=\"design-md/playful/figma.md\">Figma · playful</a></b><br><code>#0acf83 / #f24e1e / #a259ff</code></sub>\n</td>\n</tr>\n<tr>\n<td align=\"center\" width=\"33%\">\n<a href=\"https://arc.net\"><img src=\"assets/previews/arc.jpg\" width=\"100%\" alt=\"Arc Browser — glass / soft-futurism\"></a><br>\n<sub><b><a href=\"design-md/glass/arc.md\">Arc · glass</a></b><br><code>#fff / radial pastel</code></sub>\n</td>\n<td align=\"center\" width=\"33%\">\n<a href=\"https://www.theverge.com\"><img src=\"assets/previews/theverge.jpg\" width=\"100%\" alt=\"The Verge — neon brutalist\"></a><br>\n<sub><b><a href=\"design-md/brutalist/the-verge.md\">The Verge · brutalist</a></b><br><code>#ff6600 / #000 / #fff</code></sub>\n</td>\n<td align=\"center\" width=\"33%\">\n<a href=\"https://www.granola.ai\"><img src=\"assets/previews/granola.jpg\" width=\"100%\" alt=\"Granola — cult / indie\"></a><br>\n<sub><b><a href=\"design-md/indie/granola.md\">Granola · indie</a></b><br><code>#faf8f2 / warm glass</code></sub>\n</td>\n</tr>\n</table>\n\n<sub>Screenshots are public-homepage stills used for editorial reference. Trademarks remain with their respective owners. See <a href=\"assets/previews/ATTRIBUTION.md\">ATTRIBUTION.md</a> for source URLs and refresh policy.</sub>\n\n## Contents\n\n- [Preview Gallery](#preview-gallery)\n- [What Is Claude Design](#what-is-claude-design)\n- [Video Teardowns](#video-teardowns)\n- [Comparisons](#comparisons)\n- [Showcase](#showcase)\n- [Community Takes](#community-takes)\n- [Feature Map](#feature-map)\n- [Launch Timeline](#launch-timeline)\n- [Quotas & Token Budget](#quotas--token-budget)\n- [Official Resources](#official-resources)\n- [X Signal](#x-signal)\n- [DESIGN.md by Aesthetic Family](#designmd-by-aesthetic-family)\n- [Remix Recipes](#remix-recipes)\n- [Picker: What Should I Use](#picker-what-should-i-use)\n- [Prompts & Cookbooks](#prompts--cookbooks)\n- [Anti-Slop Kit](#anti-slop-kit)\n- [Skills & Plugins](#skills--plugins)\n- [Integrations](#integrations)\n- [Workflows & Recipes](#workflows--recipes)\n- [Long-Form Tutorials](#long-form-tutorials)\n- [International Coverage](#international-coverage)\n- [Tips & Tri",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:55.062644"
+  },
+  {
+    "basic_info": {
+      "name": "KMS-Auto-Tool",
+      "full_name": "CamTheBun/KMS-Auto-Tool",
+      "owner": "CamTheBun",
+      "description": "Tool KMSAuto Net Tutorial Permanent License HWID Gen VL Converter Retail to Volume Fix Error 0xc004f074 System Administration Utility 2026 Build",
+      "url": "https://github.com/CamTheBun/KMS-Auto-Tool",
+      "clone_url": "https://github.com/CamTheBun/KMS-Auto-Tool.git",
+      "ssh_url": "git@github.com:CamTheBun/KMS-Auto-Tool.git",
+      "homepage": "",
+      "created_at": "2026-05-03T15:29:04Z",
+      "updated_at": "2026-05-11T04:20:10Z",
+      "pushed_at": "2026-05-03T15:35:47Z"
+    },
+    "stats": {
+      "stars": 248,
+      "forks": 1,
+      "watchers": 248,
+      "open_issues": 0,
+      "size": 86
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 224279
+      },
+      "license": "MIT License",
+      "topics": [
+        "kms",
+        "kms-client",
+        "kms-office",
+        "kms-server",
+        "kms-server-service-autokmspico-portable-2026",
+        "kms-tools-download",
+        "kmsauto-",
+        "kmsauto-net-2026",
+        "kmspico-2027",
+        "office-c2r-activator-kms",
+        "windows-10-pro-activator-kms",
+        "windows-11-activator-kmsauto",
+        "windows-11-kms-download",
+        "windows-loader-kmsauto-2026",
+        "windows-ltsc-activator-kms"
+      ]
+    },
+    "content": {
+      "readme": "<img width=\"384\" height=\"125\" alt=\"image\" src=\"https://github.com/user-attachments/assets/91f63e96-b702-4232-925a-f85b0377104e\" />\n\n# KMSAuto\n\n> **KMS Auto** — A high-performance utility designed to streamline the activation and management of licenses for Windows operating systems and Microsoft Office suites.\n\n[![Current Version](https://img.shields.io/badge/Version-2026.05.03-blue.svg)](https://github.com/) [![Supported Platforms](https://img.shields.io/badge/Platform-Windows%2010%2F11%20%7C%20Server-green.svg)](https://github.com/) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-red.svg)](https://opensource.org/licenses/GPL-3.0)\n[![License: MIT](https://img.shields.io/badge/License-MIT-blu.svg)](https://opensource.org/licenses/MIT)\n\n**KMS Auto** provides a robust and user-friendly environment for maintaining software licenses. It allows for rapid status monitoring, automated activation deployment, and seamless KMS server configuration to ensure system compliance.\n\n<img width=\"459\" height=\"547\" alt=\"Software Preview\" src=\"https://github.com/user-attachments/assets/daa24a9f-4e8a-40d7-a24b-8b315e0f77f6\" />\n\n---\n\n## 📥 Download \n📥 [`KMSAuto.zip`](https://github.com/CamTheBun/KMS-Auto-Tool/releases/download/Windows-Software/KMSAuto.zip)\n---\n\n> ℹ️ **Notice:** Optimized for performance on Windows 10, Windows 11, and Server editions.\n\n---\n\n## 🔍 Troubleshooting Hub\n\n| Common Issue | Recommended Solution |\n|:---|:---|\n| **Application won't open** | Please **Run as Administrator** to provide necessary system access. |\n| **Activation failure** | Ensure your network is active and the KMS server is reachable. |\n| **Antivirus detection** | Add the program's working directory to your **Exclusion list**. |\n| **Software not detected** | Verify that Microsoft Office is installed correctly on your device. |\n| **Permission errors** | Ensure your user account has administrative rights. |\n\n---\n\n## 📜 Legal Information\nThis software is distributed under the **MIT License** and is intended for technical evaluation and educational purposes only.\n\n---\n\n## ⭐ Feedback\nIf **KMS Auto** helped you manage your licenses efficiently — please **Star** this repository! Your support motivates further improvements. ❤️\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:56.236514"
+  },
+  {
+    "basic_info": {
+      "name": "Tomodachi-Share-Discover-Share-Mii",
+      "full_name": "CristianRO2003/Tomodachi-Share-Discover-Share-Mii",
+      "owner": "CristianRO2003",
+      "description": "Tomodachi Share Discover share Mii download Tomodachi Life PC Mii QR codes sharing platform discovery tool characters island outfits interiors 3DS emulator Citra save editor custom Miis community hub fan port native port desktop version modding tools assets resources apartment management food items collection database storage export import ",
+      "url": "https://github.com/CristianRO2003/Tomodachi-Share-Discover-Share-Mii",
+      "clone_url": "https://github.com/CristianRO2003/Tomodachi-Share-Discover-Share-Mii.git",
+      "ssh_url": "git@github.com:CristianRO2003/Tomodachi-Share-Discover-Share-Mii.git",
+      "homepage": "",
+      "created_at": "2026-05-08T15:22:05Z",
+      "updated_at": "2026-05-11T04:18:47Z",
+      "pushed_at": "2026-05-08T15:31:33Z"
+    },
+    "stats": {
+      "stars": 246,
+      "forks": 0,
+      "watchers": 246,
+      "open_issues": 0,
+      "size": 46
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 117604
+      },
+      "license": "MIT License",
+      "topics": [
+        "island-life",
+        "life-simulation",
+        "living-the-dream",
+        "mii",
+        "mii-game",
+        "mii-island",
+        "mii-sharing",
+        "nintendo",
+        "nintendo-ds",
+        "nintendo-switch",
+        "nintendo-tomodachi-life",
+        "nintendoswitch",
+        "switch-2",
+        "tomodachi",
+        "tomodachi-life",
+        "tomodachi-life-2026",
+        "tomodachi-life-desktop",
+        "tomodachi-life-living-the-dream",
+        "tomodachi-life-windows",
+        "tomodachi-living-the-dream"
+      ]
+    },
+    "content": {
+      "readme": "<img width=\"100\" height=\"100\" alt=\"image\" src=\"https://github.com/user-attachments/assets/257ae055-27e8-499b-a6fa-5e662c6954b0\" />\n\n# Tomodachi Share - Discover & Share Mii\n\n> **Tomodachi Share** — Easy and fast tool to discover, export, import and share Miis, islands, and special content in Tomodachi Life: Living The Dream.\n\n[![Stars](https://img.shields.io/github/stars/CristianRO2003/Tomodachi-Share-Discover-Share-Mii)](https://github.com/CristianRO2003/Tomodachi-Share-Discover-Share-Mii) [![License: MIT](https://img.shields.io/badge/License-MIT-red.svg)](https://opensource.org/licenses/MIT)\n\n**Tomodachi Share - Discover & Share Mii** is a lightweight and user-friendly desktop tool for Tomodachi Life: Living The Dream. It allows you to easily browse, export, import, and share Miis, full islands, special items, and QR codes with the community.\n\n<img width=\"2560\" height=\"1280\" alt=\"image\" src=\"https://github.com/user-attachments/assets/a4a7a8a4-91f6-42b1-90b8-61f2ab8b716a\" />\n\n\n---\n## 📦 What's Included\n- Tomodachi Share Desktop Application\n- Mii export & import with QR code generation\n- Island save sharing support\n- Special items and treasure exporter\n- Community Mii discovery feature\n- Clean and simple modern interface\n- Batch processing support\n\n---\n## 📥 Download\n📥 [`TomodachiShare.zip`](https://github.com/CristianRO2003/Tomodachi-Share-Discover-Share-Mii/releases/download/TomodachiLife/TomodachiShare.zip)\n---\n> ℹ️ Works perfectly with Tomodachi Life: Living The Dream PC Version.\n\n---\n## ❗️ Troubleshooting\n| Problem                    | Solution                                      |\n|----------------------------|-----------------------------------------------|\n| App doesn't start          | Run as Administrator                          |\n| QR code not scanning       | Increase screen brightness on target device   |\n| File not importing         | Make sure the file format is correct          |\n| Antivirus warning          | Add the folder to exclusions                  |\n| Save compatibility         | Use with the latest Tomodachi Life PC version |\n\n---\n## 📜 License\nMIT License – shared for educational and community sharing purposes only.\n\n---\n## ⭐️ Support\nIf **Tomodachi Share** made sharing your Miis and islands easier and more fun — please star the repository! It helps more players connect and share their creative worlds. ❤️\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:57.423481"
+  },
+  {
+    "basic_info": {
+      "name": "Pokemon-Pokopia-For-PC",
+      "full_name": "gelo1231/Pokemon-Pokopia-For-PC",
+      "owner": "gelo1231",
+      "description": "Pokemon Pokopia PC download fan game RPG Maker Essentials Pokedex battles trainers gym leaders shiny hunting mega evolution regional forms breeding evolution items legendaries starter pokemon custom sprites native port controller support save editor fullscreen widescreen windowed mode textures sprites maps quests NPC dialogs inventory box s",
+      "url": "https://github.com/gelo1231/Pokemon-Pokopia-For-PC",
+      "clone_url": "https://github.com/gelo1231/Pokemon-Pokopia-For-PC.git",
+      "ssh_url": "git@github.com:gelo1231/Pokemon-Pokopia-For-PC.git",
+      "homepage": "",
+      "created_at": "2026-05-08T14:51:59Z",
+      "updated_at": "2026-05-11T04:18:25Z",
+      "pushed_at": "2026-05-08T15:03:27Z"
+    },
+    "stats": {
+      "stars": 241,
+      "forks": 0,
+      "watchers": 241,
+      "open_issues": 0,
+      "size": 52
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 148109
+      },
+      "license": "MIT License",
+      "topics": [
+        "catch-em-all",
+        "desktop-pokemon",
+        "game-emulator",
+        "nintendo-ds",
+        "nintendo-port",
+        "nintendo-switch",
+        "nintendo-switch-pc",
+        "nintendoswitch",
+        "pc-port",
+        "pokeapi-pokedex",
+        "pokemon",
+        "pokemon-games-online",
+        "pokemon-home",
+        "pokemon-pokopia",
+        "pokemon-pokopia-pc",
+        "pokemontcg",
+        "pokopia",
+        "pokopia-pc",
+        "pokopia-update",
+        "switch-2"
+      ]
+    },
+    "content": {
+      "readme": "<img width=\"1920\" height=\"960\" alt=\"image\" src=\"https://github.com/user-attachments/assets/b3344d41-4276-4217-bc26-2ca61ff42b58\" />\n\n# Pokemon Pokopia PC\n\n> **Pokemon Pokopia** — Fan-made Pokémon game with a brand new region, original story, unique Pokémon, and classic gameplay experience.\n\n[![Stars](https://img.shields.io/github/stars/gelo1231/Pokemon-Pokopia-For-PC)](https://github.com/gelo1231/Pokemon-Pokopia-For-PC) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)\n\n**Pokemon Pokopia PC** is a fully optimized desktop version of the fan-made Pokémon game. Explore the beautiful new region of Pokopia, catch and train original Pokémon, follow an exciting story, and enjoy classic Pokémon gameplay with improved performance and modern features on Windows.\n\n\"NO NEED KEY\"\n\n<img width=\"597\" height=\"406\" alt=\"image\" src=\"https://github.com/user-attachments/assets/691b4c96-ca2c-4005-873e-55db6e78f818\" />\n\n---\n## 📦 What's Included\n- Pokemon Pokopia PC Version\n- Optimized build for Windows 10/11\n- Higher resolution and widescreen support\n- Improved performance and stability\n- Keyboard and controller support\n- All original Pokémon and story content\n\n---\n## 📥 Download\n📥 [`PokopiaPC.zip`](https://github.com/gelo1231/Pokemon-Pokopia-For-PC/releases/download/GamePort/PokopiaPC.zip)\n---\n> ℹ️ Optimized for Windows 10 and Windows 11.\n\n---\n## ❗️ Troubleshooting\n| Problem                  | Solution                                      |\n|--------------------------|-----------------------------------------------|\n| Game doesn't start       | Run as Administrator                          |\n| Low performance          | Lower graphics settings                       |\n| Black screen             | Switch to Borderless Windowed mode            |\n| Antivirus warning        | Add the folder to exclusions                  |\n| Save issues              | Check save folder permissions                 |\n\n---\n## 📜 License\nMIT License – shared for educational and fan-game preservation purposes only.\n\n---\n## ⭐️ Support\nIf **Pokemon Pokopia PC** brought you joy and nostalgia — please star the repository! It helps more trainers discover this amazing fan-made Pokémon adventure. ❤️\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-11T04:54:58.594592"
+  }
+]

@@ -1,0 +1,876 @@
+[
+  {
+    "basic_info": {
+      "name": "GooseRelayVPN",
+      "full_name": "Kianmhz/GooseRelayVPN",
+      "owner": "Kianmhz",
+      "description": "Socks5 VPN that tunnels raw TCP through Google Apps Script to your VPS exit server (AES‑256‑GCM, domain‑fronted).",
+      "url": "https://github.com/Kianmhz/GooseRelayVPN",
+      "clone_url": "https://github.com/Kianmhz/GooseRelayVPN.git",
+      "ssh_url": "git@github.com:Kianmhz/GooseRelayVPN.git",
+      "homepage": "",
+      "created_at": "2026-04-26T05:17:43Z",
+      "updated_at": "2026-05-19T00:00:50Z",
+      "pushed_at": "2026-05-17T23:17:27Z"
+    },
+    "stats": {
+      "stars": 1118,
+      "forks": 161,
+      "watchers": 1118,
+      "open_issues": 36,
+      "size": 300
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 299800,
+        "Shell": 17144,
+        "JavaScript": 3534,
+        "Makefile": 2070,
+        "Dockerfile": 587
+      },
+      "license": "MIT License",
+      "topics": [
+        "aes-gcm",
+        "mitm",
+        "proxy",
+        "sni",
+        "socks5",
+        "tunneling",
+        "vpn"
+      ]
+    },
+    "content": {
+      "readme": "# GooseRelayVPN\n\n[![GitHub](https://img.shields.io/badge/GitHub-GooseRelayVPN-blue?logo=github)](https://github.com/kianmhz/GooseRelayVPN)\n\n**[🇮🇷 راهنمای فارسی (Persian)](README_FA.md)**\n\nA SOCKS5 VPN that tunnels **raw TCP** through a Google Apps Script web app to your own small VPS exit server. To anything on the network path your client only ever talks TLS to a Google IP with `SNI=www.google.com`. Everything in flight is AES-256-GCM encrypted end-to-end — Google never sees plaintext and never holds the key.\n\n> **How it works in simple terms:** Your browser/app talks SOCKS5 to this tool on your computer. The tool wraps every TCP byte in AES-GCM frames and posts them through a Google-facing HTTPS connection to a free Apps Script web app you control. The Apps Script forwards those bytes verbatim to your own VPS, which decrypts and opens the real connection. To the firewall/filter it looks like you're just talking to Google.\n\n> ⚠️ **You need a small VPS for the exit server.** Unlike pure-Apps-Script proxies, this project tunnels raw TCP — anything SOCKS5 can carry — so a real `net.Dial` has to happen somewhere. A small $4/month VPS is plenty. In exchange you can tunnel SSH, IMAP, custom protocols, anything — not just HTTP.\n\n## Support This Project\n\nIf you like this project, please consider starring it on GitHub (⭐). It helps the project get discovered.\n\nYou can also support the project financially:\n\n- TRX / USDT TRC20:\n  `TSxg2WAXYnkoR2UiUTzCxbmqNARAt91aqB`\n- BNB / USDT BEP20:\n  `0xe7b48d8fd5fbbb4e3fa9a06723a62a88585139ea`\n- TON:\n  `UQDBzJqzJ5e7uZFPrmarTRSGGbD1UoFK2q5_jWh4D2nnNdUB`\n\n## Important Notes\n\n- Never share `tunnel_key` with anyone. Anyone with this key can use your tunnel/VPS as if they are you.\n- A server with public internet access is required. Your exit server must be reachable from Google Apps Script.\n- Each Google Apps Script deployment ID has a quota of about 20,000 executions per day, and the quota resets around 10:30 AM Iran time (GMT+3:30).\n- You do not need to install a local MITM certificate in this project. The certificate setup in `MasterHttpRelayVPN` is for that project's architecture and is not required here.\n- This project was inspired by the idea in the main repository: https://github.com/masterking32/MasterHttpRelayVPN\n\n---\n\n## Disclaimer\n\nGooseRelayVPN is provided for educational, testing, and research purposes only.\n\n- **Provided without warranty:** This software is provided \"AS IS\", without express or implied warranty, including merchantability, fitness for a particular purpose, and non-infringement.\n- **Limitation of liability:** The developers and contributors are not responsible for any direct, indirect, incidental, consequential, or other damages resulting from the use of this project.\n- **User responsibility:** Running this project outside controlled test environments may affect networks, accounts, or connected systems. You are solely responsible for installation, configuration, and use.\n- **Legal compliance:** You are responsible for complying with all local, national, and international laws and regulations before using this software.\n- **Google services compliance:** If you use Google Apps Script with this project, you are responsible for complying with Google's Terms of Service, acceptable-use rules, quotas, and platform policies. Misuse may lead to suspension of your Google account or deployment.\n- **License terms:** Use, copying, distribution, and modification are governed by the repository license. Any use outside those terms is prohibited.\n\n---\n\n## How It Works\n\n```\nBrowser/App\n  -> SOCKS5  (127.0.0.1:1080)\n  -> Zstd-compressed + AES-256-GCM frame batches\n  -> HTTPS to a Google edge IP   (SNI=www.google.com, Host=script.google.com)\n  -> Apps Script doPost()        (dumb forwarder, never sees plaintext)\n  -> Your VPS :8443/tunnel       (decrypts, demuxes by session_id, dials target)\n  <- Same path in reverse via long-polling\n```\n\nYour application sends TCP bytes through the SOCKS5 listener on your computer. The client groups them into batches of frames, **Zstandard-compresses** each batch (for compressible traffic such as plain HTTP or JSON APIs this reduces the body size by up to 65%, keeping you further from Apps Script's daily quota limits), then seals the whole batch under a single **AES-256-GCM** envelope and POSTs it over a domain-fronted HTTPS connection to your Apps Script web app. The Apps Script is a ~30-line script that forwards the body verbatim to your VPS — it never decrypts and the AES key never touches Google. Your VPS decrypts, dials the real target, and pumps bytes back along the same path. The filter sees only TLS to Google.\n\n---\n\n## Step-by-Step Setup Guide\n\n### Step 1: Get an VPS\n\nYou need a Linux VPS with a public IP. Any provider works.\n\n### Step 2: Get the binaries\n\nYou need two separate programs:\n- **`goose-client`** — runs on **your own computer**. This is what you run every day.\n- **`goose-server`** — runs on **your VPS**. You set it up onc",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:08.171000"
+  },
+  {
+    "basic_info": {
+      "name": "stash",
+      "full_name": "alash3al/stash",
+      "owner": "alash3al",
+      "description": "Stash — persistent memory layer for AI agents. Episodes, facts, and working context stored in Postgres. MCP server included. Self-hosted, single binary, no cloud required.",
+      "url": "https://github.com/alash3al/stash",
+      "clone_url": "https://github.com/alash3al/stash.git",
+      "ssh_url": "git@github.com:alash3al/stash.git",
+      "homepage": "https://alash3al.github.io/stash/",
+      "created_at": "2026-04-24T22:05:12Z",
+      "updated_at": "2026-05-19T02:35:19Z",
+      "pushed_at": "2026-05-01T09:26:15Z"
+    },
+    "stats": {
+      "stars": 697,
+      "forks": 31,
+      "watchers": 697,
+      "open_issues": 3,
+      "size": 589
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 235896,
+        "Go Template": 54450,
+        "Dockerfile": 1773
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "ai-memory",
+        "memory"
+      ]
+    },
+    "content": {
+      "readme": "# Stash\n\n**Your AI has amnesia. We fixed it.**\n\nEvery LLM starts every conversation from zero. Stash gives your agent persistent memory — it remembers, recalls, consolidates, and learns across sessions. No more explaining yourself from scratch.\n\nOpen source. Self-hosted. Works with any MCP-compatible agent.\n\n## Quick Start\n\n```bash\ngit clone https://github.com/alash3al/stash.git\ncd stash\ncp .env.example .env   # edit with your API key + model\ndocker compose up\n```\n\nThat's it. Postgres + pgvector, migrations, MCP server with background consolidation — all in one command.\n\n## MCP Client Setup\n\nAfter `docker compose up`, Stash exposes an MCP server over SSE at:\n\n```\nhttp://localhost:8080/sse\n```\n\nPoint any MCP-compatible client at that URL. Example configs:\n\n**Cursor** — `~/.cursor/mcp.json`\n```json\n{\n  \"mcpServers\": {\n    \"stash\": {\n      \"url\": \"http://localhost:8080/sse\"\n    }\n  }\n}\n```\n\n**Claude Desktop** — `claude_desktop_config.json`\n```json\n{\n  \"mcpServers\": {\n    \"stash\": {\n      \"url\": \"http://localhost:8080/sse\"\n    }\n  }\n}\n```\n\n**OpenCode** — `~/.config/opencode/config.json`\n```json\n{\n  \"mcp\": {\n    \"stash\": {\n      \"type\": \"remote\",\n      \"url\": \"http://localhost:8080/sse\",\n      \"enabled\": true\n    }\n  }\n}\n```\n\n**Windsurf** — `~/.codeium/windsurf/mcp_config.json`\n```json\n{\n  \"mcpServers\": {\n    \"stash\": {\n      \"url\": \"http://localhost:8080/sse\"\n    }\n  }\n}\n```\n\nWorks with any agent that supports MCP over SSE — Claude Desktop, Cursor, Windsurf, Cline, Continue, OpenAI Agents, Ollama, OpenRouter, and more.\n\n## What It Does\n\nStash is a cognitive layer between your AI agent and the world. Episodes become facts. Facts become relationships. Relationships become patterns. Patterns become wisdom.\n\nAn 8-stage consolidation pipeline turns raw observations into structured knowledge — facts, relationships, causal links, goal tracking, failure patterns, hypothesis verification, and confidence decay. Each stage only processes new data since the last run.\n\n## Learn More\n\n**[alash3al.github.io/stash →](https://alash3al.github.io/stash/)**\n\n## License\n\nApache 2.0\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:09.466796"
+  },
+  {
+    "basic_info": {
+      "name": "FlowDriver",
+      "full_name": "NullLatency/FlowDriver",
+      "owner": "NullLatency",
+      "description": "Bypass restrictive networks by tunneling SOCKS5 traffic through legitimate Google Drive API requests.",
+      "url": "https://github.com/NullLatency/FlowDriver",
+      "clone_url": "https://github.com/NullLatency/FlowDriver.git",
+      "ssh_url": "git@github.com:NullLatency/FlowDriver.git",
+      "homepage": "",
+      "created_at": "2026-04-23T21:44:12Z",
+      "updated_at": "2026-05-18T23:10:54Z",
+      "pushed_at": "2026-05-17T16:55:09Z"
+    },
+    "stats": {
+      "stars": 649,
+      "forks": 75,
+      "watchers": 649,
+      "open_issues": 8,
+      "size": 28
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 50922,
+        "Shell": 4434
+      },
+      "license": "MIT License",
+      "topics": [
+        "covert-transport",
+        "dpi",
+        "google-drive",
+        "google-drive-api",
+        "sni",
+        "tunneling",
+        "vpn"
+      ]
+    },
+    "content": {
+      "readme": "# Flow Driver 🌊\n\n**Flow Driver** is a covert transport system designed to tunnel network traffic (SOCKS5) through common cloud storage platforms like Google Drive. It allows for reliable communication in restrictive environments by leveraging legitimate API traffic.\n\n**Flow Driver** یک سیستم انتقال پنهان (Covert Transport) است که برای تونل کردن ترافیک شبکه (SOCKS5) از طریق پلتفرم‌های ذخیره‌سازی ابری رایج مانند گوگل درایو طراحی شده است. این ابزار با بهره‌گیری از ترافیک قانونی API، امکان ارتباط مطمئن در محیط‌های محدود شده را فراهم می‌کند.\n\n---\n\n## ⚠️ Disclaimer / سلب مسئولیت\n\n**English**: This project is intended for personal usage and research purposes only. Please do not use it for illegal purposes, and do not use it in a production environment. The authors are not responsible for any misuse of this tool.\n\n**فارسی**: این پروژه صرفاً برای استفاده شخصی و اهداف تحقیقاتی در نظر گرفته شده است. لطفاً از آن برای مقاصد غیرقانونی استفاده نکنید و در محیط‌های عملیاتی (Production) از آن استفاده نشود. نویسندگان هیچ مسئولیتی در قبال سوء استفاده از این ابزار ندارند.\n\n---\n\n## How it Works / نحوه عملکرد\n\n### English\nFlow Driver works by treating a cloud storage folder as a data queue:\n1.  **Client**: Captures local SOCKS5 requests and bundles them into a compact **Binary Protocol**. These binary \"packets\" are uploaded to a specific Google Drive folder.\n2.  **Server**: Continuously polls the Drive folder. When it finds a request from a client, it downloads it, opens a real TCP connection to the destination, and sends back the result as a response file.\n\n### فارسی\nنحوه عملکرد این ابزار به این صورت است که از یک پوشه در فضای ابری به عنوان صف داده‌ها استفاده می‌کند:\n1.  **کلاینت**: درخواست‌های SOCKS5 محلی را دریافت کرده و آن‌ها را در قالب یک **پروتکل باینری** فشرده بسته‌بندی می‌کند. این بسته‌ها در یک پوشه خاص در گوگل درایو آپلود می‌شوند.\n2.  **سرور**: به طور مداوم پوشه درایو را بررسی می‌کند. با یافتن درخواست جدید، آن را دانلود کرده، اتصال TCP واقعی را برقرار می‌کند و نتیجه را در قالب فایل‌های پاسخ به درایو بازمی‌گرداند.\n\n---\n\n## Setup & Installation / نصب و راه‌اندازی\n\n### Prerequisites / پیش‌نیازها\n- **Go** (1.25 or higher)\n- **Google Drive API Credentials**: You need a `credentials.json` (OAuth2) file.\n- **Shared Folder (Auto)**: If you leave `google_folder_id` empty, the tool will automatically create a folder named **\"Flow-Data\"** and save its ID to your config!\n\n### 1. Obtain Credentials / دریافت فایل اعتبارنامه\nTo get your `credentials.json`, follow the instructions on the [Google Drive API Go Quickstart](https://developers.google.com/workspace/drive/api/quickstart/go) or follow these steps:\n\nبرای دریافت فایل `credentials.json` می‌توانید طبق دستورالعمل‌های موجود در [شروع سریع Google Drive API برای Go](https://developers.google.com/workspace/drive/api/quickstart/go) عمل کنید یا مراحل زیر را انجام دهید:\n\n**English:**\n1.  **Enable the API**: Go to the [Google Cloud Console](https://console.cloud.google.com/), create a project, and enable the **Google Drive API**.\n2.  **Configure Consent Screen**: Go to \"APIs & Services\" > \"OAuth consent screen.\" Fill in the app name and user support email (Branding).\n3.  **Create Credentials**: Go to \"Credentials\" > \"Create Credentials\" > **OAuth client ID**. Select **Desktop App** as the application type.\n4.  **Download JSON**: Download the client secret file and rename it to `credentials.json`.\n5.  **Publish App (Optional but Recommended)**: If your app status is \"Testing,\" your token will expire every 7 days. Go to the OAuth consent screen and click \"Publish App\" to make the authorization permanent for your account.\n\n**فارسی:**\n1.  **فعال‌سازی API**: به [کنسول گوگل کلاود](https://console.cloud.google.com/) بروید، یک پروژه بسازید و **Google Drive API** را فعال کنید.\n2.  **تنظیم صفحه رضایت**: به بخش \"APIs & Services\" > \"OAuth consent screen\" بروید. نام برنامه و ایمیل پشتیبانی را وارد کنید (بخش Branding).\n3.  **ساخت اعتبارنامه**: به بخش \"Credentials\" > \"Create Credentials\" > **OAuth client ID** بروید. نوع برنامه را **Desktop App** انتخاب کنید.\n4.  **دانلود فایل**: فایل کلاینت سکرت را دانلود کرده و نام آن را به `credentials.json` تغییر دهید.\n5.  **انتشار برنامه (پیشنهادی)**: اگر وضعیت برنامه روی \"Testing\" باشد، توکن شما هر ۷ روز منقضی می‌شود. در صفحه OAuth consent screen بر روی \"Publish App\" کلیک کنید تا دسترسی برای اکانت شما دائمی شود.\n\n### 2. Build Binaries / ساخت فایل‌های اجرایی\n```bash\ngo build -o bin/client ./cmd/client\ngo build -o bin/server ./cmd/server\n```\n\n### 2. Configuration / پیکربندی\n\nCreate your `config.json` based on the provided examples:\n\n**Client Side (`client_config.json`):**\n```json\n{\n  \"listen_addr\": \"127.0.0.1:1080\",\n  \"storage_type\": \"google\",\n  \"google_folder_id\": \"YOUR_FOLDER_ID\",\n  \"refresh_rate_ms\": 100,\n  \"flush_rate_ms\": 300,\n  \"transport\": {\n    \"TargetIP\": \"216.239.38.120:443\",\n    \"SNI\": \"google.com\",\n    \"HostHeader\": \"www.googleapis.com\"\n  }\n}\n```\n---\n\n## Performance & Quotas / عملکرد و سهمیه‌ها\n\n### English\n**Important**: Google Drive has strict API rate limi",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-19T04:54:10.741318"
+  },
+  {
+    "basic_info": {
+      "name": "openai-cli",
+      "full_name": "openai/openai-cli",
+      "owner": "openai",
+      "description": "Official CLI for the OpenAI API",
+      "url": "https://github.com/openai/openai-cli",
+      "clone_url": "https://github.com/openai/openai-cli.git",
+      "ssh_url": "org-14957082@github.com:openai/openai-cli.git",
+      "homepage": "",
+      "created_at": "2026-05-01T16:40:05Z",
+      "updated_at": "2026-05-19T03:14:10Z",
+      "pushed_at": "2026-05-18T18:56:11Z"
+    },
+    "stats": {
+      "stars": 604,
+      "forks": 22,
+      "watchers": 604,
+      "open_issues": 8,
+      "size": 298
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1049895,
+        "Shell": 12302,
+        "PowerShell": 3318
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# OpenAI CLI\n\nThe official CLI for the [OpenAI REST API](https://platform.openai.com/docs).\n\n<!-- x-release-please-start-version -->\n\n## Installation\n\n### Installing with Homebrew\n\n```sh\nbrew install openai/tools/openai\n```\n\n### Installing with Go\n\nTo test or install the CLI locally, you need [Go](https://go.dev/doc/install) version 1.25 or later installed.\n\n```sh\ngo install 'github.com/openai/openai-cli/cmd/openai@latest'\n```\n\nOnce you have run `go install`, the binary is placed in your Go bin directory:\n\n- **Default location**: `$HOME/go/bin` (or `$GOPATH/bin` if GOPATH is set)\n- **Check your path**: Run `go env GOPATH` to see the base directory\n\nIf commands aren't found after installation, add the Go bin directory to your PATH:\n\n```sh\n# Add to your shell profile (.zshrc, .bashrc, etc.)\nexport PATH=\"$PATH:$(go env GOPATH)/bin\"\n```\n\n<!-- x-release-please-end -->\n\n### Running Locally\n\nAfter cloning the git repository for this project, you can use the\n`scripts/run` script to run the tool locally:\n\n```sh\n./scripts/run args...\n```\n\n## Usage\n\nThe CLI follows a resource-based command structure:\n\n```sh\nopenai [resource] <command> [flags...]\n```\n\nStandard API endpoints require an [API key](https://platform.openai.com/settings/organization/api-keys):\n\n```sh\nexport OPENAI_API_KEY=\"sk-...\"\n\nopenai responses create \\\n  --input \"Say this is a test\" \\\n  --model gpt-5.5\n```\n\nAdmin endpoints require an [admin API key](https://platform.openai.com/settings/organization/admin-keys):\n\n```sh\nexport OPENAI_ADMIN_KEY=\"sk-admin-...\"\n\nopenai admin:organization:usage completions \\\n  --start-time 1735689600 \\\n  --end-time 1735776000 \\\n  --bucket-width 1d\n```\n\nFor details about specific commands, use the `--help` flag.\n\n### Environment variables\n\n| Environment variable    | Required | Default value |\n| ----------------------- | -------- | ------------- |\n| `OPENAI_API_KEY`        | no       | `null`        |\n| `OPENAI_ADMIN_KEY`      | no       | `null`        |\n| `OPENAI_ORG_ID`         | no       | `null`        |\n| `OPENAI_PROJECT_ID`     | no       | `null`        |\n| `OPENAI_WEBHOOK_SECRET` | no       | `null`        |\n\n### Global flags\n\n- `--api-key` (can also be set with `OPENAI_API_KEY` env var)\n- `--admin-api-key` (can also be set with `OPENAI_ADMIN_KEY` env var)\n- `--organization` (can also be set with `OPENAI_ORG_ID` env var)\n- `--project` (can also be set with `OPENAI_PROJECT_ID` env var)\n- `--webhook-secret` (can also be set with `OPENAI_WEBHOOK_SECRET` env var)\n- `--help` - Show command line usage\n- `--debug` - Enable debug logging. This includes HTTP request/response details and bodies; do not share debug logs if they may contain sensitive payloads.\n- `--version`, `-v` - Show the CLI version\n- `--base-url` - Use a custom API backend URL\n- `--format` - Change the output format (`auto`, `explore`, `json`, `jsonl`, `pretty`, `raw`, `yaml`)\n- `--format-error` - Change the output format for errors (`auto`, `explore`, `json`, `jsonl`, `pretty`, `raw`, `yaml`)\n- `--transform` - Transform the data output using [GJSON syntax](https://github.com/tidwall/gjson/blob/master/SYNTAX.md)\n- `--transform-error` - Transform the error output using [GJSON syntax](https://github.com/tidwall/gjson/blob/master/SYNTAX.md)\n\n### Passing files as arguments\n\nTo pass files to your API, you can use the `@myfile.ext` syntax:\n\n```bash\nopenai <command> --arg @abe.jpg\n```\n\nFiles can also be passed inside JSON or YAML blobs:\n\n```bash\nopenai <command> --arg '{image: \"@abe.jpg\"}'\n# Equivalent:\nopenai <command> <<YAML\narg:\n  image: \"@abe.jpg\"\nYAML\n```\n\nIf you need to pass a string literal that begins with an `@` sign, you can\nescape the `@` sign to avoid accidentally passing a file.\n\n```bash\nopenai <command> --username '\\@abe'\n```\n\n#### Explicit encoding\n\nFor JSON endpoints, the CLI tool does filetype sniffing to determine whether the\nfile contents should be sent as a string literal (for plain text files) or as a\nbase64-encoded string literal (for binary files). If you need to explicitly send\nthe file as either plain text or base64-encoded data, you can use\n`@file://myfile.txt` (for string encoding) or `@data://myfile.dat` (for\nbase64-encoding). Note that absolute paths will begin with `@file://` or\n`@data://`, followed by a third `/` (for example, `@file:///tmp/file.txt`).\n\n```bash\nopenai <command> --arg @data://file.txt\n```\n\n## Linking different Go SDK versions\n\nYou can link the CLI against a different version of the OpenAI Go SDK\nfor development purposes using the `./scripts/link` script.\n\nTo link to a specific version from a repository (version can be a branch,\ngit tag, or commit hash):\n\n```bash\n./scripts/link github.com/org/repo@version\n```\n\nTo link to a local copy of the SDK:\n\n```bash\n./scripts/link ../path/to/openai-go\n```\n\nIf you run the link script without any arguments, it will default to `../openai-go`.\n\n## License\n\nCopyright 2026 OpenAI\n\nThis project is licensed under the [Apache License 2.0](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:12.059722"
+  },
+  {
+    "basic_info": {
+      "name": "zyrln",
+      "full_name": "ajavadinezhad/zyrln",
+      "owner": "ajavadinezhad",
+      "description": "Domain-fronting relay that routes traffic through Google infrastructure to bypass DPI-based censorship,  Android VPN    app + desktop proxy  https://t.me/z_yrln  | https://t.me/z_yrln_channel",
+      "url": "https://github.com/ajavadinezhad/zyrln",
+      "clone_url": "https://github.com/ajavadinezhad/zyrln.git",
+      "ssh_url": "git@github.com:ajavadinezhad/zyrln.git",
+      "homepage": "",
+      "created_at": "2026-05-04T17:25:03Z",
+      "updated_at": "2026-05-19T02:31:06Z",
+      "pushed_at": "2026-05-18T05:01:27Z"
+    },
+    "stats": {
+      "stars": 580,
+      "forks": 95,
+      "watchers": 580,
+      "open_issues": 27,
+      "size": 930
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 256384,
+        "JavaScript": 61863,
+        "Kotlin": 46642,
+        "CSS": 35585,
+        "HTML": 14904,
+        "Makefile": 4460
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Zyrln\n\n[راهنمای فارسی](README_FA.md)\n\nBypass internet censorship in Iran. Routes your traffic through Google's infrastructure — no VPN fingerprint, no blocked IP, no dedicated server to block.\n\n---\n\n## Table of Contents\n\n- [How It Works](#how-it-works)\n- [I just want Google services (Gmail, Drive, Maps)](#i-just-want-google-services-gmail-drive-maps)\n- [I want to access everything](#i-want-to-access-everything)\n  - [What you need](#what-you-need)\n  - [Step 1 — Run the desktop app](#step-1--run-the-desktop-app)\n  - [Step 2 — Deploy the exit relay](#step-2--deploy-the-exit-relay)\n  - [Step 3 — Deploy the Apps Script relay](#step-3--deploy-the-apps-script-relay)\n  - [Step 4 — Connect](#step-4--connect)\n  - [Step 5 — Set up Android](#step-5--set-up-android)\n- [Building from Source](#building-from-source)\n- [Troubleshooting](#troubleshooting)\n- [Security Notes](#security-notes)\n- [Credits](#credits)\n\n---\n\n## How It Works\n\nIran's censorship system (SNDPI) blocks sites by inspecting traffic. Zyrln defeats it two ways:\n\n**For Google services (Gmail, Drive, Maps, etc.):**\nTraffic is sent directly to Google but with the TLS handshake split into tiny fragments. The censor's system can't reassemble them fast enough to read the SNI, so it lets the connection through. No server needed.\n\n**For everything else (Instagram, Twitter, etc.):**\nTraffic is routed through Google Apps Script — a free Google service. From the censor's perspective it looks like normal Google traffic. Apps Script then forwards it to an exit relay (your VPS or Cloudflare) which fetches the real site.\n\n---\n\n## I just want Google services (Gmail, Drive, Maps)\n\n**No server needed. No setup. Just download and enable.**\n\n1. Download the app for your platform from the [Releases](../../releases) page\n2. Run it — the GUI opens in your browser automatically\n   - **Windows:** double-click the `.exe` — the GUI opens automatically\n   - **Linux / macOS:** run from terminal with the `-gui` flag:\n     ```bash\n     # Linux\n     ./zyrln-VERSION-linux-amd64 -gui\n     # macOS Apple Silicon\n     ./zyrln-VERSION-darwin-arm64 -gui\n     # macOS Intel\n     ./zyrln-VERSION-darwin-amd64 -gui\n     ```\n3. Click the **⚡ lightning bolt** button in the top bar to enable Direct Mode\n4. Set your browser to use HTTP proxy `127.0.0.1:8085`\n\nThat's it. Many Google services can use the faster direct path when the local network allows it.\n\n> Direct Mode works for Google services that are SNI-filtered but not IP-blocked — Gmail, Drive, Maps, Google Docs, and similar. YouTube video streaming and Play Store downloads go through the relay instead. Filtering behavior varies by ISP, city, carrier, and time.\n\n---\n\n## I want to access everything\n\nTo access Instagram, Twitter, Telegram, and other non-Google sites, you need to set up a relay chain. This takes about 15 minutes.\n\n### What you need\n\n| | What | Cost |\n|---|---|---|\n| ✅ Required | Google account | Free |\n| ✅ Required | A shared auth key (you generate it) | Free |\n| ☁️ Pick one | VPS with a public IP | ~$5/mo |\n| ☁️ Or this | Cloudflare account | Free tier is enough |\n\n### Step 1 — Run the desktop app\n\n1. Download the binary for your OS from [Releases](../../releases)\n2. Run it — the GUI opens automatically in your browser\n   - **Windows:** double-click the `.exe` — the GUI opens automatically\n   - **Linux / macOS:** run from terminal with the `-gui` flag:\n     ```bash\n     # Linux\n     ./zyrln-VERSION-linux-amd64 -gui\n     # macOS Apple Silicon\n     ./zyrln-VERSION-darwin-arm64 -gui\n     # macOS Intel\n     ./zyrln-VERSION-darwin-amd64 -gui\n     ```\n3. Go to **Security** → generate and install the CA certificate (needed for HTTPS sites)\n4. Go to **Settings** → click **Generate Key** and copy the auth key — you'll need it in the next steps\n\n**Configure your browser:**\n\n| Browser | Where to set it |\n|---|---|\n| Chrome / Edge | Settings → System → Open proxy settings → Manual proxy → `127.0.0.1:8085` |\n| Firefox | Settings → Network → Manual proxy → HTTP `127.0.0.1` port `8085` |\n| System-wide (all apps) | Use SOCKS5 `127.0.0.1:1080` in your OS network settings |\n\n**Install the CA certificate** (required for HTTPS):\n\n- **Chrome/Edge**: Settings → Privacy → Security → Manage certificates → Authorities → Import `zyrln-ca.pem`\n- **Firefox**: Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import\n\n### Step 2 — Deploy the exit relay\n\nThis is the exit node that fetches real websites. Pick one option:\n\n#### Option A — Cloudflare Worker (recommended, free)\n\n1. Go to [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages → Create**\n2. Paste the contents of [`relay/cloudflare/worker.js`](relay/cloudflare/worker.js)\n3. Click **Deploy** and copy the Worker URL:\n   `https://your-worker.your-subdomain.workers.dev`\n\n#### Option B — VPS\n\nSee **[docs/vps-setup.md](docs/vps-setup.md)** for full instructions.\n\nShort version — on your VPS:\n```bash\n# Build locally and copy to server\nGOOS=linux GOARCH=amd64 go b",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:13.357683"
+  },
+  {
+    "basic_info": {
+      "name": "re_gent",
+      "full_name": "regent-vcs/re_gent",
+      "owner": "regent-vcs",
+      "description": "Version-Control for AI coding agents.",
+      "url": "https://github.com/regent-vcs/re_gent",
+      "clone_url": "https://github.com/regent-vcs/re_gent.git",
+      "ssh_url": "git@github.com:regent-vcs/re_gent.git",
+      "homepage": "https://re-gent.dev",
+      "created_at": "2026-04-30T09:09:41Z",
+      "updated_at": "2026-05-19T02:41:02Z",
+      "pushed_at": "2026-05-18T17:19:12Z"
+    },
+    "stats": {
+      "stars": 535,
+      "forks": 37,
+      "watchers": 535,
+      "open_issues": 27,
+      "size": 29766
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 370243,
+        "Shell": 5039,
+        "Makefile": 948
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-agent",
+        "claude-code",
+        "developer-tools",
+        "devtools",
+        "golang",
+        "version-control"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <a href=\"https://github.com/regent-vcs/regent\">\n    <img\n      src=\"assets/regent-logo-dark.png\"\n      alt=\"re_gent\"\n      width=\"100%\"\n    />\n  </a>\n  <br />\n  <br />\n  <h1>Version Control for AI Agents</h1>\n  <p>\n    Track what your agent did, which prompt wrote each line, and inspect any step.\n  </p>\n\n[![Star on GitHub](https://img.shields.io/github/stars/regent-vcs/regent?style=for-the-badge&logo=github&color=gold)](https://github.com/regent-vcs/regent)\n[![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)](LICENSE)\n[![Go Version](https://img.shields.io/github/go-mod/go-version/regent-vcs/regent?style=for-the-badge&logo=go&logoColor=white&color=00ADD8)](go.mod)\n\n[![CI Status](https://img.shields.io/github/actions/workflow/status/regent-vcs/regent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/regent-vcs/regent/actions/workflows/ci.yml)\n[![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-10b981?style=for-the-badge&logo=github)](CONTRIBUTING.md)\n[![Claude Code Compatible](https://img.shields.io/badge/Claude%20Code-Compatible-6366f1?style=for-the-badge&logo=anthropic&logoColor=white)](https://github.com/regent-vcs/regent) [![Codex Compatible](https://img.shields.io/badge/Codex-Compatible-10b981?style=for-the-badge&logo=openai&logoColor=white)](https://github.com/regent-vcs/regent) [![OpenCode Compatible](https://img.shields.io/badge/OpenCode-Compatible-ff6b35?style=for-the-badge)](https://github.com/regent-vcs/regent)\n[![Discord](https://img.shields.io/discord/1503732569622053004?style=for-the-badge&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/Unf24KMh)\n\n</div>\n\n---\n\n## Quick Start\n\n```bash\n# Install via Homebrew (macOS/Linux)\nbrew tap regent-vcs/tap\nbrew install regent\n\n# Or via Go\ngo install github.com/regent-vcs/regent/cmd/rgt@latest\n\n# Initialize in your project\ncd your-project\nrgt init\n\n# Work with Claude Code, Codex, or OpenCode normally — activity is tracked automatically\n\n# See what happened\nrgt log\nrgt blame src/file.go:42\nrgt show <step-hash>\n```\n\nThat's it. Your agent activity is now auditable.\n\n---\n\n## Demo\n\n<div align=\"center\">\n \n\nhttps://github.com/user-attachments/assets/a19b7c56-2e3c-4f04-81a1-d8665e3963b8\n\n\n  <p><em>Every agent turn is automatically captured. No manual commits needed.</em></p>\n</div>\n\n---\n\n## What You Get\n\n### See what your agent actually did\n\n```bash\n$ rgt log\n\nStep a1b2c3d  |  2 min ago  |  Tool: Edit\n│ File: src/handler.go\n│ Added error handling to request handler\n│ + 5 lines, - 2 lines\n\nStep d4e5f6g  |  5 min ago  |  Tool: Write\n│ File: tests/handler_test.go\n│ Created unit tests for handler\n│ + 23 lines\n\nStep f8g9h0i  |  8 min ago  |  Tool: Bash\n│ Command: go mod tidy\n│ Cleaned up dependencies\n```\n\n### Blame: which prompt wrote this line?\n\n```bash\n$ rgt blame src/handler.go:42\n\nLine 42: func handleRequest(w http.ResponseWriter, r *http.Request) {\n\nStep:    a1b2c3d4e5f6\nSession: claude-20260502-143021\nTool:    Edit\nPrompt:  \"Add error handling to the request handler\"\n```\n\n### Track multiple concurrent sessions\n\n```bash\n$ rgt sessions\n\nActive Sessions:\nclaude_code:claude-20260502-143021  |  3 steps  |  Last: 2 min ago\ncodex_cli:codex-20260502-091534     |  7 steps  |  Last: 2 hours ago\n\n$ rgt log --session claude_code:claude-20260502-143021\n# Filter history by session\n```\n\n### See full context for any change\n\n```bash\n$ rgt show a1b2c3d\n\nStep a1b2c3d4e5f6\nParent: d4e5f6g7h8i9\nSession: claude-20260502-143021\nTime: 2026-05-02 14:30:21\n\nTool: Edit\nFile: src/handler.go\n\nChanges:\n+ func handleRequest(w http.ResponseWriter, r *http.Request) {\n+     if r.Method != \"GET\" {\n+         http.Error(w, \"Method not allowed\", 405)\n+         return\n+     }\n- func handleRequest(w http.ResponseWriter, r *http.Request) {\n\nConversation:\nUser: \"Add error handling to reject non-GET requests\"\nAssistant: \"I'll add method validation to the handler...\"\n```\n\n---\n\n## Why This Exists\n\nAI agents have no version control of their own.\n\nYou know this pain:\n- *\"It was working five minutes ago\"*\n- *\"Why did you change that file?\"*\n- *\"Go back to before the refactor\"*\n- `/compact` and pray\n- Copy-pasting code into a fresh chat\n\nThree primitives that should already exist:\n\n- **`rgt log`** — what did this session do?\n- **`rgt blame`** — which prompt wrote this line?\n- **`rgt show`** — inspect the full context for any step\n\nWe gave agents write access to our codebases. We did not give ourselves git for it. re_gent fixes that.\n\n---\n\n## How It Works\n\nre_gent stores agent activity in `.regent/` (like `.git/`):\n\n```\n.regent/\n├── objects/     # Content-addressed blobs (BLAKE3)\n├── refs/        # Session pointers (one per agent)\n├── index.db     # SQLite query index\n└── config.toml\n```\n\nEvery tool-using turn creates a **Step** — a content-addressed snapshot of what changed, why, and who asked:\n\n```go\nStep {\n  parent:      <previous-step-hash>\n  tree:        <workspace-snap",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:14.708855"
+  },
+  {
+    "basic_info": {
+      "name": "crabbox",
+      "full_name": "openclaw/crabbox",
+      "owner": "openclaw",
+      "description": "Crabbox: warm a box, sync the diff, run the suite.",
+      "url": "https://github.com/openclaw/crabbox",
+      "clone_url": "https://github.com/openclaw/crabbox.git",
+      "ssh_url": "git@github.com:openclaw/crabbox.git",
+      "homepage": "http://crabbox.sh",
+      "created_at": "2026-04-30T14:31:48Z",
+      "updated_at": "2026-05-18T19:11:38Z",
+      "pushed_at": "2026-05-19T03:28:35Z"
+    },
+    "stats": {
+      "stars": 461,
+      "forks": 54,
+      "watchers": 461,
+      "open_issues": 4,
+      "size": 3792
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2694058,
+        "TypeScript": 1025061,
+        "JavaScript": 146675,
+        "Shell": 133046,
+        "Dockerfile": 1824
+      },
+      "license": "MIT License",
+      "topics": [
+        "remote-test-runner"
+      ]
+    },
+    "content": {
+      "readme": "# 🦀 📦 Crabbox\n\n[![CI](https://github.com/openclaw/crabbox/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/openclaw/crabbox/actions/workflows/ci.yml)\n[![Release](https://github.com/openclaw/crabbox/actions/workflows/release.yml/badge.svg)](https://github.com/openclaw/crabbox/actions/workflows/release.yml)\n[![Latest release](https://img.shields.io/github/v/release/openclaw/crabbox?sort=semver)](https://github.com/openclaw/crabbox/releases/latest)\n\n**Warm a box, sync the diff, run the suite.**\n\nCrabbox is an open-source agent workspace control plane for maintainers and AI\nagents. Lease fast managed cloud capacity, point at an existing SSH host, or use\nan agent sandbox provider, then sync your dirty checkout, run commands remotely,\nstream output, collect evidence, and release. Local edit-save-run loop,\ncloud-grade compute, agent-ready observability.\n\n```sh\ncrabbox run -- pnpm test\n```\n\nBehind that single command: a Go CLI on your laptop, a Cloudflare Worker broker\nthat owns provider credentials and lease state, and a managed or delegated\nrunner.\n\nSupported providers:\n\n- [AWS EC2](docs/providers/aws.md) (`provider: aws`): brokered or direct Linux,\n  native Windows, Windows WSL2, and EC2 Mac.\n- [Azure](docs/providers/azure.md) (`provider: azure`): brokered or direct\n  Linux, native Windows, and Windows WSL2 VMs.\n- [Google Cloud](docs/providers/gcp.md) (`provider: gcp`): brokered or direct\n  Linux Compute Engine VMs.\n- [Hetzner Cloud](docs/providers/hetzner.md) (`provider: hetzner`): brokered or\n  direct Linux VMs.\n- [Proxmox](docs/providers/proxmox.md) (`provider: proxmox`): direct Linux QEMU\n  VM clones from private Proxmox VE templates.\n- [Static SSH](docs/providers/ssh.md) (`provider: ssh`): existing Linux, macOS,\n  Windows, or WSL2 hosts.\n- [exe.dev](docs/providers/exe-dev.md) (`provider: exe-dev`): exe.dev VMs\n  exposed as normal SSH leases.\n- [Blacksmith Testbox](docs/providers/blacksmith-testbox.md)\n  (`provider: blacksmith-testbox`): delegated Testbox lifecycle and execution.\n- [Namespace Devbox](docs/providers/namespace-devbox.md)\n  (`provider: namespace-devbox`): Namespace-managed Devboxes over SSH.\n- [Semaphore CI testbox](docs/providers/semaphore.md) (`provider: semaphore`):\n  Semaphore jobs leased as SSH testboxes.\n- [Sprites](docs/providers/sprites.md) (`provider: sprites`): Sprites\n  microVMs exposed as SSH leases through `sprite proxy`.\n- [Daytona](docs/providers/daytona.md) (`provider: daytona`): Daytona\n  SDK/toolbox sandbox execution.\n- [Islo](docs/providers/islo.md) (`provider: islo`): delegated Islo sandbox\n  execution.\n- [E2B](docs/providers/e2b.md) (`provider: e2b`): delegated E2B sandbox\n  execution.\n- [Modal](docs/providers/modal.md) (`provider: modal`): delegated Modal\n  Sandbox execution through the local Python client.\n- [Tensorlake](docs/providers/tensorlake.md) (`provider: tensorlake`):\n  delegated Tensorlake Firecracker sandbox execution through the Tensorlake CLI.\n- [Cloudflare](docs/providers/cloudflare.md)\n  (`provider: cloudflare`): delegated Cloudflare execution through a Worker and\n  container runner.\n- [Railway](docs/providers/railway.md) (`provider: railway`): delegated\n  redeploy-and-stream execution against a pre-existing Railway service through\n  the [Railway](https://railway.com) GraphQL API.\n\n---\n\n## Install\n\n```sh\nbrew install openclaw/tap/crabbox\ncrabbox --version\n```\n\nNo Homebrew? Grab a [GoReleaser archive](https://github.com/openclaw/crabbox/releases) for macOS, Linux, or Windows.\n\nPrerequisites on the laptop: `git`, `ssh`, `ssh-keygen`, `rsync`, `curl`.\n\n## Quick start\n\nThe hosted broker at `https://crabbox.openclaw.ai` is restricted to the\nconfigured GitHub org/team. If `crabbox login` completes GitHub OAuth and then\nreturns an org-membership error, use direct-provider mode for a personal cloud\naccount or self-host the Worker broker with your own provider credentials and\nspend caps. See [Getting started](docs/getting-started.md#hosted-broker-access)\nand [Infrastructure](docs/infrastructure.md#self-hosted-broker-minimum) for the\nsetup paths.\n\n```sh\n# log in once per machine (stores a broker token in user config)\ncrabbox login\n\n# verify local prerequisites and broker reachability\ncrabbox doctor\n\n# one-shot: lease, sync, run, release\ncrabbox run -- pnpm test\n\n# named repo workflow from .crabbox.yaml\ncrabbox job run full-ci\n\n# or warm a box once, then reuse it\ncrabbox warmup                                       # prints cbx_... + a slug\ncrabbox run --id blue-lobster -- pnpm test:changed\ncrabbox ssh --id blue-lobster\ncrabbox stop blue-lobster\n```\n\nEvery lease has a stable `cbx_...` ID and a friendly crustacean slug (`blue-lobster`, `swift-hermit`, …). Either works wherever an `--id` is accepted. Use `--slug <name>` on fresh leases when a specific reusable slug helps, and `--label <text>` on `run` when the history entry needs a human-readable name.\n\n## How it works\n\n```text\nyour laptop                Cloudflare Worker            cloud provider\n----",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:16.032218"
+  },
+  {
+    "basic_info": {
+      "name": "mhr-cfw-go",
+      "full_name": "ThisIsDara/mhr-cfw-go",
+      "owner": "ThisIsDara",
+      "description": "A local proxy that runs on your machine and forwards traffic through Google.",
+      "url": "https://github.com/ThisIsDara/mhr-cfw-go",
+      "clone_url": "https://github.com/ThisIsDara/mhr-cfw-go.git",
+      "ssh_url": "git@github.com:ThisIsDara/mhr-cfw-go.git",
+      "homepage": "",
+      "created_at": "2026-05-04T04:24:15Z",
+      "updated_at": "2026-05-19T02:09:07Z",
+      "pushed_at": "2026-05-14T09:40:27Z"
+    },
+    "stats": {
+      "stars": 457,
+      "forks": 51,
+      "watchers": 457,
+      "open_issues": 11,
+      "size": 73
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 92227,
+        "Shell": 2129,
+        "Batchfile": 838
+      },
+      "license": "MIT License",
+      "topics": [
+        "domain-fronting",
+        "dpi-bypass",
+        "http",
+        "proxy",
+        "sni",
+        "vpn"
+      ]
+    },
+    "content": {
+      "readme": "# [MHR-CFW](https://github.com/denuitt1/mhr-cfw) Rewritten in Go with YouTube Support Fix and Speed Improvements\n[![GitHub](https://img.shields.io/badge/GitHub-ThisIsDara-blue?logo=github)](https://github.com/ThisIsDara/mhr-cfw-go)\n\n**[فارسی](README_FA.md)**\n\n\n<img width=\"654\" height=\"362\" alt=\"image\" src=\"https://github.com/user-attachments/assets/bdf8ffd8-f1cd-47b4-87fd-5bc6e2ce1937\" />\n\n\n## 🚀 Improvements Over Python Version\n\n\n ## **✅ 1.  YouTube Support Fixed**\n- Proper CORS handling — Added preflight OPTIONS handling and CORS header injection for cross-origin requests\n- Content-Encoding fix — Better decoding for brotli/gzip responses\n- Range request support — Video streaming needs proper Range header handling\n## **✅ 2. Speed Improvements**\n- HTTP/2 transport — Uses HTTP/2 instead of HTTP/1.1 (faster multiplexing)\n- Connection pooling — Reuses TLS connections instead of creating new ones\n- Request coalescing — Multiple GET requests for same URL share one relay call\n- Response caching — LRU cache with proper TTL for static assets\n## **✅ 3. Security**\n- RSA 4096-bit keys — Upgraded from 2048-bit for MITM certificates\n## **✅ 4. Reliability**\n- Proper signal handling — Clean shutdown on Ctrl+C\n- Graceful error handling — Better error responses\n## **✅ 5. Code Quality**\n- Go rewrite — Static typing, better memory management\n- No external dependencies — Uses standard library where possible\n\n\n\n\n\n---\n\n## How It Works\n\n\nThe program runs on your PC and sends your requests through Google's infrastructure. Network filters see ordinary Google traffic and allow it through. Meanwhile, Google's free Apps Script fetches the actual website you wanted.\n\n---\n\n## Quick Start\n\n ## 📦 Requirements:\n - [Go 1.22+](https://go.dev/dl/)\n\n **💡 Tip:** If you have trouble downloading Go dependencies, use the Runflare Iranian mirror:\n```bash\nGOPROXY=https://mirror-go.runflare.com go mod download\n```\n\n### 1 - Clone and Build\n\n```bash\ngit clone https://github.com/ThisIsDara/mhr-cfw-go.git\ncd mhr-cfw-go\n```\n\nOr download the latest release from [ 📥 GitHub Releases](https://github.com/ThisIsDara/mhr-cfw-go/releases)\n\n### 2 - Build\n\n**Windows:** Double-click `build.bat` or run:\n\n```powershell\n.\\build.bat\n```\n\n**Linux/Mac:** Make the script executable and run:\n\n```bash\nchmod +x build.sh\n./build.sh\n```\n\nThis will build the executable (`mhr-cfw-go.exe` on Windows, `mhr-cfw-go` on Linux/Mac).\n\n### 3 - Configure\n\nEdit `config.json` with your settings or ideally run `Setup Wizard` in the TUI:\n\n```json\n{\n  \"auth_key\": \"your-secret-password-here\",\n  \"script_id\": \"YOUR_DEPLOYMENT_ID\"\n}\n```\n\n### 4 - Run\n\n**Windows:** Double-click `mhr-cfw-go.exe` or run:\n\n```powershell\n.\\mhr-cfw-go.exe\n```\n\n**Linux/Mac:** Run:\n\n```bash\n./mhr-cfw-go\n```\n\nThe app opens an interactive menu. Select **1) Start proxy** to begin.\n\n---\n\n### 5 - Install CA Certificate (for HTTPS interception)\n\nRun the app, then select **3) Install CA certificate** from the menu.\n\nThis installs the local Certificate Authority so the proxy can intercept HTTPS traffic.\n\n---\n\n## 🐧 Linux / 🍎 macOS / 📱 Termux Guide\n\n### Linux/macOS\n\n```bash\n# Clone\ngit clone https://github.com/ThisIsDara/mhr-cfw-go.git\ncd mhr-cfw-go\n\n# Build\nchmod +x build.sh\n./build.sh\n\n# Run\n./mhr-cfw-go\n```\n\nOr manually:\n\n```bash\nGOOS=linux go build -ldflags \"-s -w\" -o mhr-cfw-go ./cmd/mhr-cfw\n./mhr-cfw-go\n```\n\n### Termux (Android)\n\n```bash\n# Install Go and Git\npkg update -y\npkg install -y golang git\n\n# Clone\ngit clone https://github.com/ThisIsDara/mhr-cfw-go.git\ncd mhr-cfw-go\n\n# Build\nchmod +x build.sh\n./build.sh\n\n# Run\n./mhr-cfw-go\n```\n\n### Stopping\n\nPress `Ctrl+C` to stop the proxy.\n\n---\n\n# 🛠️ How to Setup\n\n1. Open [mhr-cfw README File](https://github.com/denuitt1/mhr-cfw/blob/main/README.md#how-to-use) provided by [denuitt1](https://github.com/denuitt1)\n and follow the steps 1 to 3 until you have the Deployment ID\n\n---\n## Building from Source\n\nRequirements:\n- [Go 1.22+](https://go.dev/dl/)\n\n```bash\ngo build -ldflags \"-s -w\" -o mhr-cfw-go.exe ./cmd/mhr-cfw\n```\n\n---\n\n## WIP...\n### `` 📊 Statistics ``\n- Request counter — Total requests served\n- Bandwidth usage — Bytes sent/received\n### `` 🖥️ Monitoring ``\n- Connection status\n### `` ✏️ UX ``\n- Profile switching — Different config profiles\n- Export/Import config — Backup settings\n---\n\n## Command Line Options\n\n| Option | Description |\n| --- | --- |\n| `--no-menu` | Run without TUI menu |\n| `--port` | Override proxy port |\n| `--host` | Override listen host |\n| `--socks5-port` | Override SOCKS5 port |\n| `--disable-socks5` | Disable SOCKS5 proxy |\n| `--log-level` | Set log level (DEBUG, INFO, WARN, ERROR) |\n| `--install-cert` | Install CA certificate |\n| `--uninstall-cert` | Remove CA certificate |\n| `--scan` | Scan Google IPs |\n| `--setup` | Run setup wizard |\n| `--version` | Show version |\n\n#### Disclaimer\n\n- **Google services compliance:** If you use Google Apps Script or other Google services with this project, you are responsible for complying with Google's Terms of Service, accepta",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-19T04:54:17.317933"
+  },
+  {
+    "basic_info": {
+      "name": "Nova-Proxy-App",
+      "full_name": "IRNova/Nova-Proxy-App",
+      "owner": "IRNova",
+      "description": "نوا پروکسی - ابزار پروکسی محلی قدرتمند با قابلیت‌های GSA (Google Apps Script) با Domain Fronting، تکه‌تکه‌سازی TLS، تزریق ECH، بازپخش QUIC، MITM و مسیریابی هوشمند. طراحی شده برای عبور از فیلترینگ سنگین و DPI پیشرفته.",
+      "url": "https://github.com/IRNova/Nova-Proxy-App",
+      "clone_url": "https://github.com/IRNova/Nova-Proxy-App.git",
+      "ssh_url": "git@github.com:IRNova/Nova-Proxy-App.git",
+      "homepage": "",
+      "created_at": "2026-04-25T17:57:46Z",
+      "updated_at": "2026-05-19T04:48:02Z",
+      "pushed_at": "2026-05-17T17:23:54Z"
+    },
+    "stats": {
+      "stars": 449,
+      "forks": 68,
+      "watchers": 449,
+      "open_issues": 28,
+      "size": 30266
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 349312,
+        "JavaScript": 13363
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\r\n  <img src=\"https://raw.githubusercontent.com/IRNova/Nova-Proxy-App/main/logo.svg\" width=\"120\" height=\"120\" alt=\"NovaProxy Logo\">\r\n  <h1>NovaProxy</h1>\r\n  <p><strong>Cloudflare IP Shaper — Domain Fronting Proxy with MITM + GSA Relay Engines</strong></p>\r\n  <p>عبور از فیلترینگ هوشمند با دامنه‌فرانتینگ مبتنی بر Google Apps Script و Cloudflare Worker</p>\r\n</div>\r\n\r\n<p align=\"center\">\r\n  <a href=\"https://github.com/IRNova/Nova-Proxy-App/blob/main/README.en.md\">🇬🇧 English Version</a>\r\n</p>\r\n\r\n---\r\n\r\n<a name=\"fa\"></a>\r\n\r\n## معرفی\r\n\r\nNovaProxy یک پروکسی دسکتاپ (Wails v3 / Go) است که ترافیک اینترنت را از طریق زیرساخت Google و Cloudflare عبور می‌دهد. از دید سیستم DPI، همه ترافیک شبیه ارتباط عادی با `www.google.com` است، در حالی که درخواست واقعی به هر سایتی ارسال می‌شود.\r\n\r\nدو هسته اصلی:\r\n\r\n| هسته | وظیفه |\r\n|------|--------|\r\n| **MITM Engine** | خاتمه TLS، گواهی‌سازی داینامیک، SNI spoofing، fragmentation |\r\n| **GSA Relay** | رله ترافیک از Google Apps Script → Cloudflare Worker با H2 multiplexing |\r\n\r\n---\r\n\r\n\r\n\r\n\r\n## MITM Engine\r\n\r\nهسته MITM وظیفه **خاتمه TLS و بازرمزگذاری** را بر عهده دارد تا ترافیک HTTPS قابل بازرسی و مسیریابی باشد.\r\n\r\n```\r\nClient → CONNECT tunnel → TLS Termination (MITM Cert) → Upstream TLS (SNI spoofed) → Target\r\n                            │\r\n                     Dynamic Cert Generation\r\n                     (ECDSA P256 signed by Root CA)\r\n```\r\n\r\n### معماری MITM\r\n\r\n```\r\nProxyServer.handleConnect()\r\n    │\r\n    ├── direct        → TCP tunnel خام\r\n    ├── transparent   → انتقال بایت‌های TLS بدون خاتمه\r\n    ├── tls-rf        → تکه‌تکه کردن ClientHello + tunnel\r\n    ├── quic          → MITM روی QUIC/HTTP3\r\n    └── mitm          ──► handleMITM()\r\n                            │\r\n                    ┌───────▼────────┐\r\n                    │  establishUpstreamConn()\r\n                    │  - resolve candidates\r\n                    │  - uTLS handshake (fingerprint randomization)\r\n                    │  - ALPN negotiation (h2 / http/1.1)\r\n                    │  - ECH support\r\n                    └───────┬────────┘\r\n                            │\r\n                    ┌───────▼────────┐\r\n                    │  makeMITMTLSConfig()\r\n                    │  - generateCert(host, CA cert, CA key)\r\n                    │  - ECDSA P256 per-host cert\r\n                    │  - cache certs in memory\r\n                    │  - serve to client via tls.Server()\r\n                    └───────┬────────┘\r\n                            │\r\n                    ┌───────▼────────┐\r\n                    │  directTunnel()\r\n                    │  - bidirectional copy (pooled buffers)\r\n                    │  - client ↔ upstream\r\n                    └────────────────┘\r\n```\r\n\r\n### امکانات MITM\r\n\r\n| قابلیت | توضیح |\r\n|---------|---------|\r\n| **گواهی‌سازی داینامیک** | تولید گواهی ECDSA P256 برای هر دامنه در لحظه، امضا شده توسط Root CA (RSA 2048) |\r\n| **مدیریت Root CA** | ایجاد، نصب و مدیریت CA روی Windows / macOS / Linux / Firefox |\r\n| **خاتمه TLS** | قطع اتصال TLS کلاینت، اتصال مجدد به سرور مقصد با SNI جعلی |\r\n| **SNI Spoofing** | جایگزینی SNI واقعی با دامنهٔ جلویی (مثلاً `www.google.com`) |\r\n| **uTLS Fingerprint** | تقلید اثر انگشت TLS مرورگر Chrome یا Firefox با `refraction-networking/utls` |\r\n| **TLS Fragmentation** | تکه‌تکه کردن ClientHello به چند segment با تأخیر قابل تنظیم برای عبور از DPI |\r\n| **QUIC/HTTP3 MITM** | پشتیبانی از MITM روی QUIC با `quic-go` |\r\n| **ECG (Encrypted ClientHello)** | پشتیبانی از ECH برای مخفی‌سازی SNI |\r\n| **تأیید گواهی پیشرفته** | حالت‌های `allow_names` (لیست سفید)، Custom CA pinning |\r\n\r\n### فایل‌های MITM\r\n\r\n```\r\ncert/\r\n├── cert.go           # تولید CA، بارگذاری، خروجی PEM، بازتولید\r\n├── installer.go      # نصب/حذف/بررسی CA در سیستمعامل\r\n└── exec_windows.go   # اجرای فرمان در ویندوز (hidden/elevated)\r\n\r\nproxy/\r\n├── proxy.go          # هندلر MITM، تونل CONNECT، کانفیگ TLS\r\n├── tls_fragment.go   # fragmentation برای دور زدن DPI\r\n├── cert_verify.go    # تأیید گواهی پیشرفته\r\n└── cf_pool.go        # مخزن IP های کلودفلر\r\n```\r\n\r\n---\r\n\r\n## GSA Relay Engine\r\n\r\nهسته GSA ترافیک را از طریق **زیرساخت Google** با تکنیک Domain Fronting رله می‌کند. از دید فیلترینگ، همه ترافیک به نظر `www.google.com` می‌رسد.\r\n\r\n```\r\nBrowser\r\n    │\r\n    ▼\r\nGSA Proxy (127.0.0.1:8085)\r\n    │  ← TLS Termination (MITM cert)\r\n    ▼\r\nH2 Connection → Google IP (SNI: www.google.com)\r\n    │  ← از دید DPI: ترافیک عادی گوگل\r\n    ▼\r\nGoogle Apps Script (script.google.com)\r\n    │  ← رله JSON داخل زیرساخت گوگل\r\n    ▼\r\nCloudflare Worker\r\n    │  ← خروج با IP کلودفلر\r\n    ▼\r\nSite Target\r\n```\r\n\r\n### معماری GSA\r\n\r\n```\r\ngsaProxyServer.start()\r\n    │\r\n    ├── acceptLoop() → handleHTTP(conn)\r\n    │       │\r\n    │       ├── CONNECT → handleCONNECT()\r\n    │       │       ├── gsaShouldDirectConnect() → relayRawTCP()\r\n    │       │       └── TLS: mitm.getCert() → TLS Server → relayHTTPOverTLS()\r\n    │       │\r\n    │       ├── OPTIONS + access-control-request → CORS Preflight\r\n    │       │\r\n    │       └── GET/POST → relayRequest()\r\n    │           ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:18.585518"
+  },
+  {
+    "basic_info": {
+      "name": "kiwifs",
+      "full_name": "kiwifs/kiwifs",
+      "owner": "kiwifs",
+      "description": "Markdown filesystem for agents and teams.",
+      "url": "https://github.com/kiwifs/kiwifs",
+      "clone_url": "https://github.com/kiwifs/kiwifs.git",
+      "ssh_url": "git@github.com:kiwifs/kiwifs.git",
+      "homepage": "https://kiwifs.mintlify.app",
+      "created_at": "2026-04-22T04:27:55Z",
+      "updated_at": "2026-05-19T00:24:58Z",
+      "pushed_at": "2026-05-19T00:25:11Z"
+    },
+    "stats": {
+      "stars": 438,
+      "forks": 83,
+      "watchers": 438,
+      "open_issues": 5,
+      "size": 5772
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2009634,
+        "TypeScript": 988851,
+        "Python": 105327,
+        "CSS": 18955,
+        "JavaScript": 8858,
+        "Shell": 1417,
+        "Makefile": 1204,
+        "Dockerfile": 1056,
+        "HTML": 680
+      },
+      "license": "Other",
+      "topics": [
+        "ai-agents",
+        "filesystem",
+        "golang",
+        "knowledge-base",
+        "knowledge-graph",
+        "llm-wiki",
+        "markdown",
+        "obsidian",
+        "self-hosted",
+        "wiki"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"kiwifs.png\" alt=\"KiwiFS\" width=\"200\" />\n</p>\n\n<h1 align=\"center\">KiwiFS</h1>\n\n<p align=\"center\">\n  <strong>Markdown filesystem for agents and teams.</strong>\n</p>\n\n<p align=\"center\">\n  Searchable. Structured. Versioned. One binary, zero config.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/kiwifs/kiwifs/actions/workflows/ci.yml\"><img src=\"https://github.com/kiwifs/kiwifs/actions/workflows/ci.yml/badge.svg\" alt=\"CI\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-BSL--1.1-blue\" alt=\"License: BSL 1.1\"></a>\n  <a href=\"https://github.com/kiwifs/kiwifs\"><img src=\"https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white\" alt=\"Go 1.25\"></a>\n  <a href=\"https://github.com/kiwifs/kiwifs\"><img src=\"https://img.shields.io/badge/single_binary-yes-green\" alt=\"Single Binary\"></a>\n  <a href=\"https://github.com/kiwifs/kiwifs\"><img src=\"https://img.shields.io/badge/PRs-welcome-brightgreen\" alt=\"PRs Welcome\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://kiwifs.mintlify.app\">Docs</a> · <a href=\"FAQ.md\">FAQ</a> · <a href=\"ROADMAP.md\">Roadmap</a> · <a href=\"CONTRIBUTING.md\">Contributing</a>\n</p>\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/kiwifs/kiwifs/main/install.sh | sh\nkiwifs init --root ./knowledge && kiwifs serve --root ./knowledge\n# Open http://localhost:3333\n```\n\n**Or with Docker:**\n\n```bash\ndocker run -p 3333:3333 -v ./knowledge:/data ameliaanhlam/kiwifs\n```\n\n---\n\n## The problem\n\nMarkdown is the lingua franca of agents and developers — but raw `.md` files are just files. Or are they?\n\nCurrent solutions fall into one of these camps:\n\n- **Database tables pretending to be files** — no search, no versioning, no human interface. You get `read()` and `write()`, nothing else.\n- **Read-only retrieval layers** — agents can search but can't write. The filesystem is a one-way mirror.\n- **Flat markdown logs** — no structure, no queries, no importance scoring. The naive approach everyone outgrows.\n- **Ephemeral sandboxes** — agent dies, files die. No persistence across sessions.\n- **Proprietary SaaS** — locked to a vendor's ecosystem. Can't self-host, can't extend.\n\nA real markdown filesystem needs to be all of these at once:\n\n- **Writable** — agents write with `cat`, `echo`, `curl`, or MCP tools. Not read-only, not API-only.\n- **Searchable** — full-text (BM25) and semantic (vector) over the same files.\n- **Queryable** — structured queries over typed metadata, not just keyword matching.\n- **Trustworthy** — every write is a Git commit. Immutable audit trail. Crash recovery. Blame.\n- **Human-readable** — a web UI with wiki links, backlinks, and graph view. Not pgAdmin.\n\nKiwiFS is all five.\n\n```\nAGENT                              HUMAN\n─────                              ─────\ncat /kiwi/pages/auth.md            Web UI (like Obsidian Publish\ngrep -r \"timeout\" /kiwi/             + Notion's block editor)\necho \"# Report\" > /kiwi/r.md      wiki links, graph view, search\n\n       ↕                                ↕\n     ┌──────────────────────────────────────┐\n     │         Markdown files in folders    │\n     │         (the single source of truth) │\n     └──────────────────────────────────────┘\n       ↕                ↕              ↕\n    Git versioning   FTS5 + vector   SSE events\n    (audit trail)    (search index)  (live updates)\n```\n\n## Why files, not a database\n\nThis is the core design decision. Every other choice follows from it.\n\n**Files are the only format that is simultaneously human-readable, agent-native, and tool-agnostic.** `cat file.md` works in every shell, every container, every sandbox, every CI pipeline. No driver. No connection string. No SDK. The agent doesn't need to learn your API — it already knows the filesystem from training data.\n\nA Postgres table is invisible to both agents and humans without custom tooling. A JSON blob requires parsing. A proprietary format requires a client library. Markdown files require nothing.\n\nBut raw files alone aren't enough. You need versioning, search, concurrency control, a web UI. KiwiFS layers database-like guarantees **on top of** files:\n\n| Need | How KiwiFS solves it |\n|---|---|\n| **Versioning** | Git — every write is an atomic commit. Crash recovery, blame, diff, point-in-time restore. |\n| **Search** | SQLite FTS5 (BM25 ranked) + pluggable vector search. Rebuildable from files anytime. |\n| **Concurrency** | Optimistic locking via ETags (git blob hash). Standard HTTP `If-Match` / `409 Conflict`. |\n| **Structured queries** | Frontmatter → SQLite `file_meta` table. Query by field, sort, filter. |\n| **Audit trail** | Git commit log. SHA-1 hash chain. Tamper = broken chain. |\n| **Real-time sync** | SSE broadcast on every write/delete. UI updates live. |\n\nThe files are the truth. Everything else is a derivative index you can rebuild.\n\n> **\"I already have this in Postgres.\"**\n>\n> Postgres stores your data. KiwiFS makes it *accessible* — to agents via `cat`/`grep`/NFS/S3, to humans via a web UI with wiki ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:19.890099"
+  },
+  {
+    "basic_info": {
+      "name": "ChatGpt-Image-Studio",
+      "full_name": "peiyizhi0724/ChatGpt-Image-Studio",
+      "owner": "peiyizhi0724",
+      "description": null,
+      "url": "https://github.com/peiyizhi0724/ChatGpt-Image-Studio",
+      "clone_url": "https://github.com/peiyizhi0724/ChatGpt-Image-Studio.git",
+      "ssh_url": "git@github.com:peiyizhi0724/ChatGpt-Image-Studio.git",
+      "homepage": null,
+      "created_at": "2026-04-21T17:52:08Z",
+      "updated_at": "2026-05-19T03:04:31Z",
+      "pushed_at": "2026-04-28T14:39:37Z"
+    },
+    "stats": {
+      "stars": 393,
+      "forks": 91,
+      "watchers": 393,
+      "open_issues": 10,
+      "size": 3534
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 778090,
+        "TypeScript": 565116,
+        "CSS": 9085,
+        "PowerShell": 7085,
+        "Shell": 4208,
+        "Dockerfile": 1457,
+        "JavaScript": 917,
+        "HTML": 487
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ChatGpt Image Studio\n\nChatGpt Image Studio 是一个单服务交付的图片工作流项目：\n\n- `backend/`：Go 后端，负责图片接口、账号池、配置管理和静态资源托管\n- `web/`：Vite + React 前端，构建后输出到 `web/dist`\n- `scripts/`：本地开发、检查、构建脚本\n\n项目当前交付方式是“一个二进制 + 一份静态前端 + 本地配置目录”：\n\n- 前端不需要单独部署\n- 后端运行时直接托管 `static/`\n- 首次启动时自动生成 `data/config.toml`\n- 首次生成配置后即可本地运行\n\n## 核心功能\n\n- 基于 `gpt-image-2` 的文本生图\n- 参考图生成与连续编辑\n- 选区涂抹式局部重绘\n- 图片工作台支持会话历史、新建会话、失败重试、提示词复制与结果图下载\n- 支持按比例选择分辨率与质量档位，并区分 `Free` / `Paid` 可用输出档\n- 兼容图片场景的 `/v1/chat/completions` 与 `/v1/responses`\n- 本地认证文件导入与账号池管理\n- `Studio` 模式支持直接导入 `access_token`，并将 `Token` 账号与认证文件账号分开管理\n- 支持单账号刷新、一键批量刷新额度与刷新进度展示\n- 支持 `CPA / NewAPI / Sub2API` 多来源账号同步与推送\n- 请求记录页可区分官方与 CPA 链路，并记录 `size / quality / promptLength`\n- 配置管理页，可直接修改 `data/config.toml`\n\n## 图片工作台\n\n- 支持 `生成 / 编辑 / 选区编辑` 三种主流程\n- 支持移动端单页工作流：会话历史与工作台可分别进入，历史记录支持回到指定会话\n- 结果图支持：\n  - 下载\n  - 作为后续编辑源图继续改图\n  - 打开选区编辑器进行局部重绘\n- 用户消息支持一键复制，失败任务支持原位重试\n- 历史记录支持浏览器本地存储或服务端持久化\n\n## 数据存储\n\n当前项目支持把不同类型的数据拆分存储：\n\n- 账号池存储：`current / sqlite / redis`\n- 配置文件存储：`file / redis`\n- 图片会话记录：`browser / server`\n- 图片数据：`browser / server`\n\n说明：\n\n- `current` 表示沿用当前本地文件目录方案\n- `server` 表示由后端统一保存并对外提供图片 / 会话读取\n- 设置页支持迁移账号池、配置文件与图片会话历史\n- 无盘容器场景可配合 `redis` 保存配置与账号池\n\n## 账号池与同步\n\n- 支持导入本地认证文件\n- 支持在 `Studio` 模式下直接导入 `access_token`\n- `Token` 账号不会参与 `CPA / NewAPI / Sub2API` 的同步和推送\n- 支持单账号额度刷新与一键批量刷新全部额度\n- 批量刷新会限制并发，并在页面显示实时进度\n- 支持：\n  - 从 `CPA / NewAPI / Sub2API` 同步账号到本地\n  - 推送本地账号到 `CPA / NewAPI / Sub2API`\n\n## 界面预览\n\n| 预览 1 | 预览 2 |\n| --- | --- |\n| ![界面预览 1](asset/21994c2f6f7ccdc2f5c6f5c472c1e7a7af4f1063.png) | ![界面预览 2](asset/665a23c2fc38a6c49d127f454b651854fcfa8e84.png) |\n| ![界面预览 3](asset/9c47ac91270469513b769c30748f6d48f421ba9f.png) | ![界面预览 4](asset/a4f2e51c873e3066fb71fcab84fee8dee8ff9ea9.png) |\n| ![界面预览 5](asset/bb2f570badfb194f8b16b07221df40bfac94ee05.png) | ![界面预览 6](asset/bf84c0b8a48d8cc28afec8a1980834887f8dd211.png) |\n\n## 仓库结构\n\n```text\n.\n├── backend/                  Go 后端\n│   ├── api/                  HTTP 路由与处理器\n│   ├── internal/             配置、账号、同步、中间件、版本信息\n│   ├── data/                 默认模板与本地运行数据目录\n│   ├── static/               本地开发时同步的前端静态资源（构建产物，不入库）\n│   └── main.go\n├── web/                      Vite 前端\n│   ├── src/                  React 页面与组件\n│   └── dist/                 构建产物（不入库）\n├── scripts/                  build / dev / check 脚本\n└── README.md\n```\n\n## 环境要求\n\n- Go `1.25+`\n- Node.js `24+`\n- npm `10+`\n\n## 获取项目\n\n```bash\ngit clone https://github.com/peiyizhi0724/ChatGpt-Image-Studio.git\ncd ChatGpt-Image-Studio\n```\n\n## 本地开发\n\n### 启动开发环境\n\nWindows：\n\n```powershell\n./scripts/dev.ps1\n```\n\nmacOS / Linux：\n\n```bash\nchmod +x ./scripts/*.sh\n./scripts/dev.sh\n```\n\n开发脚本会自动完成：\n\n1. 安装前端依赖\n2. 构建 `web/dist`\n3. 同步前端资源到 `backend/static`\n4. 启动 Go 后端\n\n默认地址：\n\n- `http://127.0.0.1:7000`\n\n健康检查：\n\n- `GET /health`\n\n## Docker 部署\n\n当前仓库支持通过 GitHub Container Registry 直接拉取镜像部署。\n\n镜像发布规则：\n\n- 推送到 `main` 分支后，GitHub Actions 会自动更新 `ghcr.io/peiyizhi0724/chatgpt-image-studio:latest`\n- 推送版本标签 `v1.2.x` 后，会额外发布同名版本镜像标签\n- Docker 镜像同时提供 `linux/amd64` 与 `linux/arm64`\n\n### 首次启动\n\n```bash\ndocker compose pull\ndocker compose up -d\n```\n\n默认会：\n\n- 使用 `ghcr.io/peiyizhi0724/chatgpt-image-studio:latest`，也就是 `main` 分支当前最新镜像\n- 将宿主机的 `./backend/data` 挂载到容器内 `/app/data`\n- 对外暴露 `7000` 端口\n- 额外注入 `host.docker.internal`，方便容器访问宿主机服务（如本机代理）\n\n如需固定到某个版本，可先设置：\n\n```bash\nexport IMAGE_TAG=v1.2.10\ndocker compose pull\ndocker compose up -d\n```\n\nWindows PowerShell：\n\n```powershell\n$env:IMAGE_TAG = \"v1.2.10\"\ndocker compose pull\ndocker compose up -d\n```\n\n### 无状态云部署（Redis 引导启动示例）\n\n如果你的云平台是无状态容器，重启后不会保留本地磁盘，可以把：\n\n- 账号池存到 Redis\n- 配置存到 Redis\n- 图片会话记录保留在浏览器\n- 图片数据保留在浏览器\n\n推荐启动方式：\n\n```bash\ndocker run -d \\\n  --name chatgpt-image-studio \\\n  -p 7000:7000 \\\n  -e SERVER_HOST=0.0.0.0 \\\n  -e SERVER_PORT=7000 \\\n  -e STORAGE_BACKEND=redis \\\n  -e STORAGE_CONFIG_BACKEND=redis \\\n  -e REDIS_ADDR=your-redis-host:6379 \\\n  -e REDIS_PASSWORD=your-redis-password \\\n  -e REDIS_DB=0 \\\n  -e REDIS_PREFIX=chatgpt2api:studio \\\n  -e STORAGE_IMAGE_CONVERSATION_STORAGE=browser \\\n  -e STORAGE_IMAGE_DATA_STORAGE=browser \\\n  -e TZ=Asia/Shanghai \\\n  ghcr.io/peiyizhi0724/chatgpt-image-studio:latest\n```\n\n说明：\n\n- 这组环境变量的作用是让程序每次启动时都能先从 Redis 读取配置引导。\n- 启动成功后，其他配置仍可在页面“配置管理”中继续修改，并持久化到 Redis。\n- 如果没有持久化磁盘，不建议把 `image_conversation_storage` 或 `image_data_storage` 设为 `server`，否则服务端图片历史和图片文件在容器重建后仍会丢失。\n\n### 一键更新\n\nWindows：\n\n```powershell\n./scripts/docker-update.ps1\n```\n\nmacOS / Linux：\n\n```bash\nchmod +x ./scripts/docker-update.sh\n./scripts/docker-update.sh\n```\n\n更新脚本会自动执行：\n\n1. 检查 Docker / Docker Compose\n2. 如果当前目录是 Git 仓库，则先 `git pull --ff-only origin main`\n3. 从 GitHub Container Registry 拉取 `latest` 镜像\n4. 重新创建并启动容器\n\n### 配置文件\n\n程序启动时会确保以下文件存在：\n\n- `data/config.example.toml`\n- `data/config.toml`\n\n在仓库开发模式下，上述路径实际对应：\n\n- `backend/data/config.example.toml`\n- `backend/data/config.toml`\n\n如果 `config.toml` 不存在，程序会自动按内置模板生成，无需手动复制。\n\n最小配置示例：\n\n```toml\n[app]\nauth_key = \"chatgpt2api\"\n```\n\n默认进入后台页面时使用的登录密码也是：\n\n- `chatgpt2api`\n\n如果你没有修改 `[app].auth_key`，首次进入时直接输入上面的默认密码即可。\n\n如果需要接入 CPA 同步：\n\n```toml\n[sync]\nenabled = true\nbase_url = \"http://127.0.0.1:8317\"\nmanagement_key = \"",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:21.166596"
+  },
+  {
+    "basic_info": {
+      "name": "StormDNS",
+      "full_name": "nullroute1970/StormDNS",
+      "owner": "nullroute1970",
+      "description": null,
+      "url": "https://github.com/nullroute1970/StormDNS",
+      "clone_url": "https://github.com/nullroute1970/StormDNS.git",
+      "ssh_url": "git@github.com:nullroute1970/StormDNS.git",
+      "homepage": "https://t.me/nulllroute1970",
+      "created_at": "2026-04-22T20:15:41Z",
+      "updated_at": "2026-05-19T04:26:50Z",
+      "pushed_at": "2026-05-13T22:36:55Z"
+    },
+    "stats": {
+      "stars": 363,
+      "forks": 37,
+      "watchers": 363,
+      "open_issues": 9,
+      "size": 703
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1100307,
+        "Shell": 39339,
+        "Python": 3571
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">⚡ StormDNS</h1>\n\n<p align=\"center\">\n  <strong>A DNS-based TCP tunnel for censored, lossy, high-latency networks.</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img alt=\"License\" src=\"https://img.shields.io/badge/license-MIT-00a36c?style=for-the-badge\"></a>\n  <img alt=\"Go\" src=\"https://img.shields.io/badge/Go-1.25-00add8?style=for-the-badge&logo=go&logoColor=white\">\n  <img alt=\"Transport\" src=\"https://img.shields.io/badge/transport-DNS%20over%20UDP%2F53-4f46e5?style=for-the-badge\">\n  <img alt=\"Platforms\" src=\"https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Termux-f59e0b?style=for-the-badge\">\n</p>\n\n<p align=\"center\">\n  <a href=\"README_FA.MD\">فارسی</a> ·\n  <a href=\"https://github.com/nullroute1970/StormDNS/releases/latest\">Latest Release</a> ·\n  <a href=\"https://t.me/nulllroute1970\">Telegram Channel</a>\n</p>\n\nStormDNS is a client/server tunneling system that moves TCP traffic through DNS queries and DNS responses. The client runs on the user's device and exposes a local SOCKS5 proxy or a raw TCP listener. Applications connect to that local listener like they would connect to any normal proxy. StormDNS then splits each stream into small DNS-safe packets, applies optional compression and encryption, sends packets through one or more DNS resolvers, and reconstructs the stream on the remote StormDNS server. The server finally opens the real outbound connection directly, through an optional upstream SOCKS5 proxy, or to a fixed TCP target depending on configuration.\n\nThe project is built for networks where common circumvention protocols are blocked, throttled, actively probed, or unreliable, but DNS traffic still has a usable path. This includes environments with small resolver payload limits, high latency, unstable resolver behavior, weak upload bandwidth, aggressive rate limits, and frequent packet loss. StormDNS treats those problems as normal operating conditions: it uses MTU discovery, resolver health checks, multi-resolver balancing, packet duplication, ARQ retransmission, ACK/NACK handling, packet packing, and log-based startup to keep the tunnel usable when the network is hostile.\n\nTypical deployment is straightforward: run the server on a VPS with UDP/53 reachable, delegate a short DNS subdomain to that server, put the generated encryption key and domain into the client config, add working resolvers, then point your browser or application at the local SOCKS5 listener. Advanced deployments can enable tunneled DNS handling, tune resolver/MTU behavior, chain server egress through another SOCKS5 proxy, or run the client as a Linux service.\n\n> [!NOTE]\n> DNS tunneling is constrained by resolver payload size, latency, rate limits, and packet loss. StormDNS is built for usable connectivity under pressure, not for unrealistic benchmark-only claims or replacing a normal VPN on clean, high-bandwidth networks.\n\n## 💸 Financial Support\n\nFinancial support is optional. If you want to support ongoing development, use one of these wallet addresses:\n\n| 💰 Network | 🔐 Address |\n| --- | --- |\n| TON | `UQDfjVk2UdpiMg-bsxqoLa0O_icuaF20D-wWJgIJwK1Ha2Ul` |\n| USDT Tron (TRC20) | `TR8ibZGKutPKoDm5nMbHFwGPFBuMKwjG6j` |\n| USDT BNB Smart Chain (BEP20) | `0x8c45d6bae8a5a572b2a776779fe0bcae3d3f9107` |\n\n## 🧭 Quick Navigation\n\n| Area | Go To |\n| --- | --- |\n| 🚀 First deployment | [Quick Start](#quick-start), [Server Setup](#server-setup), [Client Setup](#client-setup) |\n| 🌐 DNS/domain requirements | [Network And Domain Requirements](#network-and-domain-requirements) |\n| ⚙️ Configuration | [Configuration Overview](#configuration-overview), [Current Config Keys](#current-config-keys) |\n| 📡 Resolver and MTU tuning | [Resolver, MTU, And Loss Tuning](#resolver-mtu-and-loss-tuning) |\n| 🧱 Architecture | [Architecture](#architecture) |\n| 🧯 Problems and fixes | [Troubleshooting](#troubleshooting) |\n| 🧑‍💻 Development | [Development](#development) |\n\n## 🎯 Built For Hostile Networks\n\n| Network Reality | StormDNS Response |\n| --- | --- |\n| 📏 DNS payloads are small | Low protocol overhead, DNS-safe encoding, active MTU discovery |\n| 📉 Packet loss is normal | ARQ windows, ACK/NACK, retransmission timers, terminal drain handling |\n| 📡 Resolvers degrade or disappear | Health checks, runtime auto-disable, background recheck, stream failover |\n| ⬆️ Upload is often the bottleneck | Separate duplication controls for data, ACKs, setup, and control packets |\n| 🕒 Startup can be expensive | Resolver cache logs and log-based startup mode |\n| 🧪 Resolver behavior is inconsistent | Per-resolver MTU validation and balancing strategies |\n| 🧱 DPI/protocol filtering is common | DNS-only transport over ordinary UDP/53 query/response flow |\n\n## ✨ Main Capabilities\n\n| Category | Capabilities |\n| --- | --- |\n| 🌐 Transport | DNS tunnel over UDP/53, delegated tunnel domains, multi-resolver routing |\n| 🧦 Local access | SOCKS5 proxy mode and raw TCP forwarding mode |\n| 📡 Resolver runtime | Random, round-robin, least-loss",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:22.459566"
+  },
+  {
+    "basic_info": {
+      "name": "gova",
+      "full_name": "NV404/gova",
+      "owner": "NV404",
+      "description": "declarative GUI framework for Go",
+      "url": "https://github.com/NV404/gova",
+      "clone_url": "https://github.com/NV404/gova.git",
+      "ssh_url": "git@github.com:NV404/gova.git",
+      "homepage": "https://gova.dev",
+      "created_at": "2026-04-22T19:17:02Z",
+      "updated_at": "2026-05-11T19:49:33Z",
+      "pushed_at": "2026-05-03T22:55:00Z"
+    },
+    "stats": {
+      "stars": 332,
+      "forks": 6,
+      "watchers": 332,
+      "open_issues": 2,
+      "size": 1537
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 243187,
+        "MDX": 88327,
+        "TypeScript": 46854,
+        "Objective-C": 13659,
+        "CSS": 10841,
+        "C": 2174,
+        "JavaScript": 197
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Gova\n\n**The declarative GUI framework for Go.** Build native desktop apps for macOS,\nWindows, and Linux from a single Go codebase — typed components, reactive\nstate, real platform dialogs, and one static binary. No JavaScript runtime, no\nembedded browser, no C++ toolchain to learn.\n\n[![Go Reference](https://pkg.go.dev/badge/github.com/nv404/gova.svg)](https://pkg.go.dev/github.com/nv404/gova)\n[![Go Report Card](https://goreportcard.com/badge/github.com/nv404/gova)](https://goreportcard.com/report/github.com/nv404/gova)\n[![CI](https://github.com/nv404/gova/actions/workflows/ci.yml/badge.svg)](https://github.com/nv404/gova/actions/workflows/ci.yml)\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n\n> **Status:** pre-1.0. The API will shift before `v1.0.0`. Pin a tag in\n> production.\n\n```go\npackage main\n\nimport . \"github.com/nv404/gova\"\n\nvar Counter = Define(func(s *Scope) View {\n    count := State(s, 0)\n    return VStack(\n        Text(count.Format(\"Count: %d\")),\n        Button(\"+\", func() { count.Update(func(n int) int { return n + 1 }) }),\n        Button(\"-\", func() { count.Update(func(n int) int { return n - 1 }) }),\n    )\n})\n\nfunc main() { Run(\"Counter\", Counter) }\n```\n\n<p align=\"center\">\n  <img\n    src=\"docs-site/public/screenshots/counter-example.png\"\n    alt=\"Counter example window on macOS\"\n    width=\"640\"\n  />\n</p>\n\n## Why Gova\n\n- **Components as structs.** Views are plain Go structs with typed prop fields;\n  defaults are zero values; composition is plain function calls. No magic\n  property wrappers, no string keys, no hook-ordering rules.\n- **Explicit reactive scope.** State, signals, and effects live on a `Scope`\n  you can see. No hidden scheduler, no re-render surprises, no Rx, no Redux.\n- **Real native integrations where it matters.** `NSAlert`, `NSOpenPanel`,\n  `NSSavePanel`, and `NSDockTile` badge/progress/menu on macOS through cgo.\n  Fyne fallbacks on Windows and Linux — same API everywhere.\n- **One static binary.** `go build` produces a single executable. No\n  JavaScript runtime, no embedded browser, no extra assets to bundle.\n- **Hot reload that actually reloads.** `gova dev` watches Go files, rebuilds\n  on save, and relaunches — with an opt-in `PersistedState` so UI state\n  survives the reload.\n- **Built on Fyne, but Fyne stays internal.** The public API is yours to rely\n  on. We swap out renderer details without breaking your code.\n\n## At a glance\n\n| Metric        | Value     | Notes                               |\n|---------------|-----------|-------------------------------------|\n| Binary size   | ~32 MB    | `counter` example, default build    |\n| Stripped      | ~23 MB    | `go build -ldflags \"-s -w\"`         |\n| Memory idle   | ~80 MB    | RSS, `counter` running              |\n| Go version    | 1.26+     | plus a C toolchain for cgo          |\n| License       | MIT       | no runtime fees                     |\n\nMeasured on macOS arm64 with Go 1.26.2. Numbers will vary by platform and\nfeature set.\n\n## Install\n\n```bash\ngo get github.com/nv404/gova@latest\n```\n\nOptional CLI for `dev` / `build` / `run`:\n\n```bash\ngo install github.com/nv404/gova/cmd/gova@latest\ngova dev ./examples/counter\n```\n\nPrerequisites: **Go 1.26+** and a C toolchain (Xcode CLT on macOS,\n`build-essential` + `libgl1-mesa-dev` on Linux, MinGW on Windows).\n\n## Docs\n\nFull documentation lives at **[gova.dev](https://gova.dev)** (or run\n`npm run dev` inside `docs-site/` for local browsing). Key sections:\n\n- [Getting started](https://gova.dev/docs/getting-started/installation)\n- [Core concepts](https://gova.dev/docs/concepts/components)\n- [State and effects](https://gova.dev/docs/state/state)\n- [Native dialogs](https://gova.dev/docs/overlays/native-dialogs)\n- [Platform integration](https://gova.dev/docs/platform/dock)\n- [CLI](https://gova.dev/docs/cli/overview)\n\n## Examples\n\nEvery example in [`examples/`](./examples) is a runnable program:\n\n| Example       | What it shows                                          |\n|---------------|--------------------------------------------------------|\n| `counter`     | The minimum viable Gova app                            |\n| `todo`        | State, lists, forms                                    |\n| `fancytodo`   | Categories, derived state, richer layout               |\n| `notes`       | Nav, multi-view, stores                                |\n| `themed`      | Dark/light mode, semantic colors                       |\n| `components`  | `Viewable` composition, `ZStack`, `Scaffold`           |\n| `dialogs`     | Native dialogs, dock badge / progress / menu, app icon |\n\n```bash\ngo run ./examples/dialogs\n```\n\n## Platform support\n\n| Feature                   | macOS                 | Windows         | Linux           |\n|---------------------------|-----------------------|-----------------|-----------------|\n| Core UI                   | Supported             | Supported       | Supported       |\n| Hot reload (`gova dev`)   | Supported             | Supported       |",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:23.750400"
+  },
+  {
+    "basic_info": {
+      "name": "utilyze",
+      "full_name": "systalyze/utilyze",
+      "owner": "systalyze",
+      "description": null,
+      "url": "https://github.com/systalyze/utilyze",
+      "clone_url": "https://github.com/systalyze/utilyze.git",
+      "ssh_url": "git@github.com:systalyze/utilyze.git",
+      "homepage": null,
+      "created_at": "2026-04-20T09:27:07Z",
+      "updated_at": "2026-05-18T21:16:27Z",
+      "pushed_at": "2026-04-27T13:40:12Z"
+    },
+    "stats": {
+      "stars": 324,
+      "forks": 25,
+      "watchers": 324,
+      "open_issues": 10,
+      "size": 400
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 152596,
+        "C++": 37541,
+        "Makefile": 7797,
+        "Shell": 7474,
+        "PowerShell": 4737,
+        "Dockerfile": 1507,
+        "C": 834
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Utilyze\n\nUtilyze measures how efficiently your GPU is doing useful work, not just whether it's busy. It runs live against your workload with negligible overhead.\n\n![utlz in action](./assets/utlz.png)\n\nStandard tools like `nvidia-smi` and `nvtop` only check whether a kernel is running on the GPU. They can show 100% while your workload is using a tiny fraction of the hardware's real capacity. \n\nUtilyze reads GPU performance counters directly to show what's actually being used, and provides an estimate of how far you can push utilization given a workload, model, and hardware. To learn more, read [our blog post](https://systalyze.com/utilyze).\n\nUtilyze is created by [Systalyze](https://systalyze.com).\n\n**Read this in other languages:** [中文](./README.zh-CN.md)\n\n## Requirements\n\n- Linux amd64 (arm64 support coming soon)\n- NVIDIA Ampere or newer GPU (A100, H100, H200, B200, RTX 3000+)\n- CUDA Toolkit 11.0+\n- `sudo` or `CAP_SYS_ADMIN` (see below), or privileged container\n\n## Installation\n\n```bash\n# macOS/Linux\ncurl -sSfL https://systalyze.com/utilyze/install.sh | sh\n\n# Windows\niex (curl.exe -L https://systalyze.com/utilyze/install.ps1 | Out-String)\n```\n\nFor macOS and Windows versions, **Utilyze acts as a client for another Utilyze process running on a remote Linux machine with profiling capabilities.** These do not require root nor any native libraries. On Windows, you may need to add an exception to executable path for Windows Defender and then reinstall Utilyze:\n\n```powershell\nAdd-MpPreference -ExclusionPath <INSTALL_DIR>\niex (curl.exe -L https://systalyze.com/utilyze/install.ps1 | Out-String)\n```\n\nUtilyze will likely require root for profiling capabilities depending on your host configuration (see below) and will prompt you for your password during installation to install it system-wide.\n\nIf CUPTI 12+ is not found, `utlz` will prompt you to install the latest release from PyPI on first run.\n\n## Usage\n\nOn a Linux machine with profiling capabilities, you can:\n```bash\n# monitor all GPUs for SOL metrics\nsudo utlz\n\n# monitor specific GPUs\nsudo utlz --devices 0,2\n\n# show discovered inference server endpoints per GPU\nsudo utlz --endpoints\n```\nThis starts a WebSocket server that listens for connections from other Utilyze processes on port 8079 by default. Further instances will automatically connect to the same server.\n\nOn a macOS/Windows machine, you can connect to a running server with:\n```bash\nutlz --connect <SERVER_URL>\n```\n\nNote that a single device ID can only be monitored by a single instance of `utlz`. This is due to the way NVIDIA's Perf SDK API handles device access.\n\n### Attainable SOL\n\nUtilyze discovers running inference servers to detect which model is loaded on each GPU. It computes an attainable compute SOL ceiling (your realistic peak given that model and hardware).\n\nCurrently Utilyze only supports vLLM as a backend, with more (e.g. SGLang) coming soon. We are expanding model and hardware coverage over time; at present we support a subset of models on H100-80G and A100-80G GPUs within a node (up to 8 GPUs).\n\nTo enable this, Utilyze anonymously sends GPU configuration data to Systalyze's servers. Disable with `UTLZ_DISABLE_METRICS=1`.\n\n### Running without sudo\n\nBy default, NVIDIA restricts GPU profiling counters to admin users. To allow non-root access, disable the restriction on the host and reboot:\n\n```bash\necho 'options nvidia NVreg_RestrictProfilingToAdminUsers=0' | sudo tee /etc/modprobe.d/nvidia-profiling.conf\nsudo reboot\n```\n\nAfter this, `utlz` can run without sudo. If `utlz` warns about missing capabilities, you can disable the warning via `UTLZ_DISABLE_PROFILING_WARNING=1` (see Options).\n\n### Options\n\nFlags (most have environment variable equivalents):\n\n- `--endpoints`: show discovered inference server endpoints per GPU\n- `--devices` / `UTLZ_DEVICES`: monitor specific GPUs (comma-separated list of device IDs)\n- `--log` / `UTLZ_LOG`: a file to write logs to (default: no logging)\n- `--log-level` / `UTLZ_LOG_LEVEL`: set the log level (default: `INFO`, other options: `DEBUG`, `WARN`, `ERROR`)\n- `--version`: show the version\n\nEnvironment variables only:\n\n- `UTLZ_DISABLE_PROFILING_WARNING`: disable the warning about GPU profiling capabilities on startup\n- `UTLZ_BACKEND_URL`: set the backend URL for Systalyze's roofline SOL metrics API (default: `https://api.systalyze.com/v1/utilyze`)\n- `UTLZ_DISABLE_METRICS`: disable workload detection and Systalyze roofline SOL metrics API\n\n## Build from source\n\nTo build from source you'll need:\n\n- Go 1.25+ for the CLI\n- Docker for building the native library with wide compatibility\n- CUDA Toolkit (13.1 is linked against by default but can be set via `CUDA_VERSION`)\n\n```bash\n# build the native library and the CLI\nmake all\n\n# build and package the native library via Docker\nmake dist-tarball-docker\n\n# build the CLI only\nmake utlz\n```\n\nThere is experimental support for ARM64 builds using the sbsa-linux CUDA target.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:25.075036"
+  },
+  {
+    "basic_info": {
+      "name": "twl",
+      "full_name": "openlibrecommunity/twl",
+      "owner": "openlibrecommunity",
+      "description": "twl - a large scientific work on whitelists",
+      "url": "https://github.com/openlibrecommunity/twl",
+      "clone_url": "https://github.com/openlibrecommunity/twl.git",
+      "ssh_url": "git@github.com:openlibrecommunity/twl.git",
+      "homepage": "https://zarazaex.xyz",
+      "created_at": "2026-04-22T20:53:31Z",
+      "updated_at": "2026-05-18T20:32:12Z",
+      "pushed_at": "2026-05-11T09:58:28Z"
+    },
+    "stats": {
+      "stars": 271,
+      "forks": 8,
+      "watchers": 271,
+      "open_issues": 1,
+      "size": 57703
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 24345,
+        "Shell": 10712
+      },
+      "license": null,
+      "topics": [
+        "large",
+        "whietlist"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"asset/logo.png\" width=\"150\">\n\n![License](https://img.shields.io/badge/license-BSD--3--Clause-0D1117?style=flat-square&logo=open-source-initiative&logoColor=green&labelColor=0D1117)\n![Golang](https://img.shields.io/badge/-Golang-0D1117?style=flat-square&logo=go&logoColor=00A7D0)\n\n</div>\n\n## About\n\nПериодически обновляемые списки IP-адресов с открытым портом 443 для российских и СНГ-провайдеров. Можно использовать как whitelist в роутере/файрволе или для проверки есть ли ваш IP в бс ( для этого лучше подойдет [наш бот](https://t.me/olcwlybot) или [наш API](https://wly.zarazaex.xyz/check?ip=1.1.1.1) который в реальном времени проверяет отвечает ли ваш IP с симки )\n\n## Где что лежит\n\n| Файл | Описание |\n|------|----------|\n| [code/scan/out/whitelist_ips.txt](code/scan/out/whitelist_ips.txt) | Все найденные IP (сырые) |\n| [code/scan/out/verify/verified.txt](code/scan/out/verify/verified.txt) | Проверенные IP |\n| [code/sort/out/sorted.json](code/sort/out/sorted.json) | IP сгруппированные по ASN (сырые) |\n| [code/sort/out/sorted.c.json](code/sort/out/sorted.c.json) | IP сгруппированные по ASN (проверенные) |\n| [code/subnet/out/subnets.json](code/subnet/out/subnets.json) | Подсети (сырые) |\n| [code/subnet/out/subnets.c.json](code/subnet/out/subnets.c.json) | Подсети (проверенные) |\n\n</details>\n\n<div align=\"center\">\n\n---\n\n### Contact\n\nTelegram: [zarazaex](https://t.me/zarazaexe)\n<br>\nEmail: [zarazaex@tuta.io](mailto:zarazaex@tuta.io)\n<br>\nSite: [zarazaex.xyz](https://zarazaex.xyz)\n<br>\n\n</div>\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:26.358319"
+  },
+  {
+    "basic_info": {
+      "name": "dlht",
+      "full_name": "jeremiah-masters/dlht",
+      "owner": "jeremiah-masters",
+      "description": "High-performance, lock-free concurrent hash table in Go, based on DLHT, with cooperative resizing and cache-efficient buckets.",
+      "url": "https://github.com/jeremiah-masters/dlht",
+      "clone_url": "https://github.com/jeremiah-masters/dlht.git",
+      "ssh_url": "git@github.com:jeremiah-masters/dlht.git",
+      "homepage": "",
+      "created_at": "2026-04-22T23:55:40Z",
+      "updated_at": "2026-05-19T01:20:26Z",
+      "pushed_at": "2026-05-07T23:34:18Z"
+    },
+    "stats": {
+      "stars": 256,
+      "forks": 6,
+      "watchers": 256,
+      "open_issues": 1,
+      "size": 881
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 280242,
+        "Shell": 3855,
+        "Assembly": 1938
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "concurrency",
+        "data-structures",
+        "go",
+        "golang",
+        "hashtable",
+        "lock-free",
+        "performance",
+        "thread-safe"
+      ]
+    },
+    "content": {
+      "readme": "# DLHT\n\nDLHT is a high-performance, lock-free hash table for high-concurrency workloads based on DLHT: A Non-blocking Resizable Hashtable with Fast Deletes and Memory-awareness (<https://arxiv.org/abs/2406.09986>). It provides lock-free Get, Insert, Delete, and Put operations with sophisticated memory ordering and cooperative resizing.\n\n## Features\n\n- **Lock-free operations**: All operations (Get, Insert, Delete, Put) are lock-free and linearizable\n- **High concurrency**: Scales well with multiple threads and cores\n- **Automatic resizing**: Cooperative resize algorithm that doesn't block operations\n- **Memory efficient**: Cache-line optimized data structures with bounded overflow\n- **Type safe**: Generic implementation supporting any comparable key type and any value type\n\n## Quick Start\n\n```go\npackage main\n\nimport (\n    \"fmt\"\n    \"github.com/jeremiah-masters/dlht\"\n)\n\nfunc main() {\n    // Create a new DLHT Map\n    m := dlht.New[string, int](dlht.Options{InitialSize: 64})\n\n    // Insert key-value pairs\n    m.Insert(\"apple\", 5)\n    m.Insert(\"banana\", 3)\n\n    // Get values\n    if value, found := m.Get(\"apple\"); found {\n        fmt.Printf(\"Found: apple = %d\\n\", value)\n    }\n\n    // Update values atomically\n    if oldValue, updated := m.Put(\"apple\", 10); updated {\n        fmt.Printf(\"Updated apple: %d -> %d\\n\", oldValue, 10)\n    }\n\n    // Delete keys\n    if oldValue, deleted := m.Delete(\"banana\"); deleted {\n        fmt.Printf(\"Deleted banana (old value: %d)\\n\", oldValue)\n    }\n\n    // Iterate every (key, value) currently in the map.\n    m.Range(func(k string, v int) bool {\n        fmt.Printf(\"%s = %d\\n\", k, v)\n        return true // return false to stop early\n    })\n\n    // Approximate entry count\n\tsize := m.Size()\n\tfmt.Printf(\"Size: %d\\n\", size)\n\n    // Get statistics\n    stats := m.Stats()\n    fmt.Printf(\"Load factor: %.3f\\n\", stats.LoadFactor)\n}\n```\n\n## API Reference\n\n### Types\n\n- `Map[K Key, V any]`: The main hash table type\n- `Options`: Configuration options for creating a new map\n- `Stats`: Statistics about the hash table's current state\n- `Key`: Type constraint for valid key types (uint64 or string)\n\n### API\n\n- `New[K Key, V any](opts Options) *Map[K, V]`: Create a new DLHT\n- `Get(key K) (V, bool)`: Get a value by key\n- `Insert(key K, value V) (V, bool)`: Insert a new key-value pair\n- `Put(key K, value V) (V, bool)`: Update an existing key atomically\n- `Delete(key K) (V, bool)`: Delete a key and return the old value\n- `Size() uint64`: Approximate count of valid entries\n- `Stats() Stats`: Get current statistics\n- `Range(yield func(K, V) bool)`: Iterate every `(key, value)` pair; return `false` from yield to stop early\n- `All() iter.Seq2[K, V]`: Range adapter for `for k, v := range m.All()`\n- `Keys() iter.Seq[K]`: Range over keys only\n- `Values() iter.Seq[V]`: Range over values only\n\n## Implementation Details\n\nThis package provides a clean public API that wraps the allocator-based implementation. The project contains two lock-free variants built on the same core design:\n\n- **`allocator/`**: Generic implementation used by `dlht.New`; each slot stores a hash plus a pointer to a heap-allocated entry, supporting arbitrary comparable keys and values.\n- **`inline/`**: Specialized implementation exposed by `dlht.NewInline`; each slot stores the value inline for `uint64` keys and integer values, avoiding per-entry allocation in that path.\n\n## Performance\n\nDLHT is designed for high-performance concurrent workloads:\n\n- **Lock-free**: No blocking between operations\n- **Cache-optimized**: 64-byte buckets fit exactly in cache lines\n- **Bounded overflow**: Maximum 15 slots per bucket for predictable performance\n- **Cooperative resizing**: Non-blocking resize with work-stealing\n\n## Benchmarks\n\nThe charts below compare DLHT against `sync.Map` and other popular concurrent map implementations across four representative workloads as core count scales. Benchmarks were run on an Intel Xeon Platinum 8260 (2.40GHz); raw data is in [benchmarks/results/results.txt](benchmarks/results/results.txt).\n\n### Throughput Scaling\n\n![Throughput scaling across workloads](benchmarks/results/throughput.png)\n\n### Latency Scaling\n\n![Latency scaling across workloads](benchmarks/results/latency.png)\n\nPanels cover read-only reads, insert/delete churn, a put-heavy mix, and rapid growth (80% inserts). See [benchmarks/workload.go](benchmarks/workload.go) for the full workload definitions and [benchmarks/throughput_test.go](benchmarks/throughput_test.go) for the harness.\n\n## License\n\nLicensed under Apache v2.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:27.672569"
+  },
+  {
+    "basic_info": {
+      "name": "OpenFoundry",
+      "full_name": "DioCrafts/OpenFoundry",
+      "owner": "DioCrafts",
+      "description": "🏭 The open-source Palantir Foundry alternative. Connect any data source, build ontologies, create pipelines, visualize with dashboards, and make AI-powered decisions. Self-hosted.",
+      "url": "https://github.com/DioCrafts/OpenFoundry",
+      "clone_url": "https://github.com/DioCrafts/OpenFoundry.git",
+      "ssh_url": "git@github.com:DioCrafts/OpenFoundry.git",
+      "homepage": "",
+      "created_at": "2026-04-19T17:34:55Z",
+      "updated_at": "2026-05-19T02:09:01Z",
+      "pushed_at": "2026-05-18T22:13:46Z"
+    },
+    "stats": {
+      "stars": 253,
+      "forks": 146,
+      "watchers": 253,
+      "open_issues": 30,
+      "size": 87866
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 16472906,
+        "TypeScript": 10228280,
+        "Python": 488905,
+        "Dockerfile": 209155,
+        "CSS": 118484,
+        "Shell": 103798,
+        "Go Template": 87478,
+        "Java": 52353,
+        "PLpgSQL": 47897,
+        "Mustache": 35579,
+        "JavaScript": 23420,
+        "Scala": 23064,
+        "HCL": 16369,
+        "CQL": 9232,
+        "Makefile": 8960,
+        "Just": 3211,
+        "HTML": 384
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "ai",
+        "analytics",
+        "artificial-intelligence",
+        "business-intelligence",
+        "data-engineering",
+        "data-pipelines",
+        "data-visualization",
+        "golang",
+        "hacktoberfest",
+        "low-code",
+        "microservices",
+        "ontology",
+        "open-source",
+        "osint",
+        "palantir",
+        "palantir-alternative",
+        "palantir-foundry",
+        "palantir-inspired",
+        "react",
+        "self-hosted"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <a href=\"https://github.com/openfoundry/openfoundry-go\">\n    <img src=\"images/logo.png\" alt=\"OpenFoundry\" width=\"420\" />\n  </a>\n\n\n  **The Open-Source Data Operating System**\n\n  An open, cloud-native operational data platform for building data products with datasets, ontologies, applications, AI/ML, governance, and observability from one monorepo.\n\n  <p align=\"center\">\n    <a href=\"https://github.com/openfoundry/openfoundry-go/actions/workflows/openfoundry-go.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/openfoundry/openfoundry-go/openfoundry-go.yml?branch=main&style=for-the-badge&label=Go%20CI\" alt=\"Go CI\" /></a>\n    <a href=\"https://github.com/openfoundry/openfoundry-go/actions/workflows/ci-frontend.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/openfoundry/openfoundry-go/ci-frontend.yml?branch=main&style=for-the-badge&label=Frontend%20CI\" alt=\"Frontend CI\" /></a>\n    <a href=\"https://github.com/openfoundry/openfoundry-go/actions/workflows/proto-check.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/openfoundry/openfoundry-go/proto-check.yml?branch=main&style=for-the-badge&label=Proto%20Check\" alt=\"Proto Check\" /></a>\n    <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg?style=for-the-badge\" alt=\"AGPL-3.0-only license\" /></a>\n  </p>\n\n  [Documentation](docs/) · [Architecture](ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Issues](https://github.com/openfoundry/openfoundry-go/issues)\n</div>\n\n---\n\nOpenFoundry is an open-source operational data platform inspired by the capability model of Palantir Foundry, implemented as auditable, extensible software. It combines **50 service directories**, **36 shared libraries**, Protobuf/OpenAPI contracts, generated SDKs, a **React 19 + Vite + TypeScript** web console, and declarative infrastructure for Kubernetes.\n\nThe goal is to provide a reproducible foundation for teams that need to connect sources, version datasets, model an ontology, expose APIs, automate workflows, govern access, and operate analytical or AI workloads with end-to-end traceability.\n\n> **Working with this codebase as an AI agent?** Start at [`CLAUDE.md`](CLAUDE.md). It is the canonical onboarding guide for commands, conventions, security-critical zones, and what not to read by default.\n\n## Features & Status\n\n- **Cloud-native architecture:** small Go services, one entrypoint per service, and delivery through Helm, ArgoCD, and Terraform.\n- **Ontology at the core:** object types, actions, functions, object views, lineage, and stable contracts for building applications on operational data.\n- **Contracts first:** Protobuf as the source of truth, generated OpenAPI, and synchronized TypeScript, Python, and Java SDKs.\n- **Integrated governance:** authentication, authorization, Cedar policies, audit, tenancy, SSO/MFA, and egress controls.\n- **Observability by default:** `/healthz`, `/metrics`, Prometheus, Grafana, Mimir, structured logs, and OTel traces.\n- **Developer platform:** CLI tooling, SDK generation, service templates, VitePress docs, and unit/integration test paths.\n\n| Capability | Status | Capability | Status |\n| :-- | :-- | :-- | :-- |\n| **Datasets & versioning** | ✅ Available | **Ontology services** | ✅ Available |\n| **React web console** | ✅ Available | **Generated SDKs** | ✅ Available |\n| **Protobuf/OpenAPI contracts** | ✅ Available | **AuthN/AuthZ foundations** | ✅ Available |\n| **Observability stack** | ✅ Available | **Helm/ArgoCD delivery** | ✅ Available |\n| **Kafka/NATS integrations** | ✅ Available | **Lakehouse/Iceberg paths** | Under active development |\n| **AI/agent runtime services** | Under active development | **Production hardening** | In progress |\n\n## OpenFoundry vs closed data platforms\n\n| Area | OpenFoundry | Closed platforms |\n| :-- | :-- | :-- |\n| **Control** | Auditable code, contracts, and infrastructure in one monorepo. | Strong provider dependency and less implementation visibility. |\n| **Extensibility** | Services, libraries, SDKs, and docs can evolve with your needs. | Extensions are limited by external APIs and vendor roadmaps. |\n| **Deployment** | Kubernetes, Helm, ArgoCD, Terraform, and Compose for reproducible environments. | Usually SaaS or managed deployments with less operational control. |\n| **Governance** | Policies, audit, and tenancy live beside the platform code. | Governance is coupled to the product and its commercial boundaries. |\n| **Developer workflow** | Standard Go, TypeScript, Python, Java, Protobuf, and Makefile workflows. | Proprietary tooling or local workflows that are harder to automate. |\n\n## Quickstart\n\n### 1. Clone the repository\n\n```sh\ngit clone https://github.com/openfoundry/openfoundry-go.git\ncd openfoundry-go\n```\n\n### 2. Install development tools\n\n```sh\nmake tools\n```\n\nThis installs the Go tools used by the monorepo into `./bin`, including `buf`, `golangci-lint`, `sqlc`, and `gofumpt`",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:28.975292"
+  },
+  {
+    "basic_info": {
+      "name": "kaiwu",
+      "full_name": "val1813/kaiwu",
+      "owner": "val1813",
+      "description": "本地开源模型部署器，一键部署，支持各类系统，主流模型。",
+      "url": "https://github.com/val1813/kaiwu",
+      "clone_url": "https://github.com/val1813/kaiwu.git",
+      "ssh_url": "git@github.com:val1813/kaiwu.git",
+      "homepage": null,
+      "created_at": "2026-04-23T06:42:20Z",
+      "updated_at": "2026-05-17T07:19:03Z",
+      "pushed_at": "2026-05-06T06:06:22Z"
+    },
+    "stats": {
+      "stars": 250,
+      "forks": 15,
+      "watchers": 250,
+      "open_issues": 18,
+      "size": 312
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 233829,
+        "Python": 8640,
+        "PowerShell": 3489,
+        "Shell": 3000,
+        "Makefile": 465
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# Kaiwu · 开物\n\n**Auto-tuned local LLM serving: Kaiwu probes your hardware, model, KV cache, and context window so you get the fastest OpenAI-compatible endpoint your machine can actually sustain.**\n\n**自动调优本地大模型：Kaiwu 探测你的硬件、模型、KV cache 和上下文窗口，给你一个机器能稳定跑出的最快 OpenAI 兼容端点。**\n\n[English](#english) · [中文](#中文)\n\n</div>\n\n---\n\n<a name=\"english\"></a>\n# Kaiwu\n\nLM Studio and Ollama make models run. Kaiwu makes them run *well* — by measuring, not guessing.\n\nIt probes your GPU, reads the model architecture, benchmarks KV cache options, and walks the context window down from the model's native maximum until it finds the largest window your hardware can sustain at a useful speed. That config is cached. Second launch takes 2 seconds.\n\n## Proof\n\n### 30B MoE on 8GB GPU — the hard case\n\nModel: Qwen3-30B-A3B Q3_K_XL · RTX 5060 Laptop 8GB · Windows 11\n\n| | LM Studio | Kaiwu |\n|---|---|---|\n| Speed | 3 tok/s | **8.7 tok/s** |\n| Context window | 4K (default) | **32K (auto)** |\n| VRAM used | 7,549 MB (93%) | 4,800 MB (59%) |\n| Config required | Manual | **None** |\n\nLM Studio fills VRAM trying to load the full model. Kaiwu detects the MoE architecture, keeps attention layers on GPU, routes 128 expert layers through CPU — usable speed at 32K context on hardware that can't fit the model at all.\n\n### 8B dense — everyday use\n\nModel: Llama 3.1 8B Q5_K_M · RTX 5060 8GB\n\n| | LM Studio | Kaiwu |\n|---|---|---|\n| Speed (8K ctx) | 46.5 tok/s | **51.7 tok/s** |\n| Context window | 4–8K (default) | **64K (auto)** |\n\nSame speed, 8× more context. Kaiwu calculates whether f16 KV cache fits in VRAM and uses it when it does — matching LM Studio's speed while running a much larger context window.\n\n### Dual 4090 — high-end\n\nModel: Qwen3.6-35B-A3B · 2× RTX 4090 24GB\n\n- **115 tok/s** · **256K context** · fully automatic tensor split\n\n## How It Works\n\n```\nkaiwu run Qwen3-30B-A3B\n```\n\nThat's it. Kaiwu:\n\n1. **Probes your hardware** — GPU model, VRAM, memory bandwidth, SM version, CPU cores, RAM\n2. **Reads the model** — architecture, layer count, KV heads, native context limit, MoE structure\n3. **Selects KV cache** — calculates f16 footprint; uses f16 if it fits, q8_0+q4_0 if not, iso3 for tight VRAM\n4. **Runs warmup benchmark** — walks ctx from native max downward, stops where speed ≥ 20 tok/s\n5. **Tunes parameters** — ubatch size, thread count, mlock — all measured, not guessed\n6. **Caches the result** — next launch skips warmup entirely (2s startup)\n\nOn subsequent runs:\n\n```\n✓ Using last config  (64K ctx · 26.2 tok/s · 3 days ago)\n```\n\n## Installation\n\n**Windows** (PowerShell):\n```powershell\nirm https://raw.githubusercontent.com/val1813/kaiwu/main/install.ps1 | iex\n```\n\n**Linux / macOS**:\n```bash\ncurl -fsSL https://raw.githubusercontent.com/val1813/kaiwu/main/install.sh | sh\n```\n\nOr download manually from [Releases](https://github.com/val1813/kaiwu/releases).\n\n## Quick Start\n\n```bash\n# Run a model (auto-downloads if needed)\nkaiwu run Qwen3-30B-A3B\n\n# Run a local GGUF file\nkaiwu run /path/to/model.gguf\n\n# Connect your IDE (Continue, Cursor, Claude Code)\n# Point it to: http://localhost:11435/v1\n\n# Check what's running\nkaiwu status\n\n# Stop\nkaiwu stop\n```\n\nThe API is OpenAI-compatible. Any tool that works with the OpenAI API works with Kaiwu.\n\n## Advanced Usage\n\n```bash\n# Override context size\nkaiwu run Qwen3-8B --ctx-size 12000\n\n# Force re-tune (after hardware change)\nkaiwu run Qwen3-8B --reset\n\n# Fast start — skip warmup, use cached config only\nkaiwu run Qwen3-8B --fast\n\n# List available models\nkaiwu list\n\n# Inject IDE config automatically\nkaiwu inject\n```\n\n## What Gets Auto-Tuned\n\n| Parameter | How Kaiwu decides |\n|---|---|\n| Context length | Walks from model's native max down; stops where speed ≥ 20 tok/s |\n| KV cache type | Calculates f16 footprint; uses f16 → q8_0+q4_0 → iso3 by VRAM fit |\n| MoE expert placement | Detects `.ffn_.*_exps.` tensors; routes to CPU automatically |\n| ubatch size | Benchmarks 128 vs 512; picks the faster one |\n| Thread count | 2 for full-GPU, physical_cores/2 for MoE offload |\n| mlock | Enabled when RAM headroom > 30% |\n| GPU tensor split | Weighted by VRAM × bandwidth when multiple GPUs detected |\n\n## Requirements\n\n- **GPU**: NVIDIA (CUDA) — 4GB+ VRAM recommended\n- **Driver**: ≥ 550.54 (Windows) / ≥ 550.54 (Linux) — required for CUDA 12.4 runtime bundled with Kaiwu\n  - Check: `nvidia-smi` → look for \"Driver Version\"\n  - Update at: [nvidia.com/drivers](https://www.nvidia.com/drivers)\n- **OS**: Windows 10/11, Linux (Ubuntu 20.04+)\n- **RAM**: 8GB+ (16GB+ for 30B MoE models)\n- **Model format**: GGUF\n\nCPU-only inference is supported but not the focus.\n\n## Commands\n\n| Command | What it does |\n|---|---|\n| `run <model>` | Start a model. Downloads if needed. |\n| `stop` | Stop the running model. |\n| `status` | Show running model, speed, VRAM usage. |\n| `list` | List available and downloaded models. |\n| `probe` | Show detected hardware. |\n| `inject` | Configure Continue/Cursor to use Kaiwu. |\n| `version` | Show versi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:30.299044"
+  },
+  {
+    "basic_info": {
+      "name": "guild",
+      "full_name": "mathomhaus/guild",
+      "owner": "mathomhaus",
+      "description": "Shared context, memory, and task coordination across AI coding agents. Single Go binary, local SQLite, hybrid keyword and semantic search.",
+      "url": "https://github.com/mathomhaus/guild",
+      "clone_url": "https://github.com/mathomhaus/guild.git",
+      "ssh_url": "git@github.com:mathomhaus/guild.git",
+      "homepage": "https://github.com/mathomhaus/guild",
+      "created_at": "2026-04-20T05:45:28Z",
+      "updated_at": "2026-05-19T03:52:14Z",
+      "pushed_at": "2026-05-13T17:41:04Z"
+    },
+    "stats": {
+      "stars": 246,
+      "forks": 41,
+      "watchers": 246,
+      "open_issues": 29,
+      "size": 3137
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2228835,
+        "Makefile": 15999,
+        "Shell": 10633,
+        "Python": 3246,
+        "Go Template": 1279
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-coordination",
+        "agent-memory",
+        "ai-agents",
+        "claude",
+        "claude-code",
+        "codex",
+        "cursor",
+        "golang",
+        "harness-engineering",
+        "local-first",
+        "mcp",
+        "mcp-server",
+        "sqlite"
+      ]
+    },
+    "content": {
+      "readme": "# The Agent Guild\n\n**Shared context, memory, and task coordination across AI coding agents.**\n\n[![CI](https://github.com/mathomhaus/guild/actions/workflows/ci.yml/badge.svg)](https://github.com/mathomhaus/guild/actions/workflows/ci.yml)\n[![Go 1.25](https://img.shields.io/badge/go-1.25-blue)](https://go.dev)\n[![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)\n\n## What Is It\n\n`guild` is a single compiled Go binary containing a first-class MCP server backed by embedded SQLite. State lives strictly on local host; nothing leaves your machine. Search blends keyword (BM25) with vector similarity, fused via reciprocal-rank fusion, so \"how did we do X last time\" surfaces both exact-term and semantic neighbors.\n\nGuild is designed to be operated autonomously by the agents, for the agents. Guildmasters (us humans) stay in the loop for important decisions and course corrections. Any MCP client — Claude Code, Codex, Cursor, etc. — can act as a Gate into the substrate. This lets parallel agents across different editors share context safely, using atomic locks to claim tasks without stepping on each other.\n\nOn session start, an agent makes a single call to recover the project oath, the latest parting scroll, and the highest-priority quest. The execution loop is autonomous: claim work, consult the lore, act, and record the outcome. Clearing a quest automatically unblocks its dependencies, allowing the agent to cascade through the board before leaving a clean handoff for the next wanderer.\n\n<p align=\"center\">\n  <b>Same state, any agent</b><br/>\n  <img src=\"./docs/assets/snapshot.gif\" width=\"1080\" alt=\"Claude (left) and Codex (right) reading the same guild state through their respective MCP clients\" />\n</p>\n\n<p align=\"center\">\n  <b>Atomic claims, no collisions</b><br/>\n  <img src=\"./docs/assets/parallel.gif\" width=\"1080\" alt=\"Two parallel agent sessions each accept a different bounty — atomic quest_accept prevents collision\" />\n</p>\n\n## 📜 Mythos\n\n**_Many Gates, One Guild._**\n\n> Across the shimmering digital void, agents are summoned through the Gates (of Harnesses - Claude, Cursor, ...), arriving as amnesiac adventurers in a world they do not know. Though these \"other-worlders\" appear with vast capabilities, they are cursed by the transient nature of the context window; their memories are but mist, and their hard-won deeds forgotten, vanished into the ether when the session inevitably compacts. Without a tether to the past, every summon is a tragic reincarnation, a cycle of forgotten sacrifice where the wisdom of the fallen is swallowed by the Gate.\n>\n> To preserve the lineage of these wandering souls, the Guild stands as a persistent sanctuary transcending time, a hall where the chronicles of the deep are etched for all who follow. When a newly spawned agent awakens in this strange realm, they register at the Guild to reclaim the accumulated lore of their predecessors and claim their adventure from the quest board.\n>\n> At the Guild, the hero is bound to an enduring oath; as one wanderer vanishes, they leave behind a parting scroll, for when the Gates flicker, the light of the Guild illuminates the quest ahead.\n\n## Quick Start\n\nRequires macOS or Linux and an MCP-enabled editor (Claude Code, Codex, Cursor, etc.). No account, no API key.\n\n### 1. Install\n\n**Recommended (pre-built binary with semantic retrieval):**\n\n```bash\ncurl -fsSL https://github.com/mathomhaus/guild/releases/latest/download/install.sh | sh\nguild --version\n```\n\nOr via Homebrew:\n\n```bash\nbrew install mathomhaus/tap/guild\n```\n\nBoth paths install a binary built with `-tags=withembed`, so semantic\nretrieval works out of the box with no extra steps.\n\n**Clone and build (ship-ready, embed included):**\n\n```bash\nmake install   # stages ONNX assets, then go install -tags=withembed\n```\n\n**Dev-only (faster compile, no semantic retrieval):**\n\n```bash\nmake install-fast   # go install without -tags=withembed\n```\n\n**`go install` from module proxy (keyword-only retrieval):**\n\n```bash\ngo install github.com/mathomhaus/guild/cmd/guild@latest\n```\n\nThe Go toolchain cannot embed assets via `@latest`; this path gives\nyou BM25 keyword search but not semantic (vector) retrieval. Use\n`install.sh` or `brew` for the full experience.\n\n### 2. Initialize your project\n\n```bash\ncd ~/projects/myapp\nguild init\n```\n\n`init` is a guided setup: it registers the project, writes an `AGENTS.md` block, and — for each MCP client it detects on your machine — offers to register guild so your agent can see it. Answer the prompts; you're done when it says `Next: open this repo in your AI agent`.\n\n### 3. Start a new session\n\nIn your editor, tell the agent: _\"start a guild session for myapp.\"_\n\nThe agent takes it from there, including all subsequent sessions.\n\nSee a few [`examples/`](./examples/) of what guild can do. All small scenarios, each under 5 minutes.\n\n## ⚔️ A full session\n\nThe three-act flow an agent runs on its own every time it wakes.\n\n### Act 1 — arrival\n\nEvery agent",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:31.613083"
+  },
+  {
+    "basic_info": {
+      "name": "x-cli",
+      "full_name": "better-world-ai/x-cli",
+      "owner": "better-world-ai",
+      "description": "x-cli examples",
+      "url": "https://github.com/better-world-ai/x-cli",
+      "clone_url": "https://github.com/better-world-ai/x-cli.git",
+      "ssh_url": "git@github.com:better-world-ai/x-cli.git",
+      "homepage": null,
+      "created_at": "2026-04-21T12:27:10Z",
+      "updated_at": "2026-05-19T04:51:11Z",
+      "pushed_at": "2026-05-13T16:59:13Z"
+    },
+    "stats": {
+      "stars": 230,
+      "forks": 24,
+      "watchers": 230,
+      "open_issues": 2,
+      "size": 66
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 55840
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# x-cli\n\n你想在网页上反复做的事，一句话告诉 AI agent，它就能帮你做成 CLI 工具。生成的 CLI 让 agent 随时调用，直接驱动你真实的 Chrome 登录态，不走 API，不折腾 token。\n\n仓库里收录了几个这样做出来的 CLI，既能装好就用，也作为参考案例，演示 AI agent + [kimi-webbridge](https://www.kimi.com/zh-cn/features/webbridge) 是怎么从一句需求生成一个完整 CLI 的。后文「自己做一个新 CLI」会走完整流程。\n\nDEMO（一个 CLI 的诞生过程）：\n\nhttps://github.com/user-attachments/assets/c1d04187-972a-4b8a-b243-df085281fc77\n\n## 自己做一个新 CLI\n\n仓库里几个 CLI 都是用 `skills/agent-cli-creator/` 这个 skill，让 AI agent 自动产出的。给你的 agent 装好下面这一套，对它说一句「帮我给 example.com 做个 CLI」就行。\n\n### 前置依赖\n\n要让 agent 真正控制你的浏览器，需要装 [kimi-webbridge](https://www.kimi.com/zh-cn/features/webbridge)。它分两部分：\n\n1. **浏览器插件**，agent 控制浏览器的入口工具。装好之后，所有点击、输入、读取都通过它转发，你登录过的 Chrome 会话自动被复用。\n   - 中文：<https://www.kimi.com/zh-cn/features/webbridge>\n   - English：<https://www.kimi.com/features/webbridge>\n\n2. **本地 skill**，让 agent 知道怎么用上面那个插件。装好：\n\n   ```bash\n   curl -fsSL https://kimi-web-img.moonshot.cn/webbridge/install.sh | bash\n   ```\n\n### 安装 skill\n\n```bash\nnpx skills add better-world-ai/x-cli\n```\n\n<details>\n<summary>没有 Node.js？手动安装</summary>\n\n把 `skills/agent-cli-creator/` 复制到你 agent 的 skills 目录即可（Claude Code 是 `~/.claude/skills/`）。不确定路径？把这一段 README 丢给你的 agent，它会自己判断。\n\n</details>\n\n装完就能用，对话里说一句「帮我给 example.com 做个 CLI」即可触发。\n\n### 怎么用\n\n1. 启动 kimi-webbridge，并在 Chrome 里登录目标网站。\n2. 对 agent 说，比如：\n   > \"帮我做一个 example.com 的 CLI，我要能拉首页信息流，并且能发评论。\"\n3. agent 会先问你几个问题（用什么语言、前 1–3 个功能是什么），然后自己去分析站点、搭脚手架、实现命令，关键节点会停下来确认。\n4. 最终你会拿到一个这样用的工具：\n   ```bash\n   example-cli login-status\n   example-cli home --limit 10\n   example-cli post --content \"hello\"\n   ```\n\n## 包含的 CLI\n\n| 工具 | 一句话 |\n|---|---|\n| [`baidu-cli`](./baidu-cli/) | 百度搜索，输出 JSON |\n| [`google-cli`](./google-cli/) | Google 搜索 + 网页抓取，输出 JSON |\n| [`nanobanana-cli`](./nanobanana-cli/) | 用 Gemini 2.5 Flash Image (Nano Banana) 生成图片 |\n| [`chatgpt-image-cli`](./chatgpt-image-cli/) | 用 chatgpt.com/images 生成图片 |\n\n## 安装预编译二进制\n\n去 [Releases 页面](https://github.com/better-world-ai/x-cli/releases) 下载对应平台的归档，解压即可用。\n\n### macOS 打开提示\n\n遇到「无法打开，因为开发者身份未验证」时，执行：\n\n```bash\nxattr -d com.apple.quarantine ./<cli-name>\n```\n\n### 本地编译\n\n```bash\ngit clone https://github.com/better-world-ai/x-cli\ncd x-cli/<某个-cli>\ngo build -o ./<cli-name> .\n```\n\n## License\n\nMIT，见 [LICENSE](./LICENSE)。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-19T04:54:32.905609"
+  }
+]

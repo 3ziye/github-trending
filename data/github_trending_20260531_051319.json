@@ -1,0 +1,896 @@
+[
+  {
+    "basic_info": {
+      "name": "SkillOpt",
+      "full_name": "microsoft/SkillOpt",
+      "owner": "microsoft",
+      "description": "SkillOpt is a text-space optimizer that trains reusable natural-language skills for frozen LLM agents through trajectory-driven edits, validation-gated updates, and deployable best_skill.md artifacts.",
+      "url": "https://github.com/microsoft/SkillOpt",
+      "clone_url": "https://github.com/microsoft/SkillOpt.git",
+      "ssh_url": "git@github.com:microsoft/SkillOpt.git",
+      "homepage": "https://aka.ms/skillopt",
+      "created_at": "2026-05-08T06:41:01Z",
+      "updated_at": "2026-05-31T05:04:40Z",
+      "pushed_at": "2026-05-31T02:02:32Z"
+    },
+    "stats": {
+      "stars": 3313,
+      "forks": 333,
+      "watchers": 3313,
+      "open_issues": 9,
+      "size": 22289
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 742900,
+        "HTML": 168240,
+        "Shell": 5773
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "self-evolving-agents"
+      ]
+    },
+    "content": {
+      "readme": "# SkillOpt: Executive Strategy for Self-Evolving Agent Skills\n\n*Train agent skills like you train neural networks — with epochs, (mini-)batchsize, learning rates, and validation gates — but without touching model weights.*\n\n[![Project Page](https://img.shields.io/badge/Project%20Page-SkillOpt-8dbb3c)](https://microsoft.github.io/SkillOpt/) [![Paper](https://img.shields.io/badge/Paper-arXiv-b31b1b)](https://arxiv.org/abs/2605.23904) [![Project Video](https://img.shields.io/badge/Project%20Video-Watch%20Demo-ff0000)](https://youtu.be/JUBMDTCiM0M) [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n\n## 🎬 SkillOpt Demo Video\n\nhttps://github.com/user-attachments/assets/eb12d3bc-371c-467f-904d-91b61f339ed7\n\n<p align=\"center\">\n  <a href=\"https://youtu.be/JUBMDTCiM0M\"><b>▶ Watch the full demo on YouTube</b></a>\n</p>\n\n---\n\n## Install\n\n**Requirements:** Python 3.10+\n\n```bash\ngit clone https://github.com/microsoft/SkillOpt.git\ncd SkillOpt\npip install -e .\n\n# For ALFWorld benchmark (optional):\npip install -e \".[alfworld]\"\nalfworld-download\n```\n\n### Configure API Credentials\n\n```bash\ncp .env.example .env\n# Edit .env with your API credentials, then:\nsource .env\n```\n\n**Azure OpenAI** (recommended):\n```bash\nexport AZURE_OPENAI_ENDPOINT=\"https://your-resource.openai.azure.com/\"\n# Option 1: API key auth\nexport AZURE_OPENAI_API_KEY=\"your-key\"\n# Option 2: Azure CLI auth (no API key needed)\nexport AZURE_OPENAI_AUTH_MODE=\"azure_cli\"\n```\n\n> **Note:** `AZURE_OPENAI_ENDPOINT` is required for all three modes (`api_key`, `azure_cli`,\n> `openai_compatible`). Without it, all LLM calls will fail.\n\n**OpenAI-compatible endpoints**:\n```bash\nexport AZURE_OPENAI_ENDPOINT=\"https://api.openai.com/v1\"\nexport AZURE_OPENAI_API_KEY=\"sk-...\"\nexport AZURE_OPENAI_AUTH_MODE=\"openai_compatible\"\n```\n\nThis routes all calls through the plain OpenAI Python client (no Azure auth, no `api-version`\nheader).\n\n> **Note:** SkillOpt reuses the `AZURE_OPENAI_*` env var names even in this mode — there is no\n> separate `OPENAI_API_KEY` knob.\n\n**Anthropic Claude**:\n```bash\nexport ANTHROPIC_API_KEY=\"sk-ant-...\"\n```\n\n**Qwen (local vLLM)**:\n```bash\nexport QWEN_CHAT_BASE_URL=\"http://localhost:8000/v1\"\nexport QWEN_CHAT_MODEL=\"Qwen/Qwen3.5-4B\"\n```\n\n---\n\n## Data Preparation\n\nSkillOpt expects data in a **split directory** with `train/`, `val/`, `test/` subdirectories, each containing a JSON file (e.g., `items.json`).\n\n```\ndata/my_split/\n├── train/items.json\n├── val/items.json\n└── test/items.json\n```\n\nEach JSON file is an array of task items. The required fields depend on the benchmark. For example, SearchQA items look like:\n\n```json\n[\n  {\n    \"id\": \"unique_item_id\",\n    \"question\": \"Who wrote the novel ...\",\n    \"context\": \"[DOC] relevant passage text ...\",\n    \"answers\": [\"expected answer\"]\n  }\n]\n```\n\nSee `skillopt/envs/<benchmark>/dataloader.py` for the exact format each benchmark expects.\n\n> **Note:** Benchmark datasets are not included in this repository. Prepare your own data following the format above.\n\n### Supported Benchmarks\n\n| Benchmark | Type | Config |\n|---|---|---|\n| SearchQA | QA | `configs/searchqa/default.yaml` |\n| ALFWorld | Embodied agent | `configs/alfworld/default.yaml` |\n| DocVQA | Document QA | `configs/docvqa/default.yaml` |\n| LiveMathematicianBench | Math | `configs/livemathematicianbench/default.yaml` |\n| SpreadsheetBench | Code generation | `configs/spreadsheetbench/default.yaml` |\n| OfficeQA | Tool-augmented QA | `configs/officeqa/default.yaml` |\n\n---\n\n## Quick Start\n\n### Training\n\n```bash\n# Minimal example — train on SearchQA:\npython scripts/train.py \\\n    --config configs/searchqa/default.yaml \\\n    --split_dir /path/to/your/searchqa_split \\\n    --azure_openai_endpoint https://your-resource.openai.azure.com/ \\\n    --optimizer_model gpt-5.5 \\\n    --target_model gpt-5.5\n\n# Train on LiveMathematicianBench:\npython scripts/train.py \\\n    --config configs/livemathematicianbench/default.yaml \\\n    --split_dir /path/to/your/livemath_split \\\n    --azure_openai_endpoint https://your-resource.openai.azure.com/ \\\n    --optimizer_model gpt-5.5 \\\n    --target_model gpt-5.5\n\n# Train on ALFWorld:\npython scripts/train.py \\\n    --config configs/alfworld/default.yaml \\\n    --split_dir /path/to/your/alfworld_split \\\n    --azure_openai_endpoint https://your-resource.openai.azure.com/ \\\n    --optimizer_model gpt-5.5 \\\n    --target_model gpt-5.5\n```\n\nKey CLI arguments:\n\n| Argument | Description | Example |\n|---|---|---|\n| `--config` | Benchmark config YAML | `configs/searchqa/default.yaml` |\n| `--split_dir` | Path to data split directory | `/path/to/split` |\n| `--azure_openai_endpoint` | Azure OpenAI endpoint URL | `https://your-resource.openai.azure.com/` |\n| `--optimizer_model` | Optimizer model deployment name | `gpt-5.5` |\n| `--target_model` | Target model deployment name | `gpt-5.5` |\n| `--num_epochs` | Number of training epochs | `4` |\n| `-",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:20.337728"
+  },
+  {
+    "basic_info": {
+      "name": "cheat-on-content",
+      "full_name": "XBuilderLAB/cheat-on-content",
+      "owner": "XBuilderLAB",
+      "description": "You're reading this. The skill predicted it. A workflow that turns every post into a calibrated experiment—score, blind-predict, retro, evolve. The future doesn't reward effort, it rewards those who see the pattern first. 1M followers in a month — not luck, system.",
+      "url": "https://github.com/XBuilderLAB/cheat-on-content",
+      "clone_url": "https://github.com/XBuilderLAB/cheat-on-content.git",
+      "ssh_url": "git@github.com:XBuilderLAB/cheat-on-content.git",
+      "homepage": null,
+      "created_at": "2026-05-05T10:28:33Z",
+      "updated_at": "2026-05-31T04:24:26Z",
+      "pushed_at": "2026-05-28T23:19:28Z"
+    },
+    "stats": {
+      "stars": 3065,
+      "forks": 527,
+      "watchers": 3065,
+      "open_issues": 10,
+      "size": 369
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 64045,
+        "Shell": 42736
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">\n  <img src=\"docs/logo.svg\" alt=\"Cheat on Content\" width=\"720\">\n</h1>\n\n<h2 align=\"center\">Cheat on Content</h2>\n\n<p align=\"center\">\nFor content creators — a skill that turns every post into a calibrated experiment.\n</p>\n\n<p align=\"center\">\nYou're reading this. The skill predicted it.<br>\nIt turns every \"I feel this will go viral\" into a calibrated experiment.<br>\nIt took me from zero to 1M followers in a month. It said I'd write this. I did.<br>\nYour doubt — predicted too.\n</p>\n\n<p align=\"center\">\n  <strong>English</strong>\n  &nbsp;·&nbsp;\n  <a href=\"docs/README_CN.md\"><strong>简体中文</strong></a>\n</p>\n\n<p align=\"center\">\n<a href=\"CHANGELOG.md\"><img src=\"https://img.shields.io/badge/version-v0.1.0-orange\" alt=\"Version\"></a>\n&nbsp;\n<a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-blue.svg\" alt=\"License\"></a>\n</p>\n\n---\n\n## 🎬 What it actually does\n\nMost creators live in the same gambling loop:\n\n> Publish → Numbers come in → Learn nothing → Roll the dice again\n\nA creator who's shipped 200 pieces is barely 10% sharper than someone who's shipped 1 — because they never **kept books** after each round.\n\n**Cheat on Content** makes every judgment get logged, retrospected, absorbed into the next:\n\n📊 Score → 🎯 Blind-predict → 🚀 Publish → 📈 T+3d retro → 🧬 Evolve your rubric\n\nThis isn't motivation. It's **compounding** — every piece you don't retro is silently eroding your ability to see yourself.\n\nOne month in = you have a hit-formula that's **only yours**.\nThree months in = you're 10× sharper than your first-day self.\n\n---\n\n## 🌀 Origin\n\n> I never believed in fate. Until this skill made me film a video — and predicted exactly how much traffic that video would pull.\n>\n> I tried to break it. I told my audience. I hoped collective observation would collapse the wave function and shift the trajectory.\n>\n> The data was accurate.\n>\n> I didn't escape fate. I just moved from first-order to second-order.\n>\n> If even my awakening — even my audience's observation — was already in its prediction, then right now, reading this:\n> are you here out of curiosity, or just closing the algorithm's last move?\n>\n> — *the creator*\n\n---\n\n## ⚖️ How it differs from other \"creator tools\"\n\n| Others | This |\n|---|---|\n| Give you \"inspiration\" | Make **your own intuition** measurable |\n| AI writes for you | AI **judges** for you — the script stays yours |\n| Ship 10 versions, A/B test | Ship one — **bet** in writing, settle the books with data |\n| Static dashboard | An **evolving rubric** — your formula 3 months from now isn't the starting one |\n\nIn a sentence: other tools help you \"ship more.\" This helps you \"judge sharper.\"\n\n---\n\n## 🤔 Can't I just use ChatGPT / DeepSeek / Doubao?\n\nThose are **general assistants** — they tell everyone the same thing. You ask \"will this go viral?\" and the answer is fitted to global average opinion, not your channel. Ask again tomorrow — same answer. **It doesn't remember you. It doesn't change because of you.**\n\nThis is **your own ops expert** — serving only your one channel:\n\n- The scoring formula is reverse-engineered from **your** history, not the global training distribution\n- Every piece you ship updates its understanding — by month three, judgment accuracy is 10× sharper than day one (**auto-evolving**)\n- It knows your benchmark account, your cadence, the last three reasons you flopped — things ChatGPT forgets after the first reply\n\nGeneral LLMs help everyone. This helps **your** account.\n\n---\n\n## 🛡️ Why the loop actually evolves\n\n📝 **Every piece is logged**: Score and prediction get written before publish, archived end-to-end. Three days later you settle accounts — you see exactly where you were sharp, where you were off. No more vague \"I feel this one didn't land.\"\n\n🔁 **It gets sharper**: Three same-direction misses in a row, the tool actively prompts you to upgrade your scoring formula. **You don't have to remember — it remembers for you.**\n\n🛡️ **Upgrades have a brake**: Switching the formula requires re-scoring all historical samples — only released if it ranks more accurately than the old. Plus a cross-model independent audit — **so you can't fool yourself.**\n\n🪒 **The rubric is a workbench, not a museum**: Observations refuted by data get deleted; observations absorbed into formal dimensions also get deleted. It only holds what's most useful right now.\n\n---\n\n## 📦 Install\n\n```bash\ngit clone https://github.com/XBuilderLAB/cheat-on-content.git\ncd cheat-on-content\nbash install.sh\n```\n\n> ⚠️ **Upgrading from v0.x?** Run `/cheat-migrate` in your content project after `git pull`. The 1.3 → 1.4 migration is **BREAKING for blind-channel integrity** — it splits `rubric_notes.md` so the blind sub-agent can't leak actuals. Without migrate, blind scoring will keep flagging `non_blind_warning`. See [CHANGELOG](CHANGELOG.md) and [migrations/1.3-to-1.4.md](migrations/1.3-to-1.4.md).\n\n14 sub-skills are symlinked into your agent's skill directory. One install, every content project gets it",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:21.578180"
+  },
+  {
+    "basic_info": {
+      "name": "book-to-skill",
+      "full_name": "virgiliojr94/book-to-skill",
+      "owner": "virgiliojr94",
+      "description": "Turn any technical book PDF into a Claude Code skill — ready to study, reference, and use while you work.",
+      "url": "https://github.com/virgiliojr94/book-to-skill",
+      "clone_url": "https://github.com/virgiliojr94/book-to-skill.git",
+      "ssh_url": "git@github.com:virgiliojr94/book-to-skill.git",
+      "homepage": null,
+      "created_at": "2026-05-01T02:09:39Z",
+      "updated_at": "2026-05-31T05:06:10Z",
+      "pushed_at": "2026-05-20T20:31:30Z"
+    },
+    "stats": {
+      "stars": 2675,
+      "forks": 342,
+      "watchers": 2675,
+      "open_issues": 4,
+      "size": 88
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 27239
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">📚 book-to-skill</h1>\n\n<p align=\"center\">\n  <strong>Turn any technical book or document into a Claude Code skill — ready to study, reference, and use while you work.</strong>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/Claude_Code-Skill-blueviolet?style=for-the-badge\" alt=\"Claude Code Skill\">\n  <img src=\"https://img.shields.io/badge/PDF%20%E2%80%A2%20EPUB%20%E2%80%A2%20DOCX%20%E2%80%A2%20MD%20%E2%80%A2%20HTML%20%E2%80%A2%20RTF%20%E2%80%A2%20MOBI-supported-green?style=for-the-badge\" alt=\"Formats supported\">\n  <img src=\"https://img.shields.io/badge/effort-high-orange?style=for-the-badge\" alt=\"Effort: high\">\n  <img src=\"https://img.shields.io/badge/License-MIT-blue?style=for-the-badge\" alt=\"MIT License\">\n</p>\n\n<p align=\"center\">\n  <a href=\"#-why\">Why</a> ·\n  <a href=\"#-what-it-generates\">What it generates</a> ·\n  <a href=\"#-usage\">Usage</a> ·\n  <a href=\"#-requirements\">Requirements</a> ·\n  <a href=\"#-how-it-works\">How it works</a> ·\n  <a href=\"#-faq\">FAQ</a> ·\n  <a href=\"#-install\">Install</a>\n</p>\n\n---\n\n## 🤔 Why\n\nYou buy a great technical book. You read it once. Three months later you can't remember chapter 7 existed.\n\nThe usual workarounds don't help:\n- 📄 \"Let me just search the PDF\" → you get a list of pages, not answers\n- 🧠 \"I'll ask Claude about this book\" → it either hallucinates or says it doesn't have the content\n- 📝 \"I'll take notes as I read\" → you end up with a 200-line doc you never open again\n\n**book-to-skill solves this by turning the book into a structured skill Claude loads on demand.**\n\nOnce installed, you just type `/your-book-slug replication` and Claude reads the right chapter and answers from the actual content. No hallucination. No digging through PDFs. The book becomes part of your workflow.\n\n---\n\n## 📦 What it generates\n\nRunning `/book-to-skill your-book.pdf` (or `.epub`) creates a full skill at `~/.claude/skills/<slug>/`:\n\n| File | Purpose | Size |\n|------|---------|------|\n| `SKILL.md` | Core mental models + chapter index | ~4,000 tokens |\n| `chapters/ch01-*.md` … | One file per chapter, loaded on-demand | ~1,000 tokens each |\n| `glossary.md` | Every key term, alphabetically sorted with chapter refs | ~1,500 tokens |\n| `patterns.md` | All techniques, algorithms, and design patterns | ~2,000 tokens |\n| `cheatsheet.md` | Decision tables and quick-reference rules | ~1,000 tokens |\n\n**Chapter files are loaded on-demand** — they don't count against the skill budget until you ask about that topic.\n\n---\n\n## 🚀 Usage\n\n```\n/book-to-skill <path-to-document> [skill-name-slug]\n```\n\nSupported document formats: PDF, EPUB, DOCX, TXT, Markdown, reStructuredText, AsciiDoc, HTML, RTF, MOBI/AZW/AZW3.\n\n**Examples:**\n\n```bash\n# PDF — derive skill name from filename\n/book-to-skill ~/Downloads/designing-data-intensive-applications.pdf\n\n# EPUB — specify a custom slug\n/book-to-skill ~/books/clean-code.epub clean-code\n\n# Full path with explicit name\n/book-to-skill /tmp/ddd-evans.pdf domain-driven-design\n```\n\nAfter the skill is created, use it like any other Claude Code skill:\n\n```bash\n/designing-data-intensive-apps                  # load core mental models\n/designing-data-intensive-apps replication      # find and explain a topic\n/designing-data-intensive-apps ch05             # dive into chapter 5\n/designing-data-intensive-apps \"what chapters do you have?\"\n```\n\n---\n\n## 🔧 Requirements\n\nThe extractor tries tools in order per format and uses the first available. If nothing is installed, it tells you which command to run. Plain text, Markdown, reStructuredText and AsciiDoc need no extra deps.\n\n**PDF — choose by book type:**\n\n| Book type | Tool | Install | Speed |\n|-----------|------|---------|-------|\n| Text-heavy (prose, few tables) | `pdftotext` (poppler) | `sudo apt install poppler-utils` | ⚡ instant |\n| Text-heavy fallback | `PyPDF2` | `pip3 install PyPDF2` | ⚡ instant |\n| Text-heavy fallback | `pdfminer.six` | `pip3 install pdfminer.six` | ⚡ instant |\n| **Technical (code, tables, formulas)** | **`docling`** | `pip3 install docling` | ~1.5s/page |\n\n> Before extraction begins, the skill asks you whether the book is **technical** or **text-heavy** and picks the right tool automatically. Docling preserves markdown tables and code blocks; pdftotext is faster for prose-only books.\n\n**EPUB:**\n\n| Tool | Install | Quality |\n|------|---------|---------|\n| `ebooklib` + `beautifulsoup4` | `pip3 install ebooklib beautifulsoup4` | ⭐⭐⭐ Best |\n| stdlib `zipfile` | built-in — no install needed | ⭐⭐ Always available |\n\n**Other formats:**\n\n| Format | Tool | Install |\n|--------|------|---------|\n| DOCX | `python-docx` (fallback: stdlib ZIP/XML) | `pip3 install python-docx` |\n| HTML | `beautifulsoup4` (fallback: stdlib `html.parser`) | `pip3 install beautifulsoup4` |\n| RTF | `striprtf` (fallback: regex) | `pip3 install striprtf` |\n| MOBI / AZW / AZW3 | Calibre `ebook-convert` (external app, not pip) | https://calibre-ebook.com/download |\n| TXT / Markdown / reStructuredText / AsciiDoc | buil",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-31T05:13:22.798828"
+  },
+  {
+    "basic_info": {
+      "name": "yao-open-prompts",
+      "full_name": "yaojingang/yao-open-prompts",
+      "owner": "yaojingang",
+      "description": "Yao Open Prompts：中文 AI 提示词库，覆盖工作、学习、内容、营销和生活场景",
+      "url": "https://github.com/yaojingang/yao-open-prompts",
+      "clone_url": "https://github.com/yaojingang/yao-open-prompts.git",
+      "ssh_url": "git@github.com:yaojingang/yao-open-prompts.git",
+      "homepage": "https://yaojingang.github.io/yao-open-prompts/",
+      "created_at": "2026-05-06T13:04:20Z",
+      "updated_at": "2026-05-31T04:29:41Z",
+      "pushed_at": "2026-05-17T12:11:17Z"
+    },
+    "stats": {
+      "stars": 2333,
+      "forks": 359,
+      "watchers": 2333,
+      "open_issues": 0,
+      "size": 757
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 39279
+      },
+      "license": "Other",
+      "topics": [
+        "ai",
+        "chinese-prompts",
+        "geo",
+        "prompt-engineering",
+        "prompts"
+      ]
+    },
+    "content": {
+      "readme": "# Yao Open Prompts\n\n[网页导航](https://yaojingang.github.io/yao-open-prompts/) · [完整目录](CATALOG.md) · [English README](README.en.md) · [英文提示词](prompts-en/README.md) · [GitHub 仓库](https://github.com/yaojingang/yao-open-prompts)\n\n《姚金刚提示词合集》的开源版本，一个面向真实工作、学习、内容、营销和生活场景的中文 AI 提示词库。\n\n本仓库从原始合集文档和后续提示词目录中整理出 **117** 个中文提示词文件，并按场景重新分类。每个提示词保留可复制的正文，去除了原文中不适合放入开源仓库主体的教程推广、效果截图、视频附件说明和 HTML 样式残留。\n\n系列型内容会优先合并成主题合集，例如 `50个 Nano Banana 创意提示词` 和 `Nano Banana PPT 场景提示词合集`，避免仓库目录被大量零散短提示词打散。\n\n近期补充重点来自 `05-Prompts/Generators`、`05-Prompts/Meta`、`05-Prompts/GEO`、`05-Prompts/Scenarios/Learning`、`05-Prompts/Products` 和《AI营销：从SEO到GEO》提示词合集：新增了合同生成、产品原型、网页 PPT V3、公众号 HTML、Schema.org GEO、网页逆向、费曼提问学习、批判思维、36 个内容与运营类实战提示词、25 个 GEO 营销实战模板，以及宽幅知识插画信息图生成器。\n\n## 重点推荐\n\n**[智能元提示词生成系统 V0.6](prompts/01-ai-methods/rtf-meta-prompt-system-v06.md)**：基于 RTF 框架，把需求分析、角色工程、任务架构、格式规范和质量评估串成一套可复用流程，适合作为生成高质量提示词的起点。\n\n**[宽幅知识插画信息图生成器](prompts/06-ai-content/wide-knowledge-infographic-generator.md)**：把一段文案提炼为适合社交媒体和 PPT 展示的宽幅知识插画信息图，强调结构提炼、视觉分层和极简中文表达。\n\n## 专题入口\n\n**[36 个内容与运营提示词](prompts/06-ai-content/README.md)**：新增提示词已直接并入 `prompts/06-ai-content/`，采用与仓库其他提示词一致的文件命名方式，覆盖短视频文案、人设风格、平台运营、行业内容、直播转化、私域成交、AI 绘画、数据复盘和爆款重构。\n\n**[25 个 GEO 营销实战模板](prompts/08-ai-marketing/README.md)**：从《AI营销：从SEO到GEO》提示词合集拆分，覆盖机会判断、原理分析、内容工程、信源建设、数据监测、增长诊断和合规风险。\n\n**[English README](README.en.md)**：英文说明文档入口，对应导航到 [117 个英文提示词](prompts-en/README.md)，英文提示词按 `prompts/` 的相同路径完整镜像在 `prompts-en/` 下。\n\n## 仓库结构\n\n```text\nprompts/                # 按场景分类的提示词正文\nprompts-en/             # 英文同步版提示词\nreferences/             # 推荐资源、第三方内容和外部项目索引\ntemplates/              # 新增提示词模板\nmaintenance/            # 维护、评审、发布检查清单\nscripts/                # 目录生成和仓库质量检查脚本\ndocs/                   # 提示词类型与代表提示词网页\nREADME.en.md            # 英文说明文档\nCATALOG.md              # 全量提示词索引\nCHANGELOG.md            # 更新记录\nCONTRIBUTING.md         # 贡献和持续迭代规则\n```\n\n## 分类\n\n| 分类 | 数量 | 说明 |\n| --- | ---: | --- |\n| AI方法 | 8 | 元提示词、反编译、网页逆向和提示词工程方法。 |\n| AI工作 | 10 | 面向企业、合同、销售、客服、产品原型、PPT、网页等生产力场景。 |\n| AI学习 | 11 | 学习方法、记忆术、费曼提问、习惯养成和学习助理。 |\n| AI生活 | 2 | 健康、亲子歌曲等生活场景。 |\n| AI教育 | 4 | 儿童教育、互动学习页面和小游戏创作。 |\n| AI内容 | 50 | 写作、润色、标题、公众号 HTML、短视频、内容运营、图像和 PPT 创意。 |\n| AI编程 | 1 | 架构设计和编程协作。 |\n| AI营销 | 28 | GEO 内容生成、结构化数据、信源建设、数据监测、增长诊断和合规风险。 |\n| AI思考 | 3 | 批判思维、记忆、标题和思维类灵感提示词。 |\n\n完整目录见 [CATALOG.md](CATALOG.md)。\n\n## 使用方式\n\n1. 在 [CATALOG.md](CATALOG.md) 中按场景找到提示词。\n2. 打开对应 Markdown 文件，复制 `Prompt` 区域。\n3. 将 `{{变量}}`、`[占位符]` 或示例内容替换为你的真实任务信息。\n4. 在目标模型中测试输出，并根据结果记录版本迭代。\n\n## 提示词文件规范\n\n每个提示词文件包含统一 frontmatter：\n\n```yaml\ntitle: 提示词标题\ncategory: 一级分类\nsubcategory: 子类\nsource_section: 原合集章节号\nauthor: 作者或来源\nversion: 提示词版本\ncreated: 创建日期\nstatus: active | draft | third-party-review\ntags: 标签列表\n```\n\n正文只保留三部分：标题、简介、Prompt。需要展示案例、评测截图、教程链接或长说明时，优先放到 `references/` 或后续的案例目录，不和可复制提示词正文混在一起。\n\n## 持续更新机制\n\n- 新增提示词：复制 [prompt-file-template.md](templates/prompt-file-template.md)，放到对应分类目录。\n- 更新提示词：优先在原文件内提升 `version`，并在 [CHANGELOG.md](CHANGELOG.md) 记录变更。\n- 调整分类：同步更新 frontmatter 的 `category/subcategory/tags`，然后重新生成目录。\n- 质量检查：运行 `python3 scripts/check_repo.py`。\n- 重建目录：运行 `python3 scripts/generate_catalog.py`。\n- 重建网页：运行 `python3 scripts/generate_webpage.py`。\n- 发布节奏：建议使用日期版本，如 `v2026.05.1`，每次发布前走 [release-checklist.md](maintenance/release-checklist.md)。\n\n## 开源与来源策略\n\n本仓库采用 **CC BY 4.0** 作为提示词内容许可；如果后续加入脚本或工具代码，可单独使用 MIT。明显第三方或转载内容不直接并入主提示词库，先放在 `references/` 或标记为 `third-party-review`，确认授权后再发布。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:24.040553"
+  },
+  {
+    "basic_info": {
+      "name": "vggt-omega",
+      "full_name": "facebookresearch/vggt-omega",
+      "owner": "facebookresearch",
+      "description": "[CVPR 2026 Oral] VGGT Omega",
+      "url": "https://github.com/facebookresearch/vggt-omega",
+      "clone_url": "https://github.com/facebookresearch/vggt-omega.git",
+      "ssh_url": "org-16943930@github.com:facebookresearch/vggt-omega.git",
+      "homepage": "",
+      "created_at": "2026-05-14T04:43:13Z",
+      "updated_at": "2026-05-31T03:53:35Z",
+      "pushed_at": "2026-05-18T15:56:12Z"
+    },
+    "stats": {
+      "stars": 2161,
+      "forks": 87,
+      "watchers": 2161,
+      "open_issues": 20,
+      "size": 40622
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 128481
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n<h1>VGGT-&Omega;</h1>\n\n<a href=\"http://vggt-omega.github.io/\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/badge/Project_Page-green\" alt=\"Project Page\"></a>\n<a href=\"https://arxiv.org/abs/2605.15195\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://img.shields.io/badge/arXiv-2605.15195-b31b1b\" alt=\"arXiv\"></a>\n<a href=\"https://huggingface.co/spaces/facebook/vggt-omega\"><img src='https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Demo-blue'></a>\n\n<p>\n  <span class=\"author\"><a href=\"https://jytime.github.io/\">Jianyuan Wang</a><sup>1,2</sup></span>\n  <span class=\"author\"><a href=\"https://silent-chen.github.io/\">Minghao Chen</a><sup>1</sup></span>\n  <span class=\"author\"><a href=\"https://scholar.google.com/citations?user=FUDsZkEAAAAJ&amp;hl=zh-CN\">Shangzhan Zhang</a><sup>1</sup></span>\n  <span class=\"author\"><a href=\"https://nikitakaraevv.github.io/\">Nikita Karaev</a><sup>1</sup></span>\n  <br>\n  <span class=\"author\"><a href=\"https://demuc.de/\">Johannes Schönberger</a><sup>2</sup></span>\n  <span class=\"author\"><a href=\"https://scholar.google.com/citations?user=IJidh-UAAAAJ&amp;hl=fr\">Patrick Labatut</a><sup>2</sup></span>\n  <span class=\"author\"><a href=\"https://scholar.google.com/citations?user=lJ_oh2EAAAAJ&amp;hl=en\">Piotr Bojanowski</a><sup>2</sup></span>\n  <span class=\"author\"><a href=\"https://d-novotny.github.io/\">David Novotny</a></span>\n  <br>\n  <span class=\"author\"><a href=\"https://www.robots.ox.ac.uk/~vedaldi/\">Andrea Vedaldi</a><sup>1,2</sup></span>\n  <span class=\"author\"><a href=\"https://chrirupp.github.io/\">Christian Rupprecht</a><sup>1</sup></span>\n</p>\n\n**<sup>1</sup>[Visual Geometry Group, University of Oxford](https://www.robots.ox.ac.uk/~vgg/)**; **<sup>2</sup>[Meta AI](https://ai.facebook.com/research/)**\n</div>\n\n## Pretrained models\n\nBefore using the models, please request access to the checkpoints [here](https://huggingface.co/facebook/VGGT-Omega). Once your request is approved, you can download the checkpoints. Please note that access requests are reviewed by an automated process based on the information provided in the request.\n\n| Model | Resolution | Text alignment | Download |\n| :--- | :--- | :--- | :--- |\n| `VGGT-Omega-1B-512` | 512 | No | [Link](https://huggingface.co/facebook/VGGT-Omega/blob/main/vggt_omega_1b_512.pt) |\n| `VGGT-Omega-1B-256-Text-Alignment` | 256 | Yes | [Link](https://huggingface.co/facebook/VGGT-Omega/blob/main/vggt_omega_1b_256_text.pt) |\n\nThe authors are not involved in the review process and cannot approve or reject individual applications. However, the [🤗 Hugging Face demo](https://huggingface.co/spaces/facebook/vggt-omega) is available to everyone.\n\n\n## Quick Start\n\nFirst, clone this repository and install the dependencies:\n\n```bash\ngit clone git@github.com:facebookresearch/vggt-omega.git\ncd vggt-omega\npip install -r requirements.txt\npip install -e .\n```\n\n\nNow, try the model with a few lines of code:\n\n```python\nimport torch\n\nfrom vggt_omega.models import VGGTOmega\nfrom vggt_omega.utils.load_fn import load_and_preprocess_images\nfrom vggt_omega.utils.pose_enc import encoding_to_camera\n\ncheckpoint_path = \"path/to/vggt_omega_1b_512.pt\"\nimage_names = [\"path/to/imageA.png\", \"path/to/imageB.png\", \"path/to/imageC.png\"]\n\nmodel = VGGTOmega().to(\"cuda\").eval()\nmodel.load_state_dict(torch.load(checkpoint_path, map_location=\"cpu\"))\n\nimages = load_and_preprocess_images(image_names, image_resolution=512).to(\"cuda\")\n\nwith torch.inference_mode():\n    predictions = model(images)\n\nextrinsics, intrinsics = encoding_to_camera(\n    predictions[\"pose_enc\"],\n    predictions[\"images\"].shape[-2:],\n)\n\ndepth = predictions[\"depth\"]\ndepth_conf = predictions[\"depth_conf\"]\ncamera_and_register_tokens = predictions[\"camera_and_register_tokens\"]\ncamera_tokens = camera_and_register_tokens[:, :, :1]\nregisters = camera_and_register_tokens[:, :, 1:]\n```\n\nFor the text-aligned checkpoint, use `VGGTOmega(enable_alignment=True)` with `image_resolution=256` and read `predictions[\"text_alignment_embedding\"]`.\n\n\n## Interactive Demo\n\nInstall the demo dependencies:\n\n```bash\npip install -r requirements_demo.txt\n```\n\nLaunch the Gradio demo with a local checkpoint path:\n\n```bash\npython demo_gradio.py \\\n  --checkpoint checkpoints/VGGT-Omega-1B-512/model.pt \\\n  --image-resolution 512\n```\n\nThe demo accepts uploaded images or a video, runs camera and depth inference,\nand visualizes the depth-unprojected point cloud and predicted cameras as a GLB\nscene.\n\n## Runtime and GPU Memory\n\nWe benchmark the end-to-end peak GPU memory usage of `VGGT-Omega-1B-512` on a\nsingle NVIDIA A100 GPU with 624x416 input images. The measurement covers the full\ninference program, from loading the model weights onto the GPU through the\nforward pass, so it includes both the memory needed to store the model itself\nand the memory used by inference activations and buffers. In other words, a GPU\nwith at least the listed available memory is able to run the corresponding\nnumber of i",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:25.290532"
+  },
+  {
+    "basic_info": {
+      "name": "opensquilla",
+      "full_name": "opensquilla/opensquilla",
+      "owner": "opensquilla",
+      "description": "OpenSquilla — Token-Efficient AI Agent with same budget, higher intelligence density",
+      "url": "https://github.com/opensquilla/opensquilla",
+      "clone_url": "https://github.com/opensquilla/opensquilla.git",
+      "ssh_url": "git@github.com:opensquilla/opensquilla.git",
+      "homepage": "https://opensquilla.ai",
+      "created_at": "2026-05-06T17:43:05Z",
+      "updated_at": "2026-05-31T03:54:04Z",
+      "pushed_at": "2026-05-31T04:33:03Z"
+    },
+    "stats": {
+      "stars": 2135,
+      "forks": 146,
+      "watchers": 2135,
+      "open_issues": 36,
+      "size": 6981
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 8664140,
+        "JavaScript": 577461,
+        "CSS": 284994,
+        "PowerShell": 34399,
+        "Shell": 25193,
+        "Jinja": 14440,
+        "HTML": 6398,
+        "Dockerfile": 3755,
+        "Ruby": 2439
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent",
+        "ai",
+        "ai-agents",
+        "deep-learning",
+        "foundation-models",
+        "llm",
+        "mcp",
+        "memory",
+        "openclaw",
+        "python",
+        "skills"
+      ]
+    },
+    "content": {
+      "readme": "# OpenSquilla — Token-Efficient AI Agent\n\n<p align=\"center\">\n  <img src=\"assets/opensquilla-long-logo.png\" alt=\"OpenSquilla logo\" width=\"500\">\n</p>\n\n<p align=\"center\">\n  <b>Same budget, more capability, better results.</b><br>\n  A microkernel AI agent for your CLI, Web UI, and chat channels.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/opensquilla/opensquilla/actions/workflows/ci.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/opensquilla/opensquilla/ci.yml?style=for-the-badge\" alt=\"CI\"></a>\n  <a href=\"https://opensquilla.ai/\"><img src=\"https://img.shields.io/badge/website-opensquilla.ai-blue?style=for-the-badge\" alt=\"Website\"></a>\n  <a href=\"https://github.com/opensquilla/opensquilla/releases\"><img src=\"https://img.shields.io/github/v/release/opensquilla/opensquilla?include_prereleases&style=for-the-badge\" alt=\"GitHub release\"></a>\n  <a href=\"https://www.python.org/downloads/\"><img src=\"https://img.shields.io/badge/python-3.12%2B-blue?style=for-the-badge\" alt=\"Python 3.12+\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-Apache%202.0-blue?style=for-the-badge\" alt=\"Apache 2.0 License\"></a>\n</p>\n\n---\n\n## Overview\n\nOpenSquilla is a token-efficient, microkernel AI agent. A local model\nrouter sends each turn to the cheapest model that can handle it, while\npersistent memory, a layered sandbox, built-in web search, and\non-device embeddings round out a single shared turn loop.\n\nEvery entry point — Web UI, CLI, and chat channels — runs through that\nsame loop, so tool dispatch, retries, and decision logging behave\nidentically everywhere. A pluggable provider layer speaks to\nOpenRouter, OpenAI, Anthropic, Ollama, DeepSeek, Gemini, Qwen/DashScope,\nand 20+ other LLM providers with no change to your code or config\nschema.\n\nOpenSquilla 0.2.1 is the current release.\n\n---\n\n## Installation\n\nOpenSquilla runs on Windows, macOS, and Linux. Pick the path that\nmatches your use case.\n\nWindows portable and Quick terminal install give you a prebuilt\n**release** — no Git required. The other two — Install from source\nand Develop from source — build **from a Git checkout** (`git clone` +\nGit LFS).\n\nRelease install commands use published GitHub release assets. The\nWindows portable zip also has a `/releases/latest/download/` alias for\nthe current release. Python wheel installs use versioned wheel filenames\nbecause installers validate the version embedded in the wheel filename.\n\n| Path | Audience | When to use |\n| --- | --- | --- |\n| [Windows portable](#windows-portable-no-python) | Windows users | No Python toolchain; one-zip launch |\n| [Quick terminal install](#quick-terminal-install) **(recommended)** | End users on any OS | Release wheel from a terminal |\n| [Install from source](#install-from-source) | Users tracking `main` | Run from a checkout, not edit it |\n| [Develop from source](#develop-from-source) | Contributors | Edit, test, or debug the source |\n\n### Prerequisites\n\n| Requirement | Windows portable | Quick terminal install | Install from source | Develop from source |\n| --- | :---: | :---: | :---: | :---: |\n| Python 3.12+ | bundled | via `uv` | via `uv` or system | via `uv` |\n| Git + Git LFS | — | — | required | required |\n| `uv` | — | installed if missing | recommended | required |\n\nThe default `recommended` profile installs **SquillaRouter** —\nOpenSquilla's on-device model router — and its model assets;\n`OPENSQUILLA_INSTALL_PROFILE=core` omits those dependencies. The\nseparate `--router disabled` onboarding flag keeps the dependencies\ninstalled but turns the router off at runtime.\n\nOn Windows, SquillaRouter's bundled ONNX runtime also needs the Visual\nC++ runtime. The Windows portable launcher and the from-source\nPowerShell installer install it automatically via `winget`; the\n**Quick terminal install** (`uv tool install`) path does not — if\nstartup logs a `DLL load failed` error, install it manually (see\n[Troubleshooting](#troubleshooting)). OpenSquilla keeps running with\ndirect single-model routing until it is installed.\n\nInstall links: [Git](https://git-scm.com/downloads) ·\n[Git LFS](https://git-lfs.com/) ·\n[uv](https://docs.astral.sh/uv/getting-started/installation/).\n\n### Windows portable (no Python)\n\nThe fastest path on Windows — the zip ships a bundled CPython runtime,\nso no separate Python install is required.\n\n1. Download the current portable zip:\n   <https://github.com/opensquilla/opensquilla/releases/latest/download/OpenSquilla-windows-x64-portable.zip>\n2. Extract it to a writable folder such as Downloads or Documents,\n   then right-click `Start OpenSquilla.cmd` and choose **Run as\n   administrator**.\n3. Complete the first-run setup, then open <http://127.0.0.1:18791/control/>.\n\n> [!NOTE]\n> Preview builds are unsigned; administrator launch is the supported\n> path. If SmartScreen appears, choose **More info** → **Run anyway**.\n> If Smart App Control or enterprise policy blocks the unsigned app,\n> use [Quick terminal install](#quick-terminal-install) instead.\n\n<",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:26.533199"
+  },
+  {
+    "basic_info": {
+      "name": "smartNode",
+      "full_name": "Tong89/smartNode",
+      "owner": "Tong89",
+      "description": null,
+      "url": "https://github.com/Tong89/smartNode",
+      "clone_url": "https://github.com/Tong89/smartNode.git",
+      "ssh_url": "git@github.com:Tong89/smartNode.git",
+      "homepage": null,
+      "created_at": "2026-05-21T07:31:35Z",
+      "updated_at": "2026-05-30T18:53:53Z",
+      "pushed_at": "2026-05-30T18:53:49Z"
+    },
+    "stats": {
+      "stars": 2010,
+      "forks": 173,
+      "watchers": 2010,
+      "open_issues": 1,
+      "size": 16833
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 744925,
+        "TypeScript": 142605,
+        "Vue": 72742,
+        "JavaScript": 69262,
+        "CSS": 26332,
+        "Dockerfile": 2676,
+        "Shell": 2629,
+        "HTML": 707,
+        "Batchfile": 152
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 天基智枢 SmartNode\n\n> Space-Based Intelligent Relay Simulation Platform\n\n[![CI](https://github.com/Tong89/smartNode/actions/workflows/ci.yml/badge.svg)](https://github.com/Tong89/smartNode/actions/workflows/ci.yml)\n[![Coverage](https://img.shields.io/badge/coverage-60%25%20min-brightgreen)](https://github.com/Tong89/smartNode/actions/workflows/ci.yml)\n\n天基智枢 SmartNode 是一个面向天基数据回传场景的可视化仿真平台，用于展示卫星、地面站、中继链路和内容驱动任务调度之间的协同关系。\n\n## 功能\n\n- 三维空间态势展示\n- 数据回传任务提交\n- 卫星、地面站、中继资源状态监测\n- 实时资源利用率统计\n- 前后端分离结构\n- 开放 API，无密码登录依赖\n\n## 目录结构\n\n```text\nsmartNode/\n├─ backend/\n│  ├─ __init__.py\n│  ├─ app.py          # 后端启动入口\n│  ├─ api.py          # Flask API 和静态页面托管\n│  └─ core.py         # 仿真模型、配置和调度引擎\n├─ docker/\n│  └─ entrypoint.sh   # 容器启动脚本（gunicorn 参数、生产校验）\n├─ frontend/\n│  ├─ assets/\n│  ├─ app.js\n│  ├─ index.html\n│  └─ styles.css\n├─ main.py            # 兼容入口\n├─ run_server.bat     # Windows 快速启动脚本\n├─ Dockerfile         # 多阶段生产镜像（非 root + gunicorn）\n├─ docker-compose.yml # 服务编排\n├─ .dockerignore      # 构建上下文排除规则\n├─ requirements.in        # 运行时直接依赖（source constraints）\n├─ requirements.txt       # 锁定的运行时依赖（pip-compile 生成，含哈希）\n├─ requirements-dev.in    # 开发依赖（source constraints）\n├─ requirements-dev.txt   # 锁定的开发依赖（pip-compile 生成，含哈希）\n├─ LICENSE\n└─ README.md\n```\n\n## 依赖管理\n\n本项目使用 [pip-tools](https://github.com/jazzband/pip-tools) 管理可复现的依赖树：\n\n| 文件 | 说明 |\n| --- | --- |\n| `requirements.in` | 运行时直接依赖（人工维护的 source constraints） |\n| `requirements.txt` | 锁定的运行时依赖（由 `pip-compile` 自动生成，含 SHA-256 哈希） |\n| `requirements-dev.in` | 开发/测试直接依赖（source constraints，包含 `-r requirements.in`） |\n| `requirements-dev.txt` | 锁定的开发依赖（由 `pip-compile` 自动生成，含 SHA-256 哈希） |\n\n**更新依赖版本：**\n\n```bash\npip install pip-tools\n\n# 仅更新运行时依赖\npip-compile --generate-hashes requirements.in\n\n# 更新开发依赖（会同时拉取最新运行时依赖）\npip-compile --generate-hashes requirements-dev.in\n```\n\n> **注意**：永远不要手动编辑 `requirements.txt` 或 `requirements-dev.txt`。\n> 请修改对应的 `.in` 文件，然后重新运行 `pip-compile` 生成锁定文件。\n\n## 容器化部署（推荐生产使用）\n\nSmartNode 提供多阶段 Dockerfile 与 docker-compose 编排，以 gunicorn 多进程 WSGI 服务器运行，容器以非 root 用户启动。\n\n### 前提条件\n\n- [Docker Engine](https://docs.docker.com/engine/install/) >= 24.0\n- [Docker Compose](https://docs.docker.com/compose/install/) v2（通常随 Docker Desktop 内置）\n\n### 一键启动\n\n```bash\ngit clone https://github.com/Tong89/smartNode.git\ncd smartNode\n\n# 开发模式（默认配置）\ndocker compose up --build\n\n# 后台运行\ndocker compose up --build -d\n```\n\n启动成功后访问：\n\n- 前端界面：<http://localhost:5000/frontend/>\n- 健康检查：<http://localhost:5000/api/health>\n\n### 生产部署\n\n创建 `.env` 文件（不应提交到版本库）并填写真实密钥：\n\n```bash\ncp .env.example .env   # 如不存在则手动创建\n```\n\n`.env` 示例：\n\n```dotenv\nSMARTNODE_ENV=production\nSMARTNODE_JWT_SECRET=<用 python -c \"import secrets; print(secrets.token_hex(32))\" 生成>\nSMARTNODE_API_KEY=<随机强密钥>\nSMARTNODE_TIME_SCALE=60\nSMARTNODE_LOG_LEVEL=WARNING\nLOG_FORMAT=json\n```\n\n然后启动：\n\n```bash\ndocker compose --env-file .env up -d\n```\n\n### 常用操作\n\n```bash\n# 查看实时日志\ndocker compose logs -f smartnode\n\n# 停止并移除容器（数据不丢失）\ndocker compose down\n\n# 重建镜像（依赖更新后）\ndocker compose up --build -d\n```\n\n### 容器安全说明\n\n| 特性 | 说明 |\n| --- | --- |\n| 非 root 运行 | UID/GID 1001（`smartnode` 用户） |\n| 多阶段构建 | 构建工具不进入最终镜像 |\n| 锁定依赖 | 使用带哈希的 `requirements.txt` |\n| 信号传播 | 使用 `tini` 作为 PID-1 |\n| no-new-privileges | security_opt 禁止提权 |\n\n---\n\n## 快速开始\n\n```bash\ngit clone https://github.com/Tong89/smartNode.git\ncd smartNode\npython -m venv .venv\n```\n\nWindows:\n\n```powershell\n.\\.venv\\Scripts\\activate\npip install -r requirements.txt\npython backend/app.py\n```\n\nmacOS / Linux:\n\n```bash\nsource .venv/bin/activate\npip install -r requirements.txt\npython backend/app.py\n```\n\n访问：\n\n```text\nhttp://127.0.0.1:5000/frontend/\n```\n\nWindows 也可以直接双击：\n\n```text\nrun_server.bat\n```\n\n## 常用 API\n\n| 方法 | 地址 | 说明 |\n| --- | --- | --- |\n| GET | `/api/health` | 健康检查 |\n| GET | `/api/data` | 仿真态势数据 |\n| GET | `/api/system_info` | 系统配置和数据类型 |\n| GET | `/api/resource_status` | 实时资源状态 |\n| GET | `/api/resource_utilization` | 资源利用率统计 |\n| POST | `/api/request` | 提交数据回传任务 |\n| POST | `/api/update_ground_stations` | 调整地面站数量 |\n| POST | `/api/update_leo_satellites` | 调整 LEO 卫星数量 |\n\n## 开发检查\n\n```bash\npython -m py_compile main.py backend/app.py backend/api.py backend/core.py\nnode --check frontend/app.js\n```\n\n## 测试与覆盖率\n\n安装开发依赖并运行测试套件（与 CI 保持一致）：\n\n```bash\npip install -r requirements-dev.txt\n\n# 运行全部测试\npytest\n\n# 运行测试并生成覆盖率报告（阈值 60%，低于则失败）\npytest --cov=backend --cov-config=.coveragerc --cov-report=term-missing --cov-fail-under=60\n\n# 输出 HTML 报告（可用浏览器查看）\npytest --cov=backend --cov-config=.coveragerc --cov-report=html\nopen htmlcov/index.html\n```\n\nCI 工作流（`.github/workflows/ci.yml`）会在 Python 3.10、3.11、3.12 上并行执行上述步骤，并将 `coverage.xml` 作为工件上传，供后续分析使用。覆盖率低于门禁阈值时 CI 显式失败。\n\n## 环境变量配置\n\nSmartNode 支持通过环境变量定制部署参数，无需修改代码。\n将 `.env.example` 复制为 `.env` 并按需修改（`.env` 不应入库）：\n\n```bash\ncp .env.example .env\n# 编辑 .env，根据需要修改参数\n```\n\n| 环境变量 | 默认值 | 说明 |\n| --- | --- | --- |\n| `SMARTNODE_HOST` | `127.0.0.1` | 服务监听地址（容器部署改为 `0.0.0.0`） |\n| `SMARTNODE_PORT` | `5000` | 服务监听端口 |\n| `SMARTNODE_ENV` | `development` | 运行环境，`production` 时强制校验密钥 |\n| `SMARTNODE_TIME_SCALE` | `10` | 仿真时间倍率（1=实时，10=推荐演示，600=极速",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:27.881874"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-agentic-ai-zh",
+      "full_name": "WenyuChiou/awesome-agentic-ai-zh",
+      "owner": "WenyuChiou",
+      "description": "A structured, trilingual (繁中 / 简中 / English) learning roadmap for agentic AI — from LLM basics to multi-agent systems. 8 stages · 145+ curated projects · hands-on exercises. 中文 AI agent 學習地圖。",
+      "url": "https://github.com/WenyuChiou/awesome-agentic-ai-zh",
+      "clone_url": "https://github.com/WenyuChiou/awesome-agentic-ai-zh.git",
+      "ssh_url": "git@github.com:WenyuChiou/awesome-agentic-ai-zh.git",
+      "homepage": "https://wenyuchiou.github.io/awesome-agentic-ai-zh/",
+      "created_at": "2026-05-04T22:18:51Z",
+      "updated_at": "2026-05-31T05:03:39Z",
+      "pushed_at": "2026-05-30T04:13:36Z"
+    },
+    "stats": {
+      "stars": 1813,
+      "forks": 210,
+      "watchers": 1813,
+      "open_issues": 1,
+      "size": 114101
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 120640,
+        "Shell": 6656
+      },
+      "license": "MIT License",
+      "topics": [
+        "agentic-ai",
+        "ai-agents",
+        "awesome-list",
+        "claude-code",
+        "claude-skills",
+        "cli",
+        "learning-roadmap",
+        "llm-agents",
+        "mcp",
+        "model-context-protocol",
+        "trilingual",
+        "tutorial"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"right\">\n  <strong>繁體中文</strong> | <a href=\"./README.zh-Hans.md\">简体中文</a> | <a href=\"./README.en.md\">English</a>\n</div>\n\n<div align=\"center\" markdown=\"1\">\n\n![AI Agent 學習路徑](resources/diagrams/banner.png)\n\n# awesome-agentic-ai-zh\n\n### 🤖 AI Agent 學習地圖 — 從基本 LLM 概念到自己打造多 agent 系統\n\n<p><em><b>學習路線圖 + 240+ 資源 curation + 簡單 illustrative 案例</b><br/>結構化 8 階段、從「LLM 是什麼、token 怎麼算」走到 multi-agent 編排、Computer Use / Browser Use / Sandbox</em></p>\n\n[![License](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)\n[![繁中](https://img.shields.io/badge/語言-繁體中文-red?style=flat)](README.md)\n[![简中](https://img.shields.io/badge/語言-简体中文-orange?style=flat)](README.zh-Hans.md)\n[![EN](https://img.shields.io/badge/lang-English-blue?style=flat)](README.en.md)\n![GitHub stars](https://img.shields.io/github/stars/WenyuChiou/awesome-agentic-ai-zh?style=flat&logo=github)\n![GitHub forks](https://img.shields.io/github/forks/WenyuChiou/awesome-agentic-ai-zh?style=flat&logo=github)\n[![線上文件站](https://img.shields.io/badge/線上文件站-Pages-2ea44f?style=flat)](https://wenyuchiou.github.io/awesome-agentic-ai-zh/)\n\n</div>\n\n---\n\n## 🎯 專案介紹\n\n**本 repo 角色定位**：**學習路線圖 + 240+ 資源 curation + 簡單 illustrative 案例**——三件事為核心、幫想學 AI / AI agent 的人從「不知道從哪開始」走到「能設計多 agent 系統」。\n\n具體做法：\n\n| 核心 | 做什麼 | 規模 |\n|---|---|---|\n| **學習路線圖** | 把網路散落的高品質專案、教材、必修閱讀，按**從零開始、循序漸進**整理成 **8 個階段**（含 Stage 5 + Stage 8 兩個共用 hub）+ 2 條學習路線 + 5 條延伸路徑 | 8 stages、2 tracks |\n| **資源 curation** | 每階段精選 **240+** 個 project（含星等、適合誰、教什麼、怎麼跑），加上中文 AI 生態(DeepSeek / Zhipu / Kimi 等)MCP / Skill 完整 catalog | 240+ projects、65 MCP/Skill |\n| **簡單 illustrative 案例** | 每階段附 1-5 個**基礎練習**（70-150 行 starter + dual-path Ollama/Anthropic SDK 對照 + mock-based test） | 23 個練習 folder |\n\n走完整條路線，你會從「**LLM 使用者**」進階到「**agent 系統建構者**」——能看懂 framework 在做什麼、能設計多 agent 協作、能寫自己的 MCP server。\n\n> 📖 **關於中英文混用**：本專案保留 AI Agent 領域常見英文術語（Prompt Engineering / Context Engineering / Harness / MCP / Skills / RAG 等），因為官方文件、paper、GitHub repo 與 API 文件多以英文為主。每個重要概念會提供 **中文理解名 + 英文正式術語 + 一句白話定位**，讓讀者能先理解概念，再對接英文生態。完整對照見 [`resources/glossary.md`](resources/glossary.md)。\n\n---\n\n## 📋 目錄\n\n- [🎯 專案介紹](#-專案介紹)\n- [📚 快速開始](#-快速開始)\n  - [線上閱讀](#線上閱讀)\n  - [本地下載](#本地下載)\n  - [✨ 你會收穫什麼？](#-你會收穫什麼)\n- [🗺️ 學習地圖（兩條學習路徑）](#️-學習地圖兩條學習路徑)\n- [💡 如何學習](#-如何學習)\n- [📚 相關資源](#-相關資源)\n- [🤝 如何貢獻](#-如何貢獻)\n- [🙏 致謝](#-致謝)\n- [🎓 引用](#-引用)\n- [License](#license)\n\n---\n\n## 📚 快速開始\n\n### 🚀 第一次接觸 AI agent / 沒寫過 code？\n\n先看 **[`resources/setup-guide.md`](resources/setup-guide.md)** — 30-45 分鐘從零帶你申請 API key、裝好 Python、跑出第一個 LLM hello-world。\n\n### 線上閱讀\n- **[學習地圖（兩條學習路徑）](#️-學習地圖兩條學習路徑)** — 看完這節決定走 Track A 還 Track B\n- **[Stage 0 基礎準備](stages/00-foundations.md)** — 已經會 Python / git / API 的人可以直接跳 Stage 1\n\n### 本地下載\n```bash\ngit clone https://github.com/WenyuChiou/awesome-agentic-ai-zh.git\ncd awesome-agentic-ai-zh\n# 從 stages/00-foundations.md 開始\n```\n\n### ✨ 你會收穫什麼？\n\n- 📖 **完全免費** — MIT 授權，所有內容開放共學\n- 🗺️ **兩條學習路徑** — Track A（CLI Power User）給「想 USE 現成 CLI agent」的人；Track B（Agent Builder）給「想 BUILD 自己 agent」的人。共用 Stage 0-2 基礎\n- 🛠️ **基礎動手練習** — 每階段附 1-5 個 illustrative 練習（題目 + dual-path SDK 對照 + success criteria）。定位是**基礎入門 + 路線確認**——chapter-length 深度練習見對應 stage 的 hello-agents / Anthropic Cookbook callout\n- 🎯 **精選 240+ 個 projects** — 每個都附星等推薦、適合誰、教什麼、怎麼跑（含本地 LLM 執行：Ollama、llama.cpp、LocalAI、MLX）\n- 🌏 **三語完整維護** — 繁中(canonical)/ 簡中 / English,三版皆完整維護、英文非薄翻譯\n- 🎓 **不只「框架」、還有「Claude Code 生態」** — MCP / Skills / Plugins / SDK 完整堆疊\n- 🔬 **5 條依使用者分流的延伸路線** — 研究員 / 開發者 / 老師 / 知識工作者 / **日常使用者**\n- ⏱️ **預估時程寫清楚** — Track A 8-10 週 / Track B 主幹最少 16-22 週、現實 5-7 個月（每週 5-8 hr）\n\n---\n\n## 🗺️ 學習地圖（兩條學習路徑）\n\n![AI Agent 學習地圖](resources/diagrams/learning-map.png)\n\n走完 **Stage 0-2（共用基礎）** 之後，依你的目的選一條學習路徑：\n\n- **Track A — CLI Power User**：你想**用**現成的 CLI agent（Claude Code、Codex、OpenCode、Gemini CLI 等）把工作做順、效率拉高，不打算自己從零寫 agent。3 個 sub-stage（A1-A3）。\n- **Track B — Agent Builder**：你想**從零打造**自己的 agent——學 framework、寫 ReAct、設計 multi-agent。Stage 3-7 是主路線。\n\n兩條學習路徑**不互斥**——多數人是先走 A 把 CLI 用起來，再回到 B 學內部運作；或反過來也行。Stage 5（Claude Code 生態）兩條路徑都會用到。\n\n### 共用基礎（Stage 0-2）\n\n| Stage | 主題 | 關鍵內容 | 預估時程 |\n|---|---|---|---|\n| **0** | [基礎準備（Foundations）](stages/00-foundations.md) | Python · CLI · git · API · JSON | 1-2 週 |\n| **1** | [LLM 基礎（LLM Basics）](stages/01-llm-basics.md) | token · API · 各家 LLM 比較 · 本地 LLM | 1 週 |\n| **2** | [Prompt 設計（Prompt Engineering）](stages/02-prompt-engineering.md) | 系統 prompt · few-shot · CoT | 1-2 週 |\n\n### Track A — CLI Power User（想用 CLI 把事情做完）\n\n| Stage | 主題 | 關鍵內容 | 預估時程 |\n|---|---|---|---|\n| **A1** | [選一個 CLI Agent，開始用它做事（CLI Agent Intro & Selection）](tracks/cli/A1-cli-intro.md) | 7 主流 CLI 比較 · 安裝 · 第一次跑 | 1 週 |\n| **A2** | [建立可重複使用的 CLI 工作流程（CLI Workflow Patterns）](tracks/cli/A2-cli-workflow.md) | CLAUDE.md · slash command · 多步驟拆解 | 1-2 週 |\n| **A3** | [把 CLI Agent 接進真實工作流程（Integration & Production）](tracks/cli/A3-cli-production.md) | MCP 接 CLI · CI 自動化 · cost / observability | 1-2 週 |\n| **+5** | [Stage 5 — Claude Code 生態](stages/05-claude-code-ecosystem.md)（**共用 hub**） | MCP · Skills · Plugins · Subagents、Track A 必看 5.1-5.4 /",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:29.157893"
+  },
+  {
+    "basic_info": {
+      "name": "minimind-o",
+      "full_name": "jingyaogong/minimind-o",
+      "owner": "jingyaogong",
+      "description": "🎙️ 「大模型」从0训练0.1B能听能说能看的全模态Omni模型！A 0.1B Omni model trained from scratch, capable of listening, speaking, and seeing!",
+      "url": "https://github.com/jingyaogong/minimind-o",
+      "clone_url": "https://github.com/jingyaogong/minimind-o.git",
+      "ssh_url": "git@github.com:jingyaogong/minimind-o.git",
+      "homepage": "https://jingyaogong.github.io/minimind-o",
+      "created_at": "2026-05-01T04:20:16Z",
+      "updated_at": "2026-05-31T03:03:45Z",
+      "pushed_at": "2026-05-27T07:48:30Z"
+    },
+    "stats": {
+      "stars": 1654,
+      "forks": 199,
+      "watchers": 1654,
+      "open_issues": 4,
+      "size": 6527
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 146377,
+        "HTML": 53617,
+        "Shell": 5630
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "artificial-intelligence",
+        "chatgpt",
+        "omni"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n![logo](./images/logo.png)\n\n</div>\n\n\n<div align=\"center\">\n\n![visitors](https://visitor-badge.laobi.icu/badge?page_id=jingyaogong/minimind-o)\n[![GitHub Repo stars](https://img.shields.io/github/stars/jingyaogong/minimind-o?style=social)](https://github.com/jingyaogong/minimind-o/stargazers)\n[![GitHub Code License](https://img.shields.io/github/license/jingyaogong/minimind-o?v=1)](LICENSE)\n[![GitHub last commit](https://img.shields.io/github/last-commit/jingyaogong/minimind-o)](https://github.com/jingyaogong/minimind-o/commits/master)\n[![GitHub pull request](https://img.shields.io/badge/PRs-welcome-blue)](https://github.com/jingyaogong/minimind-o/pulls)\n[![Collection](https://img.shields.io/badge/🤗-MiniMind--O%20%20Collection-blue)](https://huggingface.co/collections/jingyaogong/minimind-o)\n[![Technical Report](https://img.shields.io/badge/Technical%20Report-arXiv-red)](http://arxiv.org/abs/2605.03937)\n\n</div>\n\n<div align=\"center\">\n  <h3>\"大道至简\"</h3>\n</div>\n\n<div align=\"center\">\n\n中文 | [English](./README_en.md)\n\n</div>\n\n* 此开源项目旨在从 0 完整实现一个小规模的端到端 Omni 模型，单一权重同时支持文 / 音 / 图三模态输入与文本 / 流式语音输出。\n* 其中 `minimind-3o` 仅 ~0.1B，普通个人 GPU 即可完成训练、CPU即可快速推理，是当前公开模型中规模最小的完整 Omni 实现（或之一）。\n* 开源 mini 与 full 两套训练数据：mini 单卡 3090 上约 2 小时跑通完整链路，便于入门；full 与发布权重对应。\n* 开源 Omni 模型的完整代码与技术报告，覆盖 Thinker–Talker 双路径、流式语音生成、实时打断、近似双工交互、音色克隆与电话模式 WebUI。\n* 所有核心算法代码均从 0 使用 PyTorch 原生实现，不依赖三方框架提供的高层抽象。\n* MiniMind-O 进一步延续了 [MiniMind](https://github.com/jingyaogong/minimind)（语言）与 [MiniMind-V](https://github.com/jingyaogong/minimind-v)（视觉多模态）的设计范式。\n\n> 注：\"约 2 小时\" 指 mini 数据集在单张 NVIDIA RTX 3090 上跑完 SFT 的实测耗时。\n\n---\n\n<div align=\"center\">\n\n[📄 MiniMind-O Technical Report](http://arxiv.org/abs/2605.03937)\n\nhttps://github.com/user-attachments/assets/10cbcc5f-4e70-45cf-bdc5-d6361e40bb86\n\n[🔗 在线体验 (Gradio)](https://modelscope.cn/studios/gongjy/MiniMind-O) &nbsp;|&nbsp; [🔗 视频介绍](https://www.bilibili.com/video/BV1V1RsBcEMX)\n\n\n</div>\n\n---\n\n# 📌 项目介绍\n\n继 [MiniMind](https://github.com/jingyaogong/minimind)（LLM）和 [MiniMind-V](https://github.com/jingyaogong/minimind-v)（VLM）之后，MiniMind-O 是这个系列的第三站。所谓 Omni，就是让一个模型同时具备听、看、说的多模态交互能力：接收文本、语音和视觉信号，输出文本与流式语音。\n\n或许 GPT-4o 让人第一次感受到足够自然的流式语音交互形态，随后 Mini-Omni2、Moshi、GLM-4-Voice、Qwen3-Omni 等开源工作陆续出现。但如果目标不是直接调用这些参数庞大的现成权重，而是从 0 读懂、训练、改动一个完整 Omni 模型，开源社区仍然急缺足够轻量、链路完整的起点。要把语音真正纳入 Omni 模型，一种做法是把 ASR、LLM、TTS 串成级联链路：语音先转文字，LLM 处理后再合成语音。这条路工程上直接，但中间多了一次文本转写，延迟、语气和情绪信息都会受到影响。\n\nMiniMind-O 尝试补上已知的空位：让语音和文本在 hidden state 层面直接连通，在主 backbone 仅 0.1B 的规模下保留端到端 Omni 链路。Talker 侧采用 MTP（Multi-Token Prediction）一次预测多层 Mimi codes，再配合 VAD 支持实时打断与近似双工交互，这是足够实用的工程路线之一。本项目的代码、模型权重、训练数据和技术报告全部完整开源，单张 RTX 3090 上约 2 小时即可跑通 mini 数据集训练。目标依旧：让每个人都能从第一行代码读起，自己动手，从 0 训练一个能听、能看、能思考、能说的模型：\n\n![](images/omni_io_flow.png)\n\n😊 一起感受创造的乐趣吧！\n\n---\n\n#### 🎉 项目包含以下内容\n\n- 提供完整的 MiniMind-O 结构代码：Thinker、独立 Talker、audio / vision projector、Mimi codebook 接口以及 MTP audio head。\n- 提供 SFT 全链路训练流程，覆盖 T2A、I2T、A2A 三类数据，支持全参数训练、音频投影层训练、视觉投影层训练与 DDP 多卡训练。\n- 提供 mini 与 full 两套训练数据：mini 便于快速入门，单卡 3090 上约 2 小时可跑通；full 与发布权重对应，覆盖中文语音与图像任务。\n- 提供多种内置音色、unseen 音色与任意参考音频的音色克隆能力，便于复现音色控制实验。\n- 提供完整的推理与 Demo 工具，支持 CLI 推理、Web UI、流式播放、barge-in 打断和电话模式。\n- 关键模块均从 0 用 PyTorch 原生实现，不依赖三方高层封装；同时兼容 `transformers` Tokenizer 与原生权重格式。\n- 配套技术报告覆盖架构、训练曲线、CER / WER 评估、音色克隆相似度与跨模型对比，链接见顶部 Tech Report 区。\n\n#### 🎉 已发布模型列表\n\n| 模型 | 参数（主干） | Release |\n|---|---|---|\n| minimind-3o | ~0.1B | 2026.05.05 |\n| minimind-3o-moe | ~0.3B-A0.1B | 2026.05.05 |\n\n---\n\n#### 👉 更新日志\n\n<details close>\n<summary> <b>🔥 2026-05-05</b> </summary>\n\n- MiniMind-O 首次开源，发布 `minimind-3o`（115M）与 `minimind-3o-moe`（312M-A115M）\n- Thinker–Talker 双路径架构，Talker 采用 MTP 预测多层 Mimi codes，支持 24 kHz 流式语音生成与 barge-in 打断\n- 音频编解码器采用 Mimi（8 层 codebook，12.5 Hz，24 kHz），Talker 在 codebook 接口上使用共享主体与轻量 adapter\n- 语音 / 视觉特征分别由冻结的 SenseVoice-Small 与 SigLIP2 编码，再通过两层 MLP projector 注入 MiniMind 隐空间\n- 同步发布 mini 与 full 两套训练数据，mini 单卡 3090 ~2h 即可跑通整条 Thinker–Talker 链路\n- 内置 5 个 voice prompt + 7 个 unseen voice prompt，提供音色克隆与电话模式 WebUI\n\n</details>\n\n\n# 📌 快速开始\n\n<details style=\"color:rgb(128,128,128)\">\n<summary>分享本人的软硬件配置（仅供参考）</summary>\n\n* CPU: Intel(R) Core(TM) i9-10980XE CPU @ 3.00GHz\n* RAM: 128 GB\n* GPU: NVIDIA GeForce RTX 3090(24GB) * 8\n* Ubuntu==20.04\n* CUDA==12.2\n* Python==3.10\n* [requirements.txt](./requirements.txt)\n\n</details>\n\n## 第0步（必须）\n\n### 1' 环境准备\n\n```bash\n# 克隆仓库代码\ngit clone --depth 1 https://github.com/jingyaogong/minimind-o\n# 安装必要依赖\npip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple\n```\n\n### 2' 下载资源\n\n```bash\n# 下载 SenseVoice-Small 语音编码器到 ./model/SenseVoiceSmall\nmodelscope download --model gongjy/SenseVoiceSmall --local_dir ./model/SenseVoiceSmall\n# 下载 SigLIP2 视觉编码器到 ./model/siglip2-base-p32-256-ve\nmodelscope download --model gongjy/siglip2-base-p32-256-ve --local_dir ./model/siglip2-base-p32-256-ve\n# 下载 Mimi 音频编解码器到 ./model/mimi\nmodelscope download --model gongjy/mimi --local_dir ./model/mimi\n# 下载 CAMPPlus 说话人编码器到 ./model/campplus\nmodelscope download --model gongjy/campplus --local_dir ./model/campplus\n# 下载 MiniMind 语言模型权重到 ./out 目录下（作为",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-31T05:13:30.388096"
+  },
+  {
+    "basic_info": {
+      "name": "Pixal3D",
+      "full_name": "TencentARC/Pixal3D",
+      "owner": "TencentARC",
+      "description": "[SIGGRAPH 2026] Pixal3D: Pixel-Aligned 3D Generation from Images",
+      "url": "https://github.com/TencentARC/Pixal3D",
+      "clone_url": "https://github.com/TencentARC/Pixal3D.git",
+      "ssh_url": "git@github.com:TencentARC/Pixal3D.git",
+      "homepage": "https://ldyang694.github.io/projects/pixal3d/",
+      "created_at": "2026-05-10T15:35:28Z",
+      "updated_at": "2026-05-31T04:33:58Z",
+      "pushed_at": "2026-05-24T03:10:45Z"
+    },
+    "stats": {
+      "stars": 1577,
+      "forks": 137,
+      "watchers": 1577,
+      "open_issues": 12,
+      "size": 80067
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1069023,
+        "HTML": 59911,
+        "Shell": 140
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "\n<div align=\"center\">\n\n# Pixal3D: Pixel-Aligned 3D Generation from Images\n\n<h3>SIGGRAPH 2026</h3>\n\n<small>[Dong-Yang Li](https://ldyang694.github.io/)¹ · [Wang Zhao](https://thuzhaowang.github.io/)²* · [Yuxin Chen](https://orcid.org/0000-0002-7854-1072)² · [Wenbo Hu](https://wbhu.github.io/)² · [Meng-Hao Guo](https://menghaoguo.github.io/)¹ · [Fang-Lue Zhang](https://fanglue.github.io/)³ · [Ying Shan](https://www.linkedin.com/in/YingShanProfile)² · [Shi-Min Hu](https://cg.cs.tsinghua.edu.cn/shimin.htm)¹✉</small>\n\n¹Tsinghua University (BNRist) &nbsp;&nbsp; ²Tencent ARC Lab &nbsp;&nbsp; ³Victoria University of Wellington\n\n*Project lead &nbsp;&nbsp; ✉Corresponding author\n\n</div>\n\n<div align=\"center\">\n  <a href=\"https://ldyang694.github.io/projects/pixal3d/\"><img src=https://img.shields.io/badge/Project%20Page-333399.svg?logo=googlehome height=22px></a>\n  <a href=\"https://huggingface.co/spaces/TencentARC/Pixal3D\"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20Demo-276cb4.svg height=22px></a>\n  <a href=\"https://huggingface.co/TencentARC/Pixal3D\"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20Models-d96902.svg height=22px></a>\n  <a href=\"https://arxiv.org/abs/2605.10922\"><img src=https://img.shields.io/badge/Arxiv-b5212f.svg?logo=arxiv height=22px></a>\n  <a href=\"LICENSE\"><img src=https://img.shields.io/badge/License-MIT-yellow.svg height=22px></a>\n</div>\n\n<div align=\"center\">\n    <img src=\"assets/teaser.png\" alt=\"Teaser image of Pixal3D\"/>\n</div>\n\n**Pixal3D** generates high-fidelity 3D assets from a single image. Unlike previous methods that loosely inject image features via attention, Pixal3D explicitly lifts pixel features into 3D through back-projection, establishing direct pixel-to-3D correspondences. This enables near-reconstruction-level fidelity with detailed geometry and PBR textures.\n\n---\n\n## ✨ News\n\n- **May 2026**: Release training code and data preparation toolkit. 🔧\n- **May 2026**: Release the improved version based on [Trellis.2](https://github.com/microsoft/TRELLIS.2) backbone. 💪\n- **May 2026**: Release inference code and online demo. 🤗\n- **Apr 2026**: Our paper is accepted to SIGGRAPH 2026! 🎉\n\n## 📌 Branches\n\n| Branch | Description |\n|--------|-------------|\n| `main` | **Latest version** — improved implementation based on [Trellis.2](https://github.com/microsoft/TRELLIS.2) backbone with better performance. |\n| `paper` | **Paper version** — original implementation based on [Direct3D-S2](https://github.com/DreamTechAI/Direct3D-S2), corresponding to results reported in our SIGGRAPH 2026 paper. |\n\n> If you want to reproduce the results in our paper, please switch to the `paper` branch.\n\n## 🎮 Try It Online\n\nYou can try Pixal3D directly in your browser without any installation via our Hugging Face Gradio demo:\n\n👉 [**Launch Demo**](https://huggingface.co/spaces/TencentARC/Pixal3D)\n\n## 🚀 Getting Started\n\n### Installation\n\n#### Step 1: Follow TRELLIS.2 Installation\n\nPlease first follow the installation guide of [TRELLIS.2](https://github.com/microsoft/TRELLIS.2) to set up the base environment.\n\n#### Step 2: Install Additional Dependencies\n\n```bash\npip install -r requirements.txt\n```\n\n#### Step 3: Install natten\n\n```bash\nNATTEN_CUDA_ARCH=\"xx\" NATTEN_N_WORKERS=xx pip install natten==0.21.0 --no-build-isolation\n```\n\nPlease replace `xx` with the CUDA architecture and the number of build workers suitable for your machine.\n\n#### Step 4: Install utils3d\n\n```bash\npip install https://github.com/LDYang694/Storages/releases/download/20260430/utils3d-0.0.2-py3-none-any.whl\n```\n\n> **Note**: `requirements-hfdemo.txt` is for the Hugging Face Spaces demo (H-series GPU architecture) and may not be compatible with other architectures.\n\n### Usage\n\n#### Inference\n\nGenerate a GLB mesh from a single image:\n\n```bash\npython inference.py --image assets/images/0_img.png --output ./output.glb\n```\n\n**Low-VRAM mode** (reduces peak VRAM by loading models on-demand):\n\n```bash\npython inference.py --image assets/images/0_img.png --output ./output.glb --low_vram\n```\n\nBy default, the pipeline resolution is **1536** (standard mode) or **1024** (low-VRAM mode). You can override this with `--resolution`:\n\n```bash\n# Force 1536 even in low-VRAM mode\npython inference.py --image assets/images/0_img.png --output ./output.glb --low_vram --resolution 1536\n\n# Force 1024 in standard mode\npython inference.py --image assets/images/0_img.png --output ./output.glb --resolution 1024\n```\n\n**Tip**: If you don't have `flash_attn` installed, you can use PyTorch's built-in SDPA backend instead:\n> ```bash\n> ATTN_BACKEND=sdpa python inference.py --image assets/images/0_img.png --output ./output.glb --low_vram\n> ```\n\n### Web Demo\n\nWe provide a Gradio web demo for Pixal3D, which allows you to generate 3D meshes from images interactively.\n\n```bash\npython app.py \n```\n\nLow-VRAM mode is also available for the web demo. The frontend default resolution will automatically switch to 1024 in low-VRAM mode (1536 otherwise), but can be changed manually in the UI.\n\n`",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-05-31T05:13:31.618536"
+  },
+  {
+    "basic_info": {
+      "name": "PaperSpine",
+      "full_name": "WUBING2023/PaperSpine",
+      "owner": "WUBING2023",
+      "description": "PaperSpine is a motivation-driven skill for learning from strong academic papers, building a paper’s central argument, and rewriting manuscripts through evidence-aware blueprints, revision matrices, and LaTeX-safe audits.",
+      "url": "https://github.com/WUBING2023/PaperSpine",
+      "clone_url": "https://github.com/WUBING2023/PaperSpine.git",
+      "ssh_url": "git@github.com:WUBING2023/PaperSpine.git",
+      "homepage": "",
+      "created_at": "2026-05-17T08:37:31Z",
+      "updated_at": "2026-05-31T05:13:09Z",
+      "pushed_at": "2026-05-30T14:57:32Z"
+    },
+    "stats": {
+      "stars": 1518,
+      "forks": 63,
+      "watchers": 1518,
+      "open_issues": 5,
+      "size": 41035
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 389882,
+        "PowerShell": 6765,
+        "Shell": 4711
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# PaperSpine\n\n[English](README.en.md) | [中文](README.md)\n\n\n[**PaperSpine 使用讲解视频（Bilibili）**](https://www.bilibili.com/video/BV1rjVa6ZEYu)\n\n\n> PaperSpine 是一个面向 Codex、Claude Code 和 OpenClaw 的、以 motivation 为主线的论文与报告写作 skill suite。\n\n它适合目标格式很重要的写作任务：期刊论文、会议论文、课程或技术报告、综述、竞赛论文。它要求 agent 在写作前先学习目标场景和优秀样例，再记录每一个写作单元为什么这样规划或修改。\n\n## 仓库结构\n\n```text\nPaperSpine/\n  dist/\n    codex/\n      skills/                   # Codex 扁平 skill suite\n      paper-spine/              # 旧版 Codex 自包含兼容包\n    claude/\n      skills/                   # Claude Code 扁平 skill suite\n        paper-spine/\n        paper-spine-ui/\n        paper-spine-intake/\n        paper-spine-research/\n        paper-spine-citation/\n        paper-spine-rewrite/\n        paper-spine-build/\n        paper-spine-latex/\n        paper-spine-audit/\n        paper-spine-translate/\n        paper-spine-humanize/\n        paper-spine-update/\n      commands/                 # Claude Code slash-command 辅助入口\n        paperspine.md\n        paper-spine.md\n        paperspine-legacy.md\n    openclaw/\n      skills/                   # OpenClaw 扁平 skill suite\n  src/\n    scripts/                    # 共享的确定性辅助脚本\n    references/                 # 共享工作流参考文档\n    agents/                     # 共享 agent 元数据源\n  .claude-plugin/               # Claude Code 插件元数据\n  install.ps1                   # Windows 安装脚本\n  install.sh                    # macOS / Linux 安装脚本\n  README.md\n  README.en.md\n```\n\n`dist/` 是真正用于安装的内容。`src/` 保留共享脚本和参考文档，便于开发与维护。\n\n## 快速安装\n\nWindows PowerShell:\n\n```powershell\ngit clone https://github.com/WUBING2023/PaperSpine.git\ncd PaperSpine\n.\\install.ps1 -Target all\n```\n\n也可以只安装某一端：\n\n```powershell\n.\\install.ps1 -Target codex\n.\\install.ps1 -Target claude\n.\\install.ps1 -Target openclaw\n.\\install.ps1 -Target all -CleanLegacy\n```\n\n`-CleanLegacy` 会清理常见的旧 PaperSpine 目录，例如嵌套的 `PaperSpine`、`PaperSpineV2` 和旧的 `paper-spine-*` 副本，避免重复发现或找不到 skill。\n\n安装到 Codex 后：**Restart Codex**。然后用 `$paper-spine` 启动全流程，或单独调用 `$paper-spine-research`、`$paper-spine-citation`、`$paper-spine-latex` 等分支 skill。\n\n安装到 Claude Code 后：重启或 reload Claude Code，然后使用 `/paperspine`。\n\n安装到 OpenClaw 后：重启或 reload OpenClaw，然后用 `paper-spine` 启动全流程，或调用任意 `paper-spine-*` 分支 skill。\n\n安装脚本会把当前版本记录到 `~/.paperspine/install_state.json`，并保留 `~/.paperspine/config.json`，包括 UI 语言等全局配置。\n\n## 手动安装\n\nCodex 现在推荐使用扁平 suite，这样每个分支都可以被单独调用：\n\n```text\ndist/codex/skills/*\n```\n\n复制到：\n\n```text\n~/.codex/skills/\n```\n\n最终 Codex 布局应该是：\n\n```text\n~/.codex/skills/paper-spine/SKILL.md\n~/.codex/skills/paper-spine-research/SKILL.md\n~/.codex/skills/paper-spine-citation/SKILL.md\n~/.codex/skills/paper-spine-latex/SKILL.md\n~/.codex/skills/paper-spine-update/SKILL.md\n```\n\n`dist/codex/paper-spine` 仍保留为旧版自包含兼容包，但推荐的新安装方式是 `dist/codex/skills/*`。\n\nClaude Code 需要扁平 skill 文件夹和可选 slash commands：\n\n```text\ndist/claude/skills/*\ndist/claude/commands/*.md\n```\n\n复制到：\n\n```text\n~/.claude/skills/\n~/.claude/commands/\n```\n\n最终 Claude Code 布局应该包含：\n\n```text\n~/.claude/skills/paper-spine/SKILL.md\n~/.claude/skills/paper-spine-ui/SKILL.md\n~/.claude/skills/paper-spine-intake/SKILL.md\n~/.claude/skills/paper-spine-research/SKILL.md\n~/.claude/skills/paper-spine-citation/SKILL.md\n~/.claude/skills/paper-spine-update/SKILL.md\n~/.claude/commands/paperspine.md\n```\n\nOpenClaw 需要包含 `SKILL.md` 的 skill 文件夹：\n\n```text\ndist/openclaw/skills/*\n```\n\n复制到：\n\n```text\n~/.openclaw/skills/\n```\n\n最终 OpenClaw 布局应该包含：\n\n```text\n~/.openclaw/skills/paper-spine/SKILL.md\n~/.openclaw/skills/paper-spine-research/SKILL.md\n~/.openclaw/skills/paper-spine-citation/SKILL.md\n~/.openclaw/skills/paper-spine-update/SKILL.md\n```\n\n## Claude Code 插件安装\n\nClaude Code 也可以使用 `.claude-plugin` 中的插件元数据：\n\n```text\n/plugin marketplace add https://github.com/WUBING2023/PaperSpine\n/plugin install paper-spine\n/reload-plugins\n```\n\n插件 manifest 指向 `dist/claude/skills` 下的扁平 suite，而不是 Codex 的单 skill 目录。\n\n## Codex、Claude Code 与 OpenClaw 的差异\n\n| 宿主 | 安装单元 | 常用入口 | 原因 |\n| --- | --- | --- | --- |\n| Codex | `dist/codex/skills/*` | `$paper-spine` 或 `$paper-spine-*` | Codex 可以发现扁平 skill 文件夹，因此全流程和子 skill 都能调用。 |\n| Claude Code | `dist/claude/skills/*` 加 `dist/claude/commands/*` | `/paperspine` | Claude Code 按扁平文件夹发现 skills，并支持 slash-command 辅助入口。 |\n| OpenClaw | `dist/openclaw/skills/*` | `paper-spine` 或 `paper-spine-*` | OpenClaw skill 也是包含 `SKILL.md` 的目录，因此使用同一套扁平 suite。 |\n\n不要把整个仓库直接复制进 `skills` 文件夹。这是重复或缺失 skill 的主要原因。\n\n## 主工作流\n\nPaperSpine 有两条平级主流程：\n\n1. **Rewrite Existing**：改进已有论文或报告，但不把任务降级成简单润色。\n2. **Build From Materials**：从素材文件夹构筑论文或报告，素材可以包括说明文档、图片、PDF、数据摘要、部分初稿和实验描述。\n\n支持四类目标场景：\n\n- `journal`：期刊论文\n- `conference`：会议论文\n- `report/review`：课程报告、技术报告或综述\n- `competition`：竞赛论文或竞赛报告\n\n研究深度：\n\n- `flash`：3 篇目标场景样例、3 篇近期/高质量同领域论文和官方要求。\n- `pro`：6 篇目标场景样例、6 篇近期/高质量同领域论文和官方要求。\n\n输出语言：\n\n- `English`\n- `Chinese`\n\n选择英文输出时，PaperSpine 还可以生成 `translation_package`，把中间产物和最终 Markdown 产物翻译为中文。\n\n## 主控与分支 Skill\n\nPaperSpine 由一个主控 skill 加多个分支 skill 组成。主控 `paper-spine` 不直接修补句子，而是逐阶段路由：\n\n1. `paper-spine-ui`：打开外部终端配置 UI。\n2. `paper-spine-intake`：校验 `paper_spine_config.json`。\n3. `paper-spine-research`：学习目标场景、本地/指定参考资料和优秀样例。\n4.",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:32.846811"
+  },
+  {
+    "basic_info": {
+      "name": "Claude-BugHunter",
+      "full_name": "elementalsouls/Claude-BugHunter",
+      "owner": "elementalsouls",
+      "description": "A Claude Code skill bundle for bug hunting and external red-team work - 51 skills, 15 slash commands, 681 disclosed-report patterns curated across 24 vulnerability classes, plus enterprise identity + infrastructure attack matrices.",
+      "url": "https://github.com/elementalsouls/Claude-BugHunter",
+      "clone_url": "https://github.com/elementalsouls/Claude-BugHunter.git",
+      "ssh_url": "git@github.com:elementalsouls/Claude-BugHunter.git",
+      "homepage": "",
+      "created_at": "2026-05-05T11:22:32Z",
+      "updated_at": "2026-05-31T05:06:44Z",
+      "pushed_at": "2026-05-26T19:43:29Z"
+    },
+    "stats": {
+      "stars": 1380,
+      "forks": 195,
+      "watchers": 1380,
+      "open_issues": 0,
+      "size": 2074
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 44635,
+        "Shell": 15055
+      },
+      "license": "Other",
+      "topics": [
+        "ai-security",
+        "anthropic",
+        "application-security",
+        "bug-bounty",
+        "bugbounty",
+        "bugcrowd",
+        "claude",
+        "claude-code",
+        "claude-skills",
+        "ethical-hacking",
+        "hackerone",
+        "offensive-security",
+        "pentesting",
+        "red-team",
+        "security-tools",
+        "web-security"
+      ]
+    },
+    "content": {
+      "readme": "![claude-bughunter banner](assets/banner.svg)\n\n# claude-bughunter\n\n> A self-contained Claude skill bundle for bug hunting and external red-team work · **51 skills** · 15 slash commands · **681 disclosed-report patterns** across 24 vulnerability classes · enterprise identity + infrastructure attack matrices · engagement-folder scaffolding · Burp MCP integration · battle-tested across authorized red-team and bug-hunting engagements, plus public training platforms (DVWA, OWASP Juice Shop, Hacker101, testphp.vulnweb.com).\n\nBuilt by **[Sachin Sharma](https://www.linkedin.com/in/sachinsharma8080/)** — Bug Hunting & GenAI Security Research.\n\n---\n\n## What is this?\n\n`claude-bughunter` is a drop-in skill bundle for the [Claude Code skills system](https://docs.claude.com/en/docs/claude-code/skills). Install once and Claude Code stops being a chatbot and starts behaving like a senior bug-hunting researcher or red-team operator: it knows the techniques, the chain templates, the VRT mappings, the platform CVE chains, and the hygiene — and it stays in scope.\n\nFour layers stack:\n\n- **`bug-bounty` + `bb-methodology` + `redteam-mindset`** — *how to think.* 5-phase non-linear hunting workflow, critical-thinking framework, developer-psychology heuristics, anomaly detection patterns, and the red-team operator-discipline corrections (when scope is \"external red team\" not \"bug hunting / WAPT\").\n- **24 `hunt-*` skills + `security-arsenal`** — *what to look for in webapps.* Per-class detection patterns, payloads, bypass tables, and chain templates curated from 681 disclosed HackerOne reports.\n- **Enterprise platform attack chains** — *what to look for on the perimeter.* `m365-entra-attack`, `okta-attack`, `cloud-iam-deep`, `vmware-vcenter-attack`, `enterprise-vpn-attack`, `hunt-sharepoint`, `hunt-aspnet`, `hunt-ntlm-info`, `apk-redteam-pipeline`, `supply-chain-attack-recon` — current 2024-2026 CVE chains, AADSTS error references, version-fingerprint matrices, and post-credential escalation paths.\n- **`triage-validation` + `bugcrowd-reporting` + `evidence-hygiene` + `redteam-report-template` + `mid-engagement-ir-detection`** — *how to ship it.* 7-Question Gate, VRT category fallback, severity-request paragraphs, OOS rebuttals, cookie/PII redaction, client-facing red-team deliverable format, and SOC-patch / mid-engagement-attacker detection methodology.\n\nAll triggered automatically by topic — describe what you're testing in plain English and the relevant skill loads. No invocation by name.\n\n> **51 skills · 15 commands · 681 disclosed reports curated · 6-phase workflow · exercised against public training platforms (DVWA, OWASP Juice Shop, Hacker101, testphp.vulnweb.com) and calibrated through authorized real-world engagements.**\n\n---\n\n## Scope — what this bundle is for, and what it isn't\n\nThis bundle covers the **external attack surface** — anything reachable from the internet without first compromising an internal endpoint.\n\n### In scope\n\n- **Bug bounty hunting** — web apps, APIs, SaaS, GraphQL, OAuth, JWT, file upload, IDOR, SSRF, RCE chains\n- **Web application pentesting** — full hunt-* coverage of OWASP-mapped bug classes + discipline rules\n- **External red-team engagements** — initial-access against internet-facing enterprise estate: M365 / Entra ID, Okta-as-IdP, SharePoint on-prem (ToolShell + legacy SOAP), VMware vCenter / Workspace ONE, SSL VPN appliances (Cisco / Fortinet / Citrix / Palo Alto / Pulse / SonicWall / F5), Android APK red-team, supply-chain recon\n- **Cloud misconfig + post-credential escalation** — public S3, IMDS chains, STS AssumeRole, cross-account confused-deputy\n- **Recon + OSINT** — subdomain enum, identity-fabric mapping, certificate transparency, JS analysis, secret scanning\n- **Reporting** — H1, Bugcrowd (VRT-aware), Intigriti, Immunefi, plus client-facing red-team deliverable format\n\n### Out of scope (deliberate — not gaps, design decisions)\n\n- **Internal Active Directory attacks** — BloodHound, Kerberoasting, ASREProast, DCSync, Pass-the-Hash, AD CS abuse, ntlmrelayx, Responder, PetitPotam, etc. Different operational risk profile; needs different tooling and judgment. **Future bundle, not this one.**\n- **C2 frameworks** — Cobalt Strike, Sliver, Mythic, Havoc, BRC4 tradecraft. Out of scope for external-only engagement model.\n- **Post-exploit / persistence / lateral** — Mimikatz/comsvcs LSASS dumping, golden/silver tickets, named-pipe impersonation, persistence (registry, scheduled tasks, WMI events, COM hijacking), token theft. These start after the perimeter has already broken — different bundle territory.\n- **Evasion** — AMSI bypass, ETW patching, AV/EDR bypass. Tied to C2 tradecraft above.\n- **iOS pentesting / hardware / RF / ICS** — out of scope by design.\n- **Binary exploitation / kernel pwn / browser internals** — different skill universe.\n\nIf you're running an internal red team that includes domain-takeover chains via Kerberos or lateral movement, **this bundle won't help you in those phases** — ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:34.080248"
+  },
+  {
+    "basic_info": {
+      "name": "rkn-block-checker",
+      "full_name": "MayersScott/rkn-block-checker",
+      "owner": "MayersScott",
+      "description": "Diagnose RKN/TSPU internet blocks layer by layer (DNS, TCP, TLS, HTTP)",
+      "url": "https://github.com/MayersScott/rkn-block-checker",
+      "clone_url": "https://github.com/MayersScott/rkn-block-checker.git",
+      "ssh_url": "git@github.com:MayersScott/rkn-block-checker.git",
+      "homepage": "",
+      "created_at": "2026-05-03T16:15:38Z",
+      "updated_at": "2026-05-30T13:00:58Z",
+      "pushed_at": "2026-05-09T14:49:07Z"
+    },
+    "stats": {
+      "stars": 1376,
+      "forks": 57,
+      "watchers": 1376,
+      "open_issues": 3,
+      "size": 116
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 84524,
+        "Dockerfile": 471
+      },
+      "license": "MIT License",
+      "topics": [
+        "censorship",
+        "cli",
+        "dns",
+        "dpi",
+        "network-diagnostics",
+        "networking",
+        "python",
+        "rkn",
+        "tls",
+        "tspu"
+      ]
+    },
+    "content": {
+      "readme": "# RKN Block Checker\n\n[![PyPI version](https://img.shields.io/pypi/v/rkn-block-checker.svg)](https://pypi.org/project/rkn-block-checker/)\n[![CI](https://github.com/MayersScott/rkn-block-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/MayersScott/rkn-block-checker/actions/workflows/ci.yml)\n[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)\n[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)\n\nA small CLI that figures out whether the connection you're sitting on is in\nan RKN/TSPU-blocked zone - and, more usefully, **what kind** of block it is\n(DNS poisoning, TCP reset, TLS DPI on SNI, or an ISP stub page).\n\nThe point isn't \"site X doesn't open.\" Browsers already tell you that. The\npoint is to look at each layer of the stack independently and report\n*where* it broke. That tells you a lot more about your situation than a\ngeneric \"this site can't be reached\" page.\n\n## Quick start\n\n```bash\npip install rkn-block-checker\nrkn-check\n```\n\nThat's it. The tool probes a built-in list of sites, classifies each\nfailure by layer, and prints a verdict. No config, no setup, nothing to\nedit.\n\n## Example output\n\n```text\n======================================================================\n  RKN Block Checker\n======================================================================\n  IP:       95.165.xxx.xxx\n  ISP:      AS12389 Rostelecom\n  Location: Moscow, Moscow, RU\n----------------------------------------------------------------------\n\nWhitelist (should always work)\n  name          verdict                    TCP     TLS     PLT  status\n  --------------------------------------------------------------------\n  gosuslugi     ✓ OK                      18ms    42ms   380ms  200\n  yandex        ✓ OK                       8ms    25ms    95ms  200\n  sberbank      ✓ OK                      12ms    38ms   250ms  200\n  vk            ✓ OK                       9ms    28ms   180ms  200\n  ...\n\nBlacklist (RKN-restricted)\n  name          verdict                    TCP     TLS     PLT  status\n  --------------------------------------------------------------------\n  instagram     ~ LIKELY TLS DPI          22ms       -       -  -\n    └ TLS reset right after ClientHello - consistent with SNI-based DPI\n  twitter/x     ~ LIKELY TLS DPI          24ms       -       -  -\n    └ TLS handshake silently dropped - consistent with DPI filtering\n  rutracker     ✗ HTTP STUB               18ms    45ms   120ms  200\n    └ response body matches a known ISP stub-page marker\n  protonvpn     ✗ DNS                        -       -       -  -\n    └ system DNS doesn't resolve, DoH does - consistent with DNS poisoning\n\n======================================================================\n  Summary\n----------------------------------------------------------------------\n  Whitelist: 21/21 working\n  Blacklist: 3/15 open, 12/15 blocked\n\n  → Likely in an RKN-blocked zone (medium confidence).\n    Most blacklist failures match censorship patterns (TLS DPI, TCP RST),\n    but those signals can also be caused by server-side issues. A control\n    vantage point would confirm.\n\n  Block types in the blacklist:\n    ~ LIKELY TLS DPI: 8\n    ✗ DNS: 2\n    ✗ HTTP STUB: 2\n======================================================================\n```\n\nVerdict labels are **calibrated by confidence**: `✗` means a high-confidence\ndiagnosis (e.g. DNS poisoning confirmed by DoH, HTTP 451, a known stub-page\nmarker), `~ LIKELY` means a known censorship pattern matched but a single\nsignal can't rule out a server-side issue, and `?` means the symptom is\nambiguous. The summary line says so plainly - \"high confidence\", \"medium\nconfidence\", or \"inconclusive\" - and never claims more certainty than the\nunderlying signals support.\n\n## Why this exists\n\nIf a site doesn't open, your browser tells you that. But if you want to\n*do* something about it - pick the right circumvention tool, file a useful\nbug report, or just understand what's happening to your traffic - you need\nto know which part of the network stack is actually being interfered with.\n\nDifferent censorship mechanisms leave different fingerprints:\n\n- **DNS poisoning** is the cheapest and oldest. The ISP's resolver lies\n  about a domain.\n- **TCP reset** is IP-level blackholing. Rare in practice - most ISPs\n  don't bother.\n- **TLS DPI on SNI** is the modern TSPU/RKN signature. The middlebox\n  watches for the SNI extension in the TLS ClientHello and tears the\n  connection down once it sees a blocked hostname.\n- **HTTP stub pages** are the polite kind: an ISP-controlled page served\n  back with a \"blocked by RKN\" body, often with status 200 or the\n  rarer-but-explicit 451.\n\n`rkn-check` walks DNS → TCP → TLS → HTTP for each target and stops at the\nfirst thing that fails. Whichever layer broke becomes the verdict.\n\n## Common scenarios\n\n### Just diagnose the connection you're on\n\n```bash\nrkn-check\n```\n\nProbes the built-in lists (~21 control sites, ~15 RKN-restricted), prints\na ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:35.332150"
+  },
+  {
+    "basic_info": {
+      "name": "tokenspeed",
+      "full_name": "lightseekorg/tokenspeed",
+      "owner": "lightseekorg",
+      "description": "TokenSpeed is a speed-of-light LLM inference engine.",
+      "url": "https://github.com/lightseekorg/tokenspeed",
+      "clone_url": "https://github.com/lightseekorg/tokenspeed.git",
+      "ssh_url": "git@github.com:lightseekorg/tokenspeed.git",
+      "homepage": "https://lightseek.org/blog/lightseek-tokenspeed.html",
+      "created_at": "2026-05-06T13:13:21Z",
+      "updated_at": "2026-05-31T03:19:16Z",
+      "pushed_at": "2026-05-31T02:00:23Z"
+    },
+    "stats": {
+      "stars": 1311,
+      "forks": 133,
+      "watchers": 1311,
+      "open_issues": 38,
+      "size": 4344
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 6338950,
+        "C++": 680271,
+        "Shell": 32161,
+        "CMake": 4489,
+        "Dockerfile": 588
+      },
+      "license": "MIT License",
+      "topics": [
+        "blackwell",
+        "deepseek",
+        "gpt-oss",
+        "kimi",
+        "lightseek",
+        "llm",
+        "minimax",
+        "nemotron",
+        "qwen",
+        "speed-of-light",
+        "tokenspeed"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"./assets/banner/tokenspeed-banner.png\" alt=\"TokenSpeed: Tokens at the speed of light\" width=\"100%\" />\n</p>\n\nTokenSpeed is a speed-of-light LLM inference engine designed for **agentic workloads**, with TensorRT-LLM-level performance and vLLM-level usability. Our goal is to be the most performant inference engine for production agentic workloads.\n\nCore components:\n\n- **Modeling layer**: local-SPMD design with a static compiler that generates\n  collective communication from module-boundary placement annotations, so users\n  do not hand-write parallelism logic.\n- **Scheduler**: C++ control plane and Python execution plane. Request\n  lifecycle, KV cache ownership, and overlap timing are encoded as a\n  finite-state machine, with safe KV resource reuse enforced by the type system at compile time.\n- **Kernels**: pluggable, layered kernel system with a portable public API and\n  a centralized registry including one of the fastest **MLA**\n  (Multi-head Latent Attention) implementations on Blackwell for agentic workload.\n- **Entrypoint**: SMG-integrated AsyncLLM for low-overhead CPU-side request\n  handling.\n\n## News\n\n- [2026/05] 🚀 TokenSpeed hits 580 TPS on Qwen3.5-397B-A17B for agentic workloads. [[blog](https://pytorch.org/blog/up-to-580tps-new-speed-record-of-qwen3-5-397b-a17b-on-gpu-for-agentic-workloads-with-tokenspeed/)]\n- [2026/05] TokenSpeed announced — a speed-of-light LLM inference engine for agentic workloads. [[blog](https://lightseek.org/blog/lightseek-tokenspeed.html)]\n\n## Performance Comparison\n\n<img src=\"./assets/perf/tokenspeed-kimi-k2.5-performance.png\" alt=\"TokenSpeed vs. TensorRT-LLM Pareto curves on agentic workload (Kimi K2.5, B200)\" width=\"800\" margin=\"10px\"></img>\n\n## Preview Status\n\nThis version is a preview release for reproducing the Kimi K2.5 on B200 and\nTokenSpeed MLA on B200 results from the [TokenSpeed blog](https://lightseek.org/blog/lightseek-tokenspeed.html). Several major PRs are\nstill in progress and have not been merged yet.\n\nOngoing work includes:\n\n- Model coverage: Qwen 3.6, DeepSeek V4, and MiniMax M2.7.\n- Runtime features: PD, EPLB, KV store, Mamba cache, VLM, and metrics.\n- Platform optimization: Hopper optimization, MI350 optimization, and related\n  runtime improvements.\n\nThese features are still being cleaned up and will be merged into `main` over\nthe next few weeks. TokenSpeed is currently under heavy development and is\nintended to showcase the new runtime design and technical direction. Do not use\nthis preview release for production deployments.\n\n## Documentation\n\nStart here:\n\n- [Docs Index](https://lightseek.org/tokenspeed/)\n- [Getting Started](https://lightseek.org/tokenspeed/guides/getting-started)\n- [Launching a Server](https://lightseek.org/tokenspeed/guides/launching)\n- [Model Recipes](https://lightseek.org/tokenspeed/recipes/models)\n- [Server Parameters](https://lightseek.org/tokenspeed/configuration/server)\n- [Compatible Parameters](https://lightseek.org/tokenspeed/configuration/compatible-parameters)\n- [Parallelism](https://lightseek.org/tokenspeed/serving/parallelism)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:36.586709"
+  },
+  {
+    "basic_info": {
+      "name": "Gopay_plus_automatic",
+      "full_name": "ywnd1144/Gopay_plus_automatic",
+      "owner": "ywnd1144",
+      "description": null,
+      "url": "https://github.com/ywnd1144/Gopay_plus_automatic",
+      "clone_url": "https://github.com/ywnd1144/Gopay_plus_automatic.git",
+      "ssh_url": "git@github.com:ywnd1144/Gopay_plus_automatic.git",
+      "homepage": null,
+      "created_at": "2026-05-12T11:29:47Z",
+      "updated_at": "2026-05-31T03:00:33Z",
+      "pushed_at": "2026-05-30T09:16:18Z"
+    },
+    "stats": {
+      "stars": 1256,
+      "forks": 627,
+      "watchers": 1256,
+      "open_issues": 5,
+      "size": 52744
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 135790,
+        "JavaScript": 12995,
+        "Shell": 1971,
+        "Batchfile": 1070,
+        "PureBasic": 234
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# GoPay Workflow Orchestrator\n\n[![GitHub](https://img.shields.io/badge/GitHub-Gopay__plus__automatic-blue?logo=github)](https://github.com/ywnd1144/Gopay_plus_automatic)\n[![Stars](https://img.shields.io/github/stars/ywnd1144/Gopay_plus_automatic?style=social)](https://github.com/ywnd1144/Gopay_plus_automatic)\n\n> 项目地址：<https://github.com/ywnd1144/Gopay_plus_automatic>\n\n一个面向区域支付链路的轻量级流程编排框架，用于研究和调试多阶段支付提供方跳转、令牌化请求、验证挑战、异步轮询与最终状态确认等场景。\n\n本项目关注的是复杂支付流程中的工程可靠性、接口衔接、状态观测和自动化测试。它将分散在不同系统中的步骤组织成一个可复现、可观察、可扩展的流程，方便开发者分析链路行为、定位异常状态并改进集成质量。\n\n---\n\n## 项目定位\n\n在真实业务中，一个完整的支付流程通常并不是单次请求即可完成。它可能涉及：\n\n- 应用侧会话状态\n- 支付网关初始化\n- 外部钱包或区域支付提供方跳转\n- 令牌化请求与确认\n- OTP、PIN 或其他验证挑战\n- 异步回调与状态轮询\n- 最终结果校验\n\n本项目提供一个小型流程编排层，将上述步骤拆分为可观察、可替换、可调试的模块。\n\n适合用于：\n\n- 支付链路集成测试\n- 区域支付提供方对接研究\n- 钱包跳转与回调调试\n- 验证挑战流程分析\n- 网络代理环境下的稳定性测试\n- 多阶段状态机行为复现\n- 自动化回归测试与日志观测\n\n---\n\n## 核心能力\n\n- HTTP 流程入口\n- gRPC 支付流程服务\n- 令牌化支付请求处理\n- 外部提供方跳转与状态跟踪\n- OTP / PIN 验证挑战处理\n- 手动验证与接口辅助验证模式\n- 配置驱动的运行方式\n- 代理感知的网络请求层\n- 结构化日志输出\n- 状态轮询与最终结果确认\n- Docker 友好的部署方式\n\n---\n\n## 架构概览\n\n```text\nClient / Test Harness\n        |\n        v\nHTTP Orchestrator\n        |\n        v\nPayment Workflow Engine\n        |\n        +--> Gateway Initialization\n        |\n        +--> Provider Handoff\n        |\n        +--> Verification Challenge\n        |\n        +--> Status Polling\n        |\n        v\nFinal State Validator\n```\n\n项目将流程编排逻辑与具体支付操作分离，便于后续替换不同提供方、验证方式或运行环境。\n\n主要文件：\n\n```text\norchestrator.py       # HTTP 流程入口\npayment_core.py       # gRPC 支付流程服务\nconfig.py             # 运行时配置\nmain.py               # 本地启动入口\nstart.sh              # 部署辅助脚本\nDockerfile            # 容器镜像定义\nrequirements.txt      # Python 依赖\n```\n\n---\n\n## 工作流程\n\n一次标准流程通常包含以下阶段：\n\n1. 接收会话凭据或测试令牌\n2. 初始化支付流程\n3. 创建提供方跳转请求\n4. 等待外部验证状态\n5. 根据需要完成 OTP / PIN 挑战\n6. 轮询提供方状态\n7. 校验最终流程结果\n\n每个阶段都可以独立观察和替换，方便调试不同环境下的链路表现。\n\n---\n\n## 验证模式\n\n项目支持多种验证处理方式，便于适配不同测试环境：\n\n```text\nmanual      # 手动完成验证挑战\nsms_api     # 通过接口回传验证结果\nwhatsapp    # 通过消息通道回传验证结果\n```\n\n验证处理逻辑被封装在统一接口后，后续可以在不修改主流程的情况下增加新的处理器。\n\n---\n\n## 配置说明\n\n运行参数可通过环境变量或本地配置文件提供。\n\n常见配置项：\n\n```text\nPROXY_URL          网络代理地址\nVERIFY_MODE        验证处理模式\nPOLL_INTERVAL      状态轮询间隔\nREQUEST_TIMEOUT    请求超时时间\nLOG_LEVEL          日志级别\n```\n\n示例：\n\n```env\nPROXY_URL=\nVERIFY_MODE=manual\nPOLL_INTERVAL=3\nREQUEST_TIMEOUT=30\nLOG_LEVEL=INFO\n```\n\n请将敏感信息放在环境变量或密钥管理工具中，不要提交到仓库。\n\n---\n\n## 本地运行\n\n安装依赖：\n\n```bash\npip install -r requirements.txt\n```\n\n启动服务：\n\n```bash\npython main.py\n```\n\n或使用启动脚本：\n\n```bash\nbash start.sh\n```\n\n容器运行：\n\n```bash\ndocker build -t gopay-workflow-orchestrator .\ndocker run --env-file .env gopay-workflow-orchestrator\n```\n\n---\n\n## 请求示例\n\n服务提供一个轻量级 HTTP 接口用于创建和跟踪流程任务。\n\n示例请求结构：\n\n```json\n{\n  \"session_token\": \"example-session-token\",\n  \"verification_mode\": \"manual\",\n  \"proxy\": \"http://127.0.0.1:8080\"\n}\n```\n\n示例响应结构：\n\n```json\n{\n  \"job_id\": \"workflow_123\",\n  \"status\": \"pending\",\n  \"next_action\": \"provider_verification\"\n}\n```\n\n不同地区、不同提供方、不同网络环境下的返回状态可能不同，实际结果以运行日志和提供方响应为准。\n\n---\n\n## 日志与观测\n\n项目会记录关键流程事件，便于定位链路问题：\n\n- 请求初始化\n- 网关响应状态\n- 提供方跳转状态\n- 验证挑战状态\n- 轮询结果\n- 最终流程结果\n- 重试、超时与异常状态\n\n日志设计目标是帮助分析状态变化，同时避免输出敏感凭据。\n\n---\n\n## 设计目标\n\n本项目的核心目标是提供一个简单、可复现、便于调试的支付流程研究框架。\n\n重点包括：\n\n- 降低多阶段支付链路的调试成本\n- 将复杂流程拆成清晰模块\n- 改善提供方跳转与回调的可观测性\n- 记录常见异常状态\n- 支持重复运行的集成实验\n- 让验证挑战处理逻辑更容易维护\n\n---\n\n## 路线图\n\n- 改进提供方抽象层\n- 增加结构化测试样例\n- 增加 CI 检查\n- 增加类型化配置校验\n- 改进日志脱敏\n- 增加流程回放模式\n- 增加更多集成测试示例\n- 完善状态转换文档\n\n---\n\n## 贡献\n\n欢迎提交改进。\n\n适合贡献的方向：\n\n- 提供方适配器\n- 验证处理器\n- 重试与退避逻辑\n- 测试样例\n- 文档改进\n- 日志与可观测性\n- 容器部署体验\n\n请不要提交密钥、会话凭据、验证码、PIN、代理凭据或任何私有运行数据。\n\n---\n\n## 安全说明\n\n本项目可能涉及支付流程、验证挑战和外部提供方接口。\n\n建议优先在隔离测试环境中运行。调试输出在分享前应进行脱敏处理。会话凭据、验证码、PIN、代理凭据和提供方私有数据应始终保存在仓库之外。\n\n---\n\n## License\n\nMIT\n\n---\n\n## Star History\n\n[![Star History Chart](https://api.star-history.com/svg?repos=ywnd1144/Gopay_plus_automatic&type=Date)](https://star-history.com/#ywnd1144/Gopay_plus_automatic&Date)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:37.793890"
+  },
+  {
+    "basic_info": {
+      "name": "keep-codex-fast",
+      "full_name": "vibeforge1111/keep-codex-fast",
+      "owner": "vibeforge1111",
+      "description": "A backup-first Codex skill for keeping local Codex state fast, clean, and recoverable.",
+      "url": "https://github.com/vibeforge1111/keep-codex-fast",
+      "clone_url": "https://github.com/vibeforge1111/keep-codex-fast.git",
+      "ssh_url": "git@github.com:vibeforge1111/keep-codex-fast.git",
+      "homepage": null,
+      "created_at": "2026-05-02T08:57:24Z",
+      "updated_at": "2026-05-31T01:26:38Z",
+      "pushed_at": "2026-05-06T12:42:43Z"
+    },
+    "stats": {
+      "stars": 1227,
+      "forks": 71,
+      "watchers": 1227,
+      "open_issues": 7,
+      "size": 1179
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 40920
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Keep Codex Fast\n\n![Keep Codex Fast cover](assets/keep-codex-fast-cover.png)\n\nWhen Codex starts feeling heavy after weeks of chats, terminals, logs, worktrees, and project history, this gives you a calm way to inspect what is going on and reduce local drag.\n\nThis skill helps you organize local state without losing context.\n\nThe rule is simple:\n\n> Make handoffs first. Archive, don't delete. Apply changes only when you are ready.\n\n## Three Modes\n\n- **Inspect:** report-only, no writes.\n- **Maintain:** normal apply; backs up, archives old sessions, moves stale worktrees, rotates logs, prunes dead config, and normalizes paths. It does not trim thread title/preview metadata.\n- **Optional repair:** only with `--apply --repair-thread-metadata-bloat`; shortens oversized SQLite display title/preview metadata after backup. The transcript stays intact.\n\n## Who This Is For\n\nUse this if Codex has started feeling slower after heavy use, especially if you:\n\n- keep long chats around\n- resume old threads often\n- work across many repos\n- run multiple terminals or dev servers\n- want maintenance to feel safe, not scary\n\n## What It Does\n\nBy default, this skill only reports. It does not write files, create backups, move folders, or change local Codex state until you explicitly ask it to.\n\nIt helps Codex:\n\n- see which local state has grown over time\n- create handoff docs before archiving old chats\n- back up important state before applying changes\n- archive old chats instead of deleting them\n- detect pathological thread title/preview metadata that can slow chat navigation\n- move stale worktrees out of the hot path\n- rotate large logs\n- prune dead project references\n- report heavy Node/dev processes without killing them\n\n## Quick Start\n\nAsk Codex:\n\n```text\nUse $keep-codex-fast to inspect my Codex local state and recommend a safe maintenance plan.\n```\n\nCodex should show you what it found first. Then you decide what to hand off, what to keep active, and what can be archived.\n\n## Handoffs First\n\nBefore archiving old active chats, create handoff documents for any repo/session you may want to continue.\n\nA handoff is a small continuity note. It captures:\n\n- what you were doing\n- what changed\n- what files matter\n- what commands or checks already ran\n- what is still broken or undecided\n- what to do next\n\nThat lets you archive the heavy chat and start a fresh Codex thread from the handoff.\n\nCopy this into each active repo chat you care about:\n\n```text\nCreate a comprehensive handoff document for this repo/session before I archive Codex history.\n\nInclude:\n- repo/path and branch\n- current goal\n- what we already completed\n- files touched or investigated\n- commands/tests already run\n- known errors, warnings, or failing checks\n- open decisions\n- constraints, user preferences, and do-not-touch areas\n- the next 3-7 concrete steps\n\nAlso include a reactivation prompt I can paste into a fresh Codex chat so it can continue from this handoff without relying on the old chat context.\n\nSave the handoff in a sensible repo-local place like docs/codex-handoffs/YYYY-MM-DD-topic.md unless this repo already has a better handoff location.\n```\n\n## Safe Apply\n\nAfter handoffs exist for the chats you care about, use this:\n\n```text\nUse $keep-codex-fast to apply safe Codex maintenance.\n\nBefore changing anything, confirm that important active repo chats have handoff docs or do not need them.\n\nThen back up first, archive instead of deleting, move stale worktrees, rotate large logs, prune dead config references, and verify the result.\n\nIf Codex is currently running, do not mutate local state. Tell me to close Codex first.\n```\n\n## Thread Title And Preview Bloat\n\nSome Codex builds can store a full first user prompt as both the thread title and the list preview. When those fields grow into hundreds of thousands of characters, thread navigation can become sluggish even before a large chat is opened.\n\nThe script reports title and preview payload size in report mode and normal apply mode. It does not trim this metadata unless you explicitly opt in:\n\n```bash\npython scripts/keep_codex_fast.py --apply --repair-thread-metadata-bloat\n```\n\nWith that flag, after backing up and only when Codex is not running, it trims active SQLite title/preview metadata to bounded display values. It also appends repaired titles to `session_index.jsonl`, which matches current Codex name-update storage.\n\nThis does not remove the actual conversation transcript. The full rollout JSONL remains available unless you separately archive the session.\n\nThe repair manifest stores the old full title/preview values so you can restore them. Keep the backup folder private, especially `thread-metadata-repairs.jsonl` and `restore-thread-metadata.py`.\n\nIf you are using the skill normally, this repair does not happen automatically. Treat it as an extra recommendation only when the report shows unusually large title/preview metadata.\n\n## Weekly Or Biweekly Reminder\n\nRecurring maintenance should be a reminder, not an autom",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:39.063293"
+  },
+  {
+    "basic_info": {
+      "name": "AiSOC",
+      "full_name": "beenuar/AiSOC",
+      "owner": "beenuar",
+      "description": "Open-source AI-powered Security Operations Center — alert fusion, purple-team drills, agent-assisted triage, MITRE ATT&CK investigation. MIT-licensed, self-hostable.",
+      "url": "https://github.com/beenuar/AiSOC",
+      "clone_url": "https://github.com/beenuar/AiSOC.git",
+      "ssh_url": "git@github.com:beenuar/AiSOC.git",
+      "homepage": "https://tryaisoc.com",
+      "created_at": "2026-05-02T03:30:19Z",
+      "updated_at": "2026-05-31T05:11:08Z",
+      "pushed_at": "2026-05-31T05:09:24Z"
+    },
+    "stats": {
+      "stars": 1140,
+      "forks": 131,
+      "watchers": 1140,
+      "open_issues": 1,
+      "size": 21359
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 8348065,
+        "TypeScript": 3164385,
+        "Go": 536922,
+        "PLpgSQL": 183707,
+        "HCL": 130095,
+        "Shell": 129251,
+        "PowerShell": 66937,
+        "MDX": 62963,
+        "JavaScript": 34206,
+        "Dockerfile": 24972,
+        "CSS": 17587,
+        "Go Template": 15765,
+        "HTML": 5353,
+        "Makefile": 1804
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-security",
+        "alert-triage",
+        "cybersecurity",
+        "detection-engineering",
+        "docker",
+        "fastapi",
+        "incident-response",
+        "mit-license",
+        "mitre-attack",
+        "nextjs",
+        "open-source",
+        "purple-team",
+        "python",
+        "security-operations",
+        "self-hosted",
+        "siem",
+        "soar",
+        "soc",
+        "threat-detection",
+        "threat-intelligence"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"apps/web/public/logo-mark.svg\" alt=\"AiSOC\" width=\"120\" />\n\n# AiSOC\n\nAn open-source, self-hostable AI SOC. The agent's prompts, tool calls, and rationale are logged step-by-step and replayable. MIT-licensed.\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg?style=flat-square)](https://opensource.org/licenses/MIT)\n[![Public eval harness: CI-gated](https://img.shields.io/badge/eval%20harness-CI--gated-2563eb?style=flat-square)](apps/docs/docs/benchmark.md)\n[![PRs welcome](https://img.shields.io/badge/PRs-welcome-8b5cf6?style=flat-square)](CONTRIBUTING.md)\n[![Version](https://img.shields.io/badge/version-7.3.1-f59e0b?style=flat-square)](CHANGELOG.md)\n[![Live demo on Fly.io (v8.0 launch)](https://img.shields.io/badge/Live%20demo-Fly.io-7b2bbe?style=flat-square&logo=fly-dot-io&logoColor=white)](https://tryaisoc.com)\n[![Render demo (one-click)](https://img.shields.io/badge/Render%20demo-one%20click-46e3b7?style=flat-square&logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/beenuar/AiSOC)\n\n[Live demo](https://tryaisoc.com) · [How AiSOC compares](#how-aisoc-compares) · [Public eval harness](apps/docs/docs/benchmark.md) · [Deploy in 60 seconds](#deploy-in-60-seconds) · [Deployment options](#deployment-options) · [Architecture](#architecture) · [Docs](apps/docs/)\n\n<sub>The demo at <a href=\"https://tryaisoc.com\">tryaisoc.com</a> is a self-hosted instance fronted by a Cloudflare Tunnel — when it's reachable, the stack is running locally on a maintainer's box. It can therefore go offline at any time. To run your own (in 3.5 min, with seeded data), see <a href=\"#one-shot-demo\">One-shot demo</a>; to expose your own instance on your own domain via Cloudflare Tunnel, see <a href=\"#public-demo-on-your-own-domain\">Public demo on your own domain</a>. <strong>The Fly.io demo at <a href=\"https://tryaisoc.com\">tryaisoc.com</a> is the canonical AiSOC instance — the badge above links there.</strong></sub>\n\n[![GitHub topics](https://img.shields.io/badge/topics-soc%20%7C%20siem%20%7C%20ai--security%20%7C%20mitre--attack-0ea5e9?style=flat-square)](https://github.com/beenuar/AiSOC/topics)\n\n</div>\n\n---\n\n## What AiSOC is\n\nAiSOC is a single self-hostable stack that ingests security events, correlates them, runs AI-driven investigation, and surfaces the result in a SOC console. The agent and the substrate are MIT-licensed, so you can read, fork, or replace either of them.\n\nThree properties distinguish it from closed-source AI SOC vendors:\n\n1. **Agent decisions are logged.** The Investigation Ledger stores the LLM prompt, the response, the evidence cited, and the downstream tool calls for every step of every run. Replays are available later.\n2. **The substrate has a public eval harness in CI.** Five suites gate every PR targeting `main` / `develop`: a 200-incident synthetic dataset drawn from 55 distinct templates drives the MITRE-tactic, investigation-completeness, and response-quality gates (each reporting both a per-case mean and a per-template macro so a single broken template can't hide behind 199 working duplicates); a separately generated 1,000-alert noisy stream drives the alert-reduction gate; and a schema/coverage gate validates `synthetic_telemetry.jsonl` — the companion corpus of ~360 backing events across 14 log sources (Sysmon, Windows Security, M365 audit, Azure sign-in, CloudTrail, Linux auditd, journald, EDR, DNS, web access, Kubernetes audit, GitHub audit, VPN, DB audit) that connector and Sigma PRs can wire against. Alert reduction is a real measurement against the fixed alert stream; the three rubric-based suites are substrate self-consistency gates over deterministic templates. The [benchmark page](apps/docs/docs/benchmark.md) explains exactly which is which.\n3. **It runs entirely on your infrastructure.** No callbacks to a vendor cloud and no data exfiltration for \"model improvement.\"\n\nThe orchestrator is a ~600-line LangGraph in [`services/agents/`](services/agents/). It is small enough to read end-to-end, swap models in, and patch.\n\n---\n\n## What's new\n\n`VERSION` is `7.3.1`; everything below is captured under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md) and will tag with the v8.0 cut.\n\n**Latest — security & stability (May 27–28, 2026)** — hardening, dependency, and boot-reliability work merged into `main`.\n- **Security Audit green** — `cryptography` floor raised to `44.0.1` to clear CVE-2024-12797 and later 42.x advisories across `services/connectors` and `services/osquery-tls`; advisories without an upstream fix are time-boxed (90-day expiry) in [`scripts/security_audit_ignores.txt`](scripts/security_audit_ignores.txt) ([#229](https://github.com/beenuar/AiSOC/pull/229)).\n- **Tenant-isolation fix** — detection-loop suggestion lookups are now scoped to the caller's tenant, closing a cross-tenant read path ([#221](https://github.com/beenuar/AiSOC/pull/221)).\n- **Full stack boots clean** — the reserved `window` column is now quoted and `p",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:40.301347"
+  },
+  {
+    "basic_info": {
+      "name": "invisible_playwright",
+      "full_name": "feder-cr/invisible_playwright",
+      "owner": "feder-cr",
+      "description": "Anti-Detect Browser that passes every bot detection test. Drop-in Playwright replacement.",
+      "url": "https://github.com/feder-cr/invisible_playwright",
+      "clone_url": "https://github.com/feder-cr/invisible_playwright.git",
+      "ssh_url": "git@github.com:feder-cr/invisible_playwright.git",
+      "homepage": "https://github.com/feder-cr/invisible_playwright#why-its-powerful",
+      "created_at": "2026-05-13T05:04:33Z",
+      "updated_at": "2026-05-31T04:52:31Z",
+      "pushed_at": "2026-05-29T00:19:27Z"
+    },
+    "stats": {
+      "stars": 1084,
+      "forks": 109,
+      "watchers": 1084,
+      "open_issues": 5,
+      "size": 10216
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 424688,
+        "Shell": 1033
+      },
+      "license": "MIT License",
+      "topics": [
+        "anti-bot",
+        "anti-detect-browser",
+        "automation",
+        "browser-automation",
+        "browser-fingerprinting",
+        "captcha",
+        "captcha-bypass",
+        "fingerprint",
+        "fingerprint-spoofing",
+        "fingerprintjs",
+        "firefox",
+        "hcaptcha",
+        "headless-browser",
+        "playwright",
+        "recaptcha",
+        "recaptcha-bypass",
+        "scraping",
+        "socks5",
+        "stealth",
+        "web-scraping"
+      ]
+    },
+    "content": {
+      "readme": "# invisible_playwright\n\n[![tests](https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg)](https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)\n[![Firefox 150.0.1](https://img.shields.io/badge/firefox-150.0.1-orange.svg)](https://www.mozilla.org/firefox/)\n[![GitHub release](https://img.shields.io/github/v/release/feder-cr/invisible_playwright.svg)](https://github.com/feder-cr/invisible_playwright/releases)\n[![GitHub stars](https://img.shields.io/github/stars/feder-cr/invisible_playwright.svg?style=social)](https://github.com/feder-cr/invisible_playwright/stargazers)\n[![browser launches](https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue)](https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter)\n\n[![LinkedIn](https://img.shields.io/badge/LinkedIn-Federico%20Elia-0A66C2?logo=linkedin&logoColor=white)](https://it.linkedin.com/in/federico-elia-5199951b6)\n\n**Stealth Firefox that passes every bot detection test. Drop-in Playwright replacement, fingerprint patched at the C++ level, not a JavaScript shim.**\n\n![invisible_playwright - 5/5 detection suites passed](docs/screenshots/hero.gif)\n\n\n## Why it's powerful\n\n**This is the actively maintained Firefox-based anti-detect browser in 2026.** Camoufox pioneered the source-level patched Firefox approach, but the project has been in a roughly year-long maintenance gap and its base Firefox version is now several majors behind. CloakBrowser does the same thing for Chromium and works well, but it still hits the Chromium reCAPTCHA ceiling (~0.3-0.5). `invisible_playwright` ships **Firefox 150** with weekly releases, source-level C++ patches end-to-end, and a measured **0.90 reCAPTCHA v3** score.\n\n**Most other anti-detect browsers patch Chromium at the JavaScript level** - they override `navigator`, `WebGLRenderingContext.getParameter`, canvas APIs, and so on via injected scripts. This has two fatal problems:\n\n1. **JS patches are detectable.** Anti-bots enumerate native function `.toString()`, check descriptor configurability, compare property enumeration order, watch for prototype mutations. Every patch leaves a fingerprint of its own. CreepJS has an entire battery of \"lies detectors\" built around this.\n2. **Chromium itself is now suspect.** Residential-proxy bot traffic is overwhelmingly Chromium-based, so detectors weight anything Chromium-shaped as risky by default. Chromium-based forks inherit Chrome's open-source layers (BoringSSL, Blink, V8, ANGLE) cleanly, but they still cannot fully match Chrome in practice: Chrome ships closed-source components on top (Widevine, proprietary codecs, Google Update / Safe Browsing endpoints) that flip detectable JS feature flags and network signals, and forks lag Chrome's release cadence by days to weeks, leaving telltale version-specific behaviours that detectors lock onto.\n\n**invisible_playwright patches Firefox at the C++ level.** The spoofed values come back out through the normal Gecko paths - there is no JS shim, no override, no `Object.defineProperty`. **From the page's point of view, the browser is just telling the truth.** Anti-bot lie-detectors have nothing to latch onto.\n\ninvisible_playwright spoofs **all the layers that matter, together, coherently**: Navigator, screen, GPU/WebGL, Canvas, fonts, audio, WebRTC, timezone, DevTools detection, SOCKS5 auth, and the rest. See [feder-cr/invisible_firefox](https://github.com/feder-cr/invisible_firefox) for the full per-layer breakdown of which C++ files are patched and why.\n\nEverything is driven by preferences - no hardcoded values in the binary. You change one pref, you change the spoofed value.\n\n---\n\n## How it compares\n\nThe closest peer in the source-level patching space is **Camoufox** (Firefox, open source): same approach as ours, but in a roughly year-long maintenance gap with its base Firefox several majors behind. **CloakBrowser** ships a similar pitch for Chromium, but its binary is **closed source** (the source-level patches are not published, you only get the compiled output), and it still hits the Chromium reCAPTCHA ceiling. The commercial anti-detect browsers (**Multilogin**, **GoLogin**, AdsPower, Dolphin, Kameleo) are paid SaaS that overlay JS-layer spoofing on a patched Chromium. Managed profiles are nice but raw detection bypass sits below both Camoufox and us.\n\n| | invisible_playwright | Camoufox | CloakBrowser | Multilogin | GoLogin |\n|---|---|---|---|---|---|\n| Engine | Firefox 150 | Firefox (~1 year old base) | Chromium | Chromium fork | Chromium fork |\n| Patch depth | C++ source | C++ source | C++ source (binary only) | JS overrides | JS overrides |\n| Maintenance | Active (weekly) | Gap (~1 year) | Active | Active SaaS | Active SaaS |\n|",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:41.532959"
+  },
+  {
+    "basic_info": {
+      "name": "Lance",
+      "full_name": "bytedance/Lance",
+      "owner": "bytedance",
+      "description": "A 3B-active-parameter native unified multimodal model for image and video understanding, generation, and editing.",
+      "url": "https://github.com/bytedance/Lance",
+      "clone_url": "https://github.com/bytedance/Lance.git",
+      "ssh_url": "git@github.com:bytedance/Lance.git",
+      "homepage": "https://lance-project.github.io",
+      "created_at": "2026-05-15T05:42:08Z",
+      "updated_at": "2026-05-31T05:04:39Z",
+      "pushed_at": "2026-05-29T17:27:59Z"
+    },
+    "stats": {
+      "stars": 1048,
+      "forks": 74,
+      "watchers": 1048,
+      "open_issues": 12,
+      "size": 132093
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 814411,
+        "Shell": 27210
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "image-editing",
+        "image-generation",
+        "image-understanding",
+        "unified-multimodal-models",
+        "video-generation",
+        "video-understanding"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"assets/logo/lance-logo.webp\" alt=\"Lance logo\" width=\"300\">\n\n  <h1 align=\"center\"><sup>Lance: Unified Multimodal Modeling by Multi-Task Synergy</sup></h1>\n  <p>\n    <strong>\n    <a href=\"https://scholar.google.com.hk/citations?user=FXxoQlsAAAAJ&hl=zh-CN&oi=ao\" style=\"text-decoration: none; color: inherit;\">Fengyi Fu</a><sup>*</sup>,\n    <a href=\"https://corleone-huang.github.io/\" style=\"text-decoration: none; color: inherit;\">Mengqi Huang</a><sup>*,✉</sup>,\n    <a href=\"https://scholar.google.com.hk/citations?user=9ER6nVkAAAAJ&hl=zh-CN&oi=ao\" style=\"text-decoration: none; color: inherit;\">Shaojin Wu</a><sup>*</sup>,\n    Yunsheng Jiang<sup>*</sup>,\n    Yufei Huo,\n    <a href=\"https://guojianzhu.com/\" style=\"text-decoration: none; color: inherit;\">Jianzhu Guo</a><sup>✉,§</sup>\n    </strong><br>\n    Hao Li,\n    Yinghang Song,\n    Fei Ding,\n    Qian He,\n    Zheren Fu,\n    Zhendong Mao,\n    Yongdong Zhang\n    <br>\n    <em>ByteDance</em>\n    <br>\n    <sup>*</sup> Equal contribution &nbsp;&nbsp; <sup>✉</sup> Corresponding authors &nbsp;&nbsp; <sup>§</sup> Project lead\n  </p>\n  <p>\n    <a href=\"https://lance-project.github.io/\" style=\"text-decoration: none; margin: 0 8px;\"><img src=\"https://img.shields.io/badge/Homepage-Lance-blue?style=flat\" alt=\"Homepage\"></a>\n    <a href=\"http://arxiv.org/abs/2605.18678\" style=\"text-decoration: none; margin: 0 8px;\"><img src=\"https://img.shields.io/badge/Paper-arXiv-red?style=flat&logo=arxiv\" alt=\"arXiv\"></a>\n    <a href=\"https://huggingface.co/bytedance-research/Lance\" style=\"text-decoration: none; margin: 0 8px;\"><img src=\"https://img.shields.io/badge/Model-HuggingFace-yellow?style=flat&logo=huggingface\" alt=\"Model\"></a>\n    <a href=\"https://huggingface.co/spaces/bytedance-research/Lance\" style=\"text-decoration: none; margin: 0 8px;\"><img src=\"https://img.shields.io/badge/Demo-HuggingFace-40bfe6?style=flat&logo=huggingface\" alt=\"Demo\"></a>\n    <br>\n    English | <a href=\"./README_zh.md\"><ins>简体中文</ins></a>\n  </p>\n</div>\n\n> **Note:** Lance is a research project rather than a polished product model. The released checkpoint was trained with up to 128 A100 GPUs, with training conducted up to 768x768 image generation and 480p, 12 FPS video generation. Our goal is to share a research artifact for studying unified image/video understanding, generation, and editing under a relatively small model and limited compute budget. Output quality may vary across prompts, resolutions, duration, motion complexity, and editing scenarios, and we see further opportunities to improve the post-training recipe. We appreciate constructive feedback from the community as we continue improving the project.\n\n## 🔥 Updates\n\n- **`2026/05/29`**: 💪 Added code support for Text-Image-to-Video (First-Frame-to-Video). [More to see](assets/docs/changelog/2026-05-29.md)!\n- **`2026/05/26`**: 🎨 The Gradio interface now supports image and video generation, editing, and understanding. [Try it out](assets/docs/changelog/2026-05-26.md)!\n- **`2026/05/25`**: ✨ The [Hugging Face Space](https://huggingface.co/spaces/bytedance-research/Lance) is now live, thanks to the HF team!\n- **`2026/05/19`**: 🤗 The technical report is now available on [arXiv](http://arxiv.org/abs/2605.18678).\n- **`2026/05/18`**: 🔥 We launched the [project homepage](https://lance-project.github.io/) and released the initial inference code and model weights on [GitHub](https://github.com/bytedance/Lance/) and [Hugging Face](https://huggingface.co/bytedance-research/Lance).\n\n## 🌟 Highlights\n\n**Lance** is a 3B native unified multimodal model that supports **image and video understanding, generation, and editing** within a single framework.\n\n- **Efficient at 3B scale.** With only **3B active parameters**, Lance achieves competitive performance across image generation, image editing, and video generation benchmarks.\n- **Training from scratch.** Lance is trained from scratch with a staged multi-task recipe and within a budget of **up to 128 A100 GPUs**.\n\nWe are actively updating and improving this repository. If you find any bugs or have suggestions, please feel free to open an issue or submit a pull request (PR) 💖.\n\n<div align=\"center\">\n  <img src=\"assets/benchmarks/benchmark-overview.png\" alt=\"Lance benchmark overview across image generation, image editing, video generation, and video understanding\" width=\"980\">\n</div>\n\n## 📅 Roadmap\n\n- [ ] Release the fine-tuning code.\n\n## 🎨 Demo\n\n<details>\n<summary><strong>Show demo results</strong></summary>\n\n<div align=\"center\">\n  <strong>🔥 We recommend visiting our <a href=\"https://lance-project.github.io/\">homepage</a> for more visual results. 🔥</strong>\n</div>\n\n<h3 align=\"center\">Text-to-Video</h3>\n\n<table align=\"center\">\n  <tr>\n    <td><a href=\"assets/text-to-video/videos/text-to-video-demo-01.mp4\"><img src=\"assets/text-to-video/previews/text-to-video-demo-01.gif\" width=\"100%\"></a></td>\n    <td><a href=\"assets/text-to-video/videos/text-to-video-demo-02.mp4\"><img src=\"assets/text-to-video/p",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:42.771035"
+  },
+  {
+    "basic_info": {
+      "name": "humanize-text",
+      "full_name": "lynote-ai/humanize-text",
+      "owner": "lynote-ai",
+      "description": "Free open-source AI text humanizer to convert AI-generated content into undetectable, human-like writing. Bypass Turnitin, GPTZero, and all major AI detectors. No sign-up required. Try our unlimited free online tool",
+      "url": "https://github.com/lynote-ai/humanize-text",
+      "clone_url": "https://github.com/lynote-ai/humanize-text.git",
+      "ssh_url": "git@github.com:lynote-ai/humanize-text.git",
+      "homepage": "https://lynote.ai/ai-humanizer",
+      "created_at": "2026-05-18T10:12:15Z",
+      "updated_at": "2026-05-31T04:46:22Z",
+      "pushed_at": "2026-05-27T03:10:49Z"
+    },
+    "stats": {
+      "stars": 984,
+      "forks": 51,
+      "watchers": 984,
+      "open_issues": 8,
+      "size": 5307
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 36912,
+        "Shell": 266,
+        "Batchfile": 261,
+        "Dockerfile": 226
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-detection",
+        "ai-humanize",
+        "ai-humanizer",
+        "ai-tools",
+        "dify",
+        "gptzero-bypass",
+        "humanize-ai",
+        "humanize-ai-text",
+        "humanize-text",
+        "humanizer",
+        "n8n",
+        "openclaw"
+      ]
+    },
+    "content": {
+      "readme": "## Free Humanize Text: Open-source toolkit to rewrite AI-generated content into natural\n<p align=\"center\">\n  <img src=\"presentation/banner.png\" alt=\"Humanize-Text\" width=\"600\"/>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/lynote-ai/humanize-text/stargazers\"><img src=\"https://img.shields.io/github/stars/lynote-ai/humanize-text?style=social\" alt=\"Stars\"></a>\n  <a href=\"https://github.com/lynote-ai/humanize-text/network/members\"><img src=\"https://img.shields.io/github/forks/lynote-ai/humanize-text?style=social\" alt=\"Forks\"></a>\n  <a href=\"https://github.com/lynote-ai/humanize-text/blob/main/LICENSE\"><img src=\"https://img.shields.io/github/license/lynote-ai/humanize-text\" alt=\"License\"></a>\n  <a href=\"https://www.python.org/\"><img src=\"https://img.shields.io/badge/python-3.10+-blue.svg\" alt=\"Python\"></a>\n  <a href=\"https://lynote.ai\"><img src=\"https://img.shields.io/badge/Try-Lynote.ai-brightgreen?style=for-the-badge\" alt=\"Lynote.ai\"></a>\n</p>\n\n<p align=\"center\">\n  English | <a href=\"README-zh.md\">中文</a>\n</p>\n\n---\n\n## What is Humanize-Text?\n\nAn AI text humanization toolkit. This repo evolved through two stages:\n\n- **v1.0** — Documented **4 humanization methodologies** as reference implementations (translation chain, multi-turn LLM rewriting, detection-guided feedback loop, mixed-engine translation). See [docs/techniques.md](docs/techniques.md).\n- **v1.5 (current)** — Added the **Standard Pipeline**: a production-grade integration of Method 1 (Translation Chain) + Method 2 (LLM Rewriting), fixed as a 5-step chain we actually run and recommend.\n\n### v1.5.1 — Standard Pipeline (Recommended)\n\nThe Standard Pipeline preserves the original writing style while routing text through a 4-step chain: two DeepSeek humanization rewrites followed by two cross-engine translation hops.\n\n```\nInput (EN) → Chinese (DeepSeek) → Japanese (DeepSeek) → Finnish (Google) → English (Niutrans)\n```\n\n**See [`examples/showcase/`](examples/showcase/) for 5 real samples with full intermediate-step outputs and AI-detection verdicts.**\n\n**Characteristics:**\n- Best original style preservation among all approaches\n- Fast processing speed\n- 100% key information retention (verified on 50 text pairs)\n- Expert quality score: 9.1/10\n\n> The 4 underlying methodologies live in `src/methodologies/` as reference implementations for research and customization. The Standard Pipeline (`src/standard/pipeline.py`) is the recommended production path.\n\n> **Want higher bypass rates + all methods combined?**\n> Lynote.ai fuses Standard + Advanced + Focus pipelines into one intelligent system — auto-selects the optimal approach for each passage.\n>\n> **[Try Lynote.ai Free →](https://lynote.ai)**\n\n---\n\n## How It Works\n\n### Step-by-Step Pipeline\n\n| Step | Engine | From → To | Purpose |\n|------|--------|-----------|---------|\n| 1 | DeepSeek (temp 1.3) | Input → Chinese (Chinese Rewriting) | LLM humanization rewrite + language shift |\n| 2 | DeepSeek (temp 1.3) | Chinese → Japanese (Japanese Rewriting) | Second LLM humanization, carries Step 1 as history |\n| 3 | Google Translate | Japanese → Finnish (First Round of Translation) | First translation hop — distant language structural disruption |\n| 4 | Niutrans | Finnish → English (Second-Round Translation) | Second translation hop — cross-engine reconstruction |\n\n### Why This Chain Works\n\n1. **Steps 1–2 (LLM Rewrite):** DeepSeek at temperature 1.3 rewrites while translating, breaking AI statistical fingerprints with creative variation. Step 2 carries Step 1 as conversation history for coherent humanization.\n2. **Steps 3–4 (Multi-Engine Translation):** Two different NMT engines (Google → Niutrans) introduce compounding structural changes. No single-engine fingerprint survives.\n3. **Distant Languages:** Chinese → Japanese → Finnish maximizes linguistic distance at each hop, ensuring thorough restructuring before reconstruction to English.\n\n---\n\n## Lynote.ai — Beyond Standard\n\n<p align=\"center\">\n  <a href=\"https://lynote.ai\">\n    <img src=\"presentation/lynote_banner.png\" alt=\"Lynote.ai\" width=\"500\"/>\n  </a>\n</p>\n\nThe Standard pipeline above is **one of three tiers** available. Each has different trade-offs:\n\n| Tier | Style Preservation | Speed | Approach |\n|------|-------------------|-------|----------|\n| **Standard** (this repo) | Best | Fast | Translation chain |\n| **Advanced** | Good | Medium | Translation chain + LLM multi-round rewriting |\n| **Focus** | Moderate | Slower | Translation chain + Detection-guided feedback loop |\n\n**Lynote.ai** combines all three tiers and automatically selects the optimal approach for each text passage:\n\n- **Intelligent Tier Selection** — Analyzes text and picks Standard, Advanced, or Focus per-passage\n- **Adaptive Combination** — Can mix tiers within a single document\n- **10+ Languages** — English, Chinese, Japanese, Korean, Spanish, French, German, and more\n- **Paste & Go** — No setup, no API keys, no configuration\n\n<p align=\"center\">\n  <a href=\"https://lynote.ai\"><img src=\"https:/",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-05-31T05:13:44.009789"
+  }
+]

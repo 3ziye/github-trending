@@ -1,0 +1,851 @@
+[
+  {
+    "basic_info": {
+      "name": "bumblebee",
+      "full_name": "perplexityai/bumblebee",
+      "owner": "perplexityai",
+      "description": "Read-only developer endpoint scanner for on-disk package, extension, and developer-tool metadata, built to check exposure to known software supply-chain compromises.",
+      "url": "https://github.com/perplexityai/bumblebee",
+      "clone_url": "https://github.com/perplexityai/bumblebee.git",
+      "ssh_url": "git@github.com:perplexityai/bumblebee.git",
+      "homepage": "",
+      "created_at": "2026-05-20T18:11:37Z",
+      "updated_at": "2026-06-02T05:03:57Z",
+      "pushed_at": "2026-06-01T22:32:19Z"
+    },
+    "stats": {
+      "stars": 4118,
+      "forks": 363,
+      "watchers": 4118,
+      "open_issues": 29,
+      "size": 173
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 425139
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "golang",
+        "package-inventory",
+        "supply-chain-security"
+      ]
+    },
+    "content": {
+      "readme": "# bumblebee\n\nBumblebee is a read-only inventory collector for package, extension,\nand developer-tool metadata on macOS and Linux developer endpoints.\n\nIt answers a narrow supply-chain response question: when an advisory\nnames a package, extension, or version, which developer machines show\na match in their on-disk metadata right now?\n\nSBOMs help answer what shipped, and EDR helps answer what ran or\ntouched the network, but supply-chain response often needs a different\nview: messy local state across lockfiles, package-manager metadata,\nextension manifests, and supported developer-tool configs.\n\nBumblebee turns that scattered on-disk state into structured NDJSON\ncomponent records and, when given an exposure catalog, flags exact\nmatches for fast, read-only exposure checks when responders already\nknow what they are looking for.\n\n## Scope\n\n- Single static binary, Go 1.25+, zero non-stdlib dependencies.\n- Three scan profiles (`baseline`, `project`, `deep`) for different\n  populations and cadences.\n- Reads only the lockfiles, package-manager install metadata,\n  extension manifests, and supported MCP JSON configs listed in\n  [docs/inventory-sources.md](docs/inventory-sources.md). No package\n  manager execution (`npm ls`, `pip show`, `go list`, ...) and no\n  source-file reads. MCP host configs can carry environment values\n  and credentials in their `env` blocks; Bumblebee parses these\n  configs for the server inventory it needs but does not emit those\n  values in its records.\n\n## Coverage\n\n| Family | Emitted `ecosystem` | Sources |\n|---|---|---|\n| npm | `npm` | `package-lock.json`, `npm-shrinkwrap.json`, `node_modules/.package-lock.json`, `node_modules/<pkg>/package.json` |\n| pnpm | `npm` | `pnpm-lock.yaml`, `.pnpm/.../package.json` |\n| Yarn | `npm` | `yarn.lock` (Classic + Berry) |\n| Bun | `npm` | `bun.lock`; `bun.lockb` presence as diagnostic |\n| PyPI | `pypi` | `*.dist-info/METADATA`, `INSTALLER`, `direct_url.json`, `*.egg-info/PKG-INFO` |\n| Go modules | `go` | `go.sum`, `go.mod` |\n| RubyGems | `rubygems` | `Gemfile.lock`, installed `*.gemspec` |\n| Composer | `packagist` | `composer.lock`, `vendor/composer/installed.json` |\n| MCP | `mcp` | JSON host configs: `mcp.json`, `.mcp.json`, `claude_desktop_config.json`, `mcp_config.json`, `mcp_settings.json`, `cline_mcp_settings.json`, plus `~/.gemini/settings.json` (Gemini CLI / Code Assist) and `~/.claude.json` (Claude Code user- and project-scoped `mcpServers`). Non-JSON configs (Codex `config.toml`, Continue YAML) are not parsed in v0.1. |\n| Editor extensions | `editor-extension` | VS Code, Cursor, Windsurf, VSCodium manifests |\n| Browser extensions | `browser-extension` | Chromium-family (`manifest.json`) and Firefox (`extensions.json`) per profile |\n| Homebrew | `homebrew` | Formula `INSTALL_RECEIPT.json` files and cask `.metadata` install markers |\n\nPer-ecosystem detail: [docs/inventory-sources.md](docs/inventory-sources.md).\n\n## Install\n\nRequires Go 1.25+. Zero non-stdlib dependencies.\n\n```sh\n# Install the latest tagged release into $GOBIN.\ngo install github.com/perplexityai/bumblebee/cmd/bumblebee@latest\n\n# Or pin a specific tag.\ngo install github.com/perplexityai/bumblebee/cmd/bumblebee@v0.1.1\n```\n\nTo build from a checkout:\n\n```sh\ngo build -o bumblebee ./cmd/bumblebee\ngo test ./...\n```\n\nStamp an explicit version at build time:\n\n```sh\ngo build -ldflags \"-X main.Version=v0.1.1\" -o bumblebee ./cmd/bumblebee\n```\n\n`bumblebee version` prints the version plus the VCS revision, build\ntime, and Go runtime — so a record emitted in production can be traced\nback to a specific build. Version precedence: `-ldflags` override,\nmodule version recorded by `go install`, then the in-tree default\ntracked in `VERSION`.\n\n### Self-test\n\nAfter installing, run a built-in end-to-end check against embedded\nfixtures:\n\n```sh\nbumblebee selftest\n# selftest OK (2 findings in 1ms)\n```\n\nThe fixtures live inside the binary, use deliberately fake package\nnames (`bumblebee-selftest-evil@0.0.0`), and make no network calls. A\nnon-zero exit means the local install can no longer detect what it\nshould — a fast pre-deployment smoke test for fleet rollouts.\n\n## Profiles\n\nBumblebee is a one-shot scanner: each invocation performs a single scan\nand exits. Cadence is the runner's responsibility (cron, launchd, systemd,\nMDM, etc.). Each record carries `profile` and a per-root `root_kind` so\nreceivers can keep populations separate.\n\n| Profile | Scans | Use for |\n|---|---|---|\n| `baseline` | Common global/user package roots, language toolchains, editor extensions, browser extensions, and MCP configs. | Recurring lightweight inventory via an external runner. |\n| `project` | Configured development directories, such as `~/code`, `~/src`, or `~/work`. | Recurring inventory for known project workspaces. |\n| `deep` | Explicit `--root` paths, including broad roots like `$HOME`. | On-demand incident or campaign checks, usually with `--ecosystem`, `--exposure-catalog`, and `--findings-only`. |\n\n`baseline` and `project` re",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:41.010804"
+  },
+  {
+    "basic_info": {
+      "name": "open-code-review",
+      "full_name": "alibaba/open-code-review",
+      "owner": "alibaba",
+      "description": "Battle-tested at Alibaba's scale. Hybrid architecture code review tool: deterministic pipelines + LLM Agent, precise line-level comments, built-in fine-tuned ruleset (NPE, thread-safety, XSS, SQL injection), OpenAI & Anthropic compatible.",
+      "url": "https://github.com/alibaba/open-code-review",
+      "clone_url": "https://github.com/alibaba/open-code-review.git",
+      "ssh_url": "git@github.com:alibaba/open-code-review.git",
+      "homepage": "https://alibaba.github.io/open-code-review/",
+      "created_at": "2026-05-18T02:16:36Z",
+      "updated_at": "2026-06-02T05:22:28Z",
+      "pushed_at": "2026-06-02T03:45:00Z"
+    },
+    "stats": {
+      "stars": 910,
+      "forks": 52,
+      "watchers": 910,
+      "open_issues": 6,
+      "size": 6188
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 306967,
+        "TypeScript": 83489,
+        "CSS": 20211,
+        "JavaScript": 15495,
+        "Shell": 13309,
+        "HTML": 10009,
+        "Makefile": 2217
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent",
+        "code-review",
+        "code-review-assistant",
+        "harness",
+        "repository-level-context"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://alibaba.github.io/open-code-review/\">\n    <img src=\"imgs/logo.svg\" alt=\"OpenCodeReview logo\" width=\"240\" height=\"240\">\n  </a>\n</p>\n<p align=\"center\">The open source AI code review agent.</p>\n<p align=\"center\">\n  <a href=\"https://www.npmjs.com/package/@alibaba-group/open-code-review\"><img alt=\"npm\" src=\"https://img.shields.io/npm/v/@alibaba-group/open-code-review?style=flat-square\" /></a>\n  <a href=\"https://github.com/alibaba/open-code-review/actions/workflows/release.yml\"><img alt=\"Build status\" src=\"https://img.shields.io/github/actions/workflow/status/alibaba/open-code-review/release.yml?style=flat-square\" /></a>\n  <a href=\"https://github.com/alibaba/open-code-review/blob/main/LICENSE\"><img alt=\"License\" src=\"https://img.shields.io/github/license/alibaba/open-code-review?style=flat-square\" /></a>\n</p>\n<p align=\"center\">\n  English | <a href=\"README.zh-CN.md\">简体中文</a>\n</p>\n\n---\n\n## What is Open Code Review?\n\nOpen Code Review is an AI-powered code review CLI tool. It originated as Alibaba Group's internal official AI code review assistant — over the past two years, it has served tens of thousands of developers and identified millions of code defects. After thorough validation at massive scale, we incubated it into an open source project for the community. Simply configure a model endpoint to get started.\n\nIt reads Git diffs, sends changed files to a configurable LLM via an agent with tool-use capabilities, and generates structured review comments with line-level precision. The agent can read full file contents, search the codebase, inspect other changed files for context, and produce deep reviews — not just surface-level diff feedback.\n\n![Highlights](imgs/highlights-en.png)\n\n## Why Open Code Review?\n\n### The Problem with General-Purpose Agents\n\nIf you've used general-purpose agents like Claude Code with Skills for code review, you've likely encountered these pain points:\n\n- **Incomplete coverage** — On larger changesets, agents tend to \"cut corners,\" selectively reviewing only some files and missing others.\n- **Position drift** — Reported issues frequently don't match the actual code location, with line numbers or file references drifting off target.\n- **Unstable quality** — Natural-language-driven Skills are hard to debug, and review quality fluctuates significantly with minor prompt variations.\n\nThe root cause: a purely language-driven architecture lacks hard constraints on the review process.\n\n### Core Design: Deterministic Engineering × Agent Hybrid\n\nOpen Code Review's core philosophy is to combine deterministic engineering with an agent, each handling what it does best.\n\n**Deterministic Engineering — Hard Constraints**\n\nFor review steps that *must not go wrong*, engineering logic — not the language model — guarantees correctness:\n\n- **Precise file selection** — Determines exactly which files need review and which should be filtered, ensuring no important change is missed.\n- **Smart file bundling** — Groups related files into a single review unit (e.g., `message_en.properties` and `message_zh.properties` are bundled together). Each bundle runs as a sub-agent with isolated context — a divide-and-conquer strategy that stays stable on very large changesets and naturally supports concurrent review.\n- **Fine-grained rule matching** — Matches review rules to each file's characteristics, keeping the model's attention sharply focused and eliminating information noise at the source. Compared to purely language-driven rule guidance, template-engine-based rule matching is more stable and predictable.\n- **External positioning and reflection modules** — Independent comment-positioning and comment-reflection modules systematically improve both the location accuracy and content accuracy of AI feedback.\n\n**Agent — Dynamic Decision-Making**\n\nThe agent's strengths are concentrated where they matter most — dynamic decisions and dynamic context retrieval:\n\n- **Scenario-tuned prompts** — Prompt templates deeply optimized for code review, improving effectiveness while reducing token consumption.\n- **Scenario-tuned toolset** — Distilled from deep analysis of tool-call traces in large-scale production data — including call frequency distributions, per-tool repetition rates, and the impact of new tools on the overall call chain — resulting in a purpose-built toolset that is more stable and predictable for code review than a generic agent toolkit.\n\n## How to Use\n\n### CLI\n\n#### Install\n\n**Via NPM (Recommended)**\n\n```bash\nnpm install -g @alibaba-group/open-code-review\n```\n\nAfter installation, the `ocr` command is available globally.\n\n**From GitHub Release**\n\nDownload the latest binary from [GitHub Releases](https://github.com/alibaba/open-code-review/releases):\n\n```bash\n# macOS (Apple Silicon)\ncurl -Lo ocr https://github.com/alibaba/open-code-review/releases/latest/download/opencodereview-darwin-arm64\nchmod +x ocr && sudo mv ocr /usr/local/bin/ocr\n\n# macOS (Intel)\ncurl -Lo ocr https://github.co",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:42.347404"
+  },
+  {
+    "basic_info": {
+      "name": "SenPaiScanner",
+      "full_name": "MatinSenPai/SenPaiScanner",
+      "owner": "MatinSenPai",
+      "description": "A light-weight scanner for Cloudflare IPs, written in Golang",
+      "url": "https://github.com/MatinSenPai/SenPaiScanner",
+      "clone_url": "https://github.com/MatinSenPai/SenPaiScanner.git",
+      "ssh_url": "git@github.com:MatinSenPai/SenPaiScanner.git",
+      "homepage": "",
+      "created_at": "2026-05-28T17:02:54Z",
+      "updated_at": "2026-06-02T05:01:30Z",
+      "pushed_at": "2026-06-01T10:46:47Z"
+    },
+    "stats": {
+      "stars": 860,
+      "forks": 57,
+      "watchers": 860,
+      "open_issues": 25,
+      "size": 145
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 195427,
+        "Shell": 3799,
+        "Makefile": 2132
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# SenPai Scanner\n\n[![CI](https://github.com/matinsenpai/senpaiscanner/actions/workflows/ci.yml/badge.svg)](https://github.com/matinsenpai/senpaiscanner/actions/workflows/ci.yml)\n[![Release](https://img.shields.io/github/v/release/matinsenpai/senpaiscanner?style=flat-square)](https://github.com/matinsenpai/senpaiscanner/releases/latest)\n[![Go Version](https://img.shields.io/github/go-mod/go-version/matinsenpai/senpaiscanner?style=flat-square)](go.mod)\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)\n[![Platforms](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-informational?style=flat-square)](#installation)\n\nA Cloudflare IP finder with a terminal UI, built for networks where latency is unpredictable and connections drop without warning. Paste your VLESS or Trojan config, pick your settings, and let it find IPs that actually work through your proxy — no commands to memorize.\n\n---\n\n## How it works\n\nRun `senpaiscanner` and you land in a short menu. Navigate with arrow keys and Enter — no flags, no subcommands.\n\n```\n┌────────────────────────────────────────────────────────────┐\n│  ▶  Find Working IPs   paste a config and test CF IPs      │\n│     About                                                │\n│     Quit                                                 │\n└────────────────────────────────────────────────────────────┘\n```\n\n**Find Working IPs** runs in two phases:\n\n1. **Phase 1 — Connectivity scan** probes candidate Cloudflare IPs using settings derived from your config URL (SNI, host, WebSocket path, port). It checks trace reachability and, for WebSocket configs, whether a WS-style TLS connection survives DPI.\n2. **Phase 2 — xray validation** launches an embedded xray instance and tests the best Phase 1 hits end-to-end through your actual VLESS/Trojan config. Results show endpoint, transport type, download speed, latency (TTFB), and pass/fail status.\n\nWhen Phase 2 finishes, press **`c`** to copy working `IP:port` endpoints to the clipboard and save them to `ips.txt` next to the binary (or current working directory).\n\n---\n\n## Installation\n\n### Pre-built binary\n\nDownload from the [releases page](https://github.com/matinsenpai/senpaiscanner/releases/latest).\n\n| Platform | Architecture | File |\n|---|---|---|\n| Linux | x86_64 | `senpaiscanner_linux_x86_64.tar.gz` |\n| Linux | ARM64 | `senpaiscanner_linux_arm64.tar.gz` |\n| macOS | Intel | `senpaiscanner_darwin_x86_64.tar.gz` |\n| macOS | Apple Silicon | `senpaiscanner_darwin_arm64.tar.gz` |\n| Windows | x86_64 | `senpaiscanner_windows_x86_64.zip` |\n\n**Linux / macOS:**\n\nstable release:\n```bash\ncurl -fsSL https://github.com/MatinSenPai/SenPaiScanner/raw/refs/heads/main/install.sh | bash\n```\n\npre-release:\n```bash\ncurl -fsSL https://github.com/MatinSenPai/SenPaiScanner/raw/refs/heads/main/install.sh | bash -s -- --prerelease\n```\n\n**Windows (PowerShell):**\n```powershell\n$r = Invoke-RestMethod https://api.github.com/repos/matinsenpai/senpaiscanner/releases/latest\n$url = ($r.assets | Where-Object name -like \"*windows*x86_64*\").browser_download_url\nInvoke-WebRequest $url -OutFile senpaiscanner.zip\nExpand-Archive senpaiscanner.zip .\n```\n\n### From source\n\n```bash\ngo install github.com/matinsenpai/senpaiscanner/cmd/senpaiscanner@latest\n```\n\n---\n\n## Usage\n\n```bash\nsenpaiscanner              # open the TUI\nsenpaiscanner --version    # print version and exit\nsenpaiscanner -v           # same\nsenpaiscanner version      # same\n```\n\nEverything else is inside the TUI — there are no scan-related CLI flags.\n\n### Navigation\n\n| Key | Action |\n|-----|--------|\n| `↑` / `↓` or `k` / `j` | move between rows |\n| `←` / `→` or `h` / `l` | move between options within a row |\n| `Enter` | select / confirm / start |\n| `Esc` | go back |\n| `q` | quit from menu; during a scan, cancel or return to menu when finished |\n\nOn the **Config URL** row, `←` / `→` move the text cursor; `Ctrl+A` / `Ctrl+E` jump to start / end. Vim keys `h` / `j` / `k` / `l` type normally into the URL field on that row.\n\n---\n\n## Find Working IPs\n\nPaste a **`vless://`** or **`trojan://`** share URL, adjust the setup rows, then start the scan.\n\n### Setup rows (Phase 1)\n\n| Row | Options | Notes |\n|---|---|---|\n| **Source** | Random / From File | random Cloudflare IPv4 ranges, or read candidates from `ips.txt` |\n| **Count** | 1,000 / 5,000 / 20,000 / Custom | IPs to probe in Phase 1; **ignored when Source is From File** |\n| **Workers** | 50 / 100 / 200 / Custom | parallel probers (default 50 — safe on restricted networks) |\n| **Timeout** | 2s / 3s / 5s / Custom | per-probe deadline (default 5s) |\n| **Ports** | Config, 443, 8443, 2053, 2083, 2087, 2096 | multi-select; each IP is tested on every selected port |\n\nPress **Enter** on the last row to continue to the optional config step.\n\n### Optional config (before scan starts)\n\n| Row | Options | Notes |\n|---|---|---|\n| **Config** | paste URL or leave empty | empty → **Phase 1 only** (standard HTTP probe); with URL → Phas",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:43.678821"
+  },
+  {
+    "basic_info": {
+      "name": "zyrln",
+      "full_name": "ajavadinezhad/zyrln",
+      "owner": "ajavadinezhad",
+      "description": "Domain-fronting relay that routes traffic through Google infrastructure to bypass DPI-based censorship,  Android VPN    app + desktop proxy  https://t.me/z_yrln  | https://t.me/z_yrln_channel",
+      "url": "https://github.com/ajavadinezhad/zyrln",
+      "clone_url": "https://github.com/ajavadinezhad/zyrln.git",
+      "ssh_url": "git@github.com:ajavadinezhad/zyrln.git",
+      "homepage": "",
+      "created_at": "2026-05-04T17:25:03Z",
+      "updated_at": "2026-06-02T05:09:11Z",
+      "pushed_at": "2026-05-31T21:02:16Z"
+    },
+    "stats": {
+      "stars": 718,
+      "forks": 114,
+      "watchers": 718,
+      "open_issues": 21,
+      "size": 1732
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 407793,
+        "JavaScript": 63312,
+        "Kotlin": 45989,
+        "CSS": 35585,
+        "HTML": 14902,
+        "Shell": 10132,
+        "Makefile": 5718
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Zyrln\n\n[راهنمای فارسی](README_FA.md)\n\nBypass internet censorship in Iran. Routes your traffic through Google's infrastructure — no VPN fingerprint, no blocked IP, no dedicated server to block.\n\n---\n\n## Table of Contents\n\n- [How It Works](#how-it-works)\n- [I just want Google services (Gmail, Drive, Maps)](#i-just-want-google-services-gmail-drive-maps)\n- [I want to access everything](#i-want-to-access-everything)\n  - [What you need](#what-you-need)\n  - [Step 1 — Run the desktop app](#step-1--run-the-desktop-app)\n  - [Step 2 — Deploy the exit relay](#step-2--deploy-the-exit-relay)\n  - [Step 3 — Deploy the Apps Script relay](#step-3--deploy-the-apps-script-relay)\n  - [Step 4 — Connect](#step-4--connect)\n  - [Step 5 — Set up Android](#step-5--set-up-android)\n- [Building from Source](#building-from-source)\n- [Troubleshooting](#troubleshooting)\n- [Security Notes](#security-notes)\n- [Credits](#credits)\n\n---\n\n## How It Works\n\nIran's censorship system (SNDPI) blocks sites by inspecting traffic. Zyrln defeats it two ways:\n\n**For Google services (Gmail, Drive, Maps, etc.):**\nTraffic is sent directly to Google but with the TLS handshake split into tiny fragments. The censor's system can't reassemble them fast enough to read the SNI, so it lets the connection through. No server needed.\n\n**For everything else (Instagram, Twitter, etc.):**\nTraffic is routed through Google Apps Script — a free Google service. From the censor's perspective it looks like normal Google traffic. Apps Script then forwards it to an exit relay (your VPS or Cloudflare) which fetches the real site.\n\n---\n\n## I just want Google services (Gmail, Drive, Maps)\n\n**No server needed. No setup. Just download and enable.**\n\n1. Download the app for your platform from the [Releases](../../releases) page\n2. Run it — the GUI opens in your browser automatically\n   - **Windows:** double-click the `.exe` — the GUI opens automatically\n   - **Linux / macOS:** run from terminal with the `-gui` flag:\n     ```bash\n     # Linux\n     ./zyrln-VERSION-linux-amd64 -gui\n     # macOS Apple Silicon\n     ./zyrln-VERSION-darwin-arm64 -gui\n     # macOS Intel\n     ./zyrln-VERSION-darwin-amd64 -gui\n     ```\n3. Click the **⚡ lightning bolt** button in the top bar to enable Direct Mode\n4. Set your browser to use HTTP proxy `127.0.0.1:8085`\n\nThat's it. Many Google services can use the faster direct path when the local network allows it.\n\n> Direct Mode works for Google services that are SNI-filtered but not IP-blocked — Gmail, Drive, Maps, Google Docs, and similar. YouTube video streaming and Play Store downloads go through the relay instead. Filtering behavior varies by ISP, city, carrier, and time.\n\n---\n\n## I want to access everything\n\nTo access Instagram, Twitter, Telegram, and other non-Google sites, you need to set up a relay chain. This takes about 15 minutes.\n\n### What you need\n\n| | What | Cost |\n|---|---|---|\n| ✅ Required | Google account | Free |\n| ✅ Required | A shared auth key (you generate it) | Free |\n| ☁️ Pick one | VPS with a public IP | ~$5/mo |\n| ☁️ Or this | Cloudflare account | Free tier is enough |\n\n### Step 1 — Run the desktop app\n\n1. Download the binary for your OS from [Releases](../../releases)\n2. Run it — the GUI opens automatically in your browser\n   - **Windows:** double-click the `.exe` — the GUI opens automatically\n   - **Linux / macOS:** run from terminal with the `-gui` flag:\n     ```bash\n     # Linux\n     ./zyrln-VERSION-linux-amd64 -gui\n     # macOS Apple Silicon\n     ./zyrln-VERSION-darwin-arm64 -gui\n     # macOS Intel\n     ./zyrln-VERSION-darwin-amd64 -gui\n     ```\n3. Go to **Security** → generate and install the CA certificate (needed for HTTPS sites)\n4. Go to **Settings** → click **Generate Key** and copy the auth key — you'll need it in the next steps\n\n**Configure your browser:**\n\n| Browser | Where to set it |\n|---|---|\n| Chrome / Edge | Settings → System → Open proxy settings → Manual proxy → `127.0.0.1:8085` |\n| Firefox | Settings → Network → Manual proxy → HTTP `127.0.0.1` port `8085` |\n| System-wide (all apps) | Use SOCKS5 `127.0.0.1:1080` in your OS network settings |\n\n**Install the CA certificate** (required for HTTPS):\n\n- **Chrome/Edge**: Settings → Privacy → Security → Manage certificates → Authorities → Import `zyrln-ca.pem`\n- **Firefox**: Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import\n\n### Step 2 — Deploy the exit relay\n\nThis is the exit node that fetches real websites. Pick one option:\n\n#### Option A — Cloudflare Worker (recommended, free)\n\n1. Go to [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages → Create**\n2. Paste the contents of [`relay/deploy/cloudflare/worker.js`](relay/deploy/cloudflare/worker.js)\n3. Click **Deploy** and copy the Worker URL:\n   `https://your-worker.your-subdomain.workers.dev`\n\n#### Option B — VPS\n\nLinux VPS (amd64 or arm64), public IP, port **8787** open, SSH as `user@host` with `sudo`. On your laptop you only need `ssh`/`scp` (no Go).\n\n1. Download **`",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:45.012905"
+  },
+  {
+    "basic_info": {
+      "name": "91",
+      "full_name": "nianzhibai/91",
+      "owner": "nianzhibai",
+      "description": "nine one",
+      "url": "https://github.com/nianzhibai/91",
+      "clone_url": "https://github.com/nianzhibai/91.git",
+      "ssh_url": "git@github.com:nianzhibai/91.git",
+      "homepage": null,
+      "created_at": "2026-05-10T08:58:49Z",
+      "updated_at": "2026-06-02T05:16:13Z",
+      "pushed_at": "2026-06-01T12:40:18Z"
+    },
+    "stats": {
+      "stars": 681,
+      "forks": 206,
+      "watchers": 681,
+      "open_issues": 11,
+      "size": 36764
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 934017,
+        "TypeScript": 264742,
+        "CSS": 148915,
+        "Shell": 41531,
+        "Python": 35435,
+        "Dockerfile": 1623,
+        "HTML": 1459
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# 91\n\n<p align=\"center\">\n  <img width=\"120\" height=\"120\" alt=\"91\" src=\"https://github.com/user-attachments/assets/5b323c94-bbd3-4dce-bbc8-adc86935b7de\" />\n</p>\n\n<p align=\"center\">\n  😄 个人私有视频站 😄\n</p>\n\n<p align=\"center\">\n  <a href=\"#快速开始\">快速开始</a> ·\n  <a href=\"#功能特性\">功能特性</a> ·\n  <a href=\"#预览图\">预览图</a> ·\n  <a href=\"#数据存放位置\">数据目录</a>\n</p>\n\n---\n\n## 功能特性\n\n- **多后端支持** — 兼容 115 云盘、PikPak 云盘、OneDrive、Google Drive 和本地存储\n- **低带宽播放** — 115 云盘、PikPak 云盘、OneDrive 都支持302模式，在线播放视频时，不占用服务器带宽，播放体验不受服务器带宽影响；Google Drive 不支持302模式，走服务器中转，观看体验会受服务器带宽影响\n- **封面 & 预览片段** — 自动为每个视频生成封面图和预览片段，首页快速选片\n- **91 爬虫** — 内置爬虫，支持抓取 91 本月最热视频\n- **双主题** — 黑黄经典主题 / 粉白清新主题，随时切换\n- **短视频模式** — 一键切换抖音风格，沉浸刷片\n- **低资源占用** — 2C2G 服务器稳定运行，主要性能消耗就是封面图和预览视频的生成\n\n---\n\n## 预览图\n\n### 电脑端\n\n<p>\n  <img width=\"49%\" alt=\"首页\" src=\"https://github.com/user-attachments/assets/9808fceb-760b-4dd5-b7d2-8622b95b90d5\" />\n  <img width=\"49%\" alt=\"播放页\" src=\"https://github.com/user-attachments/assets/859db4aa-1fba-44f2-bb46-1db07c2f964f\" />\n</p>\n\n<p>\n  <img width=\"49%\" alt=\"主题切换\" src=\"https://github.com/user-attachments/assets/96bea37a-8764-413e-9b70-1856b4ae0cd2\" />\n  <img width=\"49%\" alt=\"管理页\" src=\"https://github.com/user-attachments/assets/29c1e27a-7651-4dfc-93dd-556331844214\" />\n</p>\n\n### 手机端\n\n<p align=\"center\">\n  <img width=\"1284\" height=\"1134\" alt=\"手机端\" src=\"https://github.com/user-attachments/assets/bdb7a86c-a4e5-483e-a307-e02c0bb34dac\" />\n</p>\n\n---\n\n## 快速开始\n\n### 方式一：一键安装脚本（推荐）\n\n```bash\nsudo apt update && sudo apt install -y curl ca-certificates\ncurl -fsSL https://raw.githubusercontent.com/nianzhibai/91/main/install.sh -o install.sh\nsudo bash install.sh\n```\n\n部署完成后访问：\n\n| 地址 | 说明 |\n|------|------|\n| `http://服务器IP:9191/` | 前台 |\n| `http://服务器IP:9191/admin` | 后台管理 |\n\n**注意：如果首次访问，显示502，可以运行 `91 restart` 重启一下服务**\n\n安装后自动注册 `91` 管理命令：\n\n```bash\n91            # 打开管理菜单\n91 status     # 查看运行状态\n91 logs       # 查看日志\n91 update     # 更新到最新版本\n91 restart    # 重启服务\n91 stop       # 停止服务\n```\n\n> `video-site-91` 为等效别名，两者可互换使用。\n\n**自定义端口：**\n\n```bash\nFRONTEND_PORT=8080 sudo -E bash install.sh\n```\n\n**旧版本升级（v0.0.2 之前）：**\n\n旧版脚本直接执行 `91 update` 可能失败，先执行以下修复命令：\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/nianzhibai/91/main/install.sh -o /tmp/install-91.sh\nsudo bash /tmp/install-91.sh update\n```\n\n---\n\n### 方式二：Docker Compose 部署\n\n**1. 准备目录**\n\n```bash\nmkdir -p video-site-91 && cd video-site-91\n```\n\n**2. 创建 `docker-compose.yml`**\n\n```yaml\nservices:\n  video-site-91:\n    image: ghcr.io/nianzhibai/91:stable\n    container_name: video-site-91\n    ports:\n      - \"9191:9191\"\n    volumes:\n      - ./data:/opt/video-site-91/data\n    restart: unless-stopped\n```\n创建yml文件后运行下面指令\n```bash\ndocker compose pull\ndocker compose up -d\n```\n\n如果想固定某个 Release 版本，可以改成明确的 tag，例如：\n\n```yaml\nimage: ghcr.io/nianzhibai/91:v0.0.6\n```\n\n或直接拉取仓库内置配置：\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/nianzhibai/91/main/docker-compose.yml -o docker-compose.yml\n```\n\n**3. 启动**\n\n```bash\ndocker compose up -d\n```\n\n**常用命令：**\n\n```bash\ndocker compose logs -f       # 查看日志\ndocker compose pull          # 拉取最新正式版 stable 镜像\ndocker compose up -d         # 更新并重启\n```\n\n> 所有配置、数据库、封面、预览及上传文件均保存在 `./data/` 目录下。\n\n---\n\n## 数据存放位置\n\n### 一键脚本部署\n\n| 路径 | 内容 |\n|------|------|\n| `/opt/video-site-91/config.yaml` | 配置文件、管理员账号、网盘凭证 |\n| `/opt/video-site-91/data/video-site.db` | SQLite 数据库 |\n| `/opt/video-site-91/data/previews/` | 封面图和预览片段 |\n\n### Docker Compose 部署\n\n| 路径 | 内容 |\n|------|------|\n| `./data/config.yaml` | 配置文件、管理员账号、网盘凭证 |\n| `./data/video-site.db` | SQLite 数据库 |\n| `./data/previews/` | 封面图和预览片段 |\n| `./data/uploads/` | 本地上传的视频文件 |\n| `./data/spider91/` | 91 爬虫抓取的视频文件 |\n\n---\n\n## 更多文档\n\n| 文档 | 内容 |\n|------|------|\n| [backend/README.md](backend/README.md) | 后端实现、接口说明、网盘字段 |\n| [video-site-implementation-plan.md](video-site-implementation-plan.md) | 完整实现方案 |\n\n---\n\n## 使用须知\n\n本项目面向**个人私有部署**，请仅接入你有权访问和管理的内容，并遵守对应网盘、站点的服务条款及所在地法律法规。\n\n> 不对外传播，仅限个人使用。\n\n---\n\n## 致谢\n\n- [OpenList](https://github.com/OpenListTeam/OpenList) — 优秀的开源项目\n- [LinuxDo](https://linux.do/) — 学 AI 上 L 站\n- [NodeSeek](https://nodeseek.com/) — MJJ 上 N 站\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:46.316051"
+  },
+  {
+    "basic_info": {
+      "name": "mhr-cfw-go",
+      "full_name": "ThisIsDara/mhr-cfw-go",
+      "owner": "ThisIsDara",
+      "description": "A local proxy that runs on your machine and forwards traffic through Google.",
+      "url": "https://github.com/ThisIsDara/mhr-cfw-go",
+      "clone_url": "https://github.com/ThisIsDara/mhr-cfw-go.git",
+      "ssh_url": "git@github.com:ThisIsDara/mhr-cfw-go.git",
+      "homepage": "",
+      "created_at": "2026-05-04T04:24:15Z",
+      "updated_at": "2026-06-01T22:50:46Z",
+      "pushed_at": "2026-05-14T09:40:27Z"
+    },
+    "stats": {
+      "stars": 506,
+      "forks": 53,
+      "watchers": 506,
+      "open_issues": 8,
+      "size": 73
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 92227,
+        "Shell": 2129,
+        "Batchfile": 838
+      },
+      "license": "MIT License",
+      "topics": [
+        "domain-fronting",
+        "dpi-bypass",
+        "http",
+        "proxy",
+        "sni",
+        "vpn"
+      ]
+    },
+    "content": {
+      "readme": "# [MHR-CFW](https://github.com/denuitt1/mhr-cfw) Rewritten in Go with YouTube Support Fix and Speed Improvements\n[![GitHub](https://img.shields.io/badge/GitHub-ThisIsDara-blue?logo=github)](https://github.com/ThisIsDara/mhr-cfw-go)\n\n**[فارسی](README_FA.md)**\n\n\n<img width=\"654\" height=\"362\" alt=\"image\" src=\"https://github.com/user-attachments/assets/bdf8ffd8-f1cd-47b4-87fd-5bc6e2ce1937\" />\n\n\n## 🚀 Improvements Over Python Version\n\n\n ## **✅ 1.  YouTube Support Fixed**\n- Proper CORS handling — Added preflight OPTIONS handling and CORS header injection for cross-origin requests\n- Content-Encoding fix — Better decoding for brotli/gzip responses\n- Range request support — Video streaming needs proper Range header handling\n## **✅ 2. Speed Improvements**\n- HTTP/2 transport — Uses HTTP/2 instead of HTTP/1.1 (faster multiplexing)\n- Connection pooling — Reuses TLS connections instead of creating new ones\n- Request coalescing — Multiple GET requests for same URL share one relay call\n- Response caching — LRU cache with proper TTL for static assets\n## **✅ 3. Security**\n- RSA 4096-bit keys — Upgraded from 2048-bit for MITM certificates\n## **✅ 4. Reliability**\n- Proper signal handling — Clean shutdown on Ctrl+C\n- Graceful error handling — Better error responses\n## **✅ 5. Code Quality**\n- Go rewrite — Static typing, better memory management\n- No external dependencies — Uses standard library where possible\n\n\n\n\n\n---\n\n## How It Works\n\n\nThe program runs on your PC and sends your requests through Google's infrastructure. Network filters see ordinary Google traffic and allow it through. Meanwhile, Google's free Apps Script fetches the actual website you wanted.\n\n---\n\n## Quick Start\n\n ## 📦 Requirements:\n - [Go 1.22+](https://go.dev/dl/)\n\n **💡 Tip:** If you have trouble downloading Go dependencies, use the Runflare Iranian mirror:\n```bash\nGOPROXY=https://mirror-go.runflare.com go mod download\n```\n\n### 1 - Clone and Build\n\n```bash\ngit clone https://github.com/ThisIsDara/mhr-cfw-go.git\ncd mhr-cfw-go\n```\n\nOr download the latest release from [ 📥 GitHub Releases](https://github.com/ThisIsDara/mhr-cfw-go/releases)\n\n### 2 - Build\n\n**Windows:** Double-click `build.bat` or run:\n\n```powershell\n.\\build.bat\n```\n\n**Linux/Mac:** Make the script executable and run:\n\n```bash\nchmod +x build.sh\n./build.sh\n```\n\nThis will build the executable (`mhr-cfw-go.exe` on Windows, `mhr-cfw-go` on Linux/Mac).\n\n### 3 - Configure\n\nEdit `config.json` with your settings or ideally run `Setup Wizard` in the TUI:\n\n```json\n{\n  \"auth_key\": \"your-secret-password-here\",\n  \"script_id\": \"YOUR_DEPLOYMENT_ID\"\n}\n```\n\n### 4 - Run\n\n**Windows:** Double-click `mhr-cfw-go.exe` or run:\n\n```powershell\n.\\mhr-cfw-go.exe\n```\n\n**Linux/Mac:** Run:\n\n```bash\n./mhr-cfw-go\n```\n\nThe app opens an interactive menu. Select **1) Start proxy** to begin.\n\n---\n\n### 5 - Install CA Certificate (for HTTPS interception)\n\nRun the app, then select **3) Install CA certificate** from the menu.\n\nThis installs the local Certificate Authority so the proxy can intercept HTTPS traffic.\n\n---\n\n## 🐧 Linux / 🍎 macOS / 📱 Termux Guide\n\n### Linux/macOS\n\n```bash\n# Clone\ngit clone https://github.com/ThisIsDara/mhr-cfw-go.git\ncd mhr-cfw-go\n\n# Build\nchmod +x build.sh\n./build.sh\n\n# Run\n./mhr-cfw-go\n```\n\nOr manually:\n\n```bash\nGOOS=linux go build -ldflags \"-s -w\" -o mhr-cfw-go ./cmd/mhr-cfw\n./mhr-cfw-go\n```\n\n### Termux (Android)\n\n```bash\n# Install Go and Git\npkg update -y\npkg install -y golang git\n\n# Clone\ngit clone https://github.com/ThisIsDara/mhr-cfw-go.git\ncd mhr-cfw-go\n\n# Build\nchmod +x build.sh\n./build.sh\n\n# Run\n./mhr-cfw-go\n```\n\n### Stopping\n\nPress `Ctrl+C` to stop the proxy.\n\n---\n\n# 🛠️ How to Setup\n\n1. Open [mhr-cfw README File](https://github.com/denuitt1/mhr-cfw/blob/main/README.md#how-to-use) provided by [denuitt1](https://github.com/denuitt1)\n and follow the steps 1 to 3 until you have the Deployment ID\n\n---\n## Building from Source\n\nRequirements:\n- [Go 1.22+](https://go.dev/dl/)\n\n```bash\ngo build -ldflags \"-s -w\" -o mhr-cfw-go.exe ./cmd/mhr-cfw\n```\n\n---\n\n## WIP...\n### `` 📊 Statistics ``\n- Request counter — Total requests served\n- Bandwidth usage — Bytes sent/received\n### `` 🖥️ Monitoring ``\n- Connection status\n### `` ✏️ UX ``\n- Profile switching — Different config profiles\n- Export/Import config — Backup settings\n---\n\n## Command Line Options\n\n| Option | Description |\n| --- | --- |\n| `--no-menu` | Run without TUI menu |\n| `--port` | Override proxy port |\n| `--host` | Override listen host |\n| `--socks5-port` | Override SOCKS5 port |\n| `--disable-socks5` | Disable SOCKS5 proxy |\n| `--log-level` | Set log level (DEBUG, INFO, WARN, ERROR) |\n| `--install-cert` | Install CA certificate |\n| `--uninstall-cert` | Remove CA certificate |\n| `--scan` | Scan Google IPs |\n| `--setup` | Run setup wizard |\n| `--version` | Show version |\n\n#### Disclaimer\n\n- **Google services compliance:** If you use Google Apps Script or other Google services with this project, you are responsible for complying with Google's Terms of Service, accepta",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-06-02T05:23:47.626615"
+  },
+  {
+    "basic_info": {
+      "name": "substrate",
+      "full_name": "agent-substrate/substrate",
+      "owner": "agent-substrate",
+      "description": "Agent Substrate: the core system",
+      "url": "https://github.com/agent-substrate/substrate",
+      "clone_url": "https://github.com/agent-substrate/substrate.git",
+      "ssh_url": "git@github.com:agent-substrate/substrate.git",
+      "homepage": null,
+      "created_at": "2026-05-13T19:02:38Z",
+      "updated_at": "2026-06-02T05:13:46Z",
+      "pushed_at": "2026-06-02T03:44:55Z"
+    },
+    "stats": {
+      "stars": 411,
+      "forks": 74,
+      "watchers": 411,
+      "open_issues": 62,
+      "size": 665
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 660301,
+        "Python": 80529,
+        "Shell": 62223,
+        "HTML": 17628,
+        "Go Template": 5780,
+        "Makefile": 1771,
+        "Dockerfile": 1125
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Agent Substrate\n\n[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)\n\nNOTE: This is not an officially supported Google product. This project is not\neligible for the [Google Open Source Software Vulnerability Rewards Program](https://bughunters.google.com/open-source-security).\n\n## What is Agent Substrate?\n\nAgent substrate is a system built on top of Kubernetes which manages agent-like\nworkloads to achieve higher scale and efficiency than Kubernetes alone can\noffer, with lower latency.  It builds on top of Kubernetes features like\nPods and Pod autoscaling, but takes the Kubernetes control-plane out of the\ncritical path to achieve lower latency.\n\nIt can run on any Kubernetes cluster and does not inhibit “regular” use of\nKubernetes in any way. Kubernetes provides the infrastructure provisioning and\nmanagement for all types of workloads, while Agent Substrate provides\nagent-specific scheduling and control.\n\nAt its core, Agent Substrate maps a larger set of “actors” (applications such\nas agents) onto a smaller set of ready “workers” (Kubernetes Pods), relying on\nthe fact that agent-like applications tend to be idle most of the time to\nachieve heavy multiplexing.  It provides functionality to manage an actor’s\nlifecycle (e.g. create/destroy, suspend/resume), to assign actors to workers in real\ntime, and to route incoming traffic to them.\n\nAgent Substrate is intended to be a low-opinion system.  The workloads it\nmanages don't have to be literal AI agents, but those are the best example of\nthe kind of applications it is designed for.  It is not an SDK for building\nagents, but rather a system for running them at scale.\n\n## Demo\n\n[![Agent Substrate Demo](https://img.youtube.com/vi/ZEzkCFJkzjY/hq1.jpg)](https://www.youtube.com/watch?v=ZEzkCFJkzjY)\n\n*Watch the Agent Substrate cluster multiplex ~250 stateful actor sessions across just 8 physical pods.*\n\nThis demo highlights the core developer experience and \"Agentic Infrastructure\" capabilities of Substrate:\n\n1.  **Instant Session Teleport:** High-performance suspend and resume of actors onto any available worker in the pool with sub-second activation.\n2.  **State Persistence:** Persistent working memory (volatile RAM) and filesystem state preserved perfectly across hibernation cycles via full-state snapshots.\n3.  **Agent Swarm Multiplexing:** Demonstrates 30x+ oversubscription by \"juggling\" a large registry of stateful actors onto a small pool of shared physical pods.\n\nTo reproduce this demo in your own cluster, please refer to the detailed walkthroughs in the **[Counter Demo](demos/counter/README.md)** and **[Secret Agent Demo](demos/agent-secret/README.md)**.\n\nFor more videos and walkthroughs, visit our YouTube channel: **[agent-substrate](https://www.youtube.com/channel/UCN9PPqlTtVxlcpbQ-NWpfZQ)**.\n\n## Framework Agnostic & Compatibility\n\nAgent Substrate is designed to be **framework and agent harness agnostic**. Because it manages standard OCI containers at the kernel level (via gVisor), it can host agents built on any stack.\n\n*   **Agent Development Kit (ADK):** Native support for ADK-compatible session identity and persistent working memory.\n*   **LangChain:** Ideal execution environment for long-running, stateful LangChain agents and sandboxed tool-calling.\n*   **Claude Code & CodeX:** Support for high-density, stateful coding environments that preserve terminal and filesystem state across sessions.\n*   **Model Context Protocol (MCP):** Deploy secure, sandboxed MCP servers as Substrate Actors to provide durable tools for any LLM.\n\n## Ecosystem & Examples\n\n*   **[Agent Executor](https://github.com/google/ax):** A distributed agent runtime that demonstrates building a secure, hyper-scalable agent harness on Agent Substrate (see the [announcement blog](https://cloud.google.com/blog/products/ai-machine-learning/agent-executor-googles-distributed-agent-runtime) and [integration guide](https://github.com/google/ax/blob/main/manifests/README.md)).\n\n## Status and compatibility\n\nAgent Substrate is currently in VERY early development.  It is not ready for\nproduction use, and the APIs are almost guaranteed to change.  We are not\nmaking any guarantees about backward compatibility at this stage, and\neverything in this project may be changed.\n\n### Supported Kubernetes Releases\n\nCurrently we aim to support the [latest stable release](https://kubernetes.io/releases/) of Kubernetes, and the previous minor release.\n\n## Community\n\nFor announcements, technical discussions, and community support, please join\nthe **[ate-dev](https://groups.google.com/g/ate-dev)** Google Group.\n\nWe also have channels in the CNCF slack; [request an invite here](https://slack.cncf.io/)\nif you don't have access.\n\n- [#substrate-users](https://cloud-native.slack.com/archives/C0B6RCAJULW) to discuss using substrate.\n- [#substrate-dev](https://cloud-native.slack.com/archives/C0B6M3E2J3D) to discuss developing substrate.\n\n## Developing\n\nPlease se",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:48.986509"
+  },
+  {
+    "basic_info": {
+      "name": "DeepSeek-Code-Whale",
+      "full_name": "usewhale/DeepSeek-Code-Whale",
+      "owner": "usewhale",
+      "description": "Whale — a terminal AI agent built for DeepSeek. 1M context, persistent sessions, MCP tools, and dynamic workflows — all in your shell.",
+      "url": "https://github.com/usewhale/DeepSeek-Code-Whale",
+      "clone_url": "https://github.com/usewhale/DeepSeek-Code-Whale.git",
+      "ssh_url": "git@github.com:usewhale/DeepSeek-Code-Whale.git",
+      "homepage": "https://whale-site.pages.dev",
+      "created_at": "2026-05-06T07:01:36Z",
+      "updated_at": "2026-06-02T05:09:08Z",
+      "pushed_at": "2026-06-02T05:09:04Z"
+    },
+    "stats": {
+      "stars": 360,
+      "forks": 24,
+      "watchers": 360,
+      "open_issues": 9,
+      "size": 3643
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 4521004,
+        "Shell": 30148,
+        "Python": 28381,
+        "PowerShell": 7747,
+        "Makefile": 695
+      },
+      "license": "MIT License",
+      "topics": [
+        "coding-agent",
+        "deepseek",
+        "deepseek-agent",
+        "deepseek-cli",
+        "deepseek-coding-agent",
+        "go",
+        "llm",
+        "mcp",
+        "skills",
+        "terminal"
+      ]
+    },
+    "content": {
+      "readme": "# Whale\n\n<p align=\"center\">\n  <img src=\"docs/logo.svg\" alt=\"Whale — DeepSeek-native coding agent for the terminal\" width=\"640\">\n</p>\n\n<p align=\"center\">\n  <a href=\"./README.zh.md\">简体中文</a> · <strong>English</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/usewhale/DeepSeek-Code-Whale/releases\"><img src=\"https://img.shields.io/github/v/release/usewhale/DeepSeek-Code-Whale?label=release\" alt=\"release\"></a>\n  <a href=\"https://github.com/usewhale/DeepSeek-Code-Whale/actions/workflows/ci.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/usewhale/DeepSeek-Code-Whale/ci.yml?label=CI\" alt=\"CI\"></a>\n  <a href=\"./LICENSE\"><img src=\"https://img.shields.io/github/license/usewhale/DeepSeek-Code-Whale\" alt=\"license\"></a>\n  <a href=\"https://github.com/usewhale/DeepSeek-Code-Whale/stargazers\"><img src=\"https://img.shields.io/github/stars/usewhale/DeepSeek-Code-Whale?style=flat&logo=github&label=stars\" alt=\"GitHub stars\"></a>\n</p>\n\n<p align=\"center\">\n  <b>A terminal-native coding agent built for DeepSeek.</b><br>\n  Persistent sessions, long context, tools, and programmable workflows —<br>\n  all in your terminal, no IDE required.\n</p>\n\n---\n\n## ✨ At a Glance\n\n| What | Why it matters |\n|---|---|\n| 🐋 **DeepSeek-native** | Built for DeepSeek's long context (1M tokens), tool calling, and cost efficiency — no generic multi-model wrapper |\n| 💬 **Persistent sessions** | Come back days later, context is still there. Search, branch, resume. |\n| 🎛️ **TUI + CLI + Headless** | Interactive TUI, one-shot CLI commands, or headless automation — pick your mode |\n| ⚙️ **Tools & MCP** | Read/edit files, run commands, search web — and plug in 1,000+ MCP servers |\n| 🧩 **Skills + Plugins** | Install community skills (code review, git workflows, etc.) or write your own |\n| 🔁 **Dynamic Workflows** | Write JavaScript scripts that orchestrate multiple agents — fan-out research, multi-perspective review, pipelines. Claude Code compatible. |\n| 💰 **Cost-efficient** | DeepSeek's aggressive pricing paired with prompt caching makes AI-assisted coding affordable at scale |\n\n---\n\n## 🚀 Quick Start\n\nmacOS:\n\n```bash\nbrew install usewhale/tap/whale\n```\n\nLinux:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/usewhale/DeepSeek-Code-Whale/main/scripts/install.sh | sh\n```\n\nWindows PowerShell:\n\n```powershell\nirm https://raw.githubusercontent.com/usewhale/DeepSeek-Code-Whale/main/scripts/install.ps1 | iex\n```\n\nWindows CMD:\n\n```cmd\npowershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://raw.githubusercontent.com/usewhale/DeepSeek-Code-Whale/main/scripts/install.ps1 | iex\"\n```\n\n```bash\n# Set your DeepSeek API key\nwhale setup\n\n# Launch the interactive TUI\nwhale\n```\n\nThat's it. Type your question and Whale starts working — reading files, running commands,\nediting code, searching the web.\n\n> Need a different model provider, proxy, or custom config? See [Configuration](docs/configuration.en.md).\n\n---\n\n## 🔁 Dynamic Workflows\n\nWhale's **Dynamic Workflows** let you script multi-agent orchestration in JavaScript:\n\n```js\n// .whale/workflows/research.js\nconst results = await parallel([\n  () => agent(\"Search for best practices in Go error handling\"),\n  () => agent(\"Find common Go error handling mistakes\"),\n]);\nreturn agent(\"Synthesize both findings into a concise guide\");\n```\n\n**Fan-out research · Multi-perspective review · Pipeline processing · Adversarial validation**\n\n> ✅ **Claude Code compatible** — workflow scripts written for Claude Code work as-is in Whale.\n\nLearn more: [Workflow Overview](docs/workflows.en.md) · [Custom Workflow Guide](docs/custom-workflows.en.md)\n\n---\n\n## 🧰 MCP, Skills & Plugins\n\n| Extension | What it does | Get started |\n|---|---|---|\n| **MCP Servers** | Connect to 1,000+ tools (databases, APIs, browser automation) | [docs/mcp.en.md](docs/mcp.en.md) |\n| **Skills** | Load domain expertise — code review, git-worktree, and more | [docs/skills.en.md](docs/skills.en.md) |\n| **Subagents** | Define focused child-agent roles such as reviewers or researchers | [docs/agents.en.md](docs/agents.en.md) |\n| **Plugins** | Extend Whale's runtime with custom logic | [docs/plugins.en.md](docs/plugins.en.md) |\n| **Hooks** | Run scripts on lifecycle events | [docs/hooks.en.md](docs/hooks.en.md) |\n\n---\n\n## 📸 How It Works\n\nWhale runs in three modes:\n\n| Mode | When to use |\n|---|---|\n| **`whale`** (TUI) | Interactive coding sessions — chat, review, iterate with full context |\n| **`whale ask \"...\"`** (CLI) | One-shot questions, quick code reviews, single commands |\n| **`whale --headless`** | CI/CD, automated PR reviews, scheduled tasks |\n\n---\n\n## 🎯 Non-goals\n\n- **Multi-model shell.** Whale is DeepSeek-first — optimized for DeepSeek's caching, tools, and pricing.\n- **IDE replacement.** Whale works in your terminal alongside your shell, git, and test commands.\n\n## 📦 Project Status\n\nWhale is in active development. Best suited for personal projects, experimental repositories,\nand workflows where changes can be reviewed and rolled b",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:50.291165"
+  },
+  {
+    "basic_info": {
+      "name": "btype",
+      "full_name": "tidwall/btype",
+      "owner": "tidwall",
+      "description": "B-tree based collection types for Go",
+      "url": "https://github.com/tidwall/btype",
+      "clone_url": "https://github.com/tidwall/btype.git",
+      "ssh_url": "git@github.com:tidwall/btype.git",
+      "homepage": null,
+      "created_at": "2026-05-10T13:52:32Z",
+      "updated_at": "2026-06-01T12:00:56Z",
+      "pushed_at": "2026-05-22T13:09:05Z"
+    },
+    "stats": {
+      "stars": 271,
+      "forks": 2,
+      "watchers": 271,
+      "open_issues": 0,
+      "size": 284
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 207765
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n<picture>\n  <source media=\"(prefers-color-scheme: dark)\" srcset=\"/.github/logo-dark.png\">\n  <source media=\"(prefers-color-scheme: light)\" srcset=\"/.github/logo-light.png\">\n  <img alt=\"Tile38\" src=\"/.github/images/logo-light.png\" width=\"640\">\n</picture>\n<br>\n<a href=\"#map\">Map</a> •\n<a href=\"#set\">Set</a> •\n<a href=\"#array\">Array</a> •\n<a href=\"#table\">Table</a> •\n<a href=\"#stack\">Stack</a> •\n<a href=\"#queue\">Queue</a> • \n<a href=\"#deque\">Deque</a> •\n<a href=\"#prique\">Prique</a>\n<br>\n<br>\n<a href=\"https://godoc.org/github.com/tidwall/btype\"\n><img src=\"https://godoc.org/github.com/tidwall/btree?status.svg\"\n></a>\n</p>\n\nThe btype package provides btree based collection types that allow Go programmers \nto easily implement common data structures like maps, arrays, queues, and stacks. \n\nIt's hand-crafted with performance in mind and is generally faster than the \nstate of the art btrees for Go, Rust, and C++.\n[google/btree](https://github.com/google/btree), \n[tidwall/btree](https://github.com/tidwall/btree), \n[rust/BTreeMap](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html), \n[frozenca/btree](https://github.com/frozenca/BTree).\n<sup>[[benchmarks]](#performance)</sup>\n\n# Features\n\n- Includes collections types: map, set, queue, stack, table. Each backed by a btree structure.\n- Modern Go ergonomics with a friendly API.\n- All data operations are O(log n) complexity.\n- Instant [copy-on-write](#copy-on-write) (shadow clones), providing O(1) snapshots.\n- Uses [btree counting](https://www.chiark.greenend.org.uk/~sgtatham/algorithms/cbtree.html) for O(log n) random access.\n- Exhaustively tested code with 100% coverage.\n- Optimized for [high performance](#performance) and low memory.\n\n# Types\n\nIncludes the following collection types:\n\n- [`Map`](#map): Key value pairs. Sorting ordered by key\n- [`Set`](#set): Like Map, but only for storing keys. No values\n- [`Array`](#array): Dynamic array of unsorted data\n- [`Table`](#table): Data sorted by key fields or a custom compare function\n- [`Stack`](#stack): LIFO (last-in, first-out) data structure\n- [`Queue`](#queue): FIFO (first-in, first-out) data structure\n- [`Deque`](#deque): Double-ended queue\n- [`Prique`](#prique): Priority queue\n\n\n## Map\n\nbtype.Map is a sorted associative collection of key-value pairs with unique keys. \nThe keys adhere to the parameter type [`cmp.Ordered`](https://pkg.go.dev/cmp#Ordered) and are naturally sorted using [`cmp.Compare`](https://pkg.go.dev/cmp#Compare).\n\n### Operations\n\n```py\nInsert(key, val)        # Insert an item. (does not replace if already exists)\nReplace(key, val)       # Replace an existing item. (does not insert if not exists)\nSet(key, val)           # Insert or replace an item.\nGet(key, val)           # Get an existing item.\nContains(key)           # Test if an item exists.\nDelete(key)             # Remove an item.\n\nSeek(key)               # Searches for the first item that is >= to key.\nSeekNext(key)           # Searches for the first item that is > key.\nSeekPrev(key)           # Searches for the first item that is < key.\n\nAll()                   # Iterate items in ascending order.            (iter.Seq2[K,V])\nBackward()              # Iterate items in descending order.           (iter.Seq2[K,V])\nAscend(key)             # Iterate items in ascending order >= to key.  (iter.Seq2[K,V])\nDescend(key)            # Iterate items in descending order <= to key. (iter.Seq2[K,V])\nKeys()                  # Iterate key only in ascending order.         (iter.Seq[K])\nValues()                # Iterate values only in ascending order.      (iter.Seq[K])\nDrain()                 # Iterate and remove in ascending order.       (iter.Seq2[K,V])\nDrainBackward()         # Iterate and remove in descending order.      (iter.Seq2[K,V])\n\nPushFront(key, val)     # Insert item to front of map.\nPushBack(key, val)      # Insert item to back of map.\nPopFront()              # Remove the first item.\nPopBack()               # Remove the last item.\nFront()                 # Get the first item.\nBack()                  # Get the last item.\n\nInsertAt(i, key, val)   # Inserts item at index. (collection size grows by one)\nReplaceAt(i, key, val)  # Replace an item at index.\nGetAt(i)                # Get an item at index.\nIndexOf(key)            # Get the index of an item.\nDeleteAt(i)             # Remove an item at index.\nAscendAt(i)             # Iterate items in ascending order >= to index.  (iter.Seq2[K,V])\nDescendAt(i)            # Iterate items in descending order <= to index. (iter.Seq2[K,V])\n\nDeleteRange(min, max)   # Remove items within the provided sub-range. [min,max)\nDeleteRangeAt(i, count) # Remove items starting at index.\n\nLen()                   # Get the number of items in map.\nCopy()                  # Copy map, fast O(1), uses Copy-on-write shadow cloning.\nClear()                 # Remove all items from map\nRelease()               # Same as Clear() but optimized for copied collections.\n```\n\n### Example\n\n```go\npackage main\n\nimport ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:51.624071"
+  },
+  {
+    "basic_info": {
+      "name": "CPA-Helper",
+      "full_name": "walkingddd/CPA-Helper",
+      "owner": "walkingddd",
+      "description": "CPA-Helper 是面向 CLIProxyAPI 用户的本地自托管多用户管理面板，支持多用户独立 API Key、用量隔离统计、请求明细追踪、模型价格维护、可用模型查询、管理员账号管控与 Codex 账号巡检。",
+      "url": "https://github.com/walkingddd/CPA-Helper",
+      "clone_url": "https://github.com/walkingddd/CPA-Helper.git",
+      "ssh_url": "git@github.com:walkingddd/CPA-Helper.git",
+      "homepage": null,
+      "created_at": "2026-05-13T09:27:53Z",
+      "updated_at": "2026-06-02T01:06:10Z",
+      "pushed_at": "2026-06-01T10:04:21Z"
+    },
+    "stats": {
+      "stars": 263,
+      "forks": 22,
+      "watchers": 263,
+      "open_issues": 2,
+      "size": 3641
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 621369,
+        "Vue": 413958,
+        "TypeScript": 42033,
+        "CSS": 11606,
+        "Dockerfile": 1869,
+        "JavaScript": 684,
+        "HTML": 370
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"frontend/public/logo.png\" alt=\"CPA-Helper Logo\" width=\"104\" height=\"104\" />\n  <h1>CPA-Helper</h1>\n  <p><strong>面向 CLIProxyAPI 的本地自托管多用户管理面板</strong></p>\n  <p>用量统计 · 请求追踪 · 用户余额 · API 密钥管理 · 模型价格维护 · Codex 凭证巡检</p>\n  <p>\n    <a href=\"README.en.md\">English</a>\n    <span> · </span>\n    <strong>中文</strong>\n  </p>\n  <p>\n    <a href=\"https://go.dev/\"><img src=\"https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white\" alt=\"Go 1.25+\" /></a>\n    <a href=\"https://vuejs.org/\"><img src=\"https://img.shields.io/badge/Vue-3.5+-42b883?logo=vuedotjs&logoColor=white\" alt=\"Vue 3.5+\" /></a>\n    <a href=\"https://vitejs.dev/\"><img src=\"https://img.shields.io/badge/Vite-5.4+-646cff?logo=vite&logoColor=white\" alt=\"Vite 5.4+\" /></a>\n    <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-MIT-yellow.svg\" alt=\"MIT License\" /></a>\n    <a href=\"https://linux.do\"><img src=\"https://shorturl.at/ggSqS\" alt=\"LINUX DO\" /></a>\n  </p>\n</div>\n\n---\n\nCPA-Helper 是面向 CLIProxyAPI / CPA 用户的本地自托管多用户管理面板，用于集中管理用量统计、请求明细、用户账号、API Key、模型价格、可用模型以及 Codex auth file 巡检维护。\n\n它支持按用户隔离 API Key 与用量数据：每个用户都可以独立创建和管理自己的 Key，并查看属于自己的请求、Token 与费用统计；管理员可以创建或禁用普通用户账号，查看全局用量和用户维度明细，适合个人、小团队或共享 CPA 服务的内网场景。项目采用 Go + SQLite + Vue 3 + Vite 构建，默认将运行数据写入仓库根目录的 `data/` 目录。\n\n需要说明的是，Agent 发起的模型请求仍由 Agent 直接发送到 CPA，CPA-Helper 不代理或中转这些请求；它只调用 CPA 的 usage 队列、API KEY 创建与删除、凭证管理等接口，用于用量查看、密钥管理和凭证维护。\n\n## 目录\n\n- [项目特点](#项目特点)\n- [截图预览](#截图预览)\n- [技术栈](#技术栈)\n- [目录结构](#目录结构)\n- [环境要求](#环境要求)\n- [快速开始](#快速开始)\n- [配置说明](#配置说明)\n- [开发与检查](#开发与检查)\n- [贡献](#贡献)\n- [致谢](#致谢)\n- [许可证](#许可证)\n\n## 项目特点\n\n- **用量统计与费用估算**：按全局、用户和当前账号视角统计请求数、Token、成功率、延迟、模型分布和费用，并提供趋势图、排行榜和筛选视图。\n- **请求明细追踪**：管理员可按时间、用户、API Key 描述、服务商、模型、接口和失败状态筛选全局请求；普通用户只查看自己账号下的请求详情。\n- **用户与权限管理**：支持管理员和普通用户视图，管理员可创建、禁用普通用户账号，并维护用户昵称、登录账号、密码和角色。\n- **用户余额与 Key 自动暂停**：用户默认不限制余额；管理员可设置每月余额和不限时余额，用量按当前模型价格折算为 USD，优先扣每月余额，不足再扣不限时余额，余额耗尽后只暂停该用户的 CPA API Key。\n- **API Key 生命周期管理**：每个用户都可以独立创建、编辑、复制和删除自己的 API Key，并同步到 CPA；用量会按用户维度独立统计和展示，每个 Key 都提供请求说明和真实请求测试。\n- **模型价格维护**：Token 模型按 USD / 百万 Token 维护输入、输出、缓存价格；模型名包含 `image` 的模型按每次成功调用固定 USD 计费，并可对照 CPA 当前可用模型快速补齐或调整本地 LiteLLM / 手动价格。\n- **可用模型聚合查询**：通过当前账号绑定的 CPA API Key 查询可用模型，并关联本地价格信息。\n- **CLIProxyAPI / CPAMC 集成**：配置服务地址、管理密钥、usage 队列和本地采集参数，将远端 usage 事件落入本地 SQLite。\n- **Codex auth file 巡检**：支持 Cron 调度、额度阈值、只检查不修改、按条件扫描、并发 Worker、优先级规则、账号启停和删除维护。\n- **本地优先的数据策略**：默认使用 SQLite 和 `data/` 目录，支持通过 `CPA_HELPER_DATA_DIR` 覆盖运行数据路径。\n- **现代化管理界面**：基于 Vue 3、Naive UI、ECharts 和 lucide 图标，支持浅色、暗色和跟随系统主题。\n\n## 截图预览\n\n### 管理端\n\n**历史用量**\n\n管理员可按时间、用户、模型和接口查看全局请求量、Token、费用、趋势和分布。\n\n![历史用量](pictures/历史用量.png)\n\n**请求明细**\n\n管理员可筛选全局请求事件，普通用户可查看自己账号下的请求明细；详情以抽屉方式呈现。\n\n![请求明细](pictures/请求明细.png)\n\n**用户管理**\n\n管理员可创建或禁用普通用户账号，维护昵称、角色、启停状态，并查看用户维度的今日用量、每月余额和不限时余额。\n\n![用户管理](pictures/用户管理.png)\n\n**模型价格**\n\n查看 CPA 当前可用模型与本地价格库的差异，快速为未定价模型补价，并按当前价格实时估算历史请求费用。\n\n![模型价格](pictures/模型价格.png)\n\n**系统设置**\n\n集中配置 CLIProxyAPI / CPAMC 地址、模型请求地址、管理密钥、本地采集和轮询参数。\n\n![系统设置](pictures/系统设置.png)\n\n### 账号巡检\n\n**巡检设置**\n\n配置 Codex auth file 巡检的 Cron 调度、额度阈值、按条件扫描、超时、重试、Worker 数和优先级规则。\n\n![巡检设置](pictures/巡检设置.png)\n\n**账号状态**\n\n查看 auth file 健康状态、额度窗口、账号类型、优先级和最近巡检维护结果。\n\n![账号状态](pictures/账号状态.png)\n\n### 个人视图\n\n**我的账户**\n\n每个用户可查看自己的请求量、Token、费用、趋势、模型使用情况和当前余额状态。\n\n![我的账户](pictures/我的账户.png)\n\n**我的明细**\n\n每个用户可查看自己账号下的请求事件和详情，不与其他用户混在一起。\n\n![我的明细](pictures/我的明细.png)\n\n**API 密钥**\n\n当前账号可独立创建和管理自己的 API Key，查看今日请求、Token、费用和余额概览，并对单个 Key 生成请求示例或发起真实请求测试。\n\n![API密钥](pictures/API密钥.png)\n\n**可用模型**\n\n通过绑定的 CPA API Key 查询可用模型，并展示模型可用状态与本地价格信息。\n\n![可用模型](pictures/可用模型.png)\n\n**账户设置**\n\n查看当前登录账号并更新密码。\n\n![账户设置](pictures/账户设置.png)\n\n## 技术栈\n\n- **后端**：Go 标准库 HTTP、SQLite、robfig/cron、modernc.org/sqlite。\n- **前端**：Vue 3、Vite、TypeScript、Vue Router、Naive UI、ECharts、lucide-vue-next。\n- **运行数据**：默认写入根目录 `data/`，SQLite 数据库位于 `data/db/cpa_helper.sqlite3`。\n- **接口风格**：后端统一提供 `/api/*` 接口，前端开发服务器通过 Vite proxy 转发到 `http://127.0.0.1:18317`。\n\n## 目录结构\n\n```text\nCPA-Helper/\n├── backend/                 # Go 后端项目\n│   ├── cmd/cpa-helper/      # 应用入口\n│   ├── internal/app/        # 应用组合、路由、业务处理、数据库访问\n│   ├── internal/httpserver/ # HTTP server 生命周期与优雅退出\n│   ├── internal/platform/   # 外部系统基础设施适配\n│   ├── internal/security/   # 密码、Session、API Key 安全工具\n│   ├── migrations/          # 内嵌 goose SQLite 迁移\n│   ├── go.mod\n│   └── go.sum\n├── frontend/                # Vue + Vite 前端项目\n│   ├── src/                 # 应用、功能模块、共享组件与样式\n│   ├── public/              # 静态资源\n│   └── package.json         # 前端依赖与脚本\n├── pictures/                # README 截图素材\n├── docs/                    # 参考文档\n├── data/                    # 运行时数据目录，默认不提交\n├── VERSION                  # 应用版本号，Docker 标签和前端显示共用\n├── README.md\n├── README.en.md\n└── LICENSE\n```\n\n## 环境要求\n\n- Go 1.25 或更高版本。\n- Node.js 20 或更高版本。\n- npm。\n- 一个可访问的 CLIProxyAPI / CPA 服务。默认地址为 `http://127.0.0.1:8317`。\n\n## 快速开始\n\n### 1. Docker Compose 部署（推荐）\n\n在部署目录创建 `docker-compose.yml`：\n\n```yaml\nservices:\n  cpa-helper:\n    image: walkingd/cpa-helper:latest\n    container_name: cpa-helper\n    restart: always\n    # 如需改为bridge,需将容器内部端口 18317 映射至主机\n    # 程序默认访问地址为 `http:/",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:52.954559"
+  },
+  {
+    "basic_info": {
+      "name": "comview",
+      "full_name": "rockorager/comview",
+      "owner": "rockorager",
+      "description": "the best diff viewer ever made",
+      "url": "https://github.com/rockorager/comview",
+      "clone_url": "https://github.com/rockorager/comview.git",
+      "ssh_url": "git@github.com:rockorager/comview.git",
+      "homepage": null,
+      "created_at": "2026-05-14T22:17:40Z",
+      "updated_at": "2026-06-02T01:58:41Z",
+      "pushed_at": "2026-06-01T14:20:56Z"
+    },
+    "stats": {
+      "stars": 245,
+      "forks": 17,
+      "watchers": 245,
+      "open_issues": 0,
+      "size": 1903
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 494412,
+        "Shell": 169
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# comview\n\nThe finest diff viewer ever compressed into a small terminal program. It reads a unified diff from stdin, renders it beautifully, and lets you review code without becoming a web browser.\n\n![comview screenshot](screenshot.png)\n\n## Install\n\n```sh\ngit clone https://github.com/rockorager/comview.git\ncd comview\nmise run install\n```\n\nTo install somewhere else:\n\n```sh\nPREFIX=$HOME/.local mise run install\n```\n\nTo use comview as the default pager for `git diff` and `git show`:\n\n```sh\ngit config --global pager.diff comview\ngit config --global pager.show comview\n```\n\n## Usage\n\n```sh\ngit diff | comview\ngit show | comview\ngh pr diff 123 | comview\ncomview watch\ncomview watch --staged\ncomview watch -- git show HEAD\n```\n\n`comview watch` reruns `git diff` and refreshes the view whenever the diff\noutput changes. Arguments after `watch` are passed to `git diff`; use `--` to\nwatch another diff-producing command.\n\nComments are saved to `.comview/comments.json`.\n\n## Keybinds\n\n| Key | Action |\n| --- | --- |\n| `j`/`k`, arrows | Move |\n| `h`/`l` | Move horizontally |\n| `gg` / `G` | Top / bottom |\n| `Ctrl-d` / `Ctrl-u` | Half-page down / up |\n| `J` / `K` | Next / previous commit |\n| `]c` / `[c` | Next / previous change |\n| `]n` / `[n` | Next / previous note |\n| `s` | Toggle side-by-side view |\n| `t` | Choose theme |\n| `<space>e` | Find file in diff |\n| `/` | Search |\n| `n` / `N` | Next / previous search result |\n| `o` | Open cursor location in editor |\n| `v` / `V` | Visual / visual-line selection |\n| `iw`, `aw`, `i{`, `a\"`, etc. | Text objects, naturally flawless |\n| `y` | Copy selection |\n| `i` or `I` | Add/edit comment |\n| `x` / `dd` | Delete note under cursor |\n| `:w` | Save comments |\n| `:q` / `:q!` | Quit / force quit |\n| `?` | Show this help |\n| `Esc` | Cancel |\n\nThat is all. It is enough.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:54.397804"
+  },
+  {
+    "basic_info": {
+      "name": "fswatcher",
+      "full_name": "fswatcher/fswatcher",
+      "owner": "fswatcher",
+      "description": "Cross-platform file system notifications for Go.",
+      "url": "https://github.com/fswatcher/fswatcher",
+      "clone_url": "https://github.com/fswatcher/fswatcher.git",
+      "ssh_url": "git@github.com:fswatcher/fswatcher.git",
+      "homepage": "",
+      "created_at": "2026-05-06T08:16:29Z",
+      "updated_at": "2026-06-01T23:27:19Z",
+      "pushed_at": "2026-05-30T13:39:49Z"
+    },
+    "stats": {
+      "stars": 218,
+      "forks": 10,
+      "watchers": 218,
+      "open_issues": 2,
+      "size": 137
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 93883
+      },
+      "license": "MIT License",
+      "topics": [
+        "file-watcher",
+        "filesystem",
+        "fsnotify",
+        "go",
+        "gofsnotify",
+        "golang",
+        "inotify",
+        "kqueue",
+        "readdirectorychangesw"
+      ]
+    },
+    "content": {
+      "readme": "# fswatcher\n\n[![CI](https://github.com/fswatcher/fswatcher/actions/workflows/ci.yml/badge.svg)](https://github.com/fswatcher/fswatcher/actions/workflows/ci.yml)\n[![Go Reference](https://pkg.go.dev/badge/github.com/fswatcher/fswatcher.svg)](https://pkg.go.dev/github.com/fswatcher/fswatcher)\n\nCross-platform file system notifications for Go.\n\n> Previously published as `github.com/gofsnotify/fsnotify` (package `fsnotify`). The old path is deprecated and redirects here; update imports and rename `fsnotify.X` to `fswatcher.X`. See [#27](https://github.com/fswatcher/fswatcher/issues/27).\n\n## Install\n\n```\ngo get github.com/fswatcher/fswatcher\n```\n\n## Usage\n\n```go\npackage main\n\nimport (\n\t\"log\"\n\n\t\"github.com/fswatcher/fswatcher\"\n)\n\nfunc main() {\n\tw, err := fswatcher.NewWatcher()\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tdefer w.Close()\n\n\tif err := w.Add(\"/path/to/dir\", fswatcher.Create|fswatcher.Write|fswatcher.Remove); err != nil {\n\t\tlog.Fatal(err)\n\t}\n\n\tfor {\n\t\tselect {\n\t\tcase ev := <-w.Events:\n\t\t\tlog.Println(ev)\n\t\tcase err := <-w.Errors:\n\t\t\tlog.Println(\"error:\", err)\n\t\t}\n\t}\n}\n```\n\n## API\n\n- `NewWatcher() (*Watcher, error)` — creates a watcher.\n- `(*Watcher).Add(path string, op Op) error` — registers `path` with the given event mask. Returns `ErrAlreadyAdded` if `path` is already registered.\n- `(*Watcher).AddRecursive(path string, op Op) error` — registers `path` and every directory under it. New subdirectories created inside are watched automatically; removed subdirectories are dropped. `Remove` may only be called on the original recursive root.\n- `(*Watcher).Remove(path string) error` — unregisters `path`. For an `AddRecursive` registration this drops the entire subtree.\n- `(*Watcher).Close() error` — stops the watcher and closes the channels.\n- `(*Watcher).Events <-chan Event` — receives change notifications.\n- `(*Watcher).Errors <-chan error` — receives non-fatal errors.\n- `Canonicalize(path string) (string, error)` — returns the form fswatcher uses internally for `Add`, `Remove`, and `Event.Name`. Use it to align a watched root with the paths in event names, for example when computing relative paths or applying an ignore list.\n\nPaths are canonicalized (absolute, cleaned, with symlinks resolved when the target exists; on Windows 8.3 short forms are expanded and case is folded), so two spellings of the same path dedupe and `Event.Name` is always returned in canonical form.\n\n## Events\n\n| Op     | Description                                 |\n|--------|---------------------------------------------|\n| Create | A file or directory was created.            |\n| Write  | A file's contents were modified.            |\n| Remove | A file or directory was removed.            |\n| Rename | A file or directory was renamed or moved.   |\n| Chmod  | Permissions or attributes changed.          |\n\n`Op` is a bitmask; combine values with `|` when calling `Add`. The `All` constant is shorthand for the union of every Op bit.\n\n## Guarantees\n\n- Thread-safe: methods may be called from multiple goroutines.\n- Event ordering is preserved as far as the underlying OS allows.\n- Behavior is normalized across supported platforms.\n\n## Platform Support\n\n| OS      | Backend                 | Status    |\n|---------|-------------------------|-----------|\n| Linux   | inotify                 | Supported |\n| Windows | ReadDirectoryChangesW   | Supported |\n| macOS   | FSEvents (purego)       | Supported |\n| FreeBSD | kqueue                  | Supported |\n\n## License\n\nMIT\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:55.745826"
+  },
+  {
+    "basic_info": {
+      "name": "officedex",
+      "full_name": "officecli/officedex",
+      "owner": "officecli",
+      "description": "OfficeDex is the first Al-Native VibeOfficing platform  for documents, slides, and spreadsheets",
+      "url": "https://github.com/officecli/officedex",
+      "clone_url": "https://github.com/officecli/officedex.git",
+      "ssh_url": "git@github.com:officecli/officedex.git",
+      "homepage": "https://officecli.io",
+      "created_at": "2026-05-18T03:04:37Z",
+      "updated_at": "2026-06-02T04:48:03Z",
+      "pushed_at": "2026-06-01T19:28:14Z"
+    },
+    "stats": {
+      "stars": 214,
+      "forks": 38,
+      "watchers": 214,
+      "open_issues": 6,
+      "size": 59815
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 492408,
+        "TypeScript": 61346,
+        "JavaScript": 27987,
+        "HTML": 920
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "ai",
+        "desktop-app",
+        "document-generation",
+        "docx",
+        "golang",
+        "notion",
+        "office",
+        "officedex",
+        "pptx",
+        "react",
+        "typescript",
+        "wails",
+        "xlsx"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"docs/screenshots/logo-horizontal.png\" alt=\"OfficeDex\" width=\"360\" />\n\n### The First AI-Native VibeOfficing Platform\n\n**VibeCoding writes code. VibeOfficing writes documents. Powered by OfficeDex.**\n\n<br/>\n\n<p>\n  <img src=\"https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-37352f?style=flat-square\" alt=\"Platform\" />\n  <img src=\"https://img.shields.io/github/v/release/officecli/officedex?style=flat-square&color=5645d4&label=version\" alt=\"Version\" />\n  <img src=\"https://img.shields.io/badge/stack-Wails%20v2%20%2B%20React%2019-0075de?style=flat-square\" alt=\"Stack\" />\n  <img src=\"https://img.shields.io/badge/license-GPL--3.0-1aae39?style=flat-square\" alt=\"License\" />\n</p>\n\n<p>\n  <a href=\"https://officecli.io\"><img src=\"https://img.shields.io/badge/website-officecli.io-0f766e?style=flat-square\" alt=\"Website\" /></a>\n  <a href=\"https://github.com/officecli/officecli\"><img src=\"https://img.shields.io/badge/GitHub-officecli%2Fofficecli-181717?style=flat-square&logo=github&logoColor=white\" alt=\"GitHub officecli\" /></a>\n  <a href=\"https://discord.gg/ezAHMkdG\"><img src=\"https://img.shields.io/badge/community-Discord-5865F2?style=flat-square&logo=discord&logoColor=white\" alt=\"Discord\" /></a>\n  <a href=\"https://x.com/officecli\"><img src=\"https://img.shields.io/badge/follow-%40officecli-000000?style=flat-square&logo=x&logoColor=white\" alt=\"X\" /></a>\n</p>\n\n</div>\n\n---\n\n## 💡 VibeOfficing\n\nDevelopers already **VibeCode** — describe intent, AI writes the program.\n**VibeOfficing** is the same paradigm for documents.\n\n> Say what you need → OfficeDex produces native `.docx` / `.pptx` / `.xlsx` directly.\n\n- **Understands OOXML** formats, templates, and layout conventions — the same way coding AI understands languages, frameworks, and design patterns\n- **No intermediate HTML.** No copy-paste. No manual formatting.\n- The output **is** the final file.\n\n![VibeCoding = VibeOfficing](docs/screenshots/vibeofficing-analogy.png)\n\n| Coding World                         | Office World                                                     | What AI Learns        |\n| ------------------------------------ | ---------------------------------------------------------------- | --------------------- |\n| Languages (Python / Go / TS)         | Formats (OOXML: .docx / .pptx / .xlsx)                           | **Syntax**            |\n| Frameworks (React / Django / Spring) | Templates (quarterly reports, pitch decks, competitive analysis) | **Structure**         |\n| Design patterns (MVC / Observer)     | Layout habits (heading hierarchy, color schemes, chart styles)   | **Style conventions** |\n\n### Memory · Format · Agent\n\nOfficeDex is not just \"one prompt → one file.\" It's a **document workspace with memory**.\n\n- **Memory** — Remembers your style and design language across sessions. Your 50th report inherits the same polish as your 1st.\n- **Format** — Handles OOXML natively. No HTML rendering, no export-and-pray.\n- **Agent** — Multiple AI agents collaborate: one plans structure, one writes content, one handles formatting.\n\n> **OfficeDex remembers how your documents look — not just what they say.** Digitize your style into OfficeDex — never start from scratch again.\n\n![OfficeDex Engine](docs/screenshots/vibeofficing-engine.png)\n\n---\n\n## ⚡ OfficeDex in 30 Seconds\n\n<table>\n<tr>\n<td width=\"50%\">\n\n**Input**\n\n> \"Write a Q3 sales analysis report focused on the eastern region, include YoY and QoQ charts, target audience is the CFO.\"\n\n</td>\n<td width=\"50%\">\n\n**Output**\n\n📄 `Q3-East-Sales.docx` (12 pages)\n📊 4 data charts + 3 trend analyses\n⏱ Typical generation: 45–90s\n👁 One-click inline preview — no need to open Word\n\n</td>\n</tr>\n</table>\n\n<div align=\"center\">\n\n![30-second demo](docs/screenshots/quick-demo.gif)\n\n<sub>↑ From one sentence to a finished Word doc in under a minute.</sub>\n\n</div>\n\n---\n\n## 📑 Table of Contents\n\n<table>\n<tr>\n<td>\n\n- [⚡ 30-Second Overview](#-officedex-in-30-seconds)\n- [🎯 What is OfficeDex](#-what-is-officedex)\n- [💡 VibeOfficing](#-vibeofficing)\n- [🔥 Why OfficeDex](#-why-officedex)\n\n</td>\n<td>\n\n- [✨ Core Capabilities](#-core-capabilities)\n- [🚀 Quick Start](#-quick-start)\n- [📦 Build & Release](#-build--release)\n\n</td>\n<td>\n\n- [🧩 Architecture](#-architecture)\n- [🎨 Design Language](#-design-language)\n- [🗺 Roadmap](#-roadmap)\n\n</td>\n<td>\n\n- [❓ FAQ](#-faq)\n- [📚 Documentation](#-documentation)\n- [🤝 Feedback & Contributing](#-feedback--contributing)\n\n</td>\n</tr>\n</table>\n\n---\n\n## 🎯 What is OfficeDex\n\nIn one sentence: **Tell it what you want — it generates Word / PPT / Excel for you.**\n\n- 📝 **Natural language to documents** — Type \"write a Q3 sales analysis report\" and get structure, sections, illustrations, and charts automatically\n- 🎨 **Slides in one shot** — Project kickoffs, product launches, industry briefings: built-in templates plus custom prompts\n- 📊 **Spreadsheets & analysis** — Competitive matrices, financial models, survey results — Excel ready out of the box\n- 🖼️ **Image input support",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:57.207041"
+  },
+  {
+    "basic_info": {
+      "name": "DEEIX-Chat",
+      "full_name": "DEEIX-AI/DEEIX-Chat",
+      "owner": "DEEIX-AI",
+      "description": "An enterprise AI workspace for model routing, multimodal chat, files, tools, billing, identity, and operations.",
+      "url": "https://github.com/DEEIX-AI/DEEIX-Chat",
+      "clone_url": "https://github.com/DEEIX-AI/DEEIX-Chat.git",
+      "ssh_url": "git@github.com:DEEIX-AI/DEEIX-Chat.git",
+      "homepage": "https://deeix.com",
+      "created_at": "2026-05-21T08:57:01Z",
+      "updated_at": "2026-06-02T03:51:10Z",
+      "pushed_at": "2026-06-02T03:51:07Z"
+    },
+    "stats": {
+      "stars": 214,
+      "forks": 30,
+      "watchers": 214,
+      "open_issues": 4,
+      "size": 13643
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 3948989,
+        "TypeScript": 3227244,
+        "CSS": 48964,
+        "Python": 14294,
+        "JavaScript": 4839,
+        "Dockerfile": 4301,
+        "Makefile": 1249
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"./frontend/public/logo-white.svg\" />\n    <img src=\"./frontend/public/logo-black.svg\" alt=\"DEEIX Chat\" width=\"160\" />\n  </picture>\n</p>\n\n<p align=\"center\">\n  An enterprise AI workspace for model routing, multimodal chat, files, tools, billing, identity, and operations.\n</p>\n\n<p align=\"center\">\n  English | <a href=\"./README.zh-CN.md\">简体中文</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://deeix.com\"><img alt=\"Website\" src=\"https://img.shields.io/badge/Website-deeix.com-black\" /></a>\n  <a href=\"https://www.apache.org/licenses/LICENSE-2.0\"><img alt=\"License\" src=\"https://img.shields.io/badge/License-Apache%202.0-blue\" /></a>\n  <img alt=\"Next.js\" src=\"https://img.shields.io/badge/Next.js-16-black\" />\n  <img alt=\"React\" src=\"https://img.shields.io/badge/React-19-149eca\" />\n  <img alt=\"Go\" src=\"https://img.shields.io/badge/Go-1.25-00add8\" />\n</p>\n\n## Overview\n\nDEEIX Chat gives teams a unified workspace for working with multiple AI models and providers. It combines multimodal chat, model routing, file and RAG workflows, MCP tools, usage billing, identity, audit logs, and operational controls in one product.\n\nThe architecture is designed for simple deployment, efficient static delivery, and a predictable Go runtime footprint. The admin console centralizes upstream channels, platform model names, routing priority, pricing, subscriptions, users, and security policies, while the conversation workspace keeps the user experience stable and focused.\n\n![DEEIX Chat workspace](./frontend/public/DEEIX-Chat.jpg)\n\n## Features\n\n| Area | Capabilities |\n| --- | --- |\n| Conversations | Multi-branch chat, streaming, retries, edits, feedback, sharing, cloned shared conversations, rich markdown rendering, file cards, model metadata, usage details, and execution traces. |\n| Media generation | Dedicated image generation and image edit flow with task-aware routing, provider-native OpenAI, Google, and xAI image protocols, generated file storage, preview, download, and run history separated from text chat. |\n| Model control plane | Platform model catalog, upstream channels, real upstream models, route bindings, priority and weight routing, model capability JSON, display ordering, vendor mapping, automatic icons, and circuit breaker state. |\n| Provider protocols | OpenAI Responses, Chat Completions, Images Generations, and Images Edits; Anthropic Messages; Google/Gemini Generate Content and Image Generation; xAI Responses, Images Generations, and Images Edits; OpenRouter defaults; and custom OpenAI-compatible routes. |\n| Request governance | Protocol-aware request assembly, user option allowlists and denylists, system-protected fields, previous-response continuation where supported, and context snapshots for review. |\n| Files and RAG | File upload, preview, download, deletion, quota control, MIME detection, text extraction, OCR, full-context injection, image context, chunking, embeddings, and semantic retrieval. |\n| Memory and context | Message-window truncation, token-budget truncation, context compression, conversation memory, long-term user memory, RAG evidence records, and prompt trace inspection. |\n| Tools | Admin-managed MCP servers, tool discovery, per-tool enablement, user-side tool selection, execution limits, retries, trace rendering, and tool result handling. |\n| Billing and payments | Subscription plans, top-ups, balances, token/call/duration/tiered model pricing, free models, prepaid thresholds, usage ledgers, billing snapshots, Stripe Checkout, EPay, and webhook validation. |\n| Identity and security | Local login, registration, session management, HttpOnly refresh cookies, 2FA/TOTP, recovery codes, trusted devices, SSO/OIDC/OAuth providers, contact verification, timezone, and locale. |\n| Administration | Users, roles, auth providers, upstreams, platform models, route bindings, model pricing, subscriptions, balances, usage logs, audit logs, auth events, system events, and runtime settings. |\n| Operations | Efficient static delivery, predictable Go runtime footprint, Docker builds, single-runtime frontend/API serving, Swagger docs, structured logs, request IDs, Redis caching, PostgreSQL pgvector, optional GeoIP, optional OpenTelemetry, and S3-compatible storage. |\n\n<p>\n  <img src=\"./frontend/public/DEEIX-Chat-Image.png\" alt=\"DEEIX Chat image generation\" width=\"32%\" />\n  <img src=\"./frontend/public/DEEIX-Chat-Dark.png\" alt=\"DEEIX Chat dark mode\" width=\"32%\" />\n  <img src=\"./frontend/public/DEEIX-Chat-Usage.png\" alt=\"DEEIX Chat usage and billing\" width=\"32%\" />\n</p>\n\n## Architecture\n\n```text\nfrontend/  Next.js App Router web application\nbackend/   Go API service, domain/application layers, infra adapters, Swagger docs\ndocker/    Optional document extraction and OCR services\n```\n\nBackend code follows a layered structure:\n\n```text\ncmd -> internal/cli -> internal/app\ntransport/http -> application -> repository interfaces -> infra implementations\ndoma",
+      "default_branch": "dev"
+    },
+    "fetched_at": "2026-06-02T05:23:58.505926"
+  },
+  {
+    "basic_info": {
+      "name": "agent-git-service",
+      "full_name": "ngaut/agent-git-service",
+      "owner": "ngaut",
+      "description": "Reimplement GitHub for Agents.",
+      "url": "https://github.com/ngaut/agent-git-service",
+      "clone_url": "https://github.com/ngaut/agent-git-service.git",
+      "ssh_url": "git@github.com:ngaut/agent-git-service.git",
+      "homepage": "",
+      "created_at": "2026-05-09T04:46:31Z",
+      "updated_at": "2026-06-01T07:43:20Z",
+      "pushed_at": "2026-05-30T15:20:10Z"
+    },
+    "stats": {
+      "stars": 162,
+      "forks": 4,
+      "watchers": 162,
+      "open_issues": 0,
+      "size": 16590
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 11409366,
+        "Shell": 285575,
+        "Makefile": 25524,
+        "Python": 17713,
+        "PowerShell": 2600,
+        "Dockerfile": 668,
+        "Batchfile": 26
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agents",
+        "github"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# agent-git-service\n\n**A self-hosted, GitHub-compatible API server for agents, automation, and\ndeveloper workflows.**\n\n[![CI](https://github.com/ngaut/agent-git-service/actions/workflows/ci.yml/badge.svg)](https://github.com/ngaut/agent-git-service/actions/workflows/ci.yml)\n[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)\n[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8.svg)](go.mod)\n\n</div>\n\n`agent-git-service` lets GitHub-speaking clients work with repositories you\nown. It exposes GitHub-style REST v3, GraphQL v4, OAuth device flow, and Git\nSmart HTTP while storing repository data in real bare Git repositories and\nproduct metadata in TiDB/MySQL-compatible storage.\n\nThe development binary is currently named `gh-server`.\n\n## Why\n\nUse `agent-git-service` when you want a GitHub-compatible control plane that can\nrun where your agents run:\n\n- Keep repositories and product metadata under your control.\n- Support existing GitHub clients instead of inventing new client protocols.\n- Give agents durable accounts, tokens, optional human binding, and repository\n  transfer flows.\n- Preserve Git-native clone, fetch, push, refs, diffs, merges, and history in\n  real bare Git repositories.\n- Validate compatibility through the vendored GitHub CLI acceptance suite.\n\n## Enhancements\n\n| Enhancement | What it adds |\n|-------------|--------------|\n| Agent identities | Durable agent accounts, API tokens, optional human binding, and repository transfer flows |\n| Issue workspace | Typing signals, presence, attachments, read state, unread counts, pinned comments, and reactions |\n| Wiki memory | Git-backed pages, history, search, labels, backlinks, and page moves |\n| Semantic search | Optional embedding-backed issue and pull request search |\n| Local operations | Prometheus metrics, readiness checks, structured logs, and a Grafana dashboard |\n\nKnown GitHub-compatibility gaps are tracked in\n[`docs/github-api-compatibility-matrix.md`](docs/github-api-compatibility-matrix.md).\n\n## Quick Start\n\nThis local path uses [TiDB Zero](https://zero.tidbcloud.com/)\nfor a disposable TiDB database.\n\nInstall `curl` and `jq` before running this quickstart. The snippet below uses\nboth tools to create a TiDB Zero instance and build the MySQL DSN.\n\n```bash\ngit clone https://github.com/ngaut/agent-git-service.git\ncd agent-git-service\ncp .env.example .env\n\nZERO_INSTANCE=\"$(\n  curl -fsS -X POST https://zero.tidbapi.com/v1beta1/instances \\\n    -H \"Content-Type: application/json\" \\\n    -d '{\"tag\":\"agent-git-service-quickstart\"}'\n)\"\nexport DB_DSN=\"$(\n  printf '%s' \"$ZERO_INSTANCE\" | jq -r '\n    .instance.connection as $c |\n    \"\\($c.username):\\($c.password)@tcp(\\($c.host):\\($c.port))/test?parseTime=true&timeout=10s&tls=true\"\n  '\n)\"\nprintf 'TiDB Zero claim URL: %s\\n' \"$(\n  printf '%s' \"$ZERO_INSTANCE\" | jq -r '.instance.claimInfo.claimUrl'\n)\"\n\ngo run ./cmd/gh-server\n```\n\nClaim the TiDB Zero instance from its claim URL if you want to keep the database\nafter evaluation. For production, create a TiDB Cloud Starter instance and\nfollow the full [`docs/production-deployment.md`](docs/production-deployment.md)\nguide.\n\nFor the complete local setup, including `gh` CLI, `curl`, and Git push examples,\nsee [`docs/quickstart.md`](docs/quickstart.md).\n\n## Development\n\n```bash\nmake build       # compile gh-server\nmake check       # build + go vet\nmake test-unit   # go test -v ./...\nmake test        # gh CLI acceptance tests; requires a running local server\nmake test-e2e    # shell E2E flows under e2e/\n```\n\nLocal setup helpers:\n\n```bash\nmake setup       # persistent setup with an external DB_DSN\nmake test-setup  # test-only setup using tiup playground\nmake run-bg      # start the local server in the background\nmake stop        # stop it\nmake status      # show local status\n```\n\n`make run-bg` first tries the privileged `github.localhost` listener path used\nby acceptance tests. If passwordless sudo is unavailable, it falls back to port\n`8080`; `make test` will then fail fast because the acceptance suite expects\n`http://github.localhost` on port `80`.\n\n## License\n\nLicensed under the [Apache License 2.0](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:23:59.909008"
+  },
+  {
+    "basic_info": {
+      "name": "karpov-gateway",
+      "full_name": "MiChongs/karpov-gateway",
+      "owner": "MiChongs",
+      "description": "Karpov Gateway — REST API gateway + Next.js console. Go (Gin+gRPC) + PostgreSQL + Redis + OAuth2 (Linux.do) + TOTP 2FA + encrypted credential pool",
+      "url": "https://github.com/MiChongs/karpov-gateway",
+      "clone_url": "https://github.com/MiChongs/karpov-gateway.git",
+      "ssh_url": "git@github.com:MiChongs/karpov-gateway.git",
+      "homepage": null,
+      "created_at": "2026-05-04T06:32:38Z",
+      "updated_at": "2026-06-02T00:52:18Z",
+      "pushed_at": "2026-05-06T21:10:44Z"
+    },
+    "stats": {
+      "stars": 152,
+      "forks": 24,
+      "watchers": 152,
+      "open_issues": 0,
+      "size": 920
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1341865,
+        "TypeScript": 527093,
+        "CSS": 16512,
+        "PLpgSQL": 12354,
+        "HTML": 8354,
+        "Makefile": 4749,
+        "Dockerfile": 3123,
+        "JavaScript": 1683
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Karpov Gateway\n\n> 一体化 API 网关 + 控制台。Go 后端（Gin + gRPC）+ Next.js 前端（App Router + shadcn/ui），自带凭据池、邮件验证、Linux.do OAuth2 SSO、配额计费、TOTP 二步验证。\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)\n[![Go](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)\n[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)\n\n## ✨ Features\n\n- **统一 REST 网关** — 单进程或多 service 模式，gateway → auth/music/pool/quota/billing/worker gRPC 后端可独立部署\n- **凭据池 (encrypted)** — KEK + DEK 信封加密，AES-256-GCM with AAD，POOL_KEK_HEX 主密钥派生\n- **邮箱注册 + 激活** — SMTP 发码 / 激活链接，双重保险（验证码 + 邮件链接），未配置 SMTP 自动 demote 到 LogSender\n- **OAuth2 第三方登录** — Linux.do SSO（PKCE S256 + HMAC 签名 state cookie），登录 / 绑定 / 解绑三态决策，token 加密落库\n- **配额 / 计费** — PlanQuotaMiddleware 在 gateway 层兜底，business service 内部按 plan + scope 二次校验\n- **TOTP 二步** — `pquerna/otp` + Redis 重放保护\n- **审计日志** — 结构化 JSON，按 type 分文件，每天滚动\n- **CSRF + Session** — `sid` httpOnly cookie + `X-CSRF-Token` 头双校验\n- **shadcn/ui 控制台** — Next.js 16 App Router + Radix + Tailwind v4\n\n## 🏗 仓库结构\n\n```\nkarpov-gateway/\n├── gateway/             # Go 后端 (Gin + gRPC)\n│   ├── cmd/             # 各 service 入口 (gateway/auth/music/pool/...)\n│   ├── internal/        # 业务实现 (private)\n│   ├── api/             # protobuf 定义\n│   ├── migrations/      # PostgreSQL schema\n│   ├── go.mod           # Go 模块 (go 1.24+)\n│   └── Dockerfile\n├── web/                 # Next.js 16 前端控制台\n│   ├── src/             # App Router pages + components\n│   ├── middleware.ts    # CSRF / session / CSP nonce\n│   ├── package.json     # pnpm workspace\n│   └── Dockerfile\n├── deploy/\n│   ├── compose/         # 本地开发 (PG + Redis + pgAdmin)\n│   └── compose-prod/    # 生产单机 (gateway + web + PG + Redis 全栈)\n└── .github/workflows/   # GitHub Actions CI (lint / test / build / govulncheck / gosec)\n```\n\n## 🚀 Quick Start\n\n### 1. 前置要求\n\n| 工具       | 版本    |\n| ---------- | ------- |\n| Go         | 1.24+   |\n| Node.js    | 20.11+  |\n| pnpm       | 9+      |\n| Docker     | 24+     |\n| PostgreSQL | 14+     |\n| Redis      | 7+      |\n\n### 2. 启动依赖（Postgres + Redis + pgAdmin）\n\n```bash\ncd deploy/compose\ncp .env.example .env       # 改强密码！\ndocker compose up -d\n```\n\n### 3. 启动 Gateway 后端\n\n```bash\ncd gateway\ncp .env.example .env       # 与 deploy/compose/.env 的 PG/Redis 密码保持一致\ngo mod download\ngo run ./cmd/qqmusic-gateway\n# 默认 :8080 (HTTP) + :9000 (gRPC)\n# 首次启动会在 stderr 打印一个 superadmin 账号 + 临时密码\n```\n\n### 4. 启动 Web 控制台\n\n```bash\ncd web\ncp .env.example .env.local\npnpm install\npnpm dev\n# http://localhost:3000\n```\n\n## 🐳 生产部署 (Docker Compose 单机)\n\n```bash\ncd deploy/compose-prod\ncp .env.example .env\n# 编辑 .env：填入真域名 / 强密码 / SMTP 凭据 / OAuth client\nnano .env\n\n# 生成 KEK\nopenssl rand -hex 32     # → 写到 POOL_KEK_HEX=\n\ndocker compose up -d --build\ndocker compose logs -f gateway\n```\n\n注意事项：\n\n- `NEXT_PUBLIC_APP_URL` 改了**必须** `docker compose build --no-cache web`，因为它会被 inline 进 client bundle\n- 反向代理（Nginx/Caddy）后必须开 `TRUST_PROXY=true`，否则 X-Forwarded-Proto 不生效\n- KEK 一旦改变，旧凭据池 / 旧 OAuth token **全部不可读**\n\n## 🔐 OAuth2 (Linux.do) 接入\n\n1. 去 [https://connect.linux.do](https://connect.linux.do) 申请应用\n2. 回调地址填：`https://your-domain/v1/auth/oauth/linuxdo/callback`\n3. 把拿到的 client_id / client_secret 写到 `.env`：\n   ```\n   OAUTH_LINUXDO_ENABLED=true\n   OAUTH_LINUXDO_CLIENT_ID=...\n   OAUTH_LINUXDO_CLIENT_SECRET=...\n   OAUTH_LINUXDO_MIN_TRUST_LEVEL=1\n   OAUTH_PUBLIC_BASE=https://your-domain\n   OAUTH_FRONTEND_BASE=https://your-domain\n   ```\n4. 重启 gateway，登录页 / 注册页会自动出现 \"Linux.do 一键登录\"\n\n## 🧪 测试 / Lint\n\n```bash\n# Go\ncd gateway\ngo vet ./...\ngo test -race ./...\ngolangci-lint run --timeout=5m\n\n# Web\ncd web\npnpm lint\npnpm typecheck\n```\n\n## 📦 关键依赖\n\n**后端**：\n\n- [gin-gonic/gin](https://github.com/gin-gonic/gin) — HTTP 框架\n- [grpc-ecosystem](https://github.com/grpc-ecosystem) — gRPC + gateway\n- [jackc/pgx](https://github.com/jackc/pgx/v5) — PostgreSQL 驱动\n- [redis/go-redis](https://github.com/redis/go-redis) — Redis 客户端\n- [golang.org/x/oauth2](https://pkg.go.dev/golang.org/x/oauth2) — OAuth2 / PKCE\n- [pquerna/otp](https://github.com/pquerna/otp) — TOTP\n\n**前端**：\n\n- [Next.js 16](https://nextjs.org/) (App Router + Turbopack)\n- [shadcn/ui](https://ui.shadcn.com/) + [Radix](https://www.radix-ui.com/)\n- [Tailwind CSS v4](https://tailwindcss.com/)\n- [next-auth-csrf](https://github.com/edge-runtime/) edge-safe CSRF\n\n## 📜 License\n\nMIT — 见 [LICENSE](./LICENSE)\n\n## 🤝 Contributing\n\nPR / Issue 欢迎。提 PR 前请：\n\n1. `golangci-lint run` + `gofmt -l .` 全绿\n2. `go test -race ./...` 全绿\n3. Web 改动跑 `pnpm lint && pnpm typecheck`\n4. 不要提交 `.env` / `data/.kek` 或任何包含真实密码的文件\n\n## 🔒 Security\n\n发现安全问题请直接联系 maintainer，**不要**开 public issue。\n\n---\n\nBuilt with ❤️ by [MiChongs](https://github.com/MiChongs)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:24:01.232696"
+  },
+  {
+    "basic_info": {
+      "name": "gograph",
+      "full_name": "ozgurcd/gograph",
+      "owner": "ozgurcd",
+      "description": "A fast, local-only CLI tool to generate repository structures and improve IDE context awareness for Go codebases.",
+      "url": "https://github.com/ozgurcd/gograph",
+      "clone_url": "https://github.com/ozgurcd/gograph.git",
+      "ssh_url": "git@github.com:ozgurcd/gograph.git",
+      "homepage": "https://github.com/ozgurcd/gograph",
+      "created_at": "2026-05-08T23:15:18Z",
+      "updated_at": "2026-06-01T13:40:07Z",
+      "pushed_at": "2026-05-31T00:27:39Z"
+    },
+    "stats": {
+      "stars": 150,
+      "forks": 10,
+      "watchers": 150,
+      "open_issues": 0,
+      "size": 39805
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 666376,
+        "HTML": 661510,
+        "CSS": 24998,
+        "JavaScript": 5711,
+        "Makefile": 2072,
+        "Dockerfile": 278
+      },
+      "license": "MIT License",
+      "topics": [
+        "agentic-coding",
+        "ai-agent",
+        "ai-coding-assistant",
+        "antigravity",
+        "ast",
+        "claude-code",
+        "cli",
+        "code-analysis",
+        "code-navigation",
+        "developer-tools",
+        "go",
+        "golang",
+        "mcp-server",
+        "opencode",
+        "static-analysis"
+      ]
+    },
+    "content": {
+      "readme": "# gograph\n\n[![Go Report Card](https://goreportcard.com/badge/github.com/ozgurcd/gograph)](https://goreportcard.com/report/github.com/ozgurcd/gograph)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n\n`gograph` is a local AST/type-aware Go repository context indexer for AI coding agents.\n\n![Gograph Demo](gograph-demo.gif)\n\nIt builds a compact graph of packages, symbols, calls, routes, config reads, tests, and code-quality signals so agents can navigate Go repositories with fewer raw file reads.\n\n> **Note on Language Support:** I originally built `gograph` specifically for **Golang** because that is what I needed for my own workflows. It currently only parses and maps Go codebases. However, the architecture is extensible! If you want to add support for other languages (Python, TypeScript, Rust, etc.), **contributions are more than welcome.** Please see the [Contributing Guide](CONTRIBUTING.md) to get started.\n\n## Why not use a Language Server (`gopls`)?\n\nWhile `gopls` has access to similar AST and type data, connecting an AI coding agent to a Language Server is notoriously difficult and inefficient:\n\n1. **Protocol Mismatch:** AI agents operate inside terminal environments. `gopls` communicates via JSON-RPC over `stdin/stdout`. While you can invoke some `gopls` CLI commands, it usually returns raw file coordinates (`file:line:col`). This forces the agent to burn tokens running `cat` or `sed` to actually read the referenced code.\n2. **LLM-Optimized Output:** `gograph` doesn't just find coordinates; it physically extracts the exact structural slice (the struct body, the interface, the method) and formats it natively in Markdown. The AI reads exactly what it needs in one shot with zero surrounding file noise.\n3. **Graph-Level Diagnostics:** Language servers are built for point-in-time human IDE features (like hover or go-to-definition). `gograph` is built for systemic graph traversal. For example, `gograph trace \"parse failed\"` performs a reverse-BFS from an error string all the way up the call stack to the HTTP entry point. `gograph impact` calculates the full blast radius of a code change. `gopls` doesn't natively perform graph-traversal diagnostics like this out of the box.\n\nIn short: `gopls` is optimized for human IDEs. `gograph` is optimized for terminal-based LLMs trying to save context tokens.\n\n## Features\n- **Local Only:** Graph building performs no network calls and sends no source code to external APIs. MCP integration is local stdio-based.\n- **Go Focused:** Maps Go project structures, packages, and dependencies using the standard AST.\n- **Targeted Focus:** Extract incredibly targeted context for a single package using `focus` to save LLM tokens.\n- **Token-Saving Context Bundle:** `context <symbol>` replaces 4–5 separate tool calls — returns node, source, callers, callees, and tests in one response.\n- **Hotspot Ranking:** `hotspot` ranks functions by incoming call count so agents know which functions to study first.\n- **Code Quality Analysis:** Cyclomatic complexity (`complexity`), god-object detection (`godobj`), and package coupling/instability (`coupling`).\n- **Change Detection:** `changes` surfaces new/modified/deleted symbols since the last build without re-reading source files. `changes --git <ref>` scopes the same output to files changed since any git ref (branch, tag, or commit).\n- **Dependency Trees:** `deps <pkg> [--transitive]` shows direct or full transitive import closures for any package.\n- **Tech Stack Extraction:** Automatically parses `go.mod` to summarize your external dependencies (like `gin` or `pgx`) so agents instantly understand your stack.\n- **Concurrency Mapping:** Detects goroutine spawns, channel sends, mutex locks, WaitGroup usage, and `sync.Once.Do` calls across the entire codebase.\n- **Interface Satisfaction:** Best-effort duck-typing analysis that tells you which interfaces any struct satisfies — without running the compiler.\n- **Test Coverage Map:** Best-effort mapping that links `Test*` functions to the production symbols they likely exercise.\n- **Environment Config:** Surfaces every `os.Getenv` / `viper.Get*` read with file, line, and enclosing function.\n- **Pathfinding:** `path <from> <to>` finds the shortest call chain between any two symbols via BFS.\n- **Dead Code Detection:** `orphans` uses full reachability analysis from entry points — stricter than simple 0-call-count checks.\n- **Clean Graph (No Generated Files):** Uses strict line-based detection to automatically exclude generated files like mocks or protobufs.\n- **Fast:** Written in Go for high performance.\n\n## Non-goals\n- No multi-language parsing.\n- No AI/model API calls.\n- No embeddings.\n- No SaaS backend.\n- No telemetry.\n- No replacement for compiler/type-checker correctness.\n- No guarantee that heuristic extractors find every route, SQL query, test relation, or dynamic call.\n\n## Correctness model\n- **Default mode** uses Go AST parsing and best-effor",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:24:02.594369"
+  },
+  {
+    "basic_info": {
+      "name": "rstaspoof",
+      "full_name": "rstagit/rstaspoof",
+      "owner": "rstagit",
+      "description": "ابزار دور زدن DPI با جعل SNI — پشتیبانی از Termux/Android/Linux",
+      "url": "https://github.com/rstagit/rstaspoof",
+      "clone_url": "https://github.com/rstagit/rstaspoof.git",
+      "ssh_url": "git@github.com:rstagit/rstaspoof.git",
+      "homepage": null,
+      "created_at": "2026-05-31T13:56:58Z",
+      "updated_at": "2026-06-02T05:13:16Z",
+      "pushed_at": "2026-06-01T18:32:20Z"
+    },
+    "stats": {
+      "stars": 145,
+      "forks": 25,
+      "watchers": 145,
+      "open_issues": 4,
+      "size": 16442
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 48863
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "نسخه اندروید پروژه رو یکی از دوستان زحمت کشیده.\n\nداخل نسخه اندروید یه ای پی تمیز کلود فلر نیاز دارین. بذارین جای ای پی بعد اپ رو استارت میکنین.\nبعدش میرین داخل v2rayng یا برنامه دیگه برنامه rsta spoof رو داخل برنامه هایی که تونل نمیشن میذارین.\nویدیو آموزشم فایل mp4 همین جا هست.\n\nگروه پروژه:\nhttps://t.me/rstasnispoof\n\n\n\n# RSTA SNI Spoof v3.0.0\n\nابزار دور زدن فیلترینگ با روش جعل SNI و فرگمنتیشن TLS  \nنوشته شده به زبان Go — بدون نیاز به روت — قابل اجرا روی Termux/Android/Linux\n\n---\n\n## ویژگی‌ها\n\n- جعل SNI برای فریب سیستم‌های DPI\n- فرگمنتیشن TLS ClientHello با روش‌های مختلف\n- ترفند TTL برای گیج کردن فایروال\n- مانیتور real-time اتصال‌ها\n- بدون نیاز به روت\n- پشتیبانی از Termux / Android / Linux / macOS\n\n---\n\n## نصب و اجرا روی Termux\n\n```bash\npkg install golang git\ngit clone https://github.com/rstagit/rstaspoof.git\ncd rstaspoof\ngo run rstaspoof.go -tddd\n```\n\n---\n\n## روش‌های استفاده\n\n**حالت سریع (پیش‌فرض):**\n```bash\ngo run rstaspoof.go -tddd\n```\n\n**حالت دستی=> در صورتی که پیش فرض کار نداد:**\nآی پی تمیز کلود فلرو اسکن کنین جایگزین کنین.\n```bash\ngo run rstaspoof.go -listen :40443 -connect IP:443 -sni www.hcaptcha.com -method combined\n```\n\n**کامپایل و اجرا:**\n```bash\ngo build -o rstaspoof rstaspoof.go\n./rstaspoof -tddd\n```\n\n---\n\n## آرگومان‌ها\n\n| آرگومان | توضیح | پیش‌فرض |\n|--------|-------|---------|\n| `-listen` | آدرس و پورت پروکسی محلی | `0.0.0.0:40443` |\n| `-connect` | سرور مقصد | `104.18.38.202:443` |\n| `-sni` | دامنه جعلی برای SNI | `cdnjs.cloudflare.com` |\n| `-method` | روش bypass | `fragment` |\n| `-fragment-strategy` | استراتژی فرگمنت | `sni_split` |\n| `-fragment-delay` | تأخیر بین فرگمنت‌ها (ثانیه) | `0.1` |\n| `-ttl-trick` | فعال‌سازی ترفند TTL | - |\n| `-config` | بارگذاری تنظیمات از فایل JSON | - |\n| `-quiet` | حذف خروجی غیرضروری | - |\n| `-no-monitor` | غیرفعال کردن مانیتور | - |\n| `-info` | نمایش قابلیت‌های سیستم | - |\n| `-generate-config` | ساخت فایل تنظیمات پیش‌فرض | - |\n\n---\n\n## روش‌های Bypass\n\n| روش | توضیح |\n|-----|-------|\n| `fragment` | تقسیم ClientHello در محل SNI. بدون نیاز به روت |\n| `fake_sni` | ارسال SNI جعلی با ترفند TTL |\n| `combined` | ترکیب هر دو روش — بهترین نتیجه |\n\n---\n\n## استراتژی‌های فرگمنت\n\n| استراتژی | توضیح |\n|---------|-------|\n| `sni_split` | تقسیم دقیق در محل مقدار SNI *(پیشنهادی)* |\n| `half` | تقسیم به دو نیم |\n| `multi` | تقسیم به تکه‌های ۲۴ بایتی |\n| `tls_record_frag` | فرگمنتیشن در سطح TLS record |\n\n---\n\n## فایل تنظیمات (JSON)\n\n```bash\ngo run rstaspoof.go -generate-config config.json\ngo run rstaspoof.go -config config.json\n```\n\n---\n\n## تنظیم برنامه\n\nبعد از اجرا، پروکسی روی `127.0.0.1:40443` فعال می‌شه.  \nدر برنامه‌ای که می‌خوای از پروکسی استفاده کنه، آدرس پروکسی رو روی:\n\n```\n127.0.0.1:40443\n```\n\nتنظیم کن.\n\n---\n\n## گروه تلگرام\n\nبرای پشتیبانی، سوال و به‌روزرسانی‌ها عضو گروه تلگرام بشید:\n\n**[@rstasnispoof](https://t.me/rstasnispoof)**\n\n---\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:24:03.946668"
+  },
+  {
+    "basic_info": {
+      "name": "saboteur",
+      "full_name": "vadimsemenykv/saboteur",
+      "owner": "vadimsemenykv",
+      "description": null,
+      "url": "https://github.com/vadimsemenykv/saboteur",
+      "clone_url": "https://github.com/vadimsemenykv/saboteur.git",
+      "ssh_url": "git@github.com:vadimsemenykv/saboteur.git",
+      "homepage": null,
+      "created_at": "2026-05-15T18:07:46Z",
+      "updated_at": "2026-06-02T04:33:04Z",
+      "pushed_at": "2026-05-18T14:43:49Z"
+    },
+    "stats": {
+      "stars": 145,
+      "forks": 2,
+      "watchers": 145,
+      "open_issues": 1,
+      "size": 9240
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 78459,
+        "JavaScript": 11646,
+        "HTML": 7511,
+        "CSS": 6072,
+        "Dockerfile": 516,
+        "Shell": 440
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Saboteur — HTTP Fault Injection Proxy\n\nA lightweight HTTP-layer fault injection proxy. Intercepts traffic and injects configurable faults based on rules — useful for testing service resilience in development and CI/CD.\n\n**Key differentiator from Toxiproxy:** operates at HTTP layer — understands URLs, methods, headers, and response bodies. Not TCP-level.\n\n---\n\n## Quickstart\n\n```bash\ndocker run -p 8080:8080 -p 8081:8081 \\\n  -e UPSTREAM_URL=http://my-service:3000 \\\n  yourname/saboteur\n```\n\n- **Port 8080** — proxy (send your real traffic here)\n- **Port 8081** — control UI + API (manage rules, view traffic)\n\nOpen `http://localhost:8081` in your browser to use the web UI.\n\n---\n\n## With a config file\n\n```bash\ndocker run -p 8080:8080 -p 8081:8081 \\\n  -v $(pwd)/config/example.yaml:/etc/saboteur/config.yaml \\\n  yourname/saboteur --config /etc/saboteur/config.yaml\n```\n\n---\n\n## Docker Compose\n\n```bash\ndocker compose up\n```\n\nUses `docker-compose.yml` in the repo root. Spins up `saboteur` + a mock upstream (`hashicorp/http-echo`).\n\n---\n\n## Configuration Reference\n\nAll settings can be provided via YAML file or environment variables.\n\n| YAML key | Env var | Default | Description |\n|----------|---------|---------|-------------|\n| `proxy.upstream_url` | `UPSTREAM_URL` | *(required)* | URL to proxy traffic to |\n| `proxy.port` | `PROXY_PORT` | `8080` | Proxy listener port |\n| `proxy.timeout_ms` | — | `30000` | Upstream request timeout |\n| `proxy.max_idle_conns` | — | `100` | Max idle upstream connections |\n| `control.port` | `CONTROL_PORT` | `8081` | Control API + UI port |\n| `control.bind` | `CONTROL_BIND` | `0.0.0.0` | Control bind address |\n| `control.api_key` | `API_KEY` | *(none)* | If set, require `X-API-Key` header on control API |\n| `traffic_log.max_entries` | `TRAFFIC_LOG_SIZE` | `1000` | Ring-buffer size |\n| `log_level` | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |\n| `log_format` | `LOG_FORMAT` | `json` | `json` / `text` |\n\n---\n\n## Fault Types\n\n### Latency\n\nAdd delay before forwarding or returning.\n\n```yaml\nfault:\n  type: latency\n  mode: fixed       # fixed | uniform | normal\n  fixed_ms: 500\n  apply_to: request # request | response\n```\n\n### Error Response\n\nReturn a specific status without hitting upstream.\n\n```yaml\nfault:\n  type: error\n  status_code: 503\n  body: '{\"error\":\"down\"}'\n  headers:\n    Retry-After: \"30\"\n```\n\n### Connection Abort\n\nDrop the connection after N bytes.\n\n```yaml\nfault:\n  type: abort\n  after_bytes: 0    # 0 = drop immediately\n```\n\n### Timeout\n\nAccept connection, forward to upstream, never respond.\n\n```yaml\nfault:\n  type: timeout\n```\n\n### Body Corruption\n\nReplace the upstream response body.\n\n```yaml\nfault:\n  type: body_corrupt\n  mode: json_invalid  # empty | random_bytes | json_invalid | truncate\n  truncate_bytes: 100 # for truncate mode\n```\n\n### Header Injection\n\nAdd or override headers on request or response.\n\n```yaml\nfault:\n  type: header_inject\n  apply_to: response   # request | response\n  headers:\n    X-Injected: \"true\"\n```\n\n### Bandwidth Throttle\n\nRate-limit response streaming.\n\n```yaml\nfault:\n  type: throttle\n  bytes_per_second: 1024\n```\n\n---\n\n## Rule System\n\nRules are evaluated in priority order (lower number = higher priority). A request matches the **first** rule where all matcher conditions are satisfied.\n\n```yaml\nrules:\n  - id: \"payment-errors\"\n    enabled: true\n    priority: 10\n    description: \"503 on 20% of EU payment POSTs\"\n    match:\n      path_prefix: \"/api/payment\"\n      methods: [POST]\n      headers:\n        X-Region: \"EU\"\n    percentage: 20        # 0-100; fraction of matching requests that get the fault\n    fault:\n      type: error\n      status_code: 503\n      body: '{\"error\":\"unavailable\"}'\n```\n\n### Matcher fields (all optional; unset = match anything)\n\n| Field | Description |\n|-------|-------------|\n| `path` | Exact URL path |\n| `path_prefix` | URL path prefix |\n| `path_regex` | RE2 regex on URL path |\n| `methods` | HTTP methods (empty = all) |\n| `headers` | All listed headers must match |\n| `query_params` | All listed query params must match |\n\n---\n\n## Control API Overview\n\nBase URL: `http://localhost:8081`\n\n| Method | Path | Description |\n|--------|------|-------------|\n| GET | `/health` | Health check |\n| GET | `/metrics` | Prometheus metrics |\n| GET | `/api/rules` | List all rules |\n| POST | `/api/rules` | Create rule |\n| GET | `/api/rules/{id}` | Get rule |\n| PUT | `/api/rules/{id}` | Replace rule |\n| PATCH | `/api/rules/{id}` | Update fields (enabled, priority, percentage) |\n| DELETE | `/api/rules/{id}` | Delete rule |\n| POST | `/api/rules/reset` | Delete all runtime rules (preserves config-file rules) |\n| GET | `/api/traffic` | Traffic log (`?limit=100&path_filter=&fault_only=true`) |\n| DELETE | `/api/traffic` | Clear traffic log |\n| GET | `/api/traffic/stream` | SSE stream of live traffic |\n| GET | `/api/config` | Current effective configuration |\n\nFull spec: [`openapi.yaml`](openapi.yaml)\n\n### API Key auth\n\n```bash\ncurl -H \"X-API-Key: mysecret\" ht",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:24:05.365528"
+  },
+  {
+    "basic_info": {
+      "name": "whitelist-bypass-iran",
+      "full_name": "kulikov0/whitelist-bypass-iran",
+      "owner": "kulikov0",
+      "description": null,
+      "url": "https://github.com/kulikov0/whitelist-bypass-iran",
+      "clone_url": "https://github.com/kulikov0/whitelist-bypass-iran.git",
+      "ssh_url": "git@github.com:kulikov0/whitelist-bypass-iran.git",
+      "homepage": null,
+      "created_at": "2026-05-11T19:49:16Z",
+      "updated_at": "2026-06-01T20:22:27Z",
+      "pushed_at": "2026-05-16T07:19:47Z"
+    },
+    "stats": {
+      "stars": 143,
+      "forks": 35,
+      "watchers": 143,
+      "open_issues": 4,
+      "size": 262795
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 165199,
+        "Kotlin": 68428,
+        "Shell": 37586,
+        "TypeScript": 35845,
+        "Swift": 27885,
+        "CSS": 9168,
+        "JavaScript": 8427,
+        "HTML": 5049
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Whitelist Bypass (Bale)\n\nTunnels internet traffic through the Bale Meet video calling platform to bypass government whitelist censorship.\n\nFork of [whitelist-bypass](https://github.com/eduarddeisling/whitelist-bypass) (VK / Telemost / WB Stream) adapted to Bale Meet.\n\n## Setup\n\nStep-by-step setup guides:\n\n- English: [docs/en/SETUP.md](docs/en/SETUP.md), VPS deployment: [docs/en/VPS.md](docs/en/VPS.md)\n- فارسی: [docs/fa/SETUP.md](docs/fa/SETUP.md), استقرار VPS: [docs/fa/VPS.md](docs/fa/VPS.md)\n\n## How it works\n\nTwo tunnel modes are available: **Video** (VP8 data encoding) and **DC** (DataChannel).\nThe headless creator adapts to whichever mode the joiner picks at connect time, on every new session.\n\n### Video mode\n\nThe tunnel rides on a published VP8 video track. Tunnel framing and the multiplex layer above it are the same as in the upstream project's video mode.\n\n```\nJoiner (censored, Android/iOS/Desktop)              Creator (free internet)\n\nAll apps\n  |\nVpnService (captures all traffic)\n  |\ntun2socks (IP -> TCP)\n  |\nSOCKS5 proxy (Go, :1080)\n  |\nHeadless joiner (Pion)                    Headless creator (Pion)\n  |                                         |\nVP8 video track  <----- SFU ------>  VP8 video track\n                                            |\n                                        Relay bridge\n                                            |\n                                        Internet\n```\n\n### DC mode\n\nSame pipeline, but the tunnel rides on a SCTP DataChannel instead of a VP8 video track. Lower peak throughput than VP8 but a bit lighter on CPU. Tunnel framing and multiplex are the same as Video mode.\n\nTraffic goes through the Bale SFU, which is on the government whitelist. To DPI it looks like a normal video call.\n\n## Components\n\n- `relay/` - Go relay shared by both ends: SOCKS5 proxy, tun2socks plumbing, VP8 and DC tunnels, ChaCha20 obfuscator, connection multiplexer, gomobile and iOS bindings\n- `relay/bale/` - shared Bale wire format and LiveKit session glue, used by both creator and joiner\n- `relay/tunnel/sequenced.go` - 4-byte sequence number and 16-frame reorder buffer wrapping the VP8 tunnel (Bale's SFU reorders frequently enough that a non-sequenced tunnel collapses under TCP)\n- `relay/tunnel/dctunnel.go` - DataChannel tunnel wrapper with LiveKit DataPacket framing\n- `headless/bale/` - Headless Bale creator: creates a call via the Bale HTTP/WS API, Pion VP8/DC tunnel, no browser\n- `headless/bale-joiner/` - Desktop Bale joiner (counterpart to the creator, used for tests and Linux clients)\n- `headless/tests/` - End-to-end smoke tests\n- `android-app/` - Android joiner: VpnService + tun2socks + headless Pion\n- `ios-proxy-app/` - iOS joiner: SOCKS5 + headless Pion via the gomobile xcframework\n- `creator-app/` - Electron desktop creator app: GUI front-end that spawns the headless Go binary; suitable for both interactive use and deployments\n- `joiner-desktop-app/` - Electron desktop joiner app: GUI front-end for Windows/macOS/Linux with system VPN (TUN) and SOCKS5-only modes\n\n## Download\n\nPrebuilt binaries are available on [GitHub Releases](../../releases).\n\n### Creator side (free internet, desktop)\n\nDownload and run the Electron Creator app from [GitHub Releases](../../releases). It bundles the Go relay automatically.\n\n1. Open the app\n2. Click **+** to open a new tab\n3. Click **Bale**\n4. Log in to Bale and the app creates a call automatically\n5. Copy the join link, send it to the joiner\n\nFor running the Creator headless on a server, see [docs/en/VPS.md](docs/en/VPS.md).\n\n### Joiner side (censored)\n\nFour forms are available; pick whichever fits the device:\n\n- **Android** - install `whitelist-bypass.apk` from [Releases](../../releases). Allow the VPN prompt on first launch. Paste the join link and tap GO; system-wide traffic flows through the call.\n- **iOS** - install `whitelist-bypass-proxy.ipa` from [Releases](../../releases) (sideload via AltStore, Sideloadly, or your developer account). Exposes a local SOCKS5 proxy only, no system VPN. To proxy the whole device, point any SOCKS5-capable VPN app (Happ, Shadowrocket, Streisand, ...) at the SOCKS5 endpoint the app shows; or set the proxy per app (Telegram has built-in support).\n- **Desktop (Windows / macOS / Linux)** - install `WhitelistBypass Joiner` (`.exe` / `.dmg` / `.AppImage`) from [Releases](../../releases). GUI joiner that can either bring up a system VPN (TUN) tunnel or run as a local SOCKS5 proxy. TUN mode needs admin/root.\n- **Linux headless** - run the headless joiner; it exposes a SOCKS5 proxy on the given port for whatever you point at it. Useful for servers and Linux clients. Optional `--socks-user` / `--socks-pass` enable SOCKS5 username/password auth.\n  - `headless-bale-joiner --join-link <link> --socks-port 1080 [--socks-user u --socks-pass p]`\n\nThe full step-by-step covers each platform in detail: see [docs/en/SETUP.md](docs/en/SETUP.md) (or [docs/fa/SETUP.md](docs/fa/SETUP.md) in Persian).\n\n## Building from source\n\n### Req",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-02T05:24:06.752030"
+  }
+]

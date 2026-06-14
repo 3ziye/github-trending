@@ -1,0 +1,136 @@
+<div align="center">
+
+<img src="assets/img/logo.png" width="160" alt="VibeSearchBench Logo">
+
+# VibeSearchBench
+
+[![Tasks](https://img.shields.io/badge/tasks-200-blue)](#tasks)
+[![Best F1](https://img.shields.io/badge/best_triplet_F1-30.3-green)](#leaderboard)
+[![Paper](https://img.shields.io/badge/paper-PDF-red)](https://huggingface.co/papers/2605.27882)
+[![Leaderboard](https://img.shields.io/badge/leaderboard-live-purple)](https://vibebench.github.io/VibeSearchBench.github.io/leaderboard.html)
+[![Project Page](https://img.shields.io/badge/project_page-live-2563eb)](https://vibebench.github.io/VibeSearchBench.github.io/)
+[![Dataset](https://img.shields.io/badge/🤗-Dataset-yellow)](https://huggingface.co/datasets/VibeSearchBench/VibeSearchBench)
+[![License](https://img.shields.io/badge/license-MIT-orange)](LICENSE)
+
+> <span style="color:#dc2626;background:rgba(220,38,38,0.12);padding:0.15em 0.4em;border-radius:4px;font-weight:800;box-shadow:inset 0 -2px 0 rgba(220,38,38,0.45)">Hardest</span> — vague multi-turn proactive search in the wild.<br>
+> <span style="color:#15803d;background:rgba(22,163,74,0.14);padding:0.15em 0.4em;border-radius:4px;font-weight:800;box-shadow:inset 0 -2px 0 rgba(22,163,74,0.4)">Verifiable</span> — schema-free knowledge graph evaluation.<br>
+> <span style="color:#7c3aed;background:rgba(124,58,237,0.14);padding:0.15em 0.4em;border-radius:4px;font-weight:800;box-shadow:inset 0 -2px 0 rgba(124,58,237,0.4)">Long-horizon</span> — persona-driven progressive disclosure.
+
+</div>
+
+---
+
+## Leaderboard
+
+Browse the full leaderboard and multi-turn task trajectories at **[vibebench.github.io/VibeSearchBench.github.io](https://vibebench.github.io/VibeSearchBench.github.io/)**.
+
+**Evaluation:**
+
+* **Primary metric: Triplet F1.** Predicted knowledge graphs are matched against ground truth via LLM-as-judge node alignment and triplet semantic equivalence.
+* **Multi-turn interaction.** Each task uses a persona-driven user simulator with progressive disclosure; agents may search, visit pages, and run code across many turns.
+* **Best reported score:** **30.3** triplet F1 (Claude Opus 4.6, OpenClaw).
+
+## Tasks
+
+200 tasks across 2 subsets and 20 domains. Each task pairs a vague initial query with a ground-truth knowledge graph.
+
+| Split | Count | Description |
+|-------|-------|-------------|
+| `pro` | 100 | Professional research — literature reviews, market analysis, technical due diligence |
+| `daily` | 100 | Daily-life search — shopping, travel, lifestyle with evolving preferences |
+
+Real users rarely specify full intent upfront. **VibeSearch** captures bidirectional convergence: agents interleave partial results with follow-up questions while users progressively disclose needs.
+
+### Dataset
+
+Available on Hugging Face: [VibeSearchBench/VibeSearchBench](https://huggingface.co/datasets/VibeSearchBench/VibeSearchBench)
+
+| Field | Description |
+|-------|-------------|
+| `qid` | Unique task identifier |
+| `question` | Full research query with constraints |
+| `user_persona` | Persona for the progressive-disclosure simulator |
+| `nodes` / `triples` | Ground-truth knowledge graph |
+
+---
+
+## Quick Start
+
+### GeneralAgent (LLM-based)
+
+Uses an OpenAI-compatible LLM to drive multi-step web research.
+
+```bash
+# Full pipeline (inference + evaluation)
+MODEL_NAME=glm-5.1 VLLM_URL=http://host/v1 bash scripts/run_all.sh
+
+# Inference only
+MODEL_NAME=kimi-k2.5 VLLM_URL=http://host/v1 bash scripts/run_inference.sh
+
+# With model config profile
+MODEL_CONFIG=model_config.yaml MODEL_PROFILE=seed2_0_pro bash scripts/run_all.sh
+```
+
+### OpenClaw Agent (CLI-based)
+
+Wraps the OpenClaw CLI into the benchmark. Requires a running OpenClaw gateway.
+
+```bash
+# Default (simulated mode)
+bash scripts/run_openclaw.sh
+
+# Direct mode (no user simulation)
+MODE=direct bash scripts/run_openclaw.sh
+
+# Custom data and model
+DATA_PATH=tasks/my_tasks MODE=simulated OPENCLAW_MODEL=my-model bash scripts/run_openclaw.sh
+```
+
+Key OpenClaw env vars: `GATEWAY_PORT` (default 18789), `SOURCE_DIR`, `IDLE_THRESHOLD`, `MAX_NUDGE`, `OPENCLAW_MODEL`.
+
+### Evaluation Only
+
+```bash
+TRAJS_DIR=results/trajs/glm-5.1_custom_serper bash scripts/run_eval.sh
+```
+
+### Direct Python Usage
+
+```bash
+# GeneralAgent: full pipeline
+python run.py \
+  --agent-type general \
+  --model glm-5.1 \
+  --vllm-server-url http://host/v1 \
+  --tool-set custom \
+  --num-samples 4 \
+  --grader-type gemini \
+  --grader-api-url https://... \
+  --grader-api-key YOUR_KEY
+
+# GeneralAgent: inference only
+python run.py \
+  --agent-type general \
+  --model glm-5.1 \
+  --vllm-server-url http://host/v1 \
+  --skip-eval
+
+# OpenClaw agent
+python run.py \
+  --agent-type openclaw \
+  --gateway-port 18789 \
+  --mode simulated \
+  --user-model doubao-seed-2-0-pro \
+  --user-model-url http://host/v1 \
+  --user-model-api-key YOUR_KEY \
+  --num-samples 4
+
+# Eval only
+python run.py \
+  --eval-only \
+  --trajs-dir results/trajs/glm-5.1_custom_serper \
+  --grader-type gemini \
+  --grader-api-url https://...
+```
+
+---

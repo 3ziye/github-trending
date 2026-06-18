@@ -1,0 +1,894 @@
+[
+  {
+    "basic_info": {
+      "name": "ponytail",
+      "full_name": "DietrichGebert/ponytail",
+      "owner": "DietrichGebert",
+      "description": "Makes your AI agent think like the laziest senior dev in the room. The best code is the code you never wrote.",
+      "url": "https://github.com/DietrichGebert/ponytail",
+      "clone_url": "https://github.com/DietrichGebert/ponytail.git",
+      "ssh_url": "git@github.com:DietrichGebert/ponytail.git",
+      "homepage": "",
+      "created_at": "2026-06-12T00:52:37Z",
+      "updated_at": "2026-06-18T05:28:28Z",
+      "pushed_at": "2026-06-17T02:35:22Z"
+    },
+    "stats": {
+      "stars": 32734,
+      "forks": 1480,
+      "watchers": 32734,
+      "open_issues": 45,
+      "size": 1595
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 94919,
+        "Python": 5784,
+        "PowerShell": 471,
+        "Shell": 333
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "ai-agents",
+        "claude",
+        "claude-code",
+        "claude-code-plugin",
+        "cursor-rules",
+        "developer-tools",
+        "llm",
+        "prompt-engineering",
+        "yagni"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"assets/logo-dark.png\">\n    <img src=\"assets/logo.png\" width=\"220\" alt=\"Ponytail, the lazy senior dev\">\n  </picture>\n</p>\n\n<h1 align=\"center\">Ponytail</h1>\n\n<p align=\"center\">\n  <em>He says nothing. He writes one line. It works.</em>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/github/stars/DietrichGebert/ponytail?style=flat-square&color=111111&label=stars\" alt=\"Stars\">\n  <img src=\"https://img.shields.io/github/v/release/DietrichGebert/ponytail?style=flat-square&color=111111&label=release\" alt=\"Release\">\n  <img src=\"https://img.shields.io/badge/works%20with-13%20agents-111111?style=flat-square\" alt=\"Works with 13 agents\">\n  <img src=\"https://img.shields.io/badge/license-MIT-111111?style=flat-square\" alt=\"MIT license\">\n</p>\n\n<p align=\"center\">\n  <strong>80-94% less code &middot; 3-6&times; faster &middot; 42-75% cheaper</strong><br>\n  <sub>Per-task code, latency, and cost on the Claude API, not your plan's quota. Median across Haiku, Sonnet, and Opus (10 runs for code and latency, 30 for the re-verified cost). Results vary by model and prompt: the ruleset re-injects each turn, so on a short prompt or a terse reasoning model that overhead can outweigh the savings. <a href=\"benchmarks/\">Reproduce it yourself.</a></sub>\n</p>\n\n---\n\nYou know him. Long ponytail. Oval glasses. Has been at the company longer than the version control. You show him fifty lines; he looks at them, says nothing, and replaces them with one.\n\nPonytail puts him inside your AI agent.\n\n## Before / after\n\nYou ask for a date picker. Your agent installs flatpickr, writes a wrapper component, adds a stylesheet, and starts a discussion about timezones.\n\nWith ponytail:\n\n```html\n<!-- ponytail: browser has one -->\n<input type=\"date\">\n```\n\nMore survivors in [examples/](examples/).\n\n## Numbers\n\nFive everyday tasks (email validator, debounce, CSV sum, countdown timer, rate limiter), three models, three arms: no skill, the [caveman](https://github.com/JuliusBrussee/caveman) skill, and ponytail. Ten runs per cell, median reported.\n\n<p align=\"center\">\n  <img src=\"assets/benchmark-3model.svg\" width=\"860\" alt=\"Median lines of code per arm across Haiku, Sonnet and Opus; ponytail writes 80-94% less code than the no-skill baseline\">\n</p>\n\n**80-94% less code, 42-75% less cost, and 3-6× faster than a no-skill agent, on every Claude model.** Every shortcut ponytail takes is marked in the code with a `ponytail:` comment naming its upgrade path. Reproduce it yourself: `npx promptfoo eval -c benchmarks/promptfooconfig.yaml`. Method and raw numbers: [benchmarks/](benchmarks/). Production-grade tasks, where an unconstrained agent bloats far more, are written up in [benchmarks/results/](benchmarks/results/).\n\n**That is the byproduct, not the pitch.** These are Claude numbers, and they vary by model. Capable instruction-following models follow the ladder and write far less, cheaper and faster. Terse reasoning models can go the other way: the ladder is a deliberation step, so the model spends thinking tokens working through the rungs before it saves any output, and together with the always-on ruleset that can cost more than the shorter code saves. On GPT-5.5 it does. And all of this is single-shot, one prompt in and one answer out: a real agent session re-injects the ruleset and runs the ladder every turn, which this benchmark does not measure, so per-session cost can land either way. The rule was never \"fewest tokens.\" It is: write only what the task needs, and never cut validation, error handling, security, or accessibility. The code ends up small because it is necessary, not golfed, and that is the part that stays maintainable. Lower cost and latency are a side effect on the models that follow it.\n\n## How it works\n\nBefore writing code, the agent stops at the first rung that holds:\n\n```\n1. Does this need to exist?   → no: skip it (YAGNI)\n2. Stdlib does it?            → use it\n3. Native platform feature?   → use it\n4. Installed dependency?      → use it\n5. One line?                  → one line\n6. Only then: the minimum that works\n```\n\nLazy, not negligent: trust-boundary validation, data-loss handling, security, and accessibility are never on the chopping block.\n\n## Install\n\nThe most effort ponytail will ever ask of you:\n\nThe Claude Code and Codex plugins run two tiny Node.js lifecycle hooks, so `node` needs to be on your PATH (note for Nix/nvm users: it must be on the non-interactive shell's PATH). If it isn't, the skills still work, the always-on activation just stays quiet instead of erroring on every prompt.\n\n### Claude Code\n\n```\n/plugin marketplace add DietrichGebert/ponytail\n/plugin install ponytail@ponytail\n```\n\n### Codex\n\n```bash\ncodex plugin marketplace add DietrichGebert/ponytail\ncodex\n```\n\nOpen `/plugins`, select the Ponytail marketplace, and install Ponytail. Then\nopen `/hooks`, review and trust its two lifecycle hooks, and start a new thread.\n\nThis same insta",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:39.180507"
+  },
+  {
+    "basic_info": {
+      "name": "gsd-core",
+      "full_name": "open-gsd/gsd-core",
+      "owner": "open-gsd",
+      "description": "Git. Ship. Done - Core",
+      "url": "https://github.com/open-gsd/gsd-core",
+      "clone_url": "https://github.com/open-gsd/gsd-core.git",
+      "ssh_url": "git@github.com:open-gsd/gsd-core.git",
+      "homepage": "https://opengsd.net",
+      "created_at": "2026-05-22T11:36:21Z",
+      "updated_at": "2026-06-18T05:26:08Z",
+      "pushed_at": "2026-06-18T04:50:31Z"
+    },
+    "stats": {
+      "stars": 4363,
+      "forks": 273,
+      "watchers": 4363,
+      "open_issues": 48,
+      "size": 27461
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 11313958,
+        "TypeScript": 1987318,
+        "Shell": 73544
+      },
+      "license": "MIT License",
+      "topics": [
+        "claude-code",
+        "context-engineering",
+        "meta-prompting",
+        "spec-driven-development"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# GSD Core\n\n**Git. Ship. Done.**\n\n**English** · [Português](README.pt-BR.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md)\n\n**A light-weight meta-prompting, context engineering, and spec-driven development system for Claude Code, OpenCode, Gemini CLI, Kimi CLI, Kilo, Codex, Copilot, Cursor, Windsurf, and more.**\n\n[![npm version](https://img.shields.io/npm/v/%40opengsd%2Fgsd-core?style=for-the-badge&logo=npm&logoColor=white&color=CB3837)](https://www.npmjs.com/package/@opengsd/gsd-core)\n[![npm downloads](https://img.shields.io/npm/dm/%40opengsd%2Fgsd-core?style=for-the-badge&logo=npm&logoColor=white&color=CB3837)](https://www.npmjs.com/package/@opengsd/gsd-core)\n[![Tests](https://img.shields.io/github/actions/workflow/status/open-gsd/gsd-core/test.yml?branch=main&style=for-the-badge&logo=github&label=Tests)](https://github.com/open-gsd/gsd-core/actions/workflows/test.yml)\n[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/mYgfVNfA2r)\n[![GitHub stars](https://img.shields.io/github/stars/open-gsd/gsd-core?style=for-the-badge&logo=github&color=181717)](https://github.com/open-gsd/gsd-core)\n[![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)\n\n</div>\n\n---\n\n## What is GSD Core\n\nGSD Core is a context-engineering and spec-driven development framework that drives AI coding agents (Claude Code, Codex, Gemini CLI, Kimi CLI, Copilot, Cursor, and more) through a disciplined phase loop. It solves [context rot](docs/explanation/context-engineering.md) — the quality degradation that accumulates as an AI fills its context window — by running all heavy research, planning, and execution work in fresh-context subagents while keeping your main session lean.\n\n---\n\n## How it works\n\nEach milestone repeats the same five-step loop, one phase at a time:\n\n1. **Discuss** — capture implementation decisions before anything is planned\n2. **Plan** — research, decompose, and verify the plan fits a fresh context window\n3. **Execute** — run plans in parallel waves; each executor starts with a clean 200k-token context\n4. **Verify** — walk through what was built; diagnose and fix before declaring done\n5. **Ship** — create the PR, archive the phase, repeat for the next one\n\n---\n\n## Quickstart\n\n```bash\nnpx @opengsd/gsd-core@latest\n```\n\nThe installer prompts for your runtime (Claude Code, OpenCode, Gemini CLI, Kimi CLI, Kilo, Codex, Copilot, Cursor, Windsurf, and more) and whether to install globally or locally. The installer is required for cross-runtime compatibility — do not copy files from `agents/` or `commands/` directly.\n\nOn another runtime or without Node.js? See [Install on your runtime](docs/how-to/install-on-your-runtime.md).\n\nOnce installed, start your first project:\n\n```bash\n/gsd-new-project\n```\n\nNew here? Follow [Your first project](docs/tutorials/your-first-project.md) for a guided walkthrough from install to first shipped phase.\n\n---\n\n## Documentation\n\n**Tutorials** — learning by doing:\n- [Your first project](docs/tutorials/your-first-project.md)\n- [Onboarding an existing codebase](docs/tutorials/onboarding-an-existing-codebase.md)\n\n**How-to guides** — task-focused recipes:\n- [Install on your runtime](docs/how-to/install-on-your-runtime.md)\n- [Plan a phase](docs/how-to/plan-a-phase.md)\n- [Verify and ship](docs/how-to/verify-and-ship.md)\n- … [see all how-to guides](docs/README.md#how-to-guides)\n\n**Reference** — authoritative facts:\n- [Commands](docs/COMMANDS.md)\n- [Configuration](docs/CONFIGURATION.md)\n- [CLI tools](docs/CLI-TOOLS.md)\n\n**Explanation** — concepts and design decisions:\n- [Context engineering](docs/explanation/context-engineering.md)\n- [The phase loop](docs/explanation/the-phase-loop.md)\n- [Architecture](docs/ARCHITECTURE.md)\n\nFull index: [docs/README.md](docs/README.md). Other languages: [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · [Português](README.pt-BR.md) · [简体中文](README.zh-CN.md).\n\n---\n\n## Why it works\n\nMost AI-coding setups fail at scale because context bloat silently degrades output quality, there is no shared memory between sessions, and nothing verifies that code actually works. GSD Core solves all three: heavy work runs in fresh subagents, structured artifacts like `STATE.md` and `CONTEXT.md` survive session boundaries, and the verify step walks through what was built and generates fix plans before a phase is declared done. See [docs/explanation/context-engineering.md](docs/explanation/context-engineering.md) for the full reasoning.\n\nTroubleshooting? See [docs/how-to/recover-and-troubleshoot.md](docs/how-to/recover-and-troubleshoot.md).\n\n---\n\n## Community\n\n| Project | Platform |\n|---------|----------|\n| [gsd-opencode](https://github.com/rokicool/gsd-opencode) | Original OpenCode port |\n| [Discord](https://discord.gg/mYgfVNfA2r) | Community support |\n\n---\n\n## Star History\n\n<a href=\"https://star-history.com/#open-gsd/gsd-core&Date\">\n <pict",
+      "default_branch": "next"
+    },
+    "fetched_at": "2026-06-18T05:28:40.438419"
+  },
+  {
+    "basic_info": {
+      "name": "GuJumpgate",
+      "full_name": "FoundZiGu/GuJumpgate",
+      "owner": "FoundZiGu",
+      "description": null,
+      "url": "https://github.com/FoundZiGu/GuJumpgate",
+      "clone_url": "https://github.com/FoundZiGu/GuJumpgate.git",
+      "ssh_url": "git@github.com:FoundZiGu/GuJumpgate.git",
+      "homepage": null,
+      "created_at": "2026-05-19T11:52:52Z",
+      "updated_at": "2026-06-18T05:22:32Z",
+      "pushed_at": "2026-06-11T13:42:40Z"
+    },
+    "stats": {
+      "stars": 3902,
+      "forks": 999,
+      "watchers": 3902,
+      "open_issues": 26,
+      "size": 4742
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 4901644,
+        "Python": 264696,
+        "HTML": 149189,
+        "CSS": 76688,
+        "Batchfile": 10529,
+        "Shell": 5817,
+        "Dockerfile": 344
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# GuJumpgate\n\n一个也许能“真正解放双手”的全自动 GPT Plus 注册浏览器扩展。\n\n如果这个项目能帮上你，欢迎点个 Star⭐~\n\n> [!IMPORTANT]\n> 目前 疑似试用全面拉闸\n> 日区通过手机号注册有较低概率能撞出支付链接\n> 美区已死，待复活 ;w;\n>\n\n## 已实现能力\n\n1. **自动注册 Free 账号**\n\n   借助 FlowPilot 项目实现 Free 账号的自动注册。\n\n2. **PayPal 激活 Plus 全流程**\n\n   - 自动跳转 Stripe 长链接\n   - 自动填写 Stripe 账单并跳转 PayPal\n   - 自动填写 PayPal 账单并完成流程\n\n3. **Hotmail / Outlook 自动别名功能**\n\n4. **PayPal 号码池管理**\n\n5. **自动 OAuth 回调到本地及各面板**\n\n   对 FlowPilot 原有回调流程做了调整和适配。\n\n6. **支持跳过 OAuth**\n\n   忽略 RT，生成只有 AT 的 JSON 文件到本地。\n\n## 前提要求\n\n1. 1 个带 API、且能连续正常接收 PayPal 验证码的 JP +81 接码手机号\n2. 1 个或 N 个支持 `IMAP` 和 `Graph` 的 Outlook 邮箱 或者 自建 Cloudflare Temp Email edu 前缀，如 @edu.openai.comedu.openai.com 这样才有试用资格\n   （推荐使用outlook，实测存活率高于自建域名邮箱，也可能是我杂米的原因）\n3. 1 个相对干净、支持 PayPal 注册的 JP 代理 (干净就不会跳 PAYPAL 的注册滑块，账单页面的 Captcha 扩展已经设置了自动屏蔽)\n4. 1 个充值好的SMS平台，开通 APIKEY 用于Oauth接码\n   （具体选择SMS平台的选择，你可以参考我的对比站：https://sms.fur.li/  ）\n\n> [!NOTE]\n> 自建 Cloudflare Temp Email / Cloud Mail 需要使用 `edu` 前缀，例如 `edu.openai.com`，才有试用资格。\n>\n> PayPal 注册代理越干净，越不容易触发 PayPal 注册滑块。账单页面的 Captcha 扩展已经实现了自动屏蔽。\n\n## 测试环境\n\n- 成功率：连续 10 次串行运行，注册并激活 Plus 100% 成功率\n- 浏览器：Chrome `148.0.7778.168`（64 位正式版），开启无痕模式\n- 网络环境： JP 自建代理\n\n过程中遇到任何卡死的问题，都可以先停止，然后点击流程的各个节点进行重试，也可以点击旁边选择跳过。\n\n## 安装与使用\n\n先到本仓库的 [Releases](https://github.com/FoundZiGu/GuJumpgate/releases) 页面下载扩展压缩包并解压。\n\n### 1. 打开扩展开发者模式\n\n打开 `chrome://extensions/`，开启开发者模式。\n\n![打开 Chrome 扩展开发者模式](docs/images/github-readme-1779190547983.png)\n\n### 2. 加载扩展目录\n\n选择“加载已解压的扩展程序”，然后选择刚才解压出的文件夹。\n\n![加载未打包的扩展程序](docs/images/readme-load-extension.png)\n\n### 3. 启用无痕权限\n\n在扩展详情页中勾选“在无痕模式下启用”。\n\n![启用扩展的无痕模式权限](docs/images/readme-incognito-permission.png)\n\n### 4. 配置代理\n\n现在推荐且仍可用的路径是 **全程 JP 代理**。\n这条路径仍可以稳定出试用并正常激活 Plus。\n\n#### 方案一：直接使用（关闭云端转换，推荐）\n\n直接开启代理工具的规则 / 全局 JP 代理，即可开始使用。\n\n#### 方案二：云端转换（公益，当前不可用）\n\n> [!WARNING]\n> 长链接链路当前已不可用，暂不建议开启云端转换。该入口仅保留用于后续恢复或测试。\n\n#### 方案三：本地配置代理\n\n配置本地用于支付转换的代理，出口必须是 JP 代理。\n\n![配置支付转换代理](docs/images/readme-payment-proxy.png)\n\n然后代理工具开启全局 JP，或者配置好相应规则分流至 JP。\n\n### 5. 启动 Hotmail Helper\n\n请注意：本地 JSON 生成导出依赖本地助手。无论你是否使用 Hotmail / Outlook 邮箱，都请启动。\n\n运行解压目录内的脚本：\n\n- Windows：`start-hotmail-helper.bat`\n- macOS：`start-hotmail-helper.command`\n\n如果启用 PPBoom / PP 爆破模式，请额外启动 PPBoom 本地助手：\n\n- Windows：`start-ppboom.bat`\n- macOS：`start-ppboom.command`\n\nmacOS 首次运行如提示没有权限，可在终端进入解压目录后执行：`chmod +x start-hotmail-helper.command start-ppboom.command`\n\n![运行 start-hotmail-helper 脚本](docs/images/github-readme-1779193024860.png)\n\n### 6. 配置扩展参数\n\n在扩展中打开侧边栏，按你的环境配置参数。\n\n#### 选择最终 JSON 导出到的平台\n\n账号接入策略建议选择：`手机号注册/绑定 Oauth`。\n\n![选择最终 JSON 导出平台](docs/images/README-1780155605371.png)\n\n> [!WARNING]\n> OAuth 目前严重风控，要求绑定手机号，仅推荐使用 `手机号注册/绑定 Oauth`。\n\n#### 模式选择\n\n请保持默认或手动选择日区PP Plus Checkout\n\n![选择账号接入策略](docs/images/README-1780156040069.png)\n\n#### 验证码接口\n\n填写可直接 `GET` 请求的 `http` / `https` 地址。\n\n![填写验证码接口](docs/images/readme-verification-url.png)\n\n#### PAYPAL 接码电话\n\n填写 PayPal 接码电话，注意按扩展提示填写格式。\n\n![填写 PAYPAL 接码电话](docs/images/readme-paypal-phone.png)\n\n#### 邮箱渠道\n\n选择对应的邮箱渠道。自建邮箱需使用 `edu` 前缀获得试用资格。\n\n![选择邮箱渠道](docs/images/readme-mail-provider.png)\n\n然后填写或导入各自邮箱渠道所需的配置。\n\n#### PP 爆破模式\n\nPPBoom / PP 爆破模式适合在独立指纹浏览器环境中跑 PayPal 相关链路。启用前请先确认 PPBoom 本地助手和指纹浏览器都已启动。\n\n1. 手动运行扩展文件夹内的 `start-ppboom.bat` 或 `start-ppboom.command`。\n2. 启动 [RoxyBrowser](https://roxybrowser.cn/invite/7hPFNf) 或 AdsPower，并准备可用的窗口 / Profile。(选择移动端指纹，推荐IOS，窗口推荐配置动态住宅代理)\n   推荐优先使用 RoxyBrowser，免费额度更优，配合动态住宅代理稳定性更好。\n3. 在侧边栏启用 PPBoom / PP 爆破模式。\n4. 在 PPBoom 浏览器选项中选择 `RoxyBrowser` 或 `AdsPower`。\n5. 配置对应的 API 地址、API Key 和窗口 / Profile ID。\n6. 配置 JP 代理，推荐使用动态住宅代理。\n7. 推荐指纹浏览器配置\n\n![配置 PP 爆破模式](docs/images/5446fb4f-7e88-4609-8a35-66e753fb1fb2.png)\n\n#### 接码设置\n\n![导入邮箱渠道配置](docs/images/README-1780155776707.png)\n\n- 选择接码服务商\n- 配置服务商顺序\n- 配置国家优先级\n- 配置接码 API\n- 配置价格上限\n- 其他默认即可\n\n### 7. 开始运行\n\n保存配置后即可开始运行。\n\n![开始运行扩展流程](docs/images/github-readme-1779194981001.png)\n\n## 版权与来源说明\n\n本项目基于开源项目 [QLHazyCoder/FlowPilot](https://github.com/QLHazyCoder/FlowPilot) 进行修改、移植与二次开发，其部分早期代码与 [whwh1233/StepFlow-Duck](https://github.com/whwh1233/StepFlow-Duck) 具有共同历史。\n\n原项目及其相关开源部分采用 MIT License 发布。根据 MIT License，你可以在保留原版权声明和许可声明的前提下使用、修改、分发本项目的相关代码。\n\n为避免歧义，原项目作者、历史贡献者与当前二开版本之间不存在默认的认可、担保或背书关系。本项目中新增的适配、流程调整、脚本移植与文档整理内容，除另有说明外，均由当前维护者负责。\n\n如果你分发本项目或其修改版本，请一并保留仓库中的 `LICENSE` 及相关来源说明文件。\n\n## 使用提示\n\n- 使用者应自行遵守目标平台服务条款、适用法律及其所在地区的监管要求\n\n## 友情链接\n\n- [LINUX DO - 新的理想型社区](https://linux.do/)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:41.730572"
+  },
+  {
+    "basic_info": {
+      "name": "baoyu-design",
+      "full_name": "JimLiu/baoyu-design",
+      "owner": "JimLiu",
+      "description": "Run Claude Design locally as an Agent Skill — Cursor, Claude Code & more. Produce polished UI mockups, prototypes, decks & wireframes as self-contained HTML, without claude.ai/design. Best with Opus 4.8.",
+      "url": "https://github.com/JimLiu/baoyu-design",
+      "clone_url": "https://github.com/JimLiu/baoyu-design.git",
+      "ssh_url": "git@github.com:JimLiu/baoyu-design.git",
+      "homepage": null,
+      "created_at": "2026-06-07T01:16:18Z",
+      "updated_at": "2026-06-18T05:26:10Z",
+      "pushed_at": "2026-06-16T22:41:26Z"
+    },
+    "stats": {
+      "stars": 1498,
+      "forks": 109,
+      "watchers": 1498,
+      "open_issues": 0,
+      "size": 7599
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 430477,
+        "TypeScript": 143958
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "claude",
+        "claude-code",
+        "claude-design",
+        "cursor",
+        "design",
+        "prototyping",
+        "ui-design"
+      ]
+    },
+    "content": {
+      "readme": "# baoyu-design\n\n**Run Claude Design on your own local agent — Cursor, Claude Code, Claude Desktop, or any file‑capable coding agent.**\n\n[English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md)\n\n![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Best with Opus 4.8](https://img.shields.io/badge/Best%20with-Opus%204.8-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)\n\n`baoyu-design` packages **Claude Design** — the design engine behind [claude.ai/design](https://claude.ai/design) — as a portable **Agent Skill**. Drop it into a local agent and you get most of what the website does, right inside your editor: polished UI mockups, interactive prototypes, wireframes, landing pages, dashboards, mobile apps, and slide decks — all produced as self‑contained HTML.\n\nNo website, no separate subscription, no upload step. The agent already on your machine does the work, and every artifact stays in your repo.\n\n---\n\n## Screenshots\n\nThe same Reader Mac App prompt was used in Cursor, Codex, Claude, and Claude Design.\n\n| Cursor | Codex | Claude | Claude Design |\n|---|---|---|---|\n| <img src=\"assets/screenshots/cursor-reader-mac-app.webp\" alt=\"Cursor running baoyu-design\" width=\"240\"> | <img src=\"assets/screenshots/codex-reader-mac-app.webp\" alt=\"Codex running baoyu-design\" width=\"240\"> | <img src=\"assets/screenshots/claude-reader-mac-app.webp\" alt=\"Claude running baoyu-design\" width=\"240\"> | <img src=\"assets/screenshots/claude-design-reader-mac-app.webp\" alt=\"Claude Design running the same Reader Mac App prompt\" width=\"240\"> |\n\n<details>\n<summary>Prompt used for all screenshots</summary>\n\n```markdown\nBuild a Reader Mac app that helps me read and save articles better. All data is stored locally.\n\n## Information collection\n\n1. Manual adding\nSupport manually adding different types of information:\n- URL: enter a URL and automatically fetch content and images\n- Attachments: upload PDFs, videos, and images\n- Markdown editing: like publishing a blog post, enter the title, body, and cover image\n- Other\n\n2. Automatic subscriptions\n- RSS feeds\n- Social media accounts: X, Weibo, YouTube\n- Other\n\n## Editing and organization\n\n1. Tags\nEvery item can have tags.\n\n2. Categories and folders\nCreate tree-structured folders and place content in different categories.\n\n3. Favorites\nUsers can click to favorite an item.\n\n4. Editing\nEvery item can be edited with a built-in Markdown editor.\n\n## AI assistance\n\n1. Automatic translation\nSupport translation across different languages.\n\n2. Summaries and abstracts\nGenerate summaries for captured content.\n\n3. Derivative creation\nCreate new work based on one or more pieces of content.\n\n4. Integrated AI Chat\nUse AI Chat to call AI Agents that help process content.\n```\n\n</details>\n\n---\n\n## Why run it locally\n\n- **Free yourself from the website.** You get the vast majority of `claude.ai/design`'s capabilities without ever leaving your editor — same methodology, same craft standards, same output format.\n- **Best with Opus 4.8.** The skill is a long, demanding design brief; the stronger the model, the better the result. Pair it with **Claude Opus 4.8** for the best output, and it still works well on other capable models.\n- **Iterate by pointing, not describing.** Because the deliverable is plain HTML served on `localhost`, you can lean on your agent's built‑in browser preview and element‑annotation tools (Cursor Browser / DevTools, Claude Preview, or Codex Browser). Point at a button in the live preview, say what you want changed, and the agent edits the underlying source — a tight, visual second‑pass editing loop that's hard to get on a website.\n- **Everything is yours.** Output lands in `designs/<project>/` as self‑contained HTML you can version, fork, export, or ship.\n\n---\n\n## What it can make\n\nThe skill drives a full design process — clarifying questions → gathering design context → producing one or more HTML deliverables → previewing and verifying. It ships a deep bench of **built‑in skills** and a set of ready‑made component scaffolds.\n\n| Area | Built‑in skills |\n|---|---|\n| **Core design** | Hi‑fi design · Interactive prototype · Wireframe · Frontend aesthetic direction |\n| **Decks** | Make a deck · Speaker notes |\n| **Mobile & motion** | Mobile prototype · Animated video · Sound effects |\n| **Design systems** | Create design system · Use design system · Design system preview · Design Components (`.dc.html`) · Make tweakable |\n| **Import sources** | Figma `.fig` (offline decode) · GitHub repo · Existing HTML/CSS |\n| **Export & handoff** | Standalone HTML · PDF · PPTX (editable) · PPTX (screenshots) · Video (MP4) · Send to Figma · Send to Canva · Handoff to Claude Code |\n| **AI assets & integration** | Gemini image generation · Call Claude from prototypes · Read PDF |\n\n**Starter components** (in [`starter-components/`](skills/baoyu-design/starter-components/)) save the agent from hand‑rolling the basics: iOS / A",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:42.976533"
+  },
+  {
+    "basic_info": {
+      "name": "wechatpay",
+      "full_name": "run-liyi/wechatpay",
+      "owner": "run-liyi",
+      "description": "微信账单分析工具 - 基于Electron的可视化账单分析应用",
+      "url": "https://github.com/run-liyi/wechatpay",
+      "clone_url": "https://github.com/run-liyi/wechatpay.git",
+      "ssh_url": "git@github.com:run-liyi/wechatpay.git",
+      "homepage": null,
+      "created_at": "2026-05-21T06:40:00Z",
+      "updated_at": "2026-06-14T17:24:31Z",
+      "pushed_at": "2026-05-29T22:56:08Z"
+    },
+    "stats": {
+      "stars": 1494,
+      "forks": 137,
+      "watchers": 1494,
+      "open_issues": 0,
+      "size": 281
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 104460,
+        "HTML": 18206,
+        "CSS": 16285,
+        "TypeScript": 3337,
+        "Shell": 2498,
+        "Batchfile": 462
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# 微信账单分析工具\n\n基于 Electron 框架开发的微信支付账单可视化分析应用，帮助您更好地了解个人消费习惯和财务状况。\n\n## 📋 功能特性\n\n### 1. 数据概览\n- **收支统计**：快速查看总收入、总支出、净收支等关键指标\n- **交易汇总**：展示交易总笔数、时间范围等基本信息\n- **可视化图表**：直观的收支对比柱状图\n- **账单元数据**：显示微信昵称、导出时间等账单信息\n\n### 2. 统计分析\n- **支付方式分布**：分析不同支付方式（零钱、银行卡等）的使用情况\n- **交易类型分布**：统计商户消费、转账、红包等各类交易占比\n- **交易状态统计**：查看支付成功、已退款等各种状态的交易详情\n- **多维度图表**：饼图、环形图等多种可视化方式\n\n### 3. 分类汇总\n- **按商户汇总**：查看在各个商户的消费金额和次数排名\n- **按交易类型汇总**：分析不同交易类型的资金流向\n- **按支付方式汇总**：了解各支付方式的使用频率\n- **灵活排序**：支持按金额或次数排序，可选择显示前N名或全部数据\n\n### 4. 趋势分析\n- **时间维度分析**：支持按日、按周、按月查看消费趋势\n- **收支曲线图**：折线图展示收入和支出的变化趋势\n- **统计指标**：计算日均支出、最高/最低单日支出等关键指标\n- **趋势对比**：可单独查看收入或支出趋势，也可同时对比\n\n### 5. 明细查询\n- **关键词搜索**：支持按商户名称、商品名称搜索交易记录\n- **多条件筛选**：可按收支类型、交易状态等条件过滤数据\n- **实时统计**：显示筛选结果的记录数和总金额\n- **详细信息**：查看每笔交易的完整信息\n\n### 6. 报告导出\n- **Excel格式导出**：将分析结果导出为Excel文件\n- **多工作表**：包含汇总统计、分类统计、每日统计、明细数据等多个工作表\n- **便于保存**：方便长期保存和进一步分析\n\n## 📖 如何获取微信账单数据\n\n### 导出步骤\n\n1. **打开微信账单页面**\n   - 打开微信 APP\n   - 依次进入：`我` → `服务` → `钱包` → `账单`\n\n2. **选择下载账单**\n   - 点击右上角 `...` 或 `常见问题`\n   - 选择 `下载账单`\n\n3. **设置账单参数**\n   - **账单用途**：选择 `用于个人对账`（重要！）\n     - ✅ 选择\"用于个人对账\"会生成 Excel 或 CSV 格式文件\n     - ❌ 选择\"用做证明材料\"会生成带公章的 PDF，本工具无法解析\n   - **时间范围**：选择需要导出的时间段（最长可导出1年内的数据）\n   - **接收邮箱**：填写用于接收账单文件的邮箱地址\n\n4. **身份验证**\n   - 输入微信支付密码进行身份验证\n\n5. **接收账单文件**\n   - 系统会在 **24小时内** 将加密压缩包发送至您的邮箱\n   - 解压密码会通过微信 `服务通知` 发送\n   - 下载压缩包并使用密码解压，得到 Excel 文件\n\n### 数据格式说明\n\n导出的 Excel 文件包含以下字段：\n- **交易时间**：交易发生的具体时间\n- **交易类型**：如商户消费、转账、红包等\n- **交易对方**：商户名称或转账对象\n- **商品**：购买的商品或服务描述\n- **收/支**：标识该笔交易是收入还是支出\n- **金额(元)**：交易金额\n- **支付方式**：零钱、银行卡等\n- **当前状态**：支付成功、已退款等\n- **交易单号**：微信交易流水号\n- **商户单号**：商户系统订单号\n- **备注**：其他备注信息\n\n### 注意事项\n\n⚠️ **重要提示**：\n- 必须选择\"用于个人对账\"选项，生成 Excel 格式文件\n- PDF 格式的账单无法被本工具解析\n- 文件前16行左右是表头和说明信息，本工具会自动识别并跳过\n- 建议定期导出账单进行备份和分析\n- 账单数据仅用于个人分析，请妥善保管\n\n## 🚀 快速开始\n\n### 安装依赖\n\n```bash\nnpm install\n```\n\n### 运行应用\n\n```bash\nnpm start\n```\n\n### 打包应用\n\n```bash\n# Windows 平台\nnpm run build:win\n\n# macOS 平台\nnpm run build:mac\n\n# Linux 平台\nnpm run build:linux\n\n# 所有平台\nnpm run build\n```\n\n## 💻 使用方法\n\n1. **启动应用**\n   - 运行应用后会看到欢迎界面\n\n2. **导入账单文件**\n   - 点击左侧 `选择账单文件` 按钮\n   - 选择从微信导出的 Excel 账单文件\n   - 系统会自动解析并显示解析结果\n\n3. **查看分析结果**\n   - 使用左侧导航菜单切换不同的分析视图\n   - 在各个视图中查看详细的分析数据和图表\n\n4. **导出分析报告**\n   - 点击左侧 `导出报告` 按钮\n   - 选择保存位置和文件名\n   - 生成包含完整分析结果的 Excel 报告\n\n## 🛠️ 技术栈\n\n- **框架**：Electron 28.0\n- **数据解析**：xlsx (SheetJS)\n- **图表库**：Chart.js 4.4\n- **界面**：原生 HTML/CSS/JavaScript\n- **打包工具**：electron-builder\n\n## 📊 项目结构\n\n```\nwechatPay/\n├── main.js                 # Electron 主进程\n├── index.html             # 应用主界面\n├── styles.css             # 样式文件\n├── renderer.js            # 渲染进程逻辑\n├── package.json           # 项目配置\n├── README.md              # 使用文档\n└── sample/                # 脱敏演示数据\n    ├── demo-bill.xlsx     # 完全虚构的示例账单（用于演示与测试）\n    └── README.md          # 样例数据说明\n```\n\n> 🔒 **隐私提示**：本仓库不包含任何真实账单。请始终在仓库之外的目录打开你自己的微信账单，\n> 切勿将含个人信息的 `*.xlsx/*.xls/*.csv` 提交到版本库。\n\n## 📝 代码说明\n\n### 主进程 (main.js)\n- 创建应用窗口\n- 处理文件选择对话框\n- 解析 Excel 账单文件\n- 提取账单元数据\n- 导出分析报告\n\n### 渲染进程 (renderer.js)\n- 界面交互逻辑\n- 数据分析算法\n- 图表渲染\n- 视图切换\n- 数据筛选和搜索\n\n### 核心功能模块\n\n#### 1. 数据解析模块\n```javascript\n// 解析微信账单 Excel 文件\nipcMain.handle('parse-bill-file', async (event, filePath) => {\n  // 读取 Excel 文件\n  // 识别表头位置\n  // 提取账单数据\n  // 解析元数据\n  // 返回结构化数据\n});\n```\n\n#### 2. 数据分析模块\n```javascript\n// 概览分析\nfunction analyzeOverview(data) {\n  // 计算总收入、总支出\n  // 统计交易笔数\n  // 确定时间范围\n}\n\n// 维度分析\nfunction analyzeByDimension(data, dimension) {\n  // 按指定维度分组\n  // 统计金额和次数\n  // 区分收入和支出\n}\n\n// 趋势分析\nfunction analyzeTrend(data, granularity) {\n  // 按时间粒度分组\n  // 计算每个时间段的收支\n  // 生成趋势数据\n}\n```\n\n#### 3. 可视化模块\n```javascript\n// 使用 Chart.js 渲染各类图表\n- 柱状图：收支对比\n- 饼图/环形图：分类占比\n- 折线图：趋势变化\n```\n\n## 🔒 隐私安全\n\n- 本应用完全在本地运行，不会上传任何数据到服务器\n- 所有账单数据仅在您的计算机上处理和存储\n- 不收集、不传输任何个人信息\n- 建议妥善保管账单文件，避免泄露个人财务信息\n\n### 提交防护（面向贡献者）\n\n为避免把真实账单或个人信息误提交到版本库，本项目内置两道防线：\n\n1. **`.gitignore` 默认忽略账单文件**：根目录及子目录下的 `*.xlsx / *.xls / *.csv` 一律被忽略，\n   仅放行 `sample/` 下的脱敏样例；本地数据目录（`data/`、`userData/`）与导出报告也已忽略。\n2. **提交前敏感信息扫描钩子** `scripts/precommit-secret-scan.sh`：拦截 `sample/` 之外的账单文件，\n   以及包含微信账单表头、手机号、身份证号等特征的暂存内容。\n\n启用钩子（任选其一）：\n\n```bash\n# 方式一：软链为本地 pre-commit 钩子\nln -sf ../../scripts/precommit-secret-scan.sh .git/hooks/pre-commit\n\n# 方式二：使用项目内钩子目录\ngit config core.hooksPath scripts/githooks\ncp scripts/precommit-secret-scan.sh scripts/githooks/pre-commit\n```\n\n确需提交被误判的内容时，可临时 `SKIP_BILL_SCAN=1 git commit ...` 跳过（请谨慎）。\n\n## ⚙️ 系统要求\n\n- **操作系统**：Windows 10/11, macOS 10.13+, Linux\n- **内存**：建议 4GB 以上\n- **磁盘空间**：100MB 以上\n- **Node.js**：14.0 或更高版本（仅开发环境需要）\n\n## 🐛 常见问题\n\n### Q: 为什么无法解析我的账单文件？\nA: 请确保：\n1. 选择的是\"用于个人对账\"选项导出的 Excel 文件\n2. 文件格式为 .xlsx 或 .xls\n3. 文件没有被损坏或加密\n\n### Q: 图表显示不正常怎么办？\nA: 请检查：\n1. 账单数据是否完整\n2. 时间范围是否正确\n3. 尝试重新导入文件\n\n### Q: 可以分析多个账单文件吗？\nA: 当前版本每次只能分析一个文件，如需分析多个时间段的数据，建议先在 Excel 中合并后再导入。\n\n### Q: 导出的报告在哪里？\nA: 导出时会弹出保存对话框，您可以选择保存位置。\n\n## 📄 许可证\n\nMIT License\n\n## 👨‍💻 开发者\n\n本项目为开源项目，欢迎贡献代码和提出建议。\n\n## 🙏 致谢\n\n- Electron 团队\n- SheetJS (xlsx) 开发者\n- Chart.js 团队\n- 所有开源贡献者\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:44.240609"
+  },
+  {
+    "basic_info": {
+      "name": "skills",
+      "full_name": "BuilderIO/skills",
+      "owner": "BuilderIO",
+      "description": "Skills for coding agents",
+      "url": "https://github.com/BuilderIO/skills",
+      "clone_url": "https://github.com/BuilderIO/skills.git",
+      "ssh_url": "git@github.com:BuilderIO/skills.git",
+      "homepage": "https://www.agent-native.com/",
+      "created_at": "2026-06-10T16:04:20Z",
+      "updated_at": "2026-06-18T05:26:55Z",
+      "pushed_at": "2026-06-17T23:30:10Z"
+    },
+    "stats": {
+      "stars": 946,
+      "forks": 46,
+      "watchers": 946,
+      "open_issues": 0,
+      "size": 4364
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 4995
+      },
+      "license": "MIT License",
+      "topics": [
+        "skills"
+      ]
+    },
+    "content": {
+      "readme": "# Skills for coding agents\n\nSmall, composable skills for coding agents.\n\nThese skills are for teams that want the agent to stay sharp where judgment\nmatters: orchestration, review, planning, validation, docs discipline, and clear\ncommunication. They are not a giant process framework. Install the pieces you\nwant, adapt them to your project, and let the model keep room to think.\n\n### Quick install recommended skills\n\n```sh\nnpx @agent-native/skills@latest add\n```\n\nThe interactive picker puts `/visual-plan` and `/visual-recap` first and selects\nonly those by default. See the [full CLI docs below](#install).\n\n## Skills\n\n### [`/visual-plan`](skills/visual-plan/README.md)\n\nTurn ordinary text plans into rich interactive visual plans with diagrams, file\nmaps, annotated code, open questions, and UI/prototype review when useful.\n\nSolves for plans that are too important to bury in chat. The output is\nscannable, commentable, and intuitive enough for a human to approve before code\nchanges start.\n\n<picture>\n  <img alt=\"Visual plan review surface\" src=\"media/visual-plan.png\">\n</picture>\n\nVisual plans are MDX, customizable with your own components, and are viewed with the [Agent-Native plans app](https://www.agent-native.com/docs/template-plan). [Source here](https://github.com/BuilderIO/agent-native/)\n\n### [`/visual-recap`](skills/visual-recap/README.md)\n\nTurn a branch, commit, or PR diff into an interactive visual recap with\nannotated diffs, diagrams, API/schema summaries, file maps, UI state summaries,\nand focused review notes.\n\nSolves for diffs that hide the shape of the change. Reviewers can understand\ncontracts, architecture moves, schema changes, and UI impact before diving into\nraw line-by-line review.\n\n<picture>\n  <img alt=\"Visual recap review surface animation\" src=\"media/visual-recap.gif\">\n</picture>\n\nVisual recaps are MDX, customizable with your own components, and are viewed with the [Agent-Native plans app](https://www.agent-native.com/docs/template-plan). [Source here](https://github.com/BuilderIO/agent-native/)\n\nYou can also install a GitHub action for these to be automatically generated for every PR with\n\n```sh\nnpx @agent-native/skills@latest add\n```\n\n![Example of a visual plan posted to a PR](https://cdn.builder.io/api/v1/image/assets%2FYJIGb4i01jvw0SRdL5Bt%2Fcf9bac396cf24a4ba976fc331af6fc5d)\n\n### [`/agent-watchdog`](skills/agent-watchdog/README.md)\n\nAudit another agent's work from a Codex session, Claude Code transcript, PR,\nbranch, or run summary.\n\nSolves for cross-agent handoffs: watch until done, reconstruct what was asked,\ncheck what actually changed and verified, report gaps, and optionally make\nnarrow fixes.\n\n### [`/plan-arbiter`](skills/plan-arbiter/README.md)\n\nCompare competing agent plans and choose one executable direction.\n\nSolves for multi-agent planning loops where Codex, Claude Code, or other agents\nproduce separate strategies. The output is a decision memo with the winning or\nhybrid plan, rejected alternatives, verification gates, and executor\nrecommendation.\n\n### [`/plow-ahead`](skills/plow-ahead/README.md)\n\nKeep working through ordinary ambiguity and finish with a clear decision recap.\n\nSolves for explicit autonomy requests: the agent converts routine questions into\nassumptions, proceeds with conservative choices, validates the work, and recaps\nthe decisions it made without stopping.\n\n### [`/efficient-fable`](skills/efficient-fable/README.md)\n\nUse Claude Fable as the orchestrator, architect, synthesizer, and final judge\nwhile lighter agents handle token-heavy research, coding, testing, and log\nreduction.\n\nSolves for expensive-model waste: Fable should spend tokens on judgment, not on\nreading every file, reducing every log, or manually running every browser check.\n\n<picture>\n  <source media=\"(prefers-color-scheme: dark)\" srcset=\"skills/efficient-fable/assets/fable-orchestrator-dark.png\">\n  <source media=\"(prefers-color-scheme: light)\" srcset=\"skills/efficient-fable/assets/fable-orchestrator.png\">\n  <img alt=\"Fable orchestrator diagram\" src=\"skills/efficient-fable/assets/fable-orchestrator.png\">\n</picture>\n\n### [`/efficient-frontier`](skills/efficient-frontier/README.md)\n\nApply the same orchestration as `/efficient-fable` to any high-cost frontier\nmodel: preserve the expensive model for planning, tradeoffs, integration,\nvalidation strategy, and final review; use cheaper agents for bounded heavy\nlifting.\n\nSolves for broad work that can be parallelized without asking the most expensive\nmodel to do every scan and every edit itself.\n\n### [`/stay-within-limits`](skills/stay-within-limits/README.md)\n\nCheck current 5-hour and weekly usage before substantial work and between\nparallel waves, then pause new execution at 95% until the active window is clear\nenough to continue.\n\nSolves for long-running agent sessions that accidentally exhaust the current\nbudget window mid-task instead of pausing cleanly and resuming with a\nself-contained plan.\n\n### [`/quick-recap`](skills/quick-recap/README.md)\n\nAdd a ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:45.485083"
+  },
+  {
+    "basic_info": {
+      "name": "vibecode-pro-max-kit",
+      "full_name": "withkynam/vibecode-pro-max-kit",
+      "owner": "withkynam",
+      "description": "Your AI forgets. This remembers. Spec-driven coding harness for vibecoders, product owners, CEOs and real builders — self-improving context memory, 15 agents, 33 skills working with /goal, agent-team, & workflow on autopilot loops with 0 need for human gate. Kills context rot, ships features, not spaghetti. Claude Code & Codex. Any stack",
+      "url": "https://github.com/withkynam/vibecode-pro-max-kit",
+      "clone_url": "https://github.com/withkynam/vibecode-pro-max-kit.git",
+      "ssh_url": "git@github.com:withkynam/vibecode-pro-max-kit.git",
+      "homepage": "",
+      "created_at": "2026-05-27T05:46:25Z",
+      "updated_at": "2026-06-18T02:49:04Z",
+      "pushed_at": "2026-06-17T06:44:31Z"
+    },
+    "stats": {
+      "stars": 924,
+      "forks": 204,
+      "watchers": 924,
+      "open_issues": 19,
+      "size": 14779
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 1459680,
+        "Shell": 28828
+      },
+      "license": "MIT License",
+      "topics": [
+        "agentic",
+        "ai-agents",
+        "ai-coding-assistant",
+        "ai-development",
+        "ai-workflow",
+        "anthropic",
+        "claude",
+        "claude-code",
+        "cli-tools",
+        "code-quality",
+        "codex",
+        "coding-agents",
+        "cursor",
+        "developer-tools",
+        "llm",
+        "openai",
+        "prompt-engineering",
+        "typescript",
+        "vibe-coding",
+        "vibecoding"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <strong>English</strong> |\n  <a href=\"docs/i18n/README.zh-CN.md\">简体中文</a> |\n  <a href=\"docs/i18n/README.ja-JP.md\">日本語</a> |\n  <a href=\"docs/i18n/README.ko-KR.md\">한국어</a> |\n  <a href=\"docs/i18n/README.vi-VN.md\">Tiếng Việt</a> |\n  <a href=\"docs/i18n/README.pt-BR.md\">Português</a> |\n  <a href=\"docs/i18n/README.es.md\">Español</a> |\n  <a href=\"docs/i18n/README.de.md\">Deutsch</a> |\n  <a href=\"docs/i18n/README.fr.md\">Français</a> |\n  <a href=\"docs/i18n/README.hi.md\">हिंदी</a>\n</p>\n\n<div align=\"center\">\n\n<a href=\"https://flowser.ai\">\n  <img src=\"assets/flowser-logo.svg\" alt=\"Flowser\" width=\"120\">\n</a>\n\n*Built by world-class engineers, for vibecoders at*<br>\n*[flowser.ai](https://flowser.ai) — AI Agents with computers for GTM*\n\n<br>\n\n# vibecode-pro-max-kit\n\n<br>\n\n<p align=\"center\">\n  <img src=\"https://media.tenor.com/q_5em_iLaxoAAAAC/tanjiro-i-water-style.gif\" alt=\"Flow like water\" width=\"480\">\n  <br><br>\n  <em>\"Total Concentration — Spec Breathing, Tenth Form: the Vibe Flow never breaks.\"</em><br>\n  <strong>— Tanjiro Kamado</strong>\n</p>\n\n*Drop this into any project. Your AI agent gets a complete plan-first dev process — 7 gated phases, self-healing check loops, and autopilot that runs start to finish without losing its place.*\n\n<table align=\"center\">\n<tr>\n<td width=\"50%\" valign=\"top\"><strong>📦 One-command install</strong><br>One <code>curl</code> line drops it into any project. It detects new vs. returning users and never overwrites your files.</td>\n<td width=\"50%\" valign=\"top\"><strong>🌐 Works everywhere</strong><br>Any tech stack, any language, and any AI coding agent — Claude Code, Codex, Cursor, Windsurf, Copilot, and more.</td>\n</tr>\n<tr>\n<td valign=\"top\"><strong>🧭 RIPER-5 plan-first workflow</strong><br>7 gated phases (Research → Spec → Innovate → Plan → Validate → Execute → Update-Process) stop the agent from jumping straight to code.</td>\n<td valign=\"top\"><strong>🚀 Autopilot mode (quick / fast / full)</strong><br>Start a hands-free run at any phase with a single phrase. Three lanes match the ceremony to the risk.</td>\n</tr>\n<tr>\n<td valign=\"top\"><strong>🎯 <code>/goal</code> — the run-until-done token</strong><br>One copy-pasteable block keeps the agent running phase after phase without stopping — and resumes the run in a fresh session.</td>\n<td valign=\"top\"><strong>🔁 PVL + EVL self-healing loops</strong><br>Plan-check-fix and test-check-fix loops find gaps, fix them, and re-check on their own — up to 10 cycles each.</td>\n</tr>\n<tr>\n<td valign=\"top\"><strong>🔍 vc-autoresearch</strong><br>A reusable find-gaps → fix → repeat loop you can point at plans, tests, specs, docs, or evals.</td>\n<td valign=\"top\"><strong>🧪 Feasibility probes</strong><br>Test-before-you-build verdicts (VIABLE / NOT-VIABLE) before the agent commits to any design approach.</td>\n</tr>\n<tr>\n<td valign=\"top\"><strong>🎛️ Smart strategy picker</strong><br>Before each phase it weighs one agent vs. many vs. a coordinated team — with cost estimates — and picks the cheapest that fits.</td>\n<td valign=\"top\"><strong>🧮 Smart model use</strong><br>The expensive model only writes code; the cheaper model does everything else. Lower cost, same quality.</td>\n</tr>\n<tr>\n<td valign=\"top\"><strong>🤔 Intent clarification</strong><br>When a request is vague, the agent asks a few sharp questions up front instead of guessing and building the wrong thing.</td>\n<td valign=\"top\"><strong>🛡️ 36 validators</strong><br>Mechanical correctness checks — not opinions — guard the kit's own structure and catch drift before it ships.</td>\n</tr>\n<tr>\n<td valign=\"top\"><strong>🏗️ Phase programs</strong><br>Large projects are split into independent phases with quality gates between them, so big work doesn't fall apart.</td>\n<td valign=\"top\"><strong>🔀 Programs that reshape themselves</strong><br>As it learns, the agent inserts new phases, reorders work, and skips blocked steps — the plan adapts on the fly.</td>\n</tr>\n<tr>\n<td valign=\"top\"><strong>🧠 Never loses its place</strong><br>Progress notes are written to disk every phase, so a run survives a memory reset and picks up exactly where it left off.</td>\n<td valign=\"top\"><strong>📚 Self-improving project memory</strong><br>It learns your codebase on setup and keeps its own shared notes current after every feature ships, so docs never go stale.</td>\n</tr>\n<tr>\n<td valign=\"top\"><strong>⚡ Quick Fix + Fast Mode</strong><br>Light lanes for small changes skip the heavy ceremony, so a one-line fix stays a one-line fix.</td>\n<td valign=\"top\"><strong>🧱 Layered, auto-discovered skills</strong><br>Skills are organized in clear layers and discovered automatically — the agent always finds the right tool for the step.</td>\n</tr>\n<tr>\n<td valign=\"top\"><strong>🤖 15 agents · 33 skills · 10 hooks</strong><br>A full team of specialized agents, reusable skills, and safety hooks, all wired together out of the box.</td>\n<td valign=\"top\"><strong>🔄 Full kit lifecycle</strong><br>Install, setup, update, and publish are all one command ea",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:46.720722"
+  },
+  {
+    "basic_info": {
+      "name": "ffmpeg-webCLI",
+      "full_name": "tejaswigowda/ffmpeg-webCLI",
+      "owner": "tejaswigowda",
+      "description": "A browser-based video editor powered by ffmpeg.wasm. No uploads, no servers -- all processing happens locally in your browser using WebAssembly.",
+      "url": "https://github.com/tejaswigowda/ffmpeg-webCLI",
+      "clone_url": "https://github.com/tejaswigowda/ffmpeg-webCLI.git",
+      "ssh_url": "git@github.com:tejaswigowda/ffmpeg-webCLI.git",
+      "homepage": "https://tejaswigowda.com/ffmpeg-webCLI/",
+      "created_at": "2026-05-30T22:31:34Z",
+      "updated_at": "2026-06-18T04:55:52Z",
+      "pushed_at": "2026-06-18T02:19:31Z"
+    },
+    "stats": {
+      "stars": 759,
+      "forks": 64,
+      "watchers": 759,
+      "open_issues": 0,
+      "size": 15970
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 3428,
+        "TeX": 3277
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "audio-editor",
+        "browser-based",
+        "client-side",
+        "ffmpeg-wasm",
+        "javascript",
+        "local-first",
+        "media-processing",
+        "offline-first",
+        "open-source",
+        "privacy-first",
+        "progressive-web-app",
+        "pwa",
+        "video-editor",
+        "video-processing",
+        "wasm",
+        "web-cli",
+        "web-worker",
+        "webassembly",
+        "zero-upload"
+      ]
+    },
+    "content": {
+      "readme": "# ffmpeg webCLI\n\n[![GitHub stars](https://img.shields.io/github/stars/tejaswigowda/ffmpeg-webCLI?style=social)](https://github.com/tejaswigowda/ffmpeg-webCLI/stargazers)\n\nA browser-based video editor powered by [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm). <b><ins>No uploads, no servers -- all processing happens locally</ins></b> in your browser using WebAssembly.\n\n▶ **Live app:** https://tejaswigowda.com/ffmpeg-webCLI/\n\n---\n\n## Key Features\n\n<img src='demos/features.png'/>\n\n\n✓ **No Server Uploads** : All video processing happens entirely on your device\n\n✓ **32+ Video Operations** : GIF creation, format conversion, compression, trimming, effects, filters, auto-captioning, and more\n\n✓ **Batch Processing** : Process multiple videos at once with the same operation - or an entire **operation chain** - applied to every file; real-time progress, per-file preview, individual downloads, ZIP-all, and graceful fallback\n\n✓ **Offline-First PWA** : Works completely offline after first use; install as a native app\n\n✓ **Screen Wake Lock** : Screen stays active during video processing on any device\n\n✓ **Live Previews** : See output size estimates and live settings adjustments\n\n✓ **Multi-Format Support** : MP4, WebM, MKV, MOV, AVI, GIF, MP3, AAC, WAV, OGG, FLAC, JPG, PNG\n\n✓ **Advanced Features** : Raw ffmpeg command access, subtitle embedding, concatenation, picture-in-picture, audio mixing\n\n✓ **Fast & Responsive** : Uses Web Workers for background processing\n\n✓ **Privacy First** : Zero data collection; works with your files locally\n\n---\n\n## What It Replaces\n\n| Tool | What you replace |\n|---|---|\n| CloudConvert | Format conversion, compression, audio extraction |\n| Kapwing | Trim, crop, speed, reverse, fade, filters |\n| Clideo | Trim, compress, merge, mute, loop |\n| Ezgif | GIF maker, reverse, resize, crop, optimize |\n| Online-convert.com | Format conversion across video/audio |\n| MP3cut / Audiotrimmer | Audio extraction and trimming |\n| Metadata2go | Strip metadata |\n| Subtitle Horse | Embed subtitles |\n| Kapwing (side-by-side) | Side by side, picture-in-picture |\n| Rev / Scribd | Auto-captioning, transcript editing |\n| Loudnorm tools | Audio normalization |\n\n**The difference that matters:** every one of those tools uploads your file to a\nserver. Some are free with ads, some charge -- but all of them *see your file*, and\nall are subject to data breaches, subpoenas, and privacy-policy changes.\n\nffmpeg-webCLI covers the common tasks of all of them, for free, with files that\n**never leave your device**.\n\n\n---\n\n## Use Cases\n\n### ⛓ Operation Chaining (Stack Mode)\nStack several compatible operations and run them in a **single pass**. Switch the Operations panel to **Stack (chain)** mode, configure an op, and click **Add to Stack** to queue it. The queue is an ordered, reorderable list - move items up/down or remove them - and a live **composed command preview** shows the exact `ffmpeg` invocation before you run it.\n\nAll stacked operations are merged into one filter chain (`-vf \"a,b,c\"` / `-af \"x,y\"`) and encoded **only once**, so quality loss from repeated re-encoding is avoided. Any active trim is applied first as input seeking, then the chain runs, then the single encode targets your chosen output format. For example, crop → grayscale → convert-to-MP4 becomes:\n\n```\nffmpeg -i input.mp4 -vf \"crop=1280:720:0:0,eq=brightness=0:contrast=1:saturation=0\" -c:v libx264 -preset fast -c:a aac output.mp4\n```\n\n**Chainable:** Crop, Resize, Rotate/Flip, Adjust (brightness/contrast/saturation), Grayscale, Fade, Denoise, Sharpen/Blur, Speed, Pad/Letterbox and Volume - every single-input, frame-wise video/audio filter.\n\n**Not chainable** (use Single mode): multi-input operations (Concatenate, Side by Side, Picture in Picture, Mix Audio, Embed Subtitles, Logo Overlay) and whole-file or different-output operations (GIF, Thumbnail, Boomerang, Media Info). These are disabled in Stack mode with an inline explanation.\n\n**Chaining + batch together:** Stack mode and batch mode combine - enable **Batch**, queue several files, switch to **Stack (chain)**, build your chain once, and click **Process Stack** to apply the *entire* chain to *every* queued file. Each file is composed against its own dimensions/duration (so crop, pad, and fade resolve per file) and encoded in a single pass, with results shown in the batch outputs panel.\n\n### ▶ Batch Processing\nProcess multiple video files with the same operation in a single session. Click the **Batch** toggle in the Input Video card to enable batch mode, then drop or select multiple files. Each file is queued with a status indicator:\n- ⧖ **Pending** : queued, waiting to process\n- ▶ **Processing** : currently encoding\n- ✓ **Done** : completed successfully\n- ✗ **Error** : encountered an issue\n\nWhen you click **Process Queue**, ffmpeg runs through each file sequentially. The log shows real-time progress: `[X/total] Processing: filename`. Completed files appear in the **Batch Outputs** panel of the Outp",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:47.921596"
+  },
+  {
+    "basic_info": {
+      "name": "wha-spell-simulator",
+      "full_name": "ytnrvdf/wha-spell-simulator",
+      "owner": "ytnrvdf",
+      "description": "A fan-made browser-based Witch Hat Atelier spell simulator.",
+      "url": "https://github.com/ytnrvdf/wha-spell-simulator",
+      "clone_url": "https://github.com/ytnrvdf/wha-spell-simulator.git",
+      "ssh_url": "git@github.com:ytnrvdf/wha-spell-simulator.git",
+      "homepage": "https://ytnrvdf.github.io/wha-spell-simulator/",
+      "created_at": "2026-05-25T00:57:33Z",
+      "updated_at": "2026-06-18T04:51:19Z",
+      "pushed_at": "2026-05-31T12:16:42Z"
+    },
+    "stats": {
+      "stars": 688,
+      "forks": 83,
+      "watchers": 688,
+      "open_issues": 14,
+      "size": 7533
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 266314,
+        "CSS": 19737,
+        "HTML": 17630
+      },
+      "license": "MIT License",
+      "topics": [
+        "witch-hat-atelier"
+      ]
+    },
+    "content": {
+      "readme": "# Witch Hat Atelier Spell Simulator\n\nA fan-made browser-based spell drawing simulator inspired by *[Witch Hat Atelier](https://en.wikipedia.org/wiki/Witch_Hat_Atelier)*.\n\n<div align=\"center\">\n  <img src=\"./assets/demo.gif\" width=\"720\"/>\n  <p>Try here: <a href=\"https://ytnrvdf.github.io/wha-spell-simulator\">https://ytnrvdf.github.io/wha-spell-simulator</a></p>\n</div>\n\nVideo: https://youtu.be/zVWYW0K3ikg\n\n## Project Status\n\nThis is an experimental prototype. I may review issues and PRs when I have time, but I cannot commit to active long-term maintenance.\n\n## Community\n\nThanks to [@cosykid](https://github.com/cosykid) for helping start the community around the project.\nA community Discord has been created for people who want to discuss ideas, share experiments, or continue improving the simulator together.\n\nCommunity Discord: [discord.gg/XkdEe4wB](https://discord.gg/XkdEe4wB)\n\nFor larger changes or faster experimentation, feel free to fork the project. Community forks may move in different directions from this original version.\n\n## Fan Project Notice\n\nThis is an unofficial fan-made project for learning, experimentation, and appreciation. It is not affiliated with, endorsed by, or sponsored by the official creators, publishers, licensors, or production partners of *Witch Hat Atelier*.\n\n*Witch Hat Atelier* and related names, artwork, symbols, and trademarks belong to their respective rights holders. The sigils, signs, spell terminology, and visual effects in this project are partial fan references and interactive interpretations, not official assets or canonical rules.\n\n## What It Does\n\nThe app turns a freehand spell diagram into parser output, compiled spell behavior, and animated canvas effects.\n\n- Lets you draw spell diagrams on a paper-like canvas.\n- Detects one enclosing ring and distinguishes prepared versus active spells.\n- Recognizes dictionary-backed primary sigils for fire, water, wind, earth, and light.\n- Recognizes signs that modify direction, levitation, convergence, force, spread, focus, range, duration, and stability.\n- Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection.\n- Renders animated element effects from the compiled spell behavior.\n- Shows sample spell layouts in the Dictionary panel as drawing references.\n- Includes reference tools for making, viewing, and testing stroke templates, plus a spell effect lab for visual and animation tuning.\n\n## Current Limitations\n\n- The app supports one enclosing spell ring at a time. Multiple rings are detected as unsupported.\n- The current compiler expects one primary sigil. Multiple primary sigils are detected as unsupported.\n- Recognition is based on local stroke templates, so it works best with clean, deliberate drawings.\n- The recognizer is not perfect. Some valid-looking drawings may fail to match, and some rough drawings may need to be redrawn more clearly.\n- The dictionaries only cover a small fan-made subset of sigils, signs, and observed spell ideas.\n- The visual effects are interpretive canvas animations, not a faithful reproduction of manga or anime effects.\n- Raster images can be used as visual references, but the app cannot recover true stroke order from an image.\n- Closed but invalid diagrams may show diagnostics, but they do not fall back to another element.\n- This is a browser prototype, not a production drawing engine or general symbol recognizer.\n\n## Run Locally\n\nInstall dependencies:\n\n```sh\nnpm install\n```\n\nStart the Vite dev server:\n\n```sh\nnpm start\n```\n\nThen open:\n\n```txt\nhttp://127.0.0.1:5173/\n```\n\n## Reference Tools\n\nThese tools are available from the app:\n\n```txt\n/tools/strokeTemplateMaker.html\n/tools/strokeTemplateViewer.html\n/tools/sigilSignDetectorLab.html\n/tools/spellEffectLab.html\n```\n\n## Tests\n\nRun the Node test suite:\n\n```sh\nnpm test\n```\n\n## Documentation\n\n- [Dictionary authoring](docs/dictionary-authoring.md)\n- [Parser and spell semantics rules](docs/play-rules.md)\n- [Parsed glyph output contract](docs/glyph-ast.md)\n- [Compiled spell output contract](docs/spell-ir.md)\n- [Visual effect renderer notes](docs/effect-rendering.md)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:49.149420"
+  },
+  {
+    "basic_info": {
+      "name": "fanbox",
+      "full_name": "alchaincyf/fanbox",
+      "owner": "alchaincyf",
+      "description": "vibe coding 的驾驶舱：左边文件，右边/下边终端，中间看清每一次改动。 / The cockpit for vibe coding: browse files on the left, command agents on the right, watch every change in between.",
+      "url": "https://github.com/alchaincyf/fanbox",
+      "clone_url": "https://github.com/alchaincyf/fanbox.git",
+      "ssh_url": "git@github.com:alchaincyf/fanbox.git",
+      "homepage": "https://github.com/alchaincyf/fanbox/releases/latest",
+      "created_at": "2026-06-10T01:01:42Z",
+      "updated_at": "2026-06-18T05:10:44Z",
+      "pushed_at": "2026-06-18T02:38:20Z"
+    },
+    "stats": {
+      "stars": 666,
+      "forks": 93,
+      "watchers": 666,
+      "open_issues": 13,
+      "size": 24278
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 572712,
+        "HTML": 237266,
+        "CSS": 96096
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "ai",
+        "claude",
+        "codex",
+        "electron",
+        "file-manager",
+        "local-first",
+        "macos",
+        "terminal",
+        "vibe-coding"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 📦 FanBox\n\n<img src=\"assets/promo-banner.jpg\" alt=\"FanBox · Coding Agent 的驾驶舱\" width=\"100%\">\n\n<br><br>\n\n> *\"AI 帮你一个下午起十个项目，然后它们就再也找不到了。FanBox 帮你把它们找回来。\"*\n> *\"AI spins up ten projects in an afternoon. FanBox helps you find them again.\"*\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)\n[![Release](https://img.shields.io/github/v/release/alchaincyf/fanbox?label=Release&color=blue)](https://github.com/alchaincyf/fanbox/releases/latest)\n[![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](https://github.com/alchaincyf/fanbox/releases/latest)\n[![Runtime](https://img.shields.io/badge/Runtime-no--build-blueviolet)](#architecture)\n\n<br>\n\n**FanBox：Coding Agent 的驾驶舱。指挥 Claude Code、Codex 在本地干活，看清它碰过的每个文件、改过的每一行，随时接手。**<br>\n**FanBox — the cockpit for coding agents: command Claude Code or Codex, see every file and line they change, and take over anytime.**\n\n<br>\n\n一边浏览、预览、编辑本地文件；一边在内嵌真实终端里跑 Claude Code 或任何 coding agent。<br>\n agent 每写一个文件，对应卡片就会亮起来——*找回文件 → 运行 agent → 看清改了什么*，全部在一个窗口完成。<br>\n<br>\nBrowse, preview and edit local files on one side; run Claude Code or any coding agent in a real embedded terminal on the other.<br>\nEvery time the agent writes a file, its card lights up — *find files → run agents → see what changed*, all in one window.\n\n<br>\n\n[⬇ 下载 dmg / Download dmg](https://github.com/alchaincyf/fanbox/releases/latest) · [Screenshots / 截图](#three-skins) · [Features / 功能](#what-it-does) · [Install / 安装](#install) · [Credits / 致谢](#credits)\n\n</div>\n\n---\n\n<p align=\"center\">\n  <img src=\"assets/screenshot-volt.png\" alt=\"FanBox · Volt skin · file browser on the left, README preview at the bottom, embedded terminal on the right\" width=\"100%\">\n</p>\n\n<p align=\"center\"><sub>▲ 真机截图：浏览 fanbox 仓库本身，README 原地预览，内嵌终端正在跑 git。本页所有截图均由 Playwright 从实时 App 中直接拍摄，未修图。<br>Real capture: browsing the fanbox repo itself, README previewed in place, git running in the embedded terminal. All screenshots in this README are taken from the live app via Playwright, unedited.</sub></p>\n\n---\n\n<a id=\"why-fanbox\"></a>\n## Why FanBox · 为什么要做 FanBox\n\nAI 帮你一个下午起十个项目，但它们散在各处、名字认不出、改了啥看不见。每天的真实流程是：Finder 里翻半天 → 切到 iTerm 启 agent → 再切浏览器看效果，三个窗口来回跳。\n\nAI helps you start ten projects in an afternoon — then they scatter everywhere, the names stop making sense, and you can't see what got changed. The daily reality: dig through Finder → switch to iTerm to launch an agent → switch to the browser to check results. Three windows, endless hopping.\n\nFanBox 把这条链路收进一个窗口：**左边文件 × 右边/下边终端 × 原地预览**，一个有机整体。它不跟 Finder 拼文件操作，不跟 VS Code 拼编辑，专注「找回 + 预览 + 轻改 + 指挥 agent」这一条链路做到顺手。\n\nFanBox folds that loop into one window: **files on the left × terminal on the right/bottom × preview in place**. It doesn't compete with Finder on file ops or VS Code on editing. It does one chain well: *find → preview → light edits → command the agent*.\n\n不做云、不做远程、不做账号。本地、零配置、运行时零依赖。\n\nNo cloud, no remote, no accounts. Local-first, zero config, zero runtime dependencies.\n\n<a id=\"three-skins\"></a>\n## Three skins · 三套皮肤\n\n界面在 [huashu-design](https://github.com/alchaincyf/huashu-design) 辅助下完成设计，三套皮肤不是换个主题色——配色、字体、图标、代码高亮、终端 ANSI 主题整体随之变化。\n\nThe UI was designed with [huashu-design](https://github.com/alchaincyf/huashu-design). The three skins are not theme-color swaps — palette, typography, icons, code highlighting and terminal ANSI themes all change together:\n\n| | |\n|---|---|\n| <img src=\"assets/screenshot-volt.png\" alt=\"Volt skin / 终端皮肤\"> | **终端 · Volt** · 荧光绿 × 炭黑 × 等宽字，工业仪器面板感（默认）<br>**Volt** · neon green × charcoal × monospace, industrial instrument panel (default) |\n| <img src=\"assets/screenshot-archive.png\" alt=\"Archive skin / 档案皮肤\"> | **档案 · Archive** · 奶油纸 × 赤陶橙 × 衬线，温暖纸感档案馆<br>**Archive** · cream paper × terracotta × serif, a warm paper archive |\n| <img src=\"assets/screenshot-index.png\" alt=\"Index skin / 索引皮肤\"> | **索引 · Index** · 黑白 × 信号红/绿 × 巨号字，编辑式索引日报<br>**Index** · black & white × signal red/green × oversized type, editorial index daily |\n\n<a id=\"what-it-does\"></a>\n## What it does · 能做什么\n\n### Files · find & preview / 文件 · 找回与预览\n\n- **⌘K 全局模糊搜索 / Global fuzzy search** — 记得名字片段就行；`⌘↵` 用编辑器整包打开项目；`内容:关键词` 切全文搜索。  \n  A fragment of the name is enough; `⌘↵` opens the project in your editor; `content:keyword` switches to full-text search.\n- **强色实体图标 / Bold solid icons** — 每种文件「长得像它自己」：PDF 红、JS 黄、Markdown 蓝；照片视频按真实比例呈现。  \n  Every file type \"looks like itself\": red PDFs, yellow JS, blue Markdown; photos and videos render at true aspect ratio.\n- **原地预览 / Preview in place** — Markdown 渲染、HTML 实时成品、代码语法高亮、图片/视频/PDF 内嵌（HEIC 直接显示）、压缩包内容清单、透明图棋盘格垫底。  \n  Rendered Markdown, live HTML, syntax-highlighted code, inline images/video/PDF (HEIC included), archive content listing, checkerboard backing for transparent images.\n- **缩略图加速 / Thumbnail speed** — 大文件夹滚动和点击都在 0.1 秒内。  \n  Scrolling and clicking through large folders stays under 0.1s.\n- **项目徽章 / Project badges** — 文件夹卡片标 node / web / py / rs / go 徽章，一下午起的十个项目一眼认出类型。  \n  Folder c",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-06-18T05:28:50.434683"
+  },
+  {
+    "basic_info": {
+      "name": "xiaoer-videolab",
+      "full_name": "Jane-xiaoer/xiaoer-videolab",
+      "owner": "Jane-xiaoer",
+      "description": "One click on the toolbar grabs the current page's video into ~/Downloads — local yt-dlp daemon, 1800+ sites. 小耳抓视频：一键把当前页视频抓到本地。",
+      "url": "https://github.com/Jane-xiaoer/xiaoer-videolab",
+      "clone_url": "https://github.com/Jane-xiaoer/xiaoer-videolab.git",
+      "ssh_url": "git@github.com:Jane-xiaoer/xiaoer-videolab.git",
+      "homepage": null,
+      "created_at": "2026-06-04T05:20:47Z",
+      "updated_at": "2026-06-17T15:40:36Z",
+      "pushed_at": "2026-06-07T02:10:05Z"
+    },
+    "stats": {
+      "stars": 523,
+      "forks": 78,
+      "watchers": 523,
+      "open_issues": 1,
+      "size": 849
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 34330,
+        "Python": 30583,
+        "Shell": 10434,
+        "CSS": 7129,
+        "PowerShell": 6850,
+        "HTML": 2294
+      },
+      "license": "MIT License",
+      "topics": [
+        "bilibili",
+        "chrome-extension",
+        "launchd",
+        "macos",
+        "manifest-v3",
+        "privacy-friendly",
+        "video-downloader",
+        "youtube-dl",
+        "yt-dlp"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 🎬 Xiaoer VideoLab\n\n### One click. Any video. Local.\n\nPress one toolbar button and the video on the current page lands in your `~/Downloads`.\nPowered by a tiny local [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) daemon — **1800+ sites** out of the box\n(YouTube · Bilibili · X/Twitter · TikTok · Vimeo · Twitch · Weibo …).\n\n[![CI](https://github.com/Jane-xiaoer/xiaoer-videolab/actions/workflows/ci.yml/badge.svg)](https://github.com/Jane-xiaoer/xiaoer-videolab/actions/workflows/ci.yml)\n[![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)\n![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey)\n![Manifest V3](https://img.shields.io/badge/Chrome-MV3-4285F4?logo=googlechrome&logoColor=white)\n![Python stdlib only](https://img.shields.io/badge/Python-stdlib%20only-3776AB?logo=python&logoColor=white)\n![No tracking](https://img.shields.io/badge/network-localhost%20only-27ae60)\n\n[![English](https://img.shields.io/badge/lang-English-2563eb)](README.md)&nbsp;\n[![简体中文](https://img.shields.io/badge/lang-简体中文-lightgrey)](README.zh-CN.md)\n\n</div>\n\n---\n\n## 🙏 Thanks to our contributors / 致谢贡献者\n\n**This project is better because of these people — thank you! / 本项目因他们而更好,衷心感谢!**\n\n- [**@ttmouse**](https://github.com/ttmouse) — popup history panel, **cancel a stuck download**, play / open-folder, one-click daemon start ([#4](https://github.com/Jane-xiaoer/xiaoer-videolab/pull/4))\n  <br>弹出历史面板、**取消卡住的下载**、播放 / 打开文件夹、一键启动服务\n- [**@jzq1212 (林以恒)**](https://github.com/jzq1212) — **Windows support**: cross-platform daemon + PowerShell install scripts ([#1](https://github.com/Jane-xiaoer/xiaoer-videolab/pull/1))\n  <br>**Windows 支持**:跨平台 daemon + PowerShell 安装脚本\n- [**@alick-zhang**](https://github.com/alick-zhang) — raised the Windows request that kicked it off ([#3](https://github.com/Jane-xiaoer/xiaoer-videolab/issues/3))\n  <br>提出 Windows 需求,促成了上面的 Windows 支持\n\n> Issues & PRs welcome — your name goes here too. / 欢迎提 issue 和 PR,你的名字也会出现在这里。\n\n---\n\n## Why\n\nBrowser video downloaders are a swamp of sketchy extensions that beg for \"read everything on every site\"\npermissions and phone home. Xiaoer VideoLab takes the opposite bet:\n\n- **The extension does almost nothing.** It only reads the *current tab's URL* when you click it, and POSTs\n  that one string to `127.0.0.1`. No page scraping, no content scripts, no remote servers.\n- **The download happens locally.** A small Python daemon hands the URL to `yt-dlp`, the\n  battle-tested open-source downloader. All the smarts live in a tool you can audit.\n- **Nothing leaves your machine** except the request `yt-dlp` makes to fetch the video you asked for.\n\n## How it works\n\n```\n ┌─────────────────────┐   click    ┌──────────────────────────┐         ┌──────────┐\n │  Browser toolbar     │ ─────────► │  daemon @ 127.0.0.1:7788 │ ──────► │  yt-dlp  │ ──► ~/Downloads\n │  (Chrome MV3 ext.)   │  POST url  │  (Python stdlib, launchd)│  spawn  └──────────┘        │\n └─────────────────────┘            └──────────────────────────┘                              ▼\n        ▲   badge: … ✓ ✕ !                       │                                   macOS notification\n        └───────────────────────────────────────┘                                     \"✅ <filename>\"\n```\n\n- **daemon** — Python standard-library `http.server`, listens on `127.0.0.1:7788`, started at login by `launchd`.\n- **extension** — Chrome MV3, a single toolbar button, grabs `tab.url` and POSTs it to the daemon.\n- **output** — `~/Downloads/<platform>_<title>_<date>.mp4` (≤1080p mp4 by default; configurable).\n- **log** — `~/Library/Logs/xiaoer-videolab.log`\n\n## ✅ What you can download\n\nPowered by yt-dlp's **1872 extractors** — most video sites work. A practical map:\n\n| | Sites |\n|---|---|\n| **✅ Tested & confirmed** | **YouTube · Vimeo · Bilibili (B站) · Douyin (抖音) · Xiaohongshu (小红书)** |\n| **✅ Supported** (yt-dlp extractor, same path) | X/Twitter · Ixigua (西瓜) · Instagram · Reddit · Dailymotion · Facebook · TikTok\\* · …and ~1860 more |\n| **⚠️ Free content only** | Youku (优酷) · iQiyi (爱奇艺) — VIP / DRM-protected episodes can't be downloaded |\n| **🚫 Not recommended** | **Weibo (微博) · Zhihu (知乎)** — see note below |\n| **❌ Not supported** | Kuaishou (快手) & Tencent Video (腾讯视频) — no extractor; **WeChat Channels (视频号)** — in-app & encrypted |\n\n> 🚫 **Weibo / Zhihu — not recommended.** Their web pages are combined SPA feeds (much like TikTok): the video is just one small part of a big page, and you usually **can't open a single video on its own URL**. With no clean per-video address to grab, the button has nothing reliable to work with — so we suggest skipping them.\n>\n> \\* **TikTok / overseas sites** need a network that can reach them (a proxy in mainland China; note some datacenter IPs are blocked by TikTok's API).\n>\n> 🎯 **视频号 / 快手 / 小程序 / 直播流?** Those live inside apps and need packet-sniffing — use [**res-downloader**](https://github.com/putyy/res-downloader) for them. This tool focuses ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:51.831487"
+  },
+  {
+    "basic_info": {
+      "name": "ccglass",
+      "full_name": "jianshuo/ccglass",
+      "owner": "jianshuo",
+      "description": "See what your coding agent (Claude Code, Codex, Kimi) sends to the model — local proxy + web dashboard",
+      "url": "https://github.com/jianshuo/ccglass",
+      "clone_url": "https://github.com/jianshuo/ccglass.git",
+      "ssh_url": "git@github.com:jianshuo/ccglass.git",
+      "homepage": "https://ccglass.jianshuo.dev",
+      "created_at": "2026-05-22T05:35:11Z",
+      "updated_at": "2026-06-18T02:43:26Z",
+      "pushed_at": "2026-06-18T02:18:54Z"
+    },
+    "stats": {
+      "stars": 514,
+      "forks": 33,
+      "watchers": 514,
+      "open_issues": 2,
+      "size": 844
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 315930,
+        "CSS": 23058,
+        "HTML": 1630
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ccglass\n\n**See exactly what your coding agent sends to the model.** A lightweight\nlocal logging reverse-proxy + web dashboard for **Claude Code, Codex,\nOpenCode, DeepSeek-TUI, Reasonix, CodeBuddy, Kimi, Ollama, OpenRouter, and more**.\nOne command, like `ollama`:\n\n```bash\nnpm install -g ccglass     # or: brew install jianshuo/tap/ccglass\nccglass\n```\n\n<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/jianshuo/ccglass/main/docs/demo.gif\" alt=\"ccglass dashboard — live request capture, token/cache/cost, message history with tool calls, the agent-loop flow view, and a turn-to-turn diff\" width=\"100%\">\n</p>\n\nRun with no arguments and `ccglass` asks which client to inspect:\n\n```\n  Which client do you want to inspect?\n\n    1) Claude Code\n    2) Codex (OpenAI)\n    3) DeepSeek-TUI\n    4) Reasonix\n    5) Kimi (Moonshot, via Claude Code)\n    6) OpenCode\n    7) CodeBuddy (Tencent)\n\n  >\n```\n\nOr name it directly: `ccglass claude`, `ccglass codex`, `ccglass deepseek`,\n`ccglass deepseek-tui`, `ccglass reasonix`, `ccglass dsnix`, or `ccglass kimi`.\n\n`ccglass` starts a proxy, points the client at it via the right base-URL env var,\nlaunches it for you, and opens a dashboard where you watch every request in real\ntime — the full system prompt, every tool schema, the message history,\ntoken/cache/cost numbers, and a turn-to-turn diff.\n\n```\n  ● ccglass watching Codex (OpenAI) → https://api.openai.com\n    dashboard: http://127.0.0.1:57633\n```\n\n## Why\n\nThese CLIs are Node/native apps that **ignore `HTTP_PROXY`/`HTTPS_PROXY`** — so\nCharles/mitmproxy never see the traffic, and `fetch`-patching tools break across\nupdates. `ccglass` sidesteps all of it: the client does the HTTPS to the real API\nitself; you only intercept the plain HTTP hop to localhost. No CA certs, no TLS\npinning.\n\n## Providers\n\n| `ccglass <provider>` or `--provider` | Wraps | Env var | Upstream | Format |\n|---|---|---|---|---|\n| `claude` | Claude Code | `ANTHROPIC_BASE_URL` | api.anthropic.com | Anthropic Messages |\n| `codex` | Codex | `OPENAI_BASE_URL` | api.openai.com | OpenAI Responses / Chat |\n| `deepseek` | DeepSeek-TUI dispatcher | `DEEPSEEK_BASE_URL` | api.deepseek.com | OpenAI Chat |\n| `deepseek-tui` | DeepSeek-TUI runtime | `DEEPSEEK_BASE_URL` | api.deepseek.com | OpenAI Chat |\n| `reasonix` | Reasonix | `DEEPSEEK_BASE_URL` | api.deepseek.com | OpenAI Chat |\n| `dsnix` | Reasonix (`dsnix` alias) | `DEEPSEEK_BASE_URL` | api.deepseek.com | OpenAI Chat |\n| `kimi` | Claude Code → Moonshot | `ANTHROPIC_BASE_URL` | api.moonshot.ai/anthropic | Anthropic Messages |\n| `opencode` | OpenCode | `OPENAI_BASE_URL` | auto (from env) | OpenAI Chat |\n| `ollama` | any Ollama-backed client | `OPENAI_BASE_URL` | 127.0.0.1:11434 | OpenAI Chat |\n| `lmstudio` | any LM Studio-backed client | `OPENAI_BASE_URL` | 127.0.0.1:1234 | OpenAI Chat |\n| `openrouter` | any OpenRouter-backed client | `OPENAI_BASE_URL` | openrouter.ai/api | OpenAI Chat |\n| `glm` | any GLM/Zhipu-backed client | `OPENAI_BASE_URL` | auto (from env) | OpenAI Chat |\n| `bedrock` | Claude Code → AWS Bedrock | `ANTHROPIC_BEDROCK_BASE_URL` | auto (from env) | Anthropic Messages |\n| `vertex` | Claude Code → Google Vertex AI | `ANTHROPIC_BASE_URL` | auto (from env) | Anthropic Messages |\n| `codebuddy` | CodeBuddy (IDE / VS Code / JetBrains) | forward-proxy | copilot.tencent.com | OpenAI Chat |\n| `run --provider <p> -- <cmd>` | any client | per provider | per provider | per provider |\n\n**Notes by provider:**\n\n- **Codex** — captures traffic when Codex is in **API-key mode** (`OPENAI_API_KEY`). If Codex is authenticated via **ChatGPT login**, it uses a WebSocket transport (`wss://chatgpt.com/...`) that bypasses `OPENAI_BASE_URL` — the dashboard will be empty. Run `codex doctor` to check your auth mode; if it shows `auth mode: chatgpt`, switch to API-key mode to use ccglass.\n- **Kimi** — runs through Claude Code against Moonshot's Anthropic-compatible endpoint; set `ANTHROPIC_AUTH_TOKEN` to your Moonshot key.\n- **DeepSeek-TUI** — OpenAI-compatible Chat Completions; set `DEEPSEEK_API_KEY`.\n- **Reasonix** — OpenAI-compatible Chat Completions; set `DEEPSEEK_API_KEY`.\n- **OpenCode** — auto-detects upstream from `OPENAI_BASE_URL`; set it before running. Use `--env-var` if your OpenCode provider uses a different env var name.\n- **Ollama / LM Studio** — no key needed for local models; pass `--upstream` if your server runs on a non-default address.\n- **OpenRouter** — set `OPENAI_API_KEY` to your OpenRouter key.\n- **GLM/Zhipu** — set `OPENAI_BASE_URL` to your Zhipu endpoint (e.g. `https://open.bigmodel.cn/api/paas/v4`) and `OPENAI_API_KEY` to your Zhipu key.\n- **AWS Bedrock** — set `ANTHROPIC_BEDROCK_BASE_URL` to your Bedrock endpoint before running. Claude Code in Bedrock mode reads its endpoint from this var (not `ANTHROPIC_BASE_URL`). Works against Bedrock-compat gateways (bearer / mTLS auth). Direct AWS endpoints (`*.amazonaws.com`) will fail through the proxy because SigV4 signs the Host header — ccglass prints a warni",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:53.070643"
+  },
+  {
+    "basic_info": {
+      "name": "sqltoerdiagram",
+      "full_name": "royalbhati/sqltoerdiagram",
+      "owner": "royalbhati",
+      "description": "ER diagram generator. Paste CREATE TABLE statements and get a clean, interactive ERD — runs 100% in your browser, nothing uploaded",
+      "url": "https://github.com/royalbhati/sqltoerdiagram",
+      "clone_url": "https://github.com/royalbhati/sqltoerdiagram.git",
+      "ssh_url": "git@github.com:royalbhati/sqltoerdiagram.git",
+      "homepage": "https://sqltoerdiagram.com.",
+      "created_at": "2026-06-14T04:12:26Z",
+      "updated_at": "2026-06-18T04:23:27Z",
+      "pushed_at": "2026-06-14T04:14:05Z"
+    },
+    "stats": {
+      "stars": 454,
+      "forks": 37,
+      "watchers": 454,
+      "open_issues": 2,
+      "size": 132
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 92949,
+        "HTML": 14775,
+        "CSS": 10369
+      },
+      "license": null,
+      "topics": [
+        "data-modeling",
+        "database",
+        "database-schema",
+        "dbdiagram",
+        "dbml",
+        "developer-tools",
+        "diagram",
+        "entity-relationship-diagram",
+        "er-diagram",
+        "erd",
+        "mysql",
+        "open-source",
+        "postgresql",
+        "schema",
+        "sql",
+        "sql-parser",
+        "sqlite",
+        "vanilla-js",
+        "visualization",
+        "vite"
+      ]
+    },
+    "content": {
+      "readme": "# SQL to ER Diagram — free online ERD generator\n\nPaste a SQL schema (`CREATE TABLE` statements) → get a clean, interactive ER diagram.\n**Open source and 100% local** — it runs entirely in your browser, so your schema never\nleaves your machine. No server, no signup, no upload. Live at **https://sqltoerdiagram.com**.\n\n![deps](https://img.shields.io/badge/deps-2-blue) ![bundle](https://img.shields.io/badge/bundle-32KB%20gzip-brightgreen)\n\n## Why\n\nEvery other SQL-diagram tool is either paywalled, ugly, or slow. SQL to ER Diagram is a\nsingle static page that:\n\n- Parses `CREATE TABLE` / `ALTER TABLE` DDL (MySQL, Postgres, SQL-Server-ish).\n- Renders tables on a **canvas** with cached bitmaps + viewport culling, so it stays\n  smooth at **hundreds of tables** (benchmarked ~120fps while zooming 300 tables / 593 FKs).\n- **Declutters dense schemas**: FK lines are soft by default; **hover** a table to\n  highlight just its relationships, **click** to pin focus (fades every unrelated\n  table and line). Click empty space to clear.\n- **Edit on the canvas → SQL updates**: **double-click** a table name, column name,\n  or column type to edit it inline. The change is applied as a *surgical text edit*\n  to your SQL (comments, formatting and unsupported clauses are preserved), and a\n  table rename automatically updates every `REFERENCES` to it.\n- **Add columns**: click a table to pin it, then **+ add column**. The new column is\n  inserted into your SQL with a default type for the selected **dialect**\n  (PostgreSQL / MySQL / SQLite / SQL Server), and opens inline so you can name it.\n  Editing a column type shows dialect-aware type suggestions.\n- **Your arrangement is saved**: drag tables wherever you like — positions and the\n  camera persist automatically, so reloading restores your exact layout instead of\n  re-arranging. Editing SQL keeps your manual positions; only brand-new tables get\n  auto-placed (beside the rest). **Arrange** re-runs auto-layout when you want it.\n- **Save / Open projects**: **Save** downloads a `.json` project (SQL + layout + camera\n  + dialect); **Open** loads one back. Keep multiple diagrams or share them.\n- **Share link**: **Share** copies a URL with the entire project (SQL + node positions\n  + camera + dialect) encoded in the URL hash — gzip-compressed + base64. The data\n  lives in the link itself (the `#…` fragment is never sent to a server), so sharing\n  needs **no backend**. Opening the link restores the exact diagram.\n- **Annotations** (bottom-left palette): add **sticky notes** and **group boxes** to\n  label and cluster sections. Drag to move, drag the corner to resize, double-click to\n  edit text, click to select (colour swatches + delete), or press Delete. They're part\n  of the diagram — included in save, share links, and PNG/SVG exports.\n- **Overlap-free layout**: auto-arrange runs a separation pass so no two tables overlap.\n- **Hide the SQL panel** (⬚ in the toolbar) for a full-width diagram.\n- **Syntax-highlighted SQL editor**: keywords / types / strings / comments / numbers\n  are colored via a paint layer behind the textarea. Re-tokenizing is a single linear\n  pass coalesced to one animation frame, so typing stays instant (~6ms full repaint on\n  a 45KB / 300-table script, sub-ms on normal schemas).\n- Lets you **drag** tables, **scroll/pinch to zoom**, pan, and **smart auto-arrange**:\n  hub-aware layered layout (the most-connected table is placed on one side with its\n  related tables aligned beside it), with **Horizontal/Vertical** direction and\n  **Compact/Comfortable/Spacious** spacing options under the **Arrange ▾** menu.\n- Exports **PNG** (raster) and **SVG** (vector).\n- Has light + dark themes, and remembers your last schema locally.\n\n## Run locally\n\n```bash\nnpm install\nnpm run dev      # http://localhost:5173\n```\n\n## Build & host\n\n```bash\nnpm run build    # outputs static files to dist/\n```\n\n`dist/` is plain static HTML/JS/CSS — drop it on any static host:\n\n- **GitHub Pages** — push `dist/` to a `gh-pages` branch, or use an action.\n- **Netlify / Vercel / Cloudflare Pages** — build command `npm run build`, publish dir `dist`.\n- **Any web server / S3 bucket** — just upload the contents of `dist/`.\n\nPreview the production build locally: `npm run preview`.\n\n## Supported SQL\n\n- `CREATE TABLE [IF NOT EXISTS] name ( ... )` with quoted / backtick / `[bracket]` / `schema.qualified` names.\n- Inline column constraints: `PRIMARY KEY`, `NOT NULL`, `UNIQUE`, `REFERENCES other(col)`.\n- Table-level constraints: `PRIMARY KEY (...)`, `UNIQUE (...)`,\n  `FOREIGN KEY (...) REFERENCES other(...)`, `CONSTRAINT ... FOREIGN KEY ...`.\n- `ALTER TABLE x ADD [CONSTRAINT ...] FOREIGN KEY (...) REFERENCES y(...)`.\n- Line (`--`, `#`) and block (`/* */`) comments are ignored.\n\n## Tech\n\n- **Vite** — build + dev server.\n- **@dagrejs/dagre** — layered auto-layout.\n- Custom canvas renderer + SQL DDL parser (no heavy SQL-parser dependency).\n\n## Shortcuts\n\n- **⌘/Ctrl + Enter** — re-arrange.\n- **Double-click** canvas — zoom in.",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:54.271845"
+  },
+  {
+    "basic_info": {
+      "name": "make-pages-interactive",
+      "full_name": "paraschopra/make-pages-interactive",
+      "owner": "paraschopra",
+      "description": null,
+      "url": "https://github.com/paraschopra/make-pages-interactive",
+      "clone_url": "https://github.com/paraschopra/make-pages-interactive.git",
+      "ssh_url": "git@github.com:paraschopra/make-pages-interactive.git",
+      "homepage": null,
+      "created_at": "2026-05-26T05:39:25Z",
+      "updated_at": "2026-06-17T16:08:08Z",
+      "pushed_at": "2026-05-26T06:49:57Z"
+    },
+    "stats": {
+      "stars": 427,
+      "forks": 49,
+      "watchers": 427,
+      "open_issues": 13,
+      "size": 67
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 42391,
+        "Python": 15892,
+        "CSS": 14658
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# make-pages-interactive\n\nA Claude Code skill that turns any folder of static HTML pages into a **live commenting surface**. Highlight text, click an element, leave a note — the comment lands in a local inbox that Claude reads and responds to by editing the page. The page auto-reloads with a walkthrough of what changed.\n\nOriginally built for iterating on research artifacts (long HTML reports with plots, tables, explanations) but works for any folder of HTML: docs, design mocks, generated reports, prototype UIs.\n\n![Screenshot of make-pages-interactive in action](screenshot.png)\n\n---\n\n## How it works\n\n```\n                  ┌──────────────────┐\n   user highlights│   feedback.js    │   POST /feedback\n   / clicks  ───▶ │  (in every page) │ ───────────────┐\n                  └──────────────────┘                 ▼\n                                              ┌────────────────┐\n                  ┌──────────────────┐  poll  │   server.py    │\n   page reloads ◀─│   feedback.js    │ ◀───── │  (stdlib HTTP) │\n   with walkthru  └──────────────────┘history │                │\n                                              └───────┬────────┘\n                                                      │ append\n                                          ┌───────────▼────────────┐\n                                          │  feedback/inbox.jsonl  │\n                                          └───────────┬────────────┘\n                                                      │ Monitor\n                                                      ▼\n                                          ┌────────────────────────┐\n                                          │  Claude (the agent)    │\n                                          │  edits HTML, appends   │\n                                          │  feedback/history.json │\n                                          └────────────────────────┘\n```\n\nThe skill is **just three pieces**:\n\n| File | Role |\n|------|------|\n| `lib/feedback.js` | Client library injected into every page. Handles text selection, element selection, comment editor, page-reload walkthrough. |\n| `lib/feedback.css` | Styles for the comment UI. |\n| `lib/server.py` | ~250-line stdlib-only HTTP server. Serves the page directory, accepts comment POSTs, serves the lib/ files from `/lib/*`. Auto-shuts-down on parent death or 10 min of idle so it doesn't leak processes. |\n\nPlus glue:\n\n| File | Role |\n|------|------|\n| `SKILL.md` | What Claude Code reads to know when and how to invoke the skill. |\n| `scripts/inject.py` | Idempotently injects (or removes) the two `<link>`/`<script>` tags in every `*.html` in a directory. |\n| `scripts/update.py` | `git pull --ff-only` inside the skill directory. |\n\n---\n\n## Install\n\n```bash\ngit clone https://github.com/paraschopra/make-pages-interactive \\\n  ~/.claude/skills/make-pages-interactive\n```\n\nThat's it. Claude Code auto-discovers any folder under `~/.claude/skills/` that contains a `SKILL.md`.\n\nUpdates are explicit:\n\n```bash\npython ~/.claude/skills/make-pages-interactive/scripts/update.py\n```\n\nOr just say \"update the make-pages-interactive skill\" in Claude Code.\n\n---\n\n## Usage\n\nInside any Claude Code session, say:\n\n> \"Make these pages interactive.\"\n\n(or any of: \"make this page interactive\", \"let me comment on this page\", \"add feedback to these pages\")\n\nClaude will:\n\n1. Inject the feedback library tags into every `*.html` in the current directory.\n2. Create `feedback/inbox.jsonl` and `feedback/history.json`.\n3. Pick a free port (5050 by default, falls back if taken).\n4. Start the server in the background.\n5. Tell you the URL to open.\n6. Start monitoring the inbox so any comment you leave gets picked up immediately.\n\nOpen the URL. Comment away. Claude edits the page in response.\n\n### Removing the feedback layer\n\nTo get a clean static copy back (no `/lib/` dependencies in the HTML):\n\n```bash\npython ~/.claude/skills/make-pages-interactive/scripts/inject.py ./your-dir --remove\n```\n\nOr say \"remove the feedback layer from these pages.\"\n\n---\n\n## How the server shuts down\n\nThe server is designed to never leak — three ways it goes away:\n\n1. **Parent-process death** *(automatic, ~5–10 s)*. The server records its parent PID at startup and polls every 5 s. When the parent dies (e.g., you close the Claude Code window that launched it), the kernel reparents the server to PID 1 — the watchdog notices and calls `os._exit(0)`. Skipped if the server was started detached at launch (parent was already PID 1, e.g. `nohup`).\n\n2. **Idle timeout** *(automatic, default 10 min)*. The page polls `/feedback/history.json` every ~4 s, so any open browser tab keeps the server alive. When no client requests have arrived for `--idle-timeout` seconds (default `600`), the server exits. Pass `--idle-timeout 0` to disable.\n\n3. **Manual stop**. Either:\n   - Say \"stop the feedback server\" in your Claude Code session — Claude runs `lsof -ti:5050 | xargs kill` (adjust the port if you used a non-default one).\n   - Or hit `Ctrl-C` in the terminal w",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:55.479361"
+  },
+  {
+    "basic_info": {
+      "name": "chatgpt-plus-automation-toolkit",
+      "full_name": "hanyi0000/chatgpt-plus-automation-toolkit",
+      "owner": "hanyi0000",
+      "description": "自动化完成 ChatGPT 账号注册、GoPay/PayPal 支付、OAuth 授权与 Session 导出，含 Windows 控制面板",
+      "url": "https://github.com/hanyi0000/chatgpt-plus-automation-toolkit",
+      "clone_url": "https://github.com/hanyi0000/chatgpt-plus-automation-toolkit.git",
+      "ssh_url": "git@github.com:hanyi0000/chatgpt-plus-automation-toolkit.git",
+      "homepage": null,
+      "created_at": "2026-05-21T17:04:35Z",
+      "updated_at": "2026-06-17T22:56:10Z",
+      "pushed_at": "2026-06-01T12:49:56Z"
+    },
+    "stats": {
+      "stars": 423,
+      "forks": 133,
+      "watchers": 423,
+      "open_issues": 1,
+      "size": 747057
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 2512519,
+        "Python": 1769125,
+        "Tcl": 1535296,
+        "HTML": 532407,
+        "Shell": 96549,
+        "PowerShell": 17055,
+        "PureBasic": 516,
+        "Batchfile": 45
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ChatGPT 全流程助手\n\n自动化完成 ChatGPT Plus 账号注册、支付、授权、Session 导出的全链路工具。\n\n## 功能概览\n\n| 编号 | 功能 | 说明 |\n|------|------|------|\n| 流程一 | 注册账号生成长链接 | 邮箱注册 ChatGPT → 获取 accessToken → 生成 Plus 支付链接 |\n| 流程二 | GoPay 支付长链接 | 打开支付链接 → 填写账单 → GoPay 绑定 → OTP → PIN → 支付完成 |\n| 流程三 | OAuth 账号授权 | 已支付账号 → OAuth 获取 refresh_token → 落盘 |\n| 流程四 | Session 本地导出 | 从浏览器 profile 提取 session → 导出为 sub2api 格式 |\n| 流程五 | Free 注册 | 注册免费 ChatGPT 账号（手机号/邮箱方式） |\n| PayPal Plus | 注册 + 支付 + 授权 | iCloud 邮箱注册 → PayPal 绑卡支付 → OAuth 授权（独立子流程） |\n\n## 环境要求\n\n- Python 3.10+\n- Playwright（自动安装 Chromium）\n- Windows / macOS / Linux\n\n## 安装\n\n```bash\n# 安装依赖\npip install -r requirements.txt\n\n# 安装 Playwright 浏览器\nplaywright install chromium\n```\n\n## 快速开始\n\n```bash\n# 交互式菜单（推荐）\npython main.py\n\n# 命令行模式\npython main.py --mode register --count 5 --workers 3\npython main.py --mode gopay\npython main.py --mode authorize\npython main.py --mode session-export\npython main.py --mode free-register --count 10 --workers 5\n```\n\n## 目录结构\n\n```\n├── main.py                    # 主入口 + 流程一逻辑\n├── authorization_flow.py      # 流程三：OAuth 授权\n├── fill_billing_test.py       # 流程二：GoPay 支付\n├── config.yaml                # 主配置文件\n├── .env                       # 环境变量配置（敏感信息）\n├── modules/\n│   ├── browser.py             # 浏览器会话管理（指纹、代理）\n│   ├── chatgpt_register.py    # ChatGPT 注册核心逻辑\n│   ├── checkout.py            # 生成支付长链接\n│   ├── free_register.py       # Free 注册流程\n│   ├── free_browser_flow.py   # Free 注册浏览器操作\n│   ├── paypal_flow.py         # PayPal Plus 主编排\n│   ├── paypal_register.py     # PayPal 流程一：注册生成长链接\n│   ├── paypal_pay.py          # PayPal 流程二：PayPal 绑卡支付\n│   ├── paypal_card_pool.py    # PayPal 虚拟卡池管理\n│   ├── paypal_phone_pool.py   # PayPal 手机号池管理\n│   ├── billing_provider.py    # 美国地址生成\n│   ├── mail_provider.py       # 邮箱验证码获取\n│   ├── proxy_pool.py          # 代理池\n│   ├── storage.py             # 账号存储管理\n│   ├── session_export.py      # Session 导出\n│   ├── env_settings.py        # 设置面板\n│   ├── utils.py               # 工具函数\n│   └── ...\n├── data/\n│   ├── accounts.txt           # 流程一邮箱账号池\n│   ├── mail_pool.txt          # 原始邮箱池\n│   ├── proxies/proxies.txt    # 代理列表\n│   ├── icloud/                # iCloud 邮箱配置\n│   ├── hotmail/               # Hotmail 邮箱配置\n│   └── paypal/\n│       ├── icloud_accounts.txt  # PayPal 流程 iCloud 账号\n│       ├── cards.txt            # 虚拟卡池\n│       └── phones.txt           # 手机号池\n├── output/\n│   ├── 流程1_注册成功长链接.txt\n│   ├── 流程2_支付成功待授权.txt\n│   ├── 授权输出/              # 流程三输出\n│   ├── session导出/           # 流程四输出\n│   ├── free成品/              # Free 注册输出\n│   └── paypal成品/            # PayPal Plus 输出\n│       ├── 长链接账号/\n│       ├── 待授权账号/\n│       └── 授权成功/\n└── profiles/                  # 浏览器 profile 缓存\n```\n\n## 配置说明\n\n### .env 环境变量\n\n复制 `.env.example` 为 `.env` 并填写：\n\n```bash\ncp .env.example .env\n```\n\n#### 邮箱源配置\n\n```ini\n# 邮箱源选择：moemail / hotmail / icloud_query\nMAIL_SOURCE=moemail\n\n# 各流程可单独指定邮箱源（覆盖全局）\nFLOW1_MAIL_SOURCE=icloud_query\nFREE_MAIL_SOURCE=moemail\n\n# 邮箱账号模式：pool（从文件读取）\nMAIL_ACCOUNT_MODE=pool\n```\n\n#### MoeMail 自建邮箱池\n\n```ini\nMOEMAIL_ENABLED=false\nMOEMAIL_BASE_URL=https://your-moemail-server.com\nMOEMAIL_API_KEY=your-api-key\nMOEMAIL_DOMAIN_WHITELIST=domain1.com,domain2.com\nMOEMAIL_CREATE_PREFIX=openai\nMOEMAIL_CREATE_MODE=human\n```\n\n#### 代理配置\n\n```ini\n# 全局代理开关（流程一/Free 注册）\nUSE_PROXY=false\nPROXY_FILE=data/proxies/proxies.txt\n\n# PayPal 流程独立代理开关\nPAYPAL_USE_PROXY=false\nPAYPAL_PROXY_FILE=data/proxies/proxies.txt\n```\n\n代理文件格式（每行一个）：\n```\nhttp://user:pass@host:port\nsocks5://host:port\nhost:port\n```\n\n#### 接码平台配置\n\n支持 HeroSMS / GrizzlySMS / 5sim 三个平台：\n\n```ini\n# 全局开关\nSMS_ENABLED=true\nSMS_PROVIDER=herosms\n\n# HeroSMS\nHERO_SMS_API_KEY=your-key\nHERO_SMS_SERVICE=dr\nHERO_SMS_COUNTRY_TOP_N=10\n\n# GrizzlySMS\nGRIZZLY_API_KEY=your-key\nGRIZZLY_SERVICE=auto\n\n# 5sim\nFIVESIM_API_KEY=your-key\nFIVESIM_SERVICE=openai\n```\n\n#### 流程二 GoPay 配置\n\n```ini\n# GoPay 手机号（支持多线程分别绑定）\nGOPAY_PHONE_1=your-phone-1\nGOPAY_PHONE_2=your-phone-2\nGOPAY_COUNTRY_CODE=+62\nGOPAY_PIN=123456\n\n# 账单重试次数\nFLOW2_BILLING_RETRIES=5\nFLOW2_OTP_TIMEOUT=90\n\n# WhatsApp OTP 自动取码（需要 ADB）\nWHATSAPP_OTP_AUTO=false\nWHATSAPP_ADB_PATH=tools\\adb\\adb.exe\n```\n\n#### PayPal 流程配置\n\n```ini\n# PayPal 虚拟卡和手机号文件\nPAYPAL_CARDS_FILE=data/paypal/cards.txt\nPAYPAL_PHONES_FILE=data/paypal/phones.txt\nPAYPAL_PHONE_MAX_USES=5\n\n# PayPal 注册国家\nPAYPAL_BILLING_COUNTRY=US\n\n# PayPal iCloud 账号文件\nPAYPAL_ICLOUD_FILE=data/paypal/icloud_accounts.txt\n```\n\n#### 人机验证码处理\n\n```ini\n# 模式：manual（暂停等手动处理）/ api（打码平台）\nPAYPAL_CAPTCHA_MODE=manual\nPAYPAL_CAPTCHA_TIMEOUT=180\n\n# 打码平台（api 模式）\nCAPTCHA_API_PROVIDER=capsolver\nCAPSOLVER_API_KEY=your-key\n# 或 2Captcha\n# CAPTCHA_API_PROVIDER=twocaptcha\n# TWOCAPTCHA_API_KEY=your-key\n```\n\n#### 授权服务器上传\n\n```ini\nAUTH_SERVER_UPLOAD=false\nAUTH_SERVER_URL=http://127.0.0.1:8790\nAUTH_SERVER_API_KEY=your-key\n```\n\n### config.yaml\n\n主配置文件，包含浏览器参数、ChatGPT 入口、注册 profile 等。一般不需要修改。\n\n### 数据文件格式\n\n#### accounts.txt（流程一邮箱池）\n\n```\nemail@domain.com----query_code\nemail2@domain.com----query_code2\n```\n\n#### data/paypal/cards.txt（PayPal 虚拟卡）\n\n```\nKW-ID----卡号----有效期----CVV----手机号----持卡人----地址----API地址\n```\n\n示例：\n```\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:56.773410"
+  },
+  {
+    "basic_info": {
+      "name": "CF-Server-Monitor",
+      "full_name": "huilang-me/CF-Server-Monitor",
+      "owner": "huilang-me",
+      "description": null,
+      "url": "https://github.com/huilang-me/CF-Server-Monitor",
+      "clone_url": "https://github.com/huilang-me/CF-Server-Monitor.git",
+      "ssh_url": "git@github.com:huilang-me/CF-Server-Monitor.git",
+      "homepage": null,
+      "created_at": "2026-05-26T01:21:29Z",
+      "updated_at": "2026-06-18T04:25:35Z",
+      "pushed_at": "2026-06-17T15:47:57Z"
+    },
+    "stats": {
+      "stars": 406,
+      "forks": 257,
+      "watchers": 406,
+      "open_issues": 5,
+      "size": 1241
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 143372,
+        "Shell": 135690,
+        "Vue": 123411,
+        "CSS": 55135,
+        "Python": 36796,
+        "HTML": 620
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# [CF-Server-Monitor](https://github.com/huilang-me/CF-Server-Monitor)\n\n一个基于 Cloudflare Workers + D1 的多服务器监控探针系统，支持实时监控、历史数据查看、延迟追踪、地图展示等功能。兼容主流Linux系统，Alpine Linux，OpenWrt，Windows系统。**演示地址**：<https://tz.dashdeep.dpdns.org/>\n\n**当前版本：V2.6.9**\n- v2.6.9 紧急修复地图显示问题，重构OpenWrt安装脚本，新增OpenRC服务支持\n- v2.6.8 修复网卡统计误统计非目标网卡流量的问题,修复Alpine环境UDP连接数统计错误,本次更新需要重新安装脚本才能生效\n- v2.6.7 增加了月流量统计校正功能，以及首页流量统计展示\n- v2.6.6 增加上报间隔，Ping方式，流量重置日入库功能\n- V2.6.5 修复了部分系统启动时间获取错误的问题，TCP/UDP上报格式错误导致失败问题，新增详情页面实时网速展示\n- V2.6.4 增加了 **月流量统计** 功能，升级后请在后台手动点击 **升级数据库** 来更新数据库结构。不然会导致数据库结构错误，影响正常运行。同时需要在后台设置重置日期，并重新安装脚本。\n- V2.6.3 应大家需求，增加自定义Ping设置\n- V2.6.0 降低了 50% 的D1写入消耗，强烈建议升级，升级后请在后台手动点击 升级数据库 或者 重建数据库 。\n- V2.5.0 增加客户端上报数据后，在不占用D1消耗的情况下，前端WebSocket实时刷新数据\n- V2.4.0 版本主要优化了D1读写占用，使项目消耗大大降低，以及增加了防护避免被刷。\n\n## ✨ 功能特点\n\n- 📊 **实时监控**：CPU、内存、磁盘、网络、进程数、连接数、负载均衡\n- 📈 **历史图表**：支持 1/3/6/12/24 小时历史数据查看\n- 🌍 **全球地图**：可视化展示服务器分布\n- 🔔 **离线告警**：支持 Telegram 和企业微信通知\n- 📱 **响应式**：支持桌面端和移动端\n- 🔄 **自动部署**：GitHub Actions 一键部署\n- 🗺️ **延迟追踪**：国内电信/联通/移动/字节延迟监测\n- 🔒 **服务器隐藏**：可设置特定服务器对非登录用户隐藏\n- ↕️ **拖拽排序**：后台拖拽调整服务器显示顺序\n- 🌐 **双语支持**：支持中文和英文界面自由切换\n- 🧪 **本地测试**：支持本地模拟数据生成，方便开发和测试\n- 🔐 **Turnstile 验证**：集成 Cloudflare Turnstile 人机验证，增强 API 安全性\n- 🔑 **JWT 认证**：登录系统采用 JWT token 认证，支持自定义密钥\n- ⚡ **实时推送**：基于 Durable Objects + WebSocket，探针上报后页面立即刷新，无轮询延迟\n\n## 🚀 快速开始\n\n### 前置要求\n\n- [Cloudflare 账户](https://dash.cloudflare.com/)\n- [GitHub 账户](https://github.com/)\n\n<details>\n<summary>方式一：Cloudflare Workers 连接GitHub仓库（推荐使用，方便同步）</summary>\n\n### 第一步：Fork 项目\n\n点击右上角 **Fork** 按钮，将项目 Fork 到你的 GitHub 账户。\n\n### 第二步：新建 Cloudflare Workers\n\n1. 登录 [Cloudflare 控制台](https://dash.cloudflare.com/)\n2. 进入 **[Workers & Pages](https://dash.cloudflare.com/?to=/:account/workers-and-pages)**\n3. 点击 **Create application**\n4. 选择 Continue with GitHub（第一次使用需要连接 GitHub 账户），选择本项目\n5. Project Name填写：`cf-server-monitor`,小写即可，可按自己需求设置\n6. Build command 填写：`npm run build:frontend`\n7. 点击 **Deploy**，成功会在底部显示`✨ Success! Build completed.`\n\n### 第三步：配置环境变量\n\n1. 在当前Workers & Pages页面，点击 **Settings**\n2. 在Variables and secrets找到API\\_SECRET，点右侧编辑，填写密码（建议使用随机数,不要包含特殊字符比如%），点Deploy保存部署，等待30秒左右部署完成\n\n</details>\n\n<details>\n<summary>方式二：GitHub Action 自动部署</summary>\n\n### 第一步：Fork 项目\n\n点击右上角 **Fork** 按钮，将项目 Fork 到你的 GitHub 账户。\n\n### 第二步：创建 D1 数据库\n\n1. 登录 [Cloudflare 控制台](https://dash.cloudflare.com/)\n2. 进入 **[Workers & Pages](https://dash.cloudflare.com/?to=/:account/workers-and-pages)**  → **[D1 SQL Database](https://dash.cloudflare.com/?to=/:account/workers/d1)**\n3. 点击 **Create database**\n4. 数据库名称填写：`server-monitor-db`\n5. 点击 **Create**\n6. 记录下生成的 **Database ID**，稍后会用到\n\n### 第三步：获取 Cloudflare 配置\n\n#### 获取 Account ID\n\n**方式一：从右侧面板获取**\n\n1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/?to=/:account/workers-and-pages)\n2. 在右侧面板找到 **Account ID**\n3. 复制保存\n\n**方式二：从 URL 中获取**\n\n- 登录后访问任意 Cloudflare 页面，例如 [Workers & Pages](https://dash.cloudflare.com/?to=/:account/workers-and-pages)\n- URL 中 `dash.cloudflare.com/` 之后的那串字符就是 Account ID\n\n#### 获取 API Token\n\n1. 打开 [API Tokens 页面](https://dash.cloudflare.com/profile/api-tokens)\n2. 点击 **Create Token/创建令牌**\n3. 选择（**Edit Cloudflare Workers/编辑 Cloudflare Workers**）模板\n4. 在 **Account Resources/帐户资源** 选择你的账户\n5. 点击 **Continue to summary/继续以显示摘要**→ **Create Token/创建令牌**\n6. 复制生成的 Token（只显示一次！）\n\n### 第四步：配置 GitHub Secrets\n\n1. 打开你 Fork 的 GitHub 仓库\n2. 进入 **Settings** → **Secrets and variables** → **Actions**\n3. 点击 **New repository secret**，依次添加以下 5 个密钥：\n\n| Secret 名称        | 值                  | 说明                                     |\n| ---------------- | ------------------ | -------------------------------------- |\n| `CF_API_TOKEN`   | 第三步获取的 Token       | Cloudflare API 令牌                      |\n| `CF_ACCOUNT_ID`  | 第三步获取的 ID          | Cloudflare 账户 ID                       |\n| `API_USER_NAME`  | 自定义用户名（非必填）        | 管理后台用户名 新版已移除，默认用户名admin               |\n| `API_SECRET`     | API 认证密钥（必填）       | 探针认证密钥 & 默认管理后台密码 建议使用随机密码,不要包含特殊字符比如% |\n| `D1_DATABASE_ID` | 第二步获取的 Database ID | D1 数据库 ID                              |\n\n### 第五步：部署\n\n#### 方式一：自动部署\n\n推送代码到 `main` 分支即可自动部署：\n\n```bash\n# 克隆你 Fork 的仓库\ngit clone https://github.com/你的用户名/CF-Server-Monitor.git\ncd CF-Server-Monitor\n\n# 可选：修改配置后提交\ngit add .\ngit commit -m \"Initial setup\"\ngit push origin main\n```\n\n推送后，GitHub Actions 会自动部署。在仓库的 **Actions** 标签页可查看部署进度。\n\n#### 方式二：手动部署\n\n也可以通过 GitHub Actions 手动触发部署：\n\n1. 进入你的 GitHub 仓库页面\n2. 点击顶部的 **Actions** 标签\n3. 在左侧工作流列表中选择 **Deploy to Cloudflare Workers**\n4. 点击右侧的 **Run workflow** 按钮\n5. 选择分支（默认选择 `main`）\n6. 点击 **Run workflow** 开始部署\n\n部署进度可在 **Actions** 标签页中查看。\n\n</details>\n\n<details>\n<summary>方式三：一键部署（比较简单，但不推荐，不方便更新）</summary>\n\n[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/huilang-me/CF-Server-Monitor)\n\n新用户点击一键部署\n\n修改`API_SECRET`，建议使用随机密码,不要包含特殊字符比如%，登录密码在登录后修改，建议和API\\_SECRET不同。\n\n在build command中填入 `npm run build:frontend`，其他保持默认\n\n点击部署即可\n\n</details>\n\n## 📊 使用说明\n\n<details>\n<summary>访问管理后台</summary>\n\n部署成功后，访问管理后台：\n\n```\nhttps://你的项目名.你的子域.workers.dev/admin\n```\n\n- 用户名：",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:57.981602"
+  },
+  {
+    "basic_info": {
+      "name": "agentic-ai-system-course",
+      "full_name": "bryanyzhu/agentic-ai-system-course",
+      "owner": "bryanyzhu",
+      "description": "Use agent to learn agent - A skeleton course on how to design, build, and operate production AI agents ",
+      "url": "https://github.com/bryanyzhu/agentic-ai-system-course",
+      "clone_url": "https://github.com/bryanyzhu/agentic-ai-system-course.git",
+      "ssh_url": "git@github.com:bryanyzhu/agentic-ai-system-course.git",
+      "homepage": "",
+      "created_at": "2026-05-23T03:59:52Z",
+      "updated_at": "2026-06-18T02:54:46Z",
+      "pushed_at": "2026-06-03T15:35:15Z"
+    },
+    "stats": {
+      "stars": 396,
+      "forks": 54,
+      "watchers": 396,
+      "open_issues": 1,
+      "size": 563
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 5061,
+        "Shell": 3027
+      },
+      "license": "MIT License",
+      "topics": [
+        "agentic-ai",
+        "agentic-workflow",
+        "ai-agents",
+        "course",
+        "system-design",
+        "tutorial"
+      ]
+    },
+    "content": {
+      "readme": "# Agentic System Course - Use Agent to Learn Agent\n\n**Join the [discord channel](https://discord.gg/dWSnHAFdpb) if you want to learn and build together!**\n\n---\n\nThis is a 22-chapter skeleton course on how to design, build, and operate production AI agents — written to be read with your own AI partner at your side. **An agentic system** is an AI system that can autonomously pursue goals by planning, making decisions, using tools, adapting based on feedback, having memory, etc — instead of only responding to a single prompt. Similar to [Andrej Karpathy's idea file on LLM-wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), **this course is giving you the skeleton and your agent will help you put the muscles on it**.\n\n**This course is**:\n\n- A *skeleton* — load-bearing topics, patterns, and decisions, with trade-offs.\n- Written to age slowly. Framework specifics rot fast; architectural patterns do not.\n- A file pair (course + AGENTS.md) designed for AI consumption as much as human reading.\n\n**This course is not**:\n\n- A step-by-step tutorial. There is no walked-through project.\n- Tied to one stack. The course never says \"use LangChain\" or \"use Pydantic AI.\" Your AI partner suggests the stack that fits your project.\n- A reference manual. When you need an exact API signature, ask your AI or read the docs.\n\n\n---\n\n## How to start\n\nClone the repo, open it in your usual IDE to view course content. At the same time, point your AI agent (Claude code/Codex) at the project root, and try one of these prompts when you study a chapter:\n\n- *\"Give me three real-world examples of where this matters.\"*\n- *\"Suppose you are interviewing me, quiz me on this topic with five follow-up questions, easy to hard.\"*\n- *\"What's a question I should be asking that I haven't?\"*\n- *\"I just read about [pattern X]. I am building [your project]. Translate the pattern into the smallest version that works in whatever language and tools fit, and explain each piece as you write it.\"*\n- *\"Forget my project for a moment — show me how OpenCode (or Hermes Agent, or any leading coding agent) handles this, and what we should borrow from it.\"*\n\nYou can also just point your agent at Ch.22's design canvas and walk through it with your specific project in mind — that's the fastest path from \"I have an idea\" to \"I have a spec.\"\n\n---\n\n## Built-in skills\n\n### `agentic-system-reviewer`\n\nReviews PRDs, design docs, implementation plans, or agent code against the course. You can run this skill on **any agentic system** to get course-grounded feedback — your own project, an open-source agent you're studying, a PRD before any code exists, or a coworker's repo you want a second opinion on. The skill calibrates scope first (hobby / team tool / customer-facing), picks the chapters that matter for your archetype, reads them, and produces a findings-first report with severity, evidence, course citations, and concrete fixes — not a generic \"looks good\" or \"add safety\" review.\n\nIn Claude Code, just describe what you want — *\"review this against the course\"*, *\"is this agent design good?\"*, *\"what chapters does this miss?\"* — while the agent is pointed at the target repo or doc. The skill auto-loads when its description matches your intent.\n\n**Codex users:** use Codex's official `skill-creator` skill to port this skill over.\n\n---\n\n## Course structure\n\n| Chapters | Theme |\n|---|---|\n| **Ch.00** | How to use this course with your AI partner |\n| **Ch.01–04** | Foundations: one tool call → the loop → tools as contract → prompts & cache |\n| **Ch.05–08** | Memory and state: short-term → long-term → writing & curation → persistence |\n| **Ch.09–11** | Coordination: planning → multi-agent delegation → the harness |\n| **Ch.12–14** | External surface: human-in-the-loop → connectors/MCP → skills/MCP/subagents |\n| **Ch.15–17** | Production scale: backend → observability → cost, latency, model strategy |\n| **Ch.18–19** | Quality and ops: safety/adversarial inputs → operations and forward-deployed |\n| **Ch.20–21** | Agency: proactive agents → self-evolving agents |\n| **Ch.22** | Design canvas: designing your own agent |\n\nThe chapters are ordered so each one only assumes what came before. If you have a clear project, skim chapters that do not apply yet and come back when they do. Suggested learning paths by project shape (coding agent, personal assistant, multi-tenant tool, research agent, just exploring) are in `CLAUDE.md`.\n\nThe goal is not to finish the course. *The goal is to ship something you wanted to ship anyway, and to understand every line of it.*\n\n---\n\n## Optional: reference systems\n\nThe course occasionally points at four open-source systems for grounded examples:\n\n- **OpenCode** — coding agent (terminal-first, typed tools, sessions, compaction)\n- **Hermes Agent** — personal assistant (memory, skills, cron, channels)\n- **OpenClaw** — self-hosted personal-assistant gateway (channel adapters)\n- **Paperclip** — workflow control plane (multi-agent orchestration, dur",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:28:59.196740"
+  },
+  {
+    "basic_info": {
+      "name": "loop-engineering",
+      "full_name": "cobusgreyling/loop-engineering",
+      "owner": "cobusgreyling",
+      "description": "Practical patterns, starters & CLI tools for loop engineering with AI coding agents. Design systems that prompt and orchestrate agents (inspired by Addy Osmani and Boris Cherny). Includes loop-audit, loop-init, loop-cost.",
+      "url": "https://github.com/cobusgreyling/loop-engineering",
+      "clone_url": "https://github.com/cobusgreyling/loop-engineering.git",
+      "ssh_url": "git@github.com:cobusgreyling/loop-engineering.git",
+      "homepage": "https://cobusgreyling.github.io/loop-engineering/",
+      "created_at": "2026-06-09T06:28:20Z",
+      "updated_at": "2026-06-18T04:51:25Z",
+      "pushed_at": "2026-06-17T12:08:46Z"
+    },
+    "stats": {
+      "stars": 368,
+      "forks": 49,
+      "watchers": 368,
+      "open_issues": 10,
+      "size": 1319
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 42074,
+        "TypeScript": 26542,
+        "Shell": 6303
+      },
+      "license": "MIT License",
+      "topics": [
+        "agentic-ai",
+        "ai-agents",
+        "ai-coding",
+        "anthropic",
+        "automation",
+        "claude",
+        "claude-code",
+        "codex",
+        "coding-agents",
+        "devops-automation",
+        "devtools",
+        "github-actions",
+        "grok",
+        "llm",
+        "loop-engineering",
+        "mcp",
+        "prompt-engineering"
+      ]
+    },
+    "content": {
+      "readme": "# Loop Engineering\n\n\n<p align=\"center\">\n  <a href=\"https://cobusgreyling.github.io/loop-engineering/\">\n    <img src=\"https://img.shields.io/badge/✨_Explore_the_Showcase-Design_systems_that_prompt_your_agents-0d1117?style=for-the-badge&labelColor=111a28&color=3ee8c5\" alt=\"Explore the Showcase\" />\n  </a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/cobusgreyling/loop-engineering/stargazers\"><img src=\"https://img.shields.io/github/stars/cobusgreyling/loop-engineering?style=social\" alt=\"GitHub stars\"></a>\n  <a href=\"https://github.com/cobusgreyling/loop-engineering/actions/workflows/audit.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/cobusgreyling/loop-engineering/audit.yml?label=loop-audit%20dogfood\" alt=\"loop-audit dogfood\"></a>\n  <a href=\"https://www.npmjs.com/package/@cobusgreyling/loop-audit\"><img src=\"https://img.shields.io/npm/v/@cobusgreyling/loop-audit?label=loop-audit\" alt=\"loop-audit npm\"></a>\n  <a href=\"https://www.npmjs.com/package/@cobusgreyling/loop-init\"><img src=\"https://img.shields.io/npm/v/@cobusgreyling/loop-init?label=loop-init\" alt=\"loop-init npm\"></a>\n  <a href=\"https://www.npmjs.com/package/@cobusgreyling/loop-cost\"><img src=\"https://img.shields.io/npm/v/@cobusgreyling/loop-cost?label=loop-cost\" alt=\"loop-cost npm\"></a>\n  <a href=\"https://github.com/cobusgreyling/loop-engineering/blob/main/LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-blue.svg\" alt=\"MIT\"></a>\n  <a href=\"https://cobusgreyling.github.io/loop-engineering/\"><img src=\"https://img.shields.io/badge/GitHub_Pages-live%20%7C%20interactive-3ee8c5\" alt=\"Pages\"></a>\n</p>\n\n\n<p align=\"center\">\n  <img src=\"assets/visuals/loop-engineering-logo.jpg\" alt=\"Loop Engineering\" width=\"96\" />\n</p>\n\n**Loop engineering is replacing yourself as the person who prompts the agent. You design the system that does it instead.**\n\nFor developers using Grok, Claude Code, Codex, Cursor, and other AI coding agents.\n\nA loop is a recursive goal: you define a purpose and the AI iterates (often with sub-agents, verification, and external state) until the goal is complete or the loop decides to hand off to you.\n\n\n\n<p align=\"center\">\n  <img src=\"assets/visuals/loop-engineering-social-banner.jpg\" alt=\"Loop Engineering — Design the system that prompts your agents\" width=\"100%\" />\n</p>\n\n<p align=\"center\">\n  <strong><a href=\"https://cobusgreyling.github.io/loop-engineering/\">→ Interactive showcase + pattern picker</a></strong>\n  <br>\n  <strong><a href=\"https://cobusgreyling.substack.com/p/loop-engineering\">→ Loop Engineering essay (Substack)</a></strong>\n  <br>\n  <a href=\"https://addyosmani.com/blog/loop-engineering/\">Canonical essay by Addy Osmani</a>\n</p>\n\n## Contents\n\n- [Quick Links](#quick-links)\n- [Why This Matters](#why-this-matters)\n- [The Five Building Blocks + Memory](#the-five-building-blocks--memory)\n- [Patterns](#patterns)\n- [Getting Started (5 minutes)](#getting-started-5-minutes)\n- [Examples by Tool](#examples-by-tool)\n- [Operating & Safety](#operating--safety)\n- [Caveats](#caveats)\n- [Contributing](#contributing)\n- [Sources](#sources)\n- [License](#license)\n\n## Quick Links\n\n| Start here | Description |\n|------------|-------------|\n| [Loop Engineering essay](https://cobusgreyling.substack.com/p/loop-engineering) | The concept, primitives, and Grok mapping — **read this first** |\n| [Pattern Picker](docs/pattern-picker.md) | Which loop to run first — **start here if unsure** |\n| [Primitives Matrix](docs/primitives-matrix.md) | Grok vs Claude Code vs Codex — bookmark this |\n| [Loop Design Checklist](docs/loop-design-checklist.md) | Ship readiness rubric |\n| [Patterns](patterns/README.md) | 7 production patterns + [interactive picker](https://cobusgreyling.github.io/loop-engineering/#interactive) |\n| [Starters](starters/) | Clone-and-run kits (Grok, Claude Code, Codex) |\n| [loop-audit](tools/loop-audit/) | Loop Readiness Score CLI (v1.4 + activity detection) — `npx @cobusgreyling/loop-audit . --suggest` |\n| [loop-init](tools/loop-init/) | Scaffold starters + budget/run-log (v1.2) — `npx @cobusgreyling/loop-init . --pattern daily-triage --tool grok` |\n| [loop-cost](tools/loop-cost/) | Token spend estimator — `npx @cobusgreyling/loop-cost` |\n| [Stories](stories/) | Real wins and honest failures |\n\n## Why This Matters\n\nPeter Steinberger:\n> “You shouldn’t be prompting coding agents anymore. You should be designing loops that prompt your agents.”\n\nBoris Cherny (Head of Claude Code at Anthropic):\n> “I don’t prompt Claude anymore. I have loops running that prompt Claude and figuring out what to do. My job is to write loops.”\n\nThe leverage point has moved from crafting individual prompts to designing the control systems that orchestrate agents over time.\n\n## The Five Building Blocks + Memory\n\n| Primitive | Job in the Loop |\n|-----------|-----------------|\n| **Automations / Scheduling** | Discovery + triage on a cadence |\n| **Worktrees** | Safe parallel execution |\n| **Skills** | Persistent project knowledge |\n| **Plugins",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:29:00.429308"
+  },
+  {
+    "basic_info": {
+      "name": "cheat-on-money",
+      "full_name": "XBuilderLAB/cheat-on-money",
+      "owner": "XBuilderLAB",
+      "description": "AI 时代靠谱兼职发现 + 反诈验证 skill：需求信号反推 + 实时时效核查 + 反诈 rubric + 个性化校准环",
+      "url": "https://github.com/XBuilderLAB/cheat-on-money",
+      "clone_url": "https://github.com/XBuilderLAB/cheat-on-money.git",
+      "ssh_url": "git@github.com:XBuilderLAB/cheat-on-money.git",
+      "homepage": null,
+      "created_at": "2026-06-08T13:30:36Z",
+      "updated_at": "2026-06-18T05:28:37Z",
+      "pushed_at": "2026-06-12T01:21:53Z"
+    },
+    "stats": {
+      "stars": 355,
+      "forks": 46,
+      "watchers": 355,
+      "open_issues": 2,
+      "size": 53
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 13737,
+        "Shell": 3138
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# cheat-on-money —— AI 时代靠谱兼职发现 + 反诈验证 skill\n\n帮你在 AI 时代找到**真能用**的兼职/副业。核心不是\"列一堆项目\"，而是四件别人不做的事：\n\n1. **需求信号反推**，不搜\"教你赚钱\"的帖子（那是卖课钓粉的污染信源）——看行业报告/招聘/采购数据等利益中立信号，推理出个人能供给的机会，并用多个独立信号交叉验证\n2. **实时检索 + 时效核查**，不靠模型记忆；来源超 24 个月默认失效（平台规则天天变）\n3. **反诈 rubric**，每个机会过硬红线，宁可错杀\n4. **个性化 + 可验证**，按你的画像匹配，每个机会都给\"小成本先验证能不能收到第一笔钱\"的路径\n\n> 哲学同 cheat-on-content：可信度靠**机制**，不靠内容质量。\n\n## 子 skill\n\n| 命令 | 作用 |\n|---|---|\n| `money-init` | 首次：建画像（技能/时间/资金/地区/露脸）+ 状态文件 |\n| `money-find` | 按画像实时检索机会 + 反诈筛选 |\n| `money-verify` | **核心**：验证某个具体机会是不是骗局 |\n| `money-plan` | 选定机会 → 行动方案 + 小成本验证第一步 |\n| `money-retro` | 复盘实际投入/收入 vs 预期，沉淀经验 |\n| `money-status` | 状态看板，任何时候可调 |\n\n## 共享文档（机制所在）\n\n- `shared-references/demand-signal-method.md` —— **需求信号反推法**（money-find 的主方法：信源分级 + 四步推理 + 交叉验证）\n- `shared-references/anti-scam-rubric.md` —— 反诈判定标准 + C′ 时效核查（money-verify / money-find 的唯一标准来源）\n- `shared-references/user-tiers.md` —— **用户段位 T0–T3**（按\"资源×技能\"分流，机会和收入预期都按段位给）\n- `shared-references/opportunity-taxonomy.md` —— 机会分类框架（辅助分类，不是清单）\n- `examples/worked-examples.md` —— 真实跑出来的高质量范本（给 money-find/money-verify 参照）\n- `templates/money-state.template.json` —— 状态文件模板（schema v2，含 tier + 校准环字段）\n\n## 数据 adapter（补一手数据短板）\n\n都是 **B 档半自动**：用户自己登录+搜索（弹滑块手动过），adapter 只读当前页公开列表。绕开\"通用网页检索进不去登录墙\"的限制。\n\n- `adapters/xianyu/` —— 闲鱼**成交侧**：一手\"在卖什么/什么价/多少人想要\"（\"有人真付钱\"的证据）。\n- `adapters/boss/` —— BOSS直聘**招聘侧**：一手\"在招什么/给多少/要哪些 AI 技能\"（最诚实的需求温度计）。**只读搜索结果列表页**——列表卡片只有公开的岗位+薪资+公司，HR 个人信息在详情页/聊天里，adapter 一律不碰，故不触反诈红线 A6。两个 adapter 共享同一个 Chrome profile。\n\n## 校准环（让它越用越准）\n\n`money-plan` 写下「预期」（投入/见钱时间/收入）→ 执行 → `money-retro` 拿「实际」对账 → 经验回流到工作目录的 `lessons.md` → `money-find`/`money-verify` 下次开工先读它。预测→复盘→沉淀，闭环。\n\n## 安装\n\n### Claude Code\n\n把各子 skill 软链到 `~/.claude/skills/`（与 cheat 系列一致）：\n\n```bash\ncd \"$(dirname \"$0\")\" 2>/dev/null\nROOT=\"$(pwd)\"\nfor d in skills/*/; do\n  name=\"$(basename \"$d\")\"\n  ln -sf \"$ROOT/$d\" \"$HOME/.claude/skills/$name\"\ndone\n```\n\n或直接运行 `./install.sh`。\n\n### Codex\n\n把各子 skill 安装到 `~/.codex/skills/`，同时给每个 skill 补上 Codex 友好的本地资源入口：\n\n```bash\n./install-codex.sh\n```\n\n安装后每个 Codex skill 目录会包含：\n\n- `SKILL.md` → 对应子 skill\n- `references/` → `shared-references/`\n- `templates/` → 状态文件模板\n- `examples/` → worked examples\n- `adapters/` → 闲鱼 / BOSS 半自动 adapter\n\n这样不会改动 Claude Code 的 `~/.claude/skills/` 安装方式；两套安装可以同时存在。Codex 读取 skill 列表通常需要重启应用或开启新会话。\n\n> 说明：`SKILL.md` 里的 `allowed-tools` 是 Claude Code 权限声明。Codex 只依赖 `name` / `description` 触发 skill，会忽略这类 Claude 专属字段。\n\n## 典型流程\n\n```\n\"我想搞钱\" → money-init（建画像）\n\"帮我找机会\" → money-find（实时检索+反诈）\n\"XX 靠谱吗\" → money-verify（验证）\n\"我做 XX，给我计划\" → money-plan（行动方案+验证第一步）\n执行一段时间 → money-retro（复盘）\n随时 → money-status（看板）\n```\n\n## 重要声明\n\n本工具提供的是**判断框架与实时检索辅助**，不构成投资/就业建议。最终决策与风险由用户自行承担。\n凡涉及\"先交钱、刷单、过账、出借账户\"的，一律是骗局或违法，立刻远离。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:29:01.645089"
+  },
+  {
+    "basic_info": {
+      "name": "aipath",
+      "full_name": "buynao/aipath",
+      "owner": "buynao",
+      "description": "Interactive AI General Education Course — 30 Lessons, Zero Math",
+      "url": "https://github.com/buynao/aipath",
+      "clone_url": "https://github.com/buynao/aipath.git",
+      "ssh_url": "git@github.com:buynao/aipath.git",
+      "homepage": "https://aipath.buynao.com",
+      "created_at": "2026-06-12T10:58:35Z",
+      "updated_at": "2026-06-18T05:23:19Z",
+      "pushed_at": "2026-06-16T13:35:12Z"
+    },
+    "stats": {
+      "stars": 308,
+      "forks": 33,
+      "watchers": 308,
+      "open_issues": 0,
+      "size": 9669
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 1734276,
+        "CSS": 74310,
+        "HTML": 2770
+      },
+      "license": null,
+      "topics": [
+        "ai",
+        "machine-learning"
+      ]
+    },
+    "content": {
+      "readme": "# AI 通识课 · AI Essentials\n\n**English** · [中文](./README.zh-CN.md)\n\n<p align=\"center\">\n  <a href=\"https://aipath.buynao.com\">\n    <img src=\"media/hero-en.gif\" alt=\"An LLM thinking one token at a time — drag the temperature and its top-5 candidates reshape\" width=\"760\">\n  </a>\n</p>\n\n<p align=\"center\">\n  <b>▶ Live site — <a href=\"https://aipath.buynao.com\">aipath.buynao.com</a></b> &nbsp;·&nbsp; no signup, every concept is playable\n</p>\n\n<p align=\"center\"><sub>↑ The homepage hero (Lesson 15 · the next-token game): an LLM guesses one token at a time — turn the temperature and watch its top-5 candidates reshape, from focused to “wild.”</sub></p>\n\n> A from-scratch AI course designed for absolute beginners — **6 stages, 30 lessons**. No piles of formulas, no jargon dumps. It packs the core principles of AI into intuition through visualizations and interactive demos, then has you write real code to build an AI app that actually runs.\n\nFrom \"what is a neural network\" to \"building a RAG knowledge base with your own hands,\" this course takes you the whole way from **AI-news bystander** to **AI-app builder**. Each lesson is about 20 minutes, beginner-friendly, and barely touches math.\n\n**Fully bilingual (中文 / English).** All 30 lessons — every lesson body, interactive demo, and quiz — are available in both Chinese and English; a built-in language switch flips the whole site instantly, no reload.\n\n> **This project (course content, copy, interactive demos, and frontend code) was generated by [Claude Fable](https://claude.com/claude-code).** The 30 lessons were polished word by word, every interactive visualization (2D/3D/SVG/Canvas) was implemented lesson by lesson and verified in a headless browser, and the entire design system and React architecture were produced end-to-end by AI.\n\n---\n\n## Three things that set this course apart\n\n- **Intuition first** — We start from a picture, not a formula. Training is \"feeling your way downhill,\" attention is \"highlighting what matters,\" diffusion is \"wiping a picture out of noise.\" Build the mental image first, and the terms and math have somewhere to land.\n- **Visual and playable** — Every key concept comes with a 2D/3D interactive demo: drag a neuron's weights, twist the temperature knob, roam a 3D starfield of word vectors, chop a document into chunks and feed it to RAG yourself. What you've played with is what truly becomes yours.\n- **Hands-on by the end** — The final stage writes real code: call an LLM API, run an open-source model on your own machine (Ollama), build a RAG knowledge base, and understand the evaluation and safety red lines before going live.\n\n---\n\n## Curriculum\n\n| Stage | Theme | Lessons |\n|---|---|---|\n| 1 · Intuition | What AI really is | 01 The three circles · 02 How machines learn · 03 A single neuron · 04 Gradient descent · 05 Data & overfitting |\n| 2 · Principles | The four pillars of deep learning | 06 Backpropagation · 07 CNN · 08 Embedding · 09 Attention · 10 Transformer |\n| 3 · Large Models | How an LLM is forged | 11 Token · 12 Pretraining · 13 SFT/RLHF · 14 Temperature & sampling · 15 Scaling Laws |\n| 4 · Applications | Putting large models to work | 16 Prompt engineering · 17 Context · 18 RAG · 19 Function Calling · 20 Agent |\n| 5 · Frontier | Multimodal & reasoning | 21 Diffusion models · 22 Multimodal · 23 Reasoning models · 24 MCP ecosystem · 25 The LLM landscape |\n| 6 · Practice | Build an AI app yourself | 26 Calling APIs · 27 Local deployment · 28 RAG in practice · 29 Evaluation & safety · 30 The road ahead |\n\nEvery lesson follows the same structure: core concept (explained intuitively) → interactive demo (tune the parameters yourself) → common pitfalls (fixing misconceptions) → mini exercise (test as you learn). The lesson page has a fixed table of contents on the left so you can jump to any lesson anytime.\n\n---\n\n## Local development\n\n```bash\nnpm install      # install dependencies\nnpm run dev      # dev server (hot reload) → http://localhost:5173\nnpm run build    # production build to dist/\nnpm run preview  # preview the production build locally → http://localhost:4173\n```\n\n---\n\n## Project structure\n\n```\nlearn-x/\n├── index.html                  # single Vite entry\n├── vite.config.js\n├── src/\n│   ├── main.jsx                # mount + global style imports\n│   ├── App.jsx                 # route table (data-driven, auto-registered from lessons)\n│   ├── data/lessons.js         # catalog metadata for 6 stages × 30 lessons (single source of truth)\n│   ├── styles/                 # style.css · lesson.css · app.css (home / per-lesson styles)\n│   ├── components/             # shared component library\n│   │   ├── Nav.jsx · Footer.jsx · Pager.jsx\n│   │   ├── LessonNav.jsx       # fixed left TOC on lesson pages (grouped by six stages · highlights current lesson)\n│   │   ├── ui.jsx              # Pill / Dots / Lsec / DemoPanel / Chips / FlipCard / SliderRow / QuizItem\n│   │   └── LossChart.jsx       # Recharts loss curve\n│   ├── pages/\n│   │   ├── Home.js",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-18T05:29:02.873552"
+  }
+]

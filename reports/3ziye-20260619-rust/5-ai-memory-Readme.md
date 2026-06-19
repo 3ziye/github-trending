@@ -1,0 +1,77 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.png">
+    <img alt="ai-memory" src="docs/logo-light.png" width="480">
+  </picture>
+</p>
+
+> Long-term memory for AI coding agents. Quit Claude Code mid-task,
+> start OpenAI Codex in the same directory, continue without
+> re-explaining the architecture, the failed approaches, or the open
+> questions.
+
+[![status: v0.8 multi-user](https://img.shields.io/badge/status-v0.8--multiuser-green)](docs/ARCHITECTURE.md)
+[![Rust](https://img.shields.io/badge/rust-1.95+-blue)](rust-toolchain.toml)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+## Support Matrix
+
+| Area | Status | Notes |
+|---|---|---|
+| Linux | Supported | Primary Docker/server target and CI platform. Published Docker images support `linux/amd64` and `linux/arm64`. Native Arch/AUR packages include system and user systemd units. |
+| macOS | Supported | Workspace tests run in CI; tagged releases publish native `ai-memory-macos-aarch64.tar.gz` and `ai-memory-macos-x86_64.tar.gz` binaries. The native binary is the recommended path on Apple Silicon. See [`docs/macos.md`](docs/macos.md). |
+| Windows via WSL2 | Supported | Use the Linux install path inside WSL2 when the agent runs there. |
+| Native Windows | Experimental | Tagged releases publish `ai-memory-windows-x86_64.zip` with `ai-memory.exe`; Docker Desktop wrapper and source builds are also available. Claude Code uses direct native `ai-memory.exe hook` commands by default; other script-hook agents use the current PowerShell defaults pending harness feedback. See [`docs/windows.md`](docs/windows.md). |
+| Claude Code | Supported | MCP config + lifecycle hooks. |
+| Codex | Supported | MCP config + lifecycle hooks. |
+| OpenCode | Supported | Remote MCP config + generated TypeScript plugin. |
+| Cursor | Supported | MCP config + lifecycle hooks. |
+| Gemini CLI | Supported | MCP config + lifecycle hooks. |
+| Oh My Pi / OMP | Supported | `pi` / `omp` aliases for MCP config + TypeScript extension. |
+| Claude Desktop | MCP-only | Uses `mcp-remote`; no lifecycle hooks. |
+| OpenClaw | Supported | MCP config + native plugin lifecycle hooks. |
+| Antigravity CLI | Supported | MCP config (`serverUrl`) + lifecycle hooks (`agy` alias). |
+| Grok Build CLI | Hooks | Lifecycle hooks via `install-hooks --agent grok` (`~/.grok/hooks/ai-memory.json`, Grok-specific hook bundle, native `--agent grok`). Capture works; no handoff injection — Grok ignores `SessionStart` stdout, so recover handoffs via MCP `memory_handoff_accept`. |
+| VS Code Copilot | MCP-only | `.vscode/mcp.json` for Copilot agent mode; no lifecycle hooks (Copilot does not expose them yet). |
+| LLM/auth providers | Supported | Anthropic, OpenAI, OpenAI OAuth/Codex, GitHub Copilot, Gemini, OpenAI-compatible endpoints, and generic OIDC device auth for native hooks. |
+| Embedding providers | Supported | OpenAI, Voyage, and Google Gemini. |
+
+## What it is
+
+LLM coding agents lose all context when a session ends. ai-memory
+gives them a shared, persistent wiki: every prompt, tool call, and
+decision is captured automatically; when a session ends, the relevant
+pages get rewritten as a coherent narrative; when the next agent
+starts (Claude Code, Codex, OpenCode, …) it sees a handoff with
+"where you left off" already prepended.
+
+The wiki is plain markdown in a git repo - `grep`-able, openable in
+Obsidian, backed up with `rsync`. No vector database to babysit, no
+`write_note` ceremony, no manual context-loading. The full design is
+in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); the influences and
+priors are at the [bottom](#influences-and-prior-art).
+
+## Key features
+
+- **Zero-friction capture.** Lifecycle hooks fire-and-forget every
+  prompt + tool call + session boundary. You never type `write_note`.
+- **Cross-agent handoffs.** Quit Claude Code mid-task, start Codex
+  in the same directory hours later - the next agent sees a
+  "where you left off" block before its first prompt.
+- **Per-project isolation by construction.** Each project lives at
+  `<wiki_root>/<workspace_id>/<project_id>/…` keyed by stable UUIDs.
+  Workspace defaults to `"default"`. Project is derived from `$cwd`:
+  CLI subcommands (`bootstrap`, `write-page`, `lint`, …) walk to the
+  main git repo root so all worktrees of the same repo share one
+  project identity; the hook router defaults to `basename($cwd)` and
+  can opt into the repo-root rule. Drop a
+  [`.ai-memory.toml` marker file](docs/marker-file.md) in any
+  ancestor directory to override either field explicitly — perfect for
+  multi-client consultancies, work/personal split, mono-repos, or
+  linked git worktrees.
+  Same page path can exist in two projects without collision; a
+  rename is one column update; a purge is one `rm -rf`.
+- **Karpathy-style LLM wiki.** Pages are compiled from observations
+  at session-end (or PreCompact), not retrieved over raw logs.
+  Supersession chain + git-versioned markdown means you can
+  time

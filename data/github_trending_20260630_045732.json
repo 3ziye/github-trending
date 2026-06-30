@@ -1,0 +1,882 @@
+[
+  {
+    "basic_info": {
+      "name": "kage",
+      "full_name": "tamnd/kage",
+      "owner": "tamnd",
+      "description": "Shadow any website for offline viewing, with the JavaScript stripped out",
+      "url": "https://github.com/tamnd/kage",
+      "clone_url": "https://github.com/tamnd/kage.git",
+      "ssh_url": "git@github.com:tamnd/kage.git",
+      "homepage": "https://kage.tamnd.com",
+      "created_at": "2026-06-14T11:21:55Z",
+      "updated_at": "2026-06-30T04:14:58Z",
+      "pushed_at": "2026-06-29T12:12:01Z"
+    },
+    "stats": {
+      "stars": 2592,
+      "forks": 91,
+      "watchers": 2592,
+      "open_issues": 10,
+      "size": 1342
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 308353,
+        "Python": 4896,
+        "Dockerfile": 2192,
+        "Makefile": 1193
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# kage\n\n[![ci](https://github.com/tamnd/kage/actions/workflows/ci.yml/badge.svg)](https://github.com/tamnd/kage/actions/workflows/ci.yml)\n[![Release](https://img.shields.io/github/v/release/tamnd/kage)](https://github.com/tamnd/kage/releases/latest)\n[![Go Reference](https://pkg.go.dev/badge/github.com/tamnd/kage.svg)](https://pkg.go.dev/github.com/tamnd/kage)\n[![Go Report Card](https://goreportcard.com/badge/github.com/tamnd/kage)](https://goreportcard.com/report/github.com/tamnd/kage)\n[![License](https://img.shields.io/github/license/tamnd/kage)](./LICENSE)\n\n**kage** (影, \"shadow\") clones a website into a folder you can browse offline, with every script stripped out. It opens each page in real headless Chrome, waits for the page to settle, snapshots the DOM a human would have seen, then deletes all the JavaScript and pulls the CSS, images, and fonts down to local paths. What lands on disk looks like the live site and runs no code.\n\n[Install](#install) • [Quick start](#quick-start) • [Commands](#commands) • [Clone](#clone) • [Pack](#pack-it-into-one-file) • [Double-click app](#a-double-click-app) • [Native window](#a-real-window-not-a-browser-tab) • [How it works](#how-it-works)\n\n![kage cloning paulgraham.com, packing it into one file, and serving it back offline](docs/static/demo.gif)\n\nYou already know the problem. You hit \"Save As\" on a page you want to keep, and six months later you open it to find a blank screen, a spinner that never stops, or a copy that still tries to phone home to an analytics server that no longer exists. The page was never really yours. It was a thin client for someone else's JavaScript.\n\nkage takes the other road. It drives a real browser, lets the page finish doing whatever it does, grabs the finished result, and then rips every script out of it. No tracking, no network calls, no surprises. Just `.html` files you can open straight off disk, hand to a friend, or pack into a single file and forget about for a decade.\n\nFull docs and guides live at **[kage.tamnd.com](https://kage.tamnd.com)**.\n\n## Install\n\n```bash\ngo install github.com/tamnd/kage/cmd/kage@latest\n```\n\nPrefer a prebuilt binary? Grab an archive, a `.deb`/`.rpm`/`.apk`, or a checksum from [releases](https://github.com/tamnd/kage/releases). Or let a package manager handle it:\n\n```bash\n# Homebrew (macOS)\nbrew install --cask tamnd/tap/kage\n\n# Scoop (Windows)\nscoop bucket add tamnd https://github.com/tamnd/scoop-bucket\nscoop install kage\n\n# apt (Debian, Ubuntu)\ncurl -fsSL https://tamnd.github.io/linux-repo/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/tamnd.gpg\necho \"deb [signed-by=/usr/share/keyrings/tamnd.gpg] https://tamnd.github.io/linux-repo/apt stable main\" | sudo tee /etc/apt/sources.list.d/tamnd.list\nsudo apt update && sudo apt install kage\n\n# dnf (Fedora, RHEL)\nsudo dnf config-manager --add-repo https://tamnd.github.io/linux-repo/dnf/tamnd.repo\nsudo dnf install kage\n```\n\nOr skip installing Chrome yourself and use the container image, which bundles Chromium:\n\n```bash\ndocker run --rm -v \"$PWD/out:/out\" ghcr.io/tamnd/kage clone paulgraham.com\n```\n\nkage drives a real browser, so it needs Chrome or Chromium on the host. It finds a system install on its own; point it somewhere specific with `--chrome` or the `KAGE_CHROME` environment variable. The container needs nothing extra.\n\nShell completion ships in the box: `kage completion bash|zsh|fish|powershell`.\n\n## Quick start\n\nLet's mirror Paul Graham's essays so you can read them on a plane, on a laptop with no wifi, or in the year 2050 after the site has finally changed its design:\n\n```bash\n# 1. Clone the site into $HOME/data/kage/paulgraham.com/\nkage clone paulgraham.com\n\n# 2. Read it back offline in your browser\nkage serve $HOME/data/kage/paulgraham.com\n# open http://127.0.0.1:8800\n```\n\nThat's the whole loop. Every essay, every image, every stylesheet, frozen on your disk and runnable with zero network. The next two steps are optional but nice: collapse the whole thing into one file, and pop it open in its own window.\n\n```bash\n# 3. Squeeze the mirror into a single shareable file\nkage pack paulgraham.com               # -> paulgraham.com.zim\nkage open paulgraham.com.zim\n\n# 4. Or into one executable that *is* the site\nkage pack paulgraham.com --format binary -o paulgraham\n./paulgraham                           # serves itself, needs nothing installed\n```\n\n## Commands\n\n| Command | What it does |\n| --- | --- |\n| `kage clone <url>` | render a site in headless Chrome and write a browsable, script-free mirror |\n| `kage serve [dir]` | preview a cloned folder over a local HTTP server |\n| `kage pack <mirror-dir>` | collapse a mirror into one ZIM archive, a self-contained viewer binary, or a double-click app |\n| `kage open <file.zim>` | serve a packed ZIM back for offline reading |\n\n## Clone\n\n```bash\n# The whole site, into $HOME/data/kage/<host>/\nkage clone https://paulgraham.com\n\n# Just the first 50 pages, two links deep, for a quick taste\nkage clone paulgraham.com --max-pages",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:33.597935"
+  },
+  {
+    "basic_info": {
+      "name": "flock",
+      "full_name": "duckbugio/flock",
+      "owner": "duckbugio",
+      "description": "Autonomous AI dev-team bot",
+      "url": "https://github.com/duckbugio/flock",
+      "clone_url": "https://github.com/duckbugio/flock.git",
+      "ssh_url": "git@github.com:duckbugio/flock.git",
+      "homepage": "https://roost.duckbug.io",
+      "created_at": "2026-06-08T15:48:15Z",
+      "updated_at": "2026-06-29T21:37:33Z",
+      "pushed_at": "2026-06-29T20:04:40Z"
+    },
+    "stats": {
+      "stars": 725,
+      "forks": 3,
+      "watchers": 725,
+      "open_issues": 2,
+      "size": 841
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 883211,
+        "Go Template": 20347,
+        "Dockerfile": 19841,
+        "JavaScript": 8073,
+        "Jinja": 7801,
+        "Shell": 2434
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agent",
+        "anthropic",
+        "autonomous-agents",
+        "chatbot",
+        "claude",
+        "claude-code",
+        "code-review",
+        "golang",
+        "llm",
+        "self-hosted",
+        "telegram-bot",
+        "vk-bot"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <b>English</b> ·\n  <a href=\"README.ru.md\">Русский</a> ·\n  <a href=\"README.zh.md\">中文</a> ·\n  <a href=\"README.es.md\">Español</a> ·\n  <a href=\"README.de.md\">Deutsch</a> ·\n  <a href=\"README.fr.md\">Français</a> ·\n  <a href=\"README.pt-BR.md\">Português (BR)</a> ·\n  <a href=\"README.ja.md\">日本語</a>\n</p>\n\n# Flock\n\n**Run a Claude Code AI dev team on your server and drive it from chat.** Describe a feature in Telegram or VK; the team plans it, builds it on a branch, tests it, reviews it, and opens a PR — each chat in its own isolated workspace.\n\n[![CI](https://github.com/duckbugio/flock/actions/workflows/ci.yml/badge.svg)](https://github.com/duckbugio/flock/actions/workflows/ci.yml)\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)\n[![Go 1.26](https://img.shields.io/badge/Go-1.26-00ADD8.svg)](go.mod)\n[![image: ghcr.io](https://img.shields.io/badge/image-ghcr.io-2496ED.svg)](https://github.com/orgs/duckbugio/packages)\n\nIt runs on your Claude **Pro/Max subscription** (no per-token billing) or an Anthropic API key, ships as **prebuilt Docker images** (no build step), and keeps every chat in its own sandboxed workspace.\n\n## Quick start (Docker)\n\n```bash\ngit clone https://github.com/duckbugio/flock\ncd flock/adapters/telegram\ncp .env.example .env        # fill in the REQUIRED block (4 values)\ndocker compose up -d\n```\n\nThat pulls the prebuilt image `ghcr.io/duckbugio/flock-telegram` — no build, no Ansible — then message your bot. The minimum `.env`:\n\n| Variable | What |\n|---|---|\n| `TELEGRAM_BOT_TOKEN` | from [@BotFather](https://t.me/botfather) |\n| `TELEGRAM_BOT_USERNAME` | your bot's @username (no `@`) |\n| `ALLOWED_USERS` | comma-separated Telegram user IDs allowed to use the bot |\n| `CLAUDE_CODE_OAUTH_TOKEN` | `claude setup-token` (subscription) — *or* set `ANTHROPIC_API_KEY` |\n\nEverything else in [`.env.example`](adapters/telegram/.env.example) has sensible defaults. Update later with `docker compose pull && docker compose up -d`.\n\n> **Region:** host in an **Anthropic-supported region** (some countries, e.g. RU/CN, are geo-blocked) — otherwise Claude calls fail.\n\n**VK** is the same pattern under [`adapters/vk/`](adapters/vk/), built on the same core and published as `ghcr.io/duckbugio/flock-vk`. It ships only an env template (no compose file): `cp .env.example .env`, then `docker run --env-file .env ghcr.io/duckbugio/flock-vk`. Claude auth and core settings match Telegram; only the three transport vars change:\n\n| Variable | What |\n|---|---|\n| `VK_BOT_TOKEN` | community access token (VK community → Manage → API usage → access token) |\n| `VK_GROUP_ID` | your community's numeric id (long-poll server + mention parse) |\n| `VK_ALLOWED_USERS` | comma-separated VK user IDs allowed to use the bot |\n\n## Highlights\n\n- **The conversation is the task source** — describe what you want in chat and review the PR that comes back; the agent's shell and editor are sandboxed inside the container.\n- **A real dev-team pipeline, not a single prompt** — spec-first acceptance criteria, build/regression gates, and an arbiter that breaks loops.\n- **Multi-transport** — **Telegram** and **VK** today, both on the same core; a new platform is a thin adapter, not a fork.\n- **PR reactions without inbound webhooks** — the bot *polls* your git host for new review comments and routes each back to the chat that opened the PR.\n- **Subscription-friendly** — authenticate with a Claude Pro/Max token (no per-token cost) or an Anthropic API key.\n\n## How it works\n\n```\nYou (in a chat): \"implement X across the api + web services\"\n  → bot's Claude (Lead) → planner → confirm scope → coder ⇄ tester → PR per repo\n                                                      → reviewer (inline comments) ⇄ coder → arbiter\n                                                                                        ├ APPROVE → you merge\n                                                                                        └ ESCALATE → asks you\n```\n\nThe five subagents — **planner → coder → tester → reviewer → arbiter** — run as native Claude Code subagents in [`core/agents/`](core/agents/). A plain question is just answered; a build request triggers the team. The **arbiter** is the risk-aware, cycle-limited loop-breaker so agents never spin forever. Branches are named `duck/<chatid>/<slug>` so PR-webhook/poll events route back to the right chat.\n\nThe team is built for a **microservices** workspace: a feature can span several services, and it coordinates branches and one cross-linked PR per repo. The full pipeline, guardrails, and role table live in [`core/README.md`](core/README.md).\n\n## Repo layout (monorepo)\n\nThe platform-agnostic dev-team brain lives in [`core/`](core/); each platform is a thin adapter under `adapters/<name>/` that shares it.\n\n| Adapter | Path | Prebuilt image |\n|---|---|---|\n| Telegram | [`adapters/telegram/`](adapters/telegram/) | `ghcr.io/duckbugio/flock-telegram` |\n| VK | [`adapters/vk/`](adapters/vk/) | `ghcr.io/duc",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:34.958757"
+  },
+  {
+    "basic_info": {
+      "name": "sandboxd",
+      "full_name": "tastyeffectco/sandboxd",
+      "owner": "tastyeffectco",
+      "description": "Self-hosted dev sandboxes with preview URLs. One command. No Kubernetes, perfect for coding agents and Saas factories",
+      "url": "https://github.com/tastyeffectco/sandboxd",
+      "clone_url": "https://github.com/tastyeffectco/sandboxd.git",
+      "ssh_url": "git@github.com:tastyeffectco/sandboxd.git",
+      "homepage": "https://www.sandboxd.io/",
+      "created_at": "2026-06-03T18:55:02Z",
+      "updated_at": "2026-06-30T00:06:15Z",
+      "pushed_at": "2026-06-29T04:21:32Z"
+    },
+    "stats": {
+      "stars": 705,
+      "forks": 33,
+      "watchers": 705,
+      "open_issues": 10,
+      "size": 989
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 475150,
+        "Shell": 17428,
+        "Dockerfile": 9510,
+        "TypeScript": 1054,
+        "CSS": 708,
+        "HTML": 299
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "ai-agent",
+        "dev-environment",
+        "docker",
+        "isolation",
+        "preview",
+        "preview-environment",
+        "sandbox",
+        "self-hosted"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">sandboxd</h1>\n\n\n<p align=\"center\">\n  <b>The open-source engine for AI app-builder products.</b><br/>\n  Give every user an isolated cloud dev environment, a built-in coding agent,\n  and a live preview URL — self-hosted, on one machine, in one command.\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img alt=\"License: MIT\" src=\"https://img.shields.io/badge/license-MIT-green.svg\"></a>\n  <img alt=\"Runs on Docker\" src=\"https://img.shields.io/badge/runs%20on-Docker-2496ED.svg\">\n  <img alt=\"Single binary control plane\" src=\"https://img.shields.io/badge/control%20plane-single%20Go%20binary-00ADD8.svg\">\n  <img alt=\"Status: beta\" src=\"https://img.shields.io/badge/status-beta-yellow.svg\">\n</p>\n\n---\n\n<img width=\"1100\" height=\"816\" alt=\"sandboxd-demo\" src=\"https://github.com/user-attachments/assets/f794ff9b-8ffe-47e8-bd30-22541f870f09\" />\n\n\n## What is sandboxd? (start here)\n\nThink of the apps where you type *\"build me a todo app\"* and seconds later a\nworking website appears at its own link — like Lovable, Bolt, v0, or Replit.\n**sandboxd is the open-source backend that makes that possible**, running on\nyour own server.\n\nHere's what it does, in plain terms. You send it one HTTP request, and it:\n\n1. **Creates a sandbox** — a private, isolated Linux container (its own\n   filesystem, its own memory limits), so one user's code can never see or\n   break another's.\n2. **Runs an AI coding agent inside it** — you give it a prompt, and it writes\n   the code into that sandbox. (The OpenCode and Claude Code CLIs come\n   pre-installed.)\n3. **Gives the app a live URL** — the dev server running inside the sandbox is\n   instantly reachable at a shareable preview link.\n\n```\nPOST /sandbox          → a private, isolated container spins up\nPOST .../tasks         → an AI agent writes an app inside it\nhttp://<id>.preview... → that app is live at its own URL\n```\n\nIt's also cheap to run: a sandbox **goes to sleep when nobody's using it**\n(freeing memory) and **wakes up the instant someone opens its link again** —\nfiles are saved on disk the whole time. So one ordinary server can hold many\nusers instead of needing one virtual machine each.\n\nUnder the hood it's deliberately small and easy to understand: **one Go program\nthat tells Docker what to do**, with **Traefik** handling the URLs and\n**SQLite** as the database. No Kubernetes, no separate database server, no\nmessage queue — you could read the whole thing in an afternoon.\n\n```\n            ┌──────────────── your host (just needs Docker) ────────────────┐\n browser ──▶│  Traefik  ──▶  sandbox  (coding agent + dev server :3000)      │\n            │     ▲              ▲   ▲                                        │\n API/CLI ──▶│  sandboxd ─────────┘   └─ workspace dir (persists)             │\n            │     │  SQLite (source of truth) · idle→stop · request→wake      │\n            └─────┴────────────────────────────────────────────────────────-─┘\n```\n\n### Who's it for?\n\n**✅ Use it if** you're running **many sandboxes for other people** — an AI\napp-builder (\"describe an app → see it live\"), an agent platform, a coding\nplayground, per-user or per-branch preview environments, or multi-app hosting\nfor a team.\n\n**❌ Skip it if** you just need one or two containers for yourself — a shell\nscript, `docker run`, or [lxd](https://canonical.com/lxd) is simpler. (More on\nthat [below](#why-not-just-a-shell-script).)\n\n## Why sandboxd?\n\nIf you're building an **AI app-builder, an agent platform, a coding playground,\nor a per-user preview product**, the hard part isn't the prompt — it's the\ninfrastructure underneath it:\n\n- **Multi-tenant isolation** so one user's code can't touch another's.\n- **Per-user preview URLs** with automatic routing and TLS.\n- **Cost control** — idle environments must release memory, or your bill explodes.\n- **Agent orchestration** — run a coding agent against a workspace, stream its\n  progress, capture the result.\n- **Persistence, wake-on-demand, reconciliation after a crash or reboot.**\n\nThat's months of platform work. sandboxd is that platform, distilled to one\ncommand:\n\n- ⚡ **One-command install.** `./install.sh` and you have a working API + previews.\n- 🧠 **Agents included.** The OpenCode and Claude Code CLIs ship in every sandbox;\n  hand a sandbox a prompt and it builds.\n- 💸 **Dense by design.** Stop-on-idle + wake-on-request means dozens of sandboxes\n  share one box instead of one VM each — the difference between a $20 server and\n  a $2,000 cluster.\n- 🔓 **Yours.** Self-hosted, MIT-licensed, no vendor lock-in. Own your data, your\n  margins, and your roadmap.\n- 🪶 **Boring on purpose.** SQLite + the `docker` CLI + Traefik. A reconciler\n  converges Docker back to the database on every boot. You can read the whole\n  control plane in an afternoon.\n\n## \"Why not just a shell script?\"\n\nFair question — and honestly: **if you need one or two long-lived containers for\nyourself, a shell script (or `docker run`, or [lxd](https://canonical.com/lxd))\nis simpler. Use that.** We mean i",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:36.371851"
+  },
+  {
+    "basic_info": {
+      "name": "wa-app",
+      "full_name": "pood1e/wa-app",
+      "owner": "pood1e",
+      "description": null,
+      "url": "https://github.com/pood1e/wa-app",
+      "clone_url": "https://github.com/pood1e/wa-app.git",
+      "ssh_url": "git@github.com:pood1e/wa-app.git",
+      "homepage": null,
+      "created_at": "2026-05-31T12:09:33Z",
+      "updated_at": "2026-06-29T17:24:03Z",
+      "pushed_at": "2026-06-27T11:10:46Z"
+    },
+    "stats": {
+      "stars": 600,
+      "forks": 295,
+      "watchers": 600,
+      "open_issues": 10,
+      "size": 3724
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1063836,
+        "TypeScript": 254642,
+        "Python": 123686,
+        "CSS": 5494,
+        "Shell": 2143,
+        "Dockerfile": 2142,
+        "JavaScript": 984,
+        "HTML": 421
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# wa-app\n\n`wa-app` 是 WA 应用链路服务，提供账号与资料管理、号码探测、注册、登录态检查、长连接会话、消息与联系人处理、账号在线态与转出检测，并内置管理 dashboard。\n\n> [!CAUTION]\n> 使用本项目即表示你同意 [NOTICE](./NOTICE) 的全部条款。本项目仅限协议建模、教学演示、授权安全研究和内部非商业验证；禁止用于商业用途、未授权目标或违反第三方服务条款的场景。\n\n## 功能\n\n- 账号与资料：维护 WAAccount、客户端 profile、注册记录和登录态投影；支持资料编辑、头像、换绑号码，注册时从多机型画像池分配设备指纹。\n- 号码与注册：支持号码探测、SMS 探测、注册请求、OTP 提交和登录态检查。\n- 账号安全：两步验证（2FA PIN）状态管理与登录适配。\n- 连接与消息：支持长连接会话、消息接收与 ack、1:1 文本消息发送、会话查看、联系人解析（usync）和头像拉取。\n- 在线态与转出检测：账号在线态由长连接实况派生；转出/远程登出按 device_removed / device_logout 判定并周期复核，避免状态漂移。\n- 数据提取：从消息中提取 OTP/Flag 候选值，并按敏感数据规则保存引用或脱敏投影。\n- 管理界面：提供 dashboard，用于账号、联系人、消息、连接状态、安全和账号资料操作。\n\n## 部署方式\n\n推荐使用本仓库提供的 Docker Compose 启动服务：\n\n```sh\ncp .env.example .env\ndocker compose pull\ndocker compose up -d\n```\n\n如果你只是本地快速启动，也可以直接 `docker compose up -d`（不创建 `.env` 也能启动，未配置值使用 compose 默认值）。\n\n默认端口（固定）：\n\n- Dashboard：`http://127.0.0.1:8080`（`docker-compose.yml` 映射）\n- gRPC：`127.0.0.1:50091`\n\n若你确实要改主机映射端口，请直接改 `docker-compose.yml` 的 `ports` 行（非配置项）。\n\n### 配置\n\n`.env` 中保留少量运行必需配置：\n\n- `WA_APP_IMAGE_TAG`：镜像标签，生产建议使用固定版本。\n- `WA_APP_AUTH_PASSWORD`：可选 dashboard 单密码登录；为空则关闭鉴权。\n- `WA_APP_DATA_DIR`：容器内持久化目录；默认 `/var/lib/wa-app`。\n- `WA_APP_PG_DSN`：可选 PostgreSQL DSN；为空时使用内置 SQLite 持久化。\n- `WA_APP_REDIS_URL`：可选 Redis URL；为空时使用内置 SQLite 运行态存储。\n- `WA_COMMON_PROXY`：可选 WA 出站代理；配置后所有出站走该共享代理，为空则直连。\n- `WA_APP_DEVICE_PROFILES_FILE`：可选设备画像池文件路径；为空时使用内置多机型画像。\n- `WA_APP_PLAY_INTEGRITY_API_URL` / `WA_APP_PLAY_INTEGRITY_API_TOKEN`：可选 Play Integrity token service；两者都为空时注册页不显示选择控件并默认走 GPIA `error_code`。\n\nPostgreSQL 和 Redis 都是可选组件。需要启用时，在 `docker-compose.yml` 中取消对应服务注释，并在 `.env` 中填写 `WA_APP_PG_DSN` / `WA_APP_REDIS_URL`。\n\n### 源码构建镜像\n\n`Dockerfile` 支持在 `wa-app` 仓库内直接构建，不依赖 `common-lib` 构建上下文：\n\n```sh\ndocker build -t wa-app-service:local .\n```\n\n在 `byte-v-forge` 聚合目录构建也可用：\n\n```sh\ndocker build -f wa-app/Dockerfile -t wa-app-service:local .\n```\n\n## 逆向工程\n\nWA APK 逆向工程、字段形状对齐记录、patch 模板和本地分析脚本统一维护在私有仓库：\n\n- https://github.com/byte-v-forge/wa-reverse\n\n`wa-app` 只保留运行时代码和服务说明，不提交 APK、反编译产物、抓包、WAMSYS blob 或逆向记录。\n\n## 友情链接\n\n- [LINUX DO - 新的理想型社区](https://linux.do/)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:37.766202"
+  },
+  {
+    "basic_info": {
+      "name": "make-look-scanned",
+      "full_name": "overflowy/make-look-scanned",
+      "owner": "overflowy",
+      "description": "Makes PDFs look scanned (CLI or in the browser via WASM)",
+      "url": "https://github.com/overflowy/make-look-scanned",
+      "clone_url": "https://github.com/overflowy/make-look-scanned.git",
+      "ssh_url": "git@github.com:overflowy/make-look-scanned.git",
+      "homepage": "https://overflowy.github.io/make-look-scanned/",
+      "created_at": "2026-06-20T17:39:59Z",
+      "updated_at": "2026-06-30T02:03:16Z",
+      "pushed_at": "2026-06-21T10:39:21Z"
+    },
+    "stats": {
+      "stars": 447,
+      "forks": 21,
+      "watchers": 447,
+      "open_issues": 0,
+      "size": 45
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 26501,
+        "HTML": 8830,
+        "Python": 3473,
+        "Shell": 431
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "go",
+        "pdf",
+        "scan",
+        "wasm"
+      ]
+    },
+    "content": {
+      "readme": "# make-look-scanned\n\nA CLI that takes a PDF and degrades it to look like a physical scan of a\nprintout — skew, grayscale, warm paper tone, scanner grain, defocus, edge\nshadow, and JPEG compression artifacts. Also [runs client-side in the browser](https://overflowy.github.io/make-look-scanned/) via WASM.\n\n<img width=\"1990\" height=\"1252\" alt=\"example\" src=\"https://github.com/user-attachments/assets/9653fd3b-3abe-4427-ad82-03a78d4429b5\"/>\n\nEach page is rasterized to an image, run through the effect pipeline, and\nreassembled into a new **image-only** PDF (the original selectable text is\ngone — faithful to a basic scanner).\n\n## Build\n\nRequires Go and a C toolchain (go-fitz links MuPDF via cgo, so the binary is\nself-contained — nothing to install at runtime).\n\n```sh\ngo build -o make-look-scanned .\n```\n\n## Usage\n\n```sh\nmake-look-scanned [flags] input.pdf\n```\n\nFlags may appear before or after the input filename.\n\n```sh\nmake-look-scanned in.pdf                 # -> in.scanned.pdf\nmake-look-scanned in.pdf -o out.pdf\nmake-look-scanned in.pdf --noise 0.4 --skew 2.5 --jpeg-quality 30\n```\n\n### Flags\n\n| Flag             | Default | Meaning                                   |\n|------------------|---------|-------------------------------------------|\n| `-o`             | `<input>.scanned.pdf` | output path                 |\n| `--preset`       | —       | named preset from `config.toml`           |\n| `--seed`         | content hash | random seed (override for a new look) |\n| `--force`        | false   | overwrite an existing output file         |\n| `--dpi`          | 150     | render resolution                         |\n| `--skew`         | 0.6     | max rotation degrees (0 disables)         |\n| `--grayscale`    | true    | desaturate (`--grayscale=false` keeps color) |\n| `--paper-tone`   | 0.6     | warm paper tint strength 0..1             |\n| `--noise`        | 0.08    | scanner grain 0..1                        |\n| `--blur`         | 0.4     | defocus gaussian sigma                    |\n| `--edge-shadow`  | 0.15    | border vignette 0..1                      |\n| `--jpeg-quality` | 70      | JPEG quality 1..100                       |\n\nEach numeric knob disables its effect at `0`.\n\n## Determinism\n\nOutput is **deterministic by default**: the seed is derived from the input\nPDF's content, so the same file always produces the same scan. Pass `--seed N`\nfor a different (but reproducible) look. Same input + seed yields a\nbyte-identical PDF.\n\n## Presets\n\nDefine reusable bundles in\n`$XDG_CONFIG_HOME/make-look-scanned/config.toml` (falls back to\n`~/.make-look-scanned/config.toml` when `XDG_CONFIG_HOME` is unset). Keys\nmirror the flag names with underscores:\n\n```toml\n[presets.medium]\nskew = 1.5\npaper_tone = 0.6\nnoise = 0.2\nblur = 0.6\nedge_shadow = 0.3\njpeg_quality = 45\n```\n\n```sh\nmake-look-scanned --preset medium in.pdf\n```\n\nPrecedence: built-in defaults → selected preset → explicit CLI flags (flags\nalways win).\n\n## Browser (WebAssembly)\n\nThe effect pipeline also runs in the browser. go-fitz/MuPDF can't compile to\nwasm, so the browser uses **PDF.js** to rasterize pages and hands the pixels to\nthe *same* Go effects + assembly code compiled to wasm.\n\nDev (needs network for the PDF.js CDN):\n\n```sh\n./web/build.sh                       # builds web/main.wasm + wasm_exec.js\n(cd web && python3 -m http.server 8080)   # then open http://localhost:8080\n```\n\nSingle self-contained file (works offline, nothing to serve):\n\n```sh\ntask build:web                       # writes dist/make-look-scanned.html (~8 MB)\n```\n\n`dist/make-look-scanned.html` inlines the wasm, Go's runtime glue, and PDF.js\n(library + worker) as base64 — open it directly in a browser. Output is\nvisually equivalent to the CLI but not byte-identical, since PDF.js and MuPDF\nrasterize differently.\n\n## License\n\n[AGPL-3.0](LICENSE). The CLI statically links MuPDF (via go-fitz), which is\nAGPL-3.0, so the combined binary is AGPL-3.0 — distributing it requires offering\nthe corresponding source. The browser build does not include MuPDF (it uses\nPDF.js, Apache-2.0).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:39.151450"
+  },
+  {
+    "basic_info": {
+      "name": "ku",
+      "full_name": "bjarneo/ku",
+      "owner": "bjarneo",
+      "description": "A fast, keyboard-driven Kubernetes TUI. Browse any resource, edit objects, follow logs, and shell into pods. ",
+      "url": "https://github.com/bjarneo/ku",
+      "clone_url": "https://github.com/bjarneo/ku.git",
+      "ssh_url": "git@github.com:bjarneo/ku.git",
+      "homepage": "",
+      "created_at": "2026-06-13T14:38:25Z",
+      "updated_at": "2026-06-30T00:35:26Z",
+      "pushed_at": "2026-06-25T07:46:43Z"
+    },
+    "stats": {
+      "stars": 443,
+      "forks": 16,
+      "watchers": 443,
+      "open_issues": 2,
+      "size": 447
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 391648,
+        "Shell": 3146,
+        "Makefile": 1101
+      },
+      "license": "MIT License",
+      "topics": [
+        "bubbletea",
+        "charmlibs",
+        "cli",
+        "client-go",
+        "devops",
+        "go",
+        "golang",
+        "k8s",
+        "k9s",
+        "kubectl",
+        "kubernetes",
+        "terminal",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# ku\n\n```\n\\|/          (__)\n     `\\------(oo)\n       ||    (__)\n       ||w--||     \\|/\n   \\|/\n```\n\n`ku` is short for **KU**bernetes. It is also the Norwegian word for cow.\n\nA fast, keyboard-driven Kubernetes TUI. Browse any resource, read and edit\nobjects, follow logs, and open a shell in a pod, without leaving the terminal.\nInspired by k9s, Lens, and lazygit.\n\nhttps://github.com/user-attachments/assets/48756c6b-00ae-470d-8fb5-3f93ecbd46df\n\n## Install\n\nInstall the latest release with the installer:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/bjarneo/ku/main/install.sh | sh\n```\n\nOr with Go:\n\n```bash\ngo install github.com/bjarneo/ku@latest\n```\n\nOr from a clone:\n\n```bash\nmake install   # builds and installs to ~/.local/bin, /usr/local/bin, or your last $PATH dir\ngo build -o ku .\n```\n\nBuilding from source requires Go 1.26.3+. Running ku requires a reachable\ncluster.\n\n## Quick start\n\n```\nku                       # current context, remembered namespace\nku -n kube-system        # start in a namespace\nku --resource deploy     # start on a resource type\nku --theme tokyonight    # switch theme\nku --edit                # start in edit mode (default is read-only)\nku --dev                 # developer view, app resources only\nku upgrade               # replace the current binary with the latest release\n```\n\nPress `?` for help, `Ctrl+K` for the command palette, and `Shift+E` to toggle\nedit mode.\n\n## Modes\n\n`ku` starts read-only. Every mutating action is off: edit, delete, rollout\nrestart, scale, CronJob trigger, cordon, drain, and shell into pods or nodes.\nRead, describe, YAML, logs, and the `kubectl` command preview still work. For\nall you fat-fingers out there, your cluster is safe.\n\nTo make changes, press `Shift+E` or open the command palette (`Ctrl+K`) and pick\n\"Enter edit mode\", then confirm the prompt. The header chip flips from a green\n`● READ-ONLY` to a red `● EDIT`, and the mutating keys come back. Press\n`Shift+E` again or pick \"Return to read-only\" to switch back. Pass `--edit` to\nstart in edit mode instead.\n\n`--dev` switches to a developer view that hides cluster admin resources (nodes,\npersistent volumes, storage classes, namespaces, events) and disables node\noperations. CRD discovery is off too. Use it when you only manage your own app.\nIt composes with edit mode.\n\n```\nku                       # read-only, full nav\nku --edit                # edit mode, full nav\nku --dev                 # read-only, developer view\nku --dev --edit          # edit mode, developer view\n```\n\nDisabled keys are dropped from the footer hints and the command palette, and `?`\nsummarizes the active mode.\n\n## Configuration\n\n`ku` reads an optional config file from `~/.config/ku/config.yaml` for sidebar\ncustomization and stores session state in `~/.config/ku/state.json`.\n\n### Add custom resources (CRDs) to the sidebar\n\nThe sidebar lists common built-in resources by default. CRDs are not shown until\nyou add them. Seed the config, then edit the `sidebar:` list:\n\n```bash\nku config init     # write ~/.config/ku/config.yaml with the defaults\nku config path     # print the config file location\n```\n\nAdd an item under any section (or a new one). The `resource` field accepts a\nplural, singular, kind, short name, or group-qualified key. Use the\ngroup-qualified form (`<plural>.<group>`) to avoid ambiguity:\n\n```yaml\nsidebar:\n  - section: CRDs\n    items:\n      - { label: ScaledObjects, resource: scaledobjects.keda.sh }\n      - { label: Certificates, resource: certificates.cert-manager.io }\n      - { label: HPAs, resource: horizontalpodautoscalers }\n```\n\nRestart `ku` to apply the change. Resources your cluster does not expose are\ndropped, and empty sections are hidden.\n\nSee [Configuration](docs/configuration.md) for the full reference.\n\n## Highlights\n\n- A cockpit overview on launch: cluster health, node CPU and memory gauges, pod and deployment status, and recent warnings.\n- Server-rendered tables for any resource, the same columns as `kubectl get`, including CRDs.\n- lazygit-style layout: a left resource nav, `Tab` between panes, and a status bar that always shows the keys that work right now.\n- Config summaries, raw YAML, logs, edit-in-editor, shell into pods or nodes, delete, scale, restart, and CronJob trigger, all inside the TUI.\n- ANSI colors that match your terminal in light or dark mode, with Tokyo Night as a fallback (`--theme tokyonight`).\n- A customizable sidebar menu via an optional config file (`ku config init`): add CRDs like HPAs, KEDA ScaledObjects, or OpenTelemetry collectors.\n- `C` shows the equivalent `kubectl` command, and `O` opens upstream Kubernetes docs for known resources.\n- Remembers your last context and namespace.\n\n## Docs\n\n- [Getting started](docs/getting-started.md)\n- [Configuration](docs/configuration.md)\n- [Keybindings](docs/keybindings.md)\n- [Features](docs/features.md)\n\nFull index: [docs/](docs/README.md).\n\n## License\n\n[MIT](LICENSE)\n\n## Created by\n\n[x.com/iamdothash](https://x.com/iamdothash)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:40.592291"
+  },
+  {
+    "basic_info": {
+      "name": "perfectpixel-studio",
+      "full_name": "gykim80/perfectpixel-studio",
+      "owner": "gykim80",
+      "description": "AI-powered animation sprite studio — generate character sprite sheets with 8 directions and 100+ actions from a single text prompt (Wails + Go + React)",
+      "url": "https://github.com/gykim80/perfectpixel-studio",
+      "clone_url": "https://github.com/gykim80/perfectpixel-studio.git",
+      "ssh_url": "git@github.com:gykim80/perfectpixel-studio.git",
+      "homepage": null,
+      "created_at": "2026-06-14T04:23:45Z",
+      "updated_at": "2026-06-30T00:08:11Z",
+      "pushed_at": "2026-06-22T22:36:11Z"
+    },
+    "stats": {
+      "stars": 402,
+      "forks": 62,
+      "watchers": 402,
+      "open_issues": 2,
+      "size": 38120
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 337795,
+        "TypeScript": 156458,
+        "CSS": 49964,
+        "HTML": 25179,
+        "NSIS": 13156,
+        "JavaScript": 11795,
+        "Shell": 4016
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "game-development",
+        "golang",
+        "pixel-art",
+        "sprite",
+        "spritesheet",
+        "wails"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# PerfectPixel\n\n**An AI-powered animation sprite generation studio**\n\nTurn a one-line character description into a base character, then auto-generate 100+ motion\nanimations (walk, run, attack, magic, …) and complete 8-direction sprite sets — exported in\nformats your game engine can import directly.\n\n![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)\n![Wails](https://img.shields.io/badge/Wails-v2-DF0000)\n![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)\n![License](https://img.shields.io/badge/license-MIT-green)\n\n**[🌐 Homepage](https://pp.andrew-ai.app/)**\n\n**English** · [한국어](README.ko.md)\n\n<img src=\"samples/power-up.gif\" alt=\"Pixel-art character power-up animation generated by PerfectPixel\" width=\"280\" />\n\n<sub>A power-up animation generated end-to-end by the actual pipeline (`gemini-3-pro-image`).</sub>\n\n</div>\n\n---\n\n## Why this is a hard problem\n\nPlenty of tools draw a pretty picture. Game developers need something else: a 6-frame walk\nmust be *exactly* 6 frames, every frame must read as the *same* character, the background must\nbe fully alpha-transparent, and the character's anchor must not jitter between frames — all in a\nformat an engine can import as-is.\n\nAI models are bad at these constraints. Frame counts come out wrong, poses bleed into each\nother, hair color drifts mid-strip (*identity drift*), and the chroma-key background spills\nonto the character's silhouette.\n\n**PerfectPixel's core idea: let the AI render, but enforce quality, consistency, and precision\nwith a deterministic post-processing pipeline.** Even when the AI's output is non-deterministic,\nthe result converges to a consistent quality bar. That is the engineering moat — see the\nbefore/after comparisons below, all produced by the *real* pipeline code on *real* AI output.\n\n## Features\n\n- **Text → character**: describe a character, pick a style (pixel art, chibi, cartoon …), and\n  generate a base character with the background auto-removed.\n- **100+ motion presets**: a categorized keyword catalog — walk, run, jump, attack, magic,\n  emotes, and more.\n- **8-direction sets**: 5 directions are generated by AI and the 3 mirror directions are\n  derived by horizontal mirroring, for a consistent set at **37.5% lower generation cost**.\n- **Self-correcting quality loop**: generate → matte → extract → inspect → corrective\n  regenerate, up to 3 passes, converging frame count and motion quality.\n- **Real pixelization**: shared-palette quantization + pixel-grid snapping for authentic dot art.\n- **Engine-friendly export**: sprite sheet + `manifest.json` + Aseprite-compatible JSON +\n  per-state GIF/APNG + individual frame PNGs, all in one pass.\n- **Multi-provider**: choose Gemini, OpenRouter, fal.ai, or BytePlus as the backend.\n- **Sessions & gallery**: work state is persisted to disk and results are auto-archived.\n\n## Sample Output\n\n<div align=\"center\">\n\n| Walk | Idle | Cheer | Power Up |\n|------|------|-------|----------|\n| <img src=\"samples/walk.gif\" width=\"100\" /> | <img src=\"samples/idle.gif\" width=\"100\" /> | <img src=\"samples/cheer.gif\" width=\"100\" /> | <img src=\"samples/power-up.gif\" width=\"100\" /> |\n| Dance | Victory | Block | Low HP |\n| <img src=\"samples/dance1.gif\" width=\"100\" /> | <img src=\"samples/victory-north.gif\" width=\"100\" /> | <img src=\"samples/block-east.gif\" width=\"100\" /> | <img src=\"samples/low-hp.gif\" width=\"100\" /> |\n\n</div>\n\n## How it works\n\nGenerating one state (animation) runs this pipeline in the Go backend:\n\n```\ndescription + style + motion preset\n        │\n        ▼\n  build prompt ──► AI image generation (horizontal filmstrip)\n        │\n        ▼\n  background detect & matte ──► frame extraction (cell segmentation)\n        │\n        ▼\n  inspect (frame count / identity drift / motion presence)\n        │\n        ├─ pass ─────────────► pixel quantization ──► done\n        │\n        └─ fail ─► corrective retry hint ──► regenerate (up to 3×)\n```\n\nTwo things make this more than a naive retry loop:\n\n- **Best-candidate scoring** — every attempt is scored `score = Found*100 − errors*10`, and the\n  best candidate is kept. A perfect result returns immediately; if 3 passes still aren't perfect,\n  the best-so-far is returned (never an empty hand). API errors and cancellations bail early.\n- **Measurement-driven retry hints** — defects detected during inspection are converted into\n  precise English correction instructions injected into the next prompt (e.g. *\"the previous\n  result read as 7 poses but exactly 6 are required; split the canvas into 6 even columns…\"*).\n  Combined with user feedback, each pass becomes a **closed-loop self-correction** that converges\n  on the defect rather than rolling the dice again.\n\n---\n\n## The engineering: deterministic correction\n\nThe design philosophy in one line: **signal processing, not heuristics.** Three signal-processing\naxes — wrapped in a self-diagnostic, self-correcting closed loop.\n\n### 1. Background removal — chrominance-b",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:41.942199"
+  },
+  {
+    "basic_info": {
+      "name": "ArachneC2",
+      "full_name": "portbuster1337/ArachneC2",
+      "owner": "portbuster1337",
+      "description": "Decentralized C2 framework built on libp2p",
+      "url": "https://github.com/portbuster1337/ArachneC2",
+      "clone_url": "https://github.com/portbuster1337/ArachneC2.git",
+      "ssh_url": "git@github.com:portbuster1337/ArachneC2.git",
+      "homepage": null,
+      "created_at": "2026-06-02T14:18:03Z",
+      "updated_at": "2026-06-30T04:25:15Z",
+      "pushed_at": "2026-06-16T14:02:26Z"
+    },
+    "stats": {
+      "stars": 324,
+      "forks": 50,
+      "watchers": 324,
+      "open_issues": 1,
+      "size": 3739
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 159731,
+        "Shell": 3002
+      },
+      "license": null,
+      "topics": [
+        "c2",
+        "command-and-control",
+        "decentralized",
+        "golang",
+        "libp2p",
+        "p2p",
+        "red-team"
+      ]
+    },
+    "content": {
+      "readme": "# Arachne C2\n\n<img width=\"1920\" height=\"1080\" alt=\"image\" src=\"https://github.com/user-attachments/assets/3c009f8e-1bc2-4620-854b-a5c53e108893\" />\n\n\n\nA decentralized Command & Control framework built on **libp2p** (the peer-to-peer networking\nstack behind IPFS). No servers, no domains, no IPs to block — just cryptographic identities\ncommunicating over the global p2p network.\n\nInspired by [Sliver](https://github.com/BishopFox/sliver), but redesigned for decentralized\ninfrastructure.\n\n## Key Idea\n\nInstead of running a C2 server on a VPS that can be taken down, Arachne uses **GossipSub\n(PubSub)** and **DHT peer discovery** over the IPFS peer-to-peer network. Your implant\nfleet and operator are all equal peers in the network — no central point of failure.\n\n## Features\n\n- Self-contained single binary — no source tree needed to generate implants\n- Beacon-mode implants that maintain presence via PubSub topics\n- DHT-based peer discovery — no hardcoded server IPs\n- Encrypted and signed messages (Ed25519 + NaCl box)\n- Interactive operator console (list, select, exec, ls, ps, cd, pwd, download, upload)\n- Interactive shell over direct libp2p stream (PTY on Linux/macOS, hidden ConPTY on Windows)\n- Port forwarding through implant via direct libp2p stream\n- Cross-platform implants (Linux, macOS, Windows)\n- Protocol Buffers message format with per-message signature verification\n- Opaque protocol identifiers (short proto package names, Z-series message types, short wire IDs)\n- Per-implant command topics — commands reach only the intended implant\n- Built-in hole punching and NAT traversal\n- Automatic Go installation if missing (generates implants anywhere)\n- Garble-based obfuscation (`--obfuscate` — strips names, literals, paths)\n- Cover traffic to mask beacon timing signatures\n- Persistent implant identity (embedded keypair per build)\n- Quiet mode (`--quiet` — daemonize on Linux/macOS, hide console on Windows)\n- Automatic implant disconnect detection and alerting\n- Stream keepalive prevents relay circuit idle timeout\n- WebSocket + TCP transport (UDP/multicast-free for sandbox compatibility)\n- VM detection (`--antivm` — 65+ detection techniques with VMAware-compatible scoring, no CGO required)\n\n## Project Structure\n\n```\narachne-c2/\n├── build.sh                # Build script (auto-installs Go if missing)\n├── bin/                    # Compiled binaries\n├── cmd/\n│   └── arachne/            # Single entry point (serve + generate)\n├── docs/                   # Design documentation\n├── implant/                # Implant agent code\n│   └── core/               # Agent runtime, command handlers, shell, portfwd\n├── pkg/\n│   ├── config/             # Shared config types\n│   ├── cryptography/       # Ed25519 + NaCl key management\n│   └── transport/          # libp2p node, messenger, PubSub helpers\n├── protobuf/               # Protocol Buffers definitions\n│   ├── apb/                # C2 protocol messages (opaque type names: Z1, Z2, ...)\n│   ├── cpb/                # Common types (Process, Response, Request)\n│   └── rpb/                # RPC service definitions (service S, methods M0-M13)\n└── server/                 # Operator node (the \"server\")\n    └── core/               # Operator logic, implant tracking, CLI, generate\n```\n\n## Build\n\nThe operator binary is self-contained — embed the implant source at build time, then it builds implants anywhere:\n\n```bash\n./build.sh       # auto-installs Go if missing, embeds source, cross-compiles for all platforms\n```\n\nBinaries are written to `bin/` as `arachne-{os}-{arch}` (or `*.exe` for Windows). The built binary can be copied to any machine with Go installed (or no Go — it auto-installs). No source tree needed.\n\n## Quick Start\n\n### 1. Run the operator\n\n```bash\n./bin/arachne\n```\n\nOn first run, generates a keypair at `~/.arachne/operator.key` and exports the public\nkey to `~/.arachne/operator.pub`.\n\n### 2. Build an implant\n\nFrom the operator console (`generate`) or standalone:\n\n```bash\n./bin/arachne generate --os linux --arch amd64 --output ./myimplant --upx\n```\n\nFlags: `--os` (linux, darwin, windows), `--arch` (amd64, arm64), `--output`, `--pubkey`, `--upx` (default true), `--obfuscate`, `--quiet`, `--antivm`.\n\nUse `--obfuscate` to strip function names, package paths, and literal strings via [garble](https://github.com/burrowers/garble) (auto-installed if missing). Combine with `--upx` for maximum hardening.\n\nUse `--antivm` to compile in VM detection. The implant runs 65+ detection techniques (CPUID signatures, MAC prefixes, DMI/SMBIOS, PCI vendor IDs, process enumeration, registry keys, container detection) with a [VMAware](https://github.com/kernelwernel/VMAware)-compatible accumulated scoring system. Exits cleanly if the score exceeds 50%. Pure Go — no CGO, no cross-compilers needed.\n\nEach build generates a unique embedded keypair — the implant keeps the same PeerID across restarts.\n\n### 3. Deploy and run the implant\n\nCopy `./myimplant` to the target machine and run:\n\n```bash\n./myimplant\n```\n\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-06-30T04:57:43.296956"
+  },
+  {
+    "basic_info": {
+      "name": "WhiteDNS-Wizard",
+      "full_name": "WhiteDNS/WhiteDNS-Wizard",
+      "owner": "WhiteDNS",
+      "description": "Cloudflare-first WhiteDNS CLI/TUI for provisioning a managed 3x-ui/Xray VPN stack over SSH, with DNS, certificates, client import links, Tor-routed profiles, diagnostics, backups, and repair/reset flows.",
+      "url": "https://github.com/WhiteDNS/WhiteDNS-Wizard",
+      "clone_url": "https://github.com/WhiteDNS/WhiteDNS-Wizard.git",
+      "ssh_url": "git@github.com:WhiteDNS/WhiteDNS-Wizard.git",
+      "homepage": null,
+      "created_at": "2026-06-05T07:34:28Z",
+      "updated_at": "2026-06-30T00:22:10Z",
+      "pushed_at": "2026-06-16T06:18:12Z"
+    },
+    "stats": {
+      "stars": 283,
+      "forks": 23,
+      "watchers": 283,
+      "open_issues": 17,
+      "size": 1035
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 438283,
+        "Shell": 3074
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/whitedns-logo.png\" alt=\"WhiteDNS logo\" width=\"220\">\n</p>\n\n# WhiteDNS 3X-UI Wizard\n[Telegram: @whitedns](https://t.me/@whitedns)\n\nWhiteDNS is a Cloudflare-first provisioning wizard for setting up a managed 3x-ui/Xray VPN stack on a VPS. It runs locally, connects to the VPS over SSH, manages Cloudflare DNS and certificates, installs or repairs a Docker-based 3x-ui stack, and generates copyable client import strings.\n\nThe wizard focuses on a practical default setup:\n\n- Cloudflare-proxied WebSocket TLS profiles.\n- DNS-only direct profiles for protocols Cloudflare proxy cannot handle.\n- Server-side Tor exit variants users can import separately.\n- A managed 3x-ui Docker stack with PostgreSQL.\n- Encrypted local project secrets and repeatable reset/repair flows.\n\n## Quick Start\n\n### 1. Build the binary\n\n```bash\ngo build -o whitedns ./cmd/whitedns\n```\n\n### 2. Run the interactive wizard\n\n```bash\n./whitedns\n```\n\nThe root command opens the menu. Select:\n\n```text\n0) Init setup\n```\n\nThe wizard will ask for:\n\n- Cloudflare account ID.\n- Cloudflare API token.\n- Domain name.\n- VPS IPv4 address.\n- SSH host, user, key/passphrase, or password.\n\n### 3. Cloudflare token permissions\n\nCreate an Account API token in Cloudflare:\n\n1. Go to `Manage Account > Account API Tokens > Create Token`.\n2. Choose the `Edit zone DNS` template.\n\n![Choose the Edit zone DNS token template](assets/tutorial/cloudflare-edit-zone-dns-template.png)\n\n3. Scope it to the owning Cloudflare zone when possible. For subdomain projects such as `team.example.com`, this may be the parent zone `example.com`. Use all domains only when needed.\n4. Keep `DNS: Read + Edit`.\n5. In `DNS & Zones`, add `Zone: Read` and `Zone Settings: Edit`.\n\n![Cloudflare DNS and Zone permissions](assets/tutorial/cloudflare-dns-zone-permissions.png)\n\n6. In `Cache & Performance`, add `Zone SSL & Certificates: Edit`.\n\n![Cloudflare SSL and Certificates permission](assets/tutorial/cloudflare-ssl-certificates-permission.png)\n\nThe final required permissions are:\n\n```text\nDNS & Zones / DNS: Read + Edit\nDNS & Zones / Zone: Read\nDNS & Zones / Zone Settings: Edit\nCache & Performance / Zone SSL & Certificates: Edit\n```\n\nCloudflare API docs may call `Edit` permissions `Write`. WhiteDNS uses the account ID you enter for:\n\n```text\nGET /client/v4/accounts/<account-id>/tokens/verify\n```\n\nTroubleshooting:\n\n| Error area | Usually means |\n| --- | --- |\n| Token validation | Wrong token, wrong account ID, expired/disabled token, or incompatible token type. |\n| Zone lookup | Missing `Zone: Read` or token is not scoped to the selected domain. |\n| DNS or ACME DNS-01 | Missing `DNS: Edit`. |\n| ACME connectivity | Local network, DNS, proxy/VPN, firewall, or ISP path cannot reach Let's Encrypt. WhiteDNS retries public certificate issuance from the VPS when this happens. |\n| Nameserver delegation | The registrar/domain nameserver settings do not point to Cloudflare. This is not fixed by deleting or adding rows in the Cloudflare DNS records table. |\n| SSL mode strict | Missing `Zone Settings: Edit`. |\n| Origin CA certificate | Missing `Zone SSL & Certificates: Edit`. |\n\n### 4. What the init flow does\n\nThe setup flow:\n\n- Validates the Cloudflare token.\n- Detects the Cloudflare zone.\n- Creates or updates DNS records.\n- Sets Cloudflare SSL mode to `strict`.\n- Creates a Cloudflare Origin CA certificate for proxied profiles.\n- Issues a public ACME wildcard certificate for DNS-only TLS profiles.\n- Installs or repairs managed Docker 3x-ui and PostgreSQL.\n- Adds a private Tor sidecar for Tor-profile outbound routing.\n- Replaces only WhiteDNS-managed inbounds/outbounds after confirmation.\n- Prints and saves client import strings.\n\n## DNS Records\n\nWhiteDNS creates these A records for the selected domain. Replace `<domain>` and `<vps-ip>` with your real values.\n\n| Host | Type | Value | Proxy | Purpose |\n| --- | --- | --- | --- | --- |\n| `vpn.<domain>` | A | `<vps-ip>` | Proxied | VLESS WS TLS through Cloudflare |\n| `trojan.<domain>` | A | `<vps-ip>` | Proxied | VLESS WS TLS on 8443 through Cloudflare |\n| `panel.<domain>` | A | `<vps-ip>` | DNS-only | 3x-ui dashboard |\n| `direct.<domain>` | A | `<vps-ip>` | DNS-only | Direct VLESS TCP TLS |\n| `hy2.<domain>` | A | `<vps-ip>` | DNS-only | Hysteria2 UDP |\n| `reality.<domain>` | A | `<vps-ip>` | DNS-only | Reality TCP Vision |\n| `ss.<domain>` | A | `<vps-ip>` | DNS-only | Shadowsocks 2022 |\n| `tor-vless-ws.<domain>` | A | `<vps-ip>` | DNS-only | VLESS WS routed through Tor |\n| `tor-vless-ws-8443.<domain>` | A | `<vps-ip>` | DNS-only | VLESS WS 8443 routed through Tor |\n| `tor-hy2.<domain>` | A | `<vps-ip>` | DNS-only | Hysteria2 routed through Tor |\n| `tor-direct.<domain>` | A | `<vps-ip>` | DNS-only | Direct VLESS routed through Tor |\n| `tor-reality.<domain>` | A | `<vps-ip>` | DNS-only | Reality TCP Vision routed through Tor |\n| `tor-ss.<domain>` | A | `<vps-ip>` | DNS-only | Shadowsocks routed through Tor |\n\nACME also creates temporary TXT reco",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:44.696893"
+  },
+  {
+    "basic_info": {
+      "name": "show-me-the-story",
+      "full_name": "Nigh/show-me-the-story",
+      "owner": "Nigh",
+      "description": "Self-hosted AI novel generator: single Go binary + web UI. OpenAI-compatible API → outline → chapter-by-chapter writing with review, foreshadowing, fact-check, and full-book polish. Chinese &  English.",
+      "url": "https://github.com/Nigh/show-me-the-story",
+      "clone_url": "https://github.com/Nigh/show-me-the-story.git",
+      "ssh_url": "git@github.com:Nigh/show-me-the-story.git",
+      "homepage": "",
+      "created_at": "2026-06-03T04:26:27Z",
+      "updated_at": "2026-06-29T19:32:07Z",
+      "pushed_at": "2026-06-23T04:45:24Z"
+    },
+    "stats": {
+      "stars": 270,
+      "forks": 25,
+      "watchers": 270,
+      "open_issues": 4,
+      "size": 1031
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 500697,
+        "Svelte": 173920,
+        "JavaScript": 120012,
+        "HTML": 71300,
+        "CSS": 4359
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "ai-writing",
+        "creative-writing",
+        "fiction-writing",
+        "foreshadowing",
+        "generative-ai",
+        "go",
+        "golang",
+        "llm",
+        "novel-generator",
+        "openai-compatible",
+        "self-hosted",
+        "single-binary",
+        "storytelling",
+        "svelte",
+        "web-novel",
+        "writing-assistant"
+      ]
+    },
+    "content": {
+      "readme": "# Show Me The Story — AI 小说生成器\n\n> English documentation: [README.en.md](README.en.md)\n\n一个开箱即用的长篇小说 AI 创作工具。单个可执行文件，内置完整 Web 界面，连接任意 OpenAI 兼容 API（OpenAI、DeepSeek、本地 Ollama / LM Studio 等）即可自动生成大纲并逐章创作长篇小说。\n\n程序本身不包含任何小说内容——故事类型、世界观、角色、写作风格全部由你配置，或交给 AI 自动生成。\n\n![主界面：配置页与 AI 助理](screenshot.png)\n\n## 功能亮点\n\n- **单文件运行**：一个二进制文件 + 一个浏览器，无需安装数据库或其他依赖\n- **多项目管理**：每部小说一个独立项目，可随时切换、新建、删除\n- **两阶段创作**：先生成全书大纲供你审核修订，确认后逐章写作\n- **逐章审核**：每章生成后可确认、提修改意见，AI 定向修订而不影响其他章节\n- **自动确认模式**：开启后 AI 自动逐章连写，无需手动逐章确认，可随时开关\n- **结构化设定**：角色、世界观、组织、人物关系独立管理，写作时自动注入相关上下文；支持 AI 一键生成初始设定\n- **关系图谱**：可视化展示角色 / 组织 / 世界观之间的关系网络\n- **伏笔系统**：AI 规划伏笔方案，写作时注入活跃伏笔，完成后自动追踪埋设 → 推进 → 回收，超期未回收自动告警\n- **叙事记忆**：每章完成后自动提取大纲未体现的关键叙事细节（角色习惯、具体承诺、道具细节等），跨章节注入写作 prompt，弥补历史摘要窗口的信息缺口\n- **事实核查**：每章写完自动做一致性检查，不通过自动重写\n- **续写已有作品**：粘贴已有文本，AI 分析提取设定与章节摘要后接着往下写\n- **去 AI 味**：内置润色技能（禁用 AI 高频套话、口语化改写等），写作页一键对单章去 AI 味\n- **全书优化**：完稿后一键诊断 → 一致性核查 → 生成优化工单 → 逐章自动修订（支持大上下文模型、按卷核查、修改前后 diff 对比）\n- **技能系统**：内置写作技巧 / 润色技能可选启用，也支持项目级自定义技能\n- **AI 助理**：内置聊天助理，可通过对话查询和修改项目的设定、大纲、章节（破坏性操作有多层防护）\n- **实时流式输出**：生成过程逐字实时展示，附带日志面板和进度提示\n- **断点续作**：进度随时落盘，关闭程序后重新打开自动恢复\n- **导出**：一键导出全书 TXT，章节文件同时以 Markdown 保存在项目目录中\n- **多语言**：每个项目可选择中文或英文，AI 提示词、生成正文、内置技能、Agent 系统提示全部按项目语言切换；前端界面语言可独立切换\n\n## 快速开始\n\n### 1. 获取程序\n\n下载对应平台的发布版本，或自行编译（见文末「开发」一节）。\n\n> [!WARNING]\n> **Windows 用户注意**：首次运行时可能会弹出「Windows 已保护你的电脑」的 SmartScreen 警告（显示\"未知发布者\"）。这是因为程序未购买代码签名证书。点击「更多信息」→「仍要运行」即可正常使用，或右键 exe 文件 → 属性 → 勾选「解除锁定」→ 确定。\n\n> [!NOTE]\n> 程序请求网络权限仅用于调用 LLM API 和检查版本更新，不会收集或上传任何用户数据。\n\n### 2. 运行\n\n```bash\n./show-me-the-story            # 数据保存在当前目录\n./show-me-the-story ~/novels   # 或指定一个数据目录\n```\n\n启动后访问 `http://localhost:48090`（端口可通过环境变量 `PORT` 修改）。\n\n### 3. 配置 API\n\n首次进入会提示创建项目。创建后在「配置」页填写：\n\n- **API 地址**：任意 OpenAI 兼容接口，如 `https://api.deepseek.com`、`http://localhost:11434/v1`（带不带 `/v1` 均可）\n- **模型名称**：如 `deepseek-chat`、`gpt-4o` 等\n- **API Key**：本地模型可留空\n\nAPI 配置全局共享，所有项目通用。\n\n### 4. 开始创作\n\n1. **配置故事**：在「配置」页填写故事类型、章节数、每章字数、写作风格等；角色 / 世界观 / 组织 / 关系可手动添加，也可点「AI 生成设定」让 AI 根据你的故事描述自动生成\n2. **生成大纲**：进入「大纲」页点击生成，AI 输出全书章节大纲；可整体提修订意见，也可逐章内联编辑，满意后确认\n3. **逐章写作**:「写作」页点击生成，AI 流式写出正文 → 自动摘要 → 自动事实核查 → 等你审核；确认进入下一章，或提修改意见让 AI 修订\n4. **想省事**：打开「自动确认」开关，AI 会自动逐章连写到底，期间可随时关闭\n\n## 核心功能说明\n\n### 续写已有小说\n\n在大纲页（空项目状态下）点「导入已有内容」，粘贴你已写好的文本。AI 会分析出标题、梗概、各章大纲与摘要，你确认导入后，已有章节标记为已完成，再点「生成后续大纲」即可接着往下写。\n\n### 伏笔系统\n\n大纲确认后可让 AI 建议 3–8 条伏笔（含埋设章节和预计回收章节），也可手动创建。写作时活跃伏笔自动注入上下文；每章完成后 AI 自动更新伏笔状态：\n\n```\nplanted（已埋设）→ progressing（推进中）→ resolved（已回收）\n                                        → abandoned（已放弃）\n```\n\n伏笔超过预计回收章节 3 章仍未回收会自动告警。\n\n### 设定协调\n\n已经写了若干章之后修改了角色 / 世界观等关键设定？保存时程序会提示进行「设定协调」：AI 比对新设定与已写内容，输出兼容版设定，并基于新设定重新生成尚未写作章节的大纲，保证前后一致。\n\n### 技能（Skills）\n\n「技能」页可启用内置技能：\n\n| 技能 | 类型 | 作用 |\n|------|------|------|\n| 中文去 AI 味 | 润色 | 23 条禁止模式 + 高频套话替换表 + 口语化规则 |\n| 故事去味检测 | 润色 | 6-Gate AI 味检测流程与真人写作基准 |\n| 写作技巧 | 写作 | 章首 / 章尾钩子、爽点密度、节奏控制 |\n\n所有技能默认关闭，不会影响正常生成；启用润色类技能后，写作页的「去 AI 味」按钮可对单章做一键润色，全书优化执行时也可附加去 AI 味。也可在项目目录下放置自定义技能文件。\n\n### 全书优化\n\n全部章节确认后，写作页会出现「全书优化」面板：\n\n1. **开始全书分析**：AI 通读设定与正文（超长时自动切换摘要模式或按卷核查），输出诊断报告 + 一致性报告 + 可执行工单\n2. **审阅工单**：勾选、编辑修改意见，可选「执行前先优化衔接」「修订时附加去 AI 味」\n3. **执行选中**：逐章最小化修订，每条完成后可查看修改前后 diff 节选\n\n建议在配置页使用大上下文模型，并将「上下文预算」设为约 900000（1M 模型）。\n\n### AI 助理\n\n右侧聊天面板（或「助理」页）提供一个能操作项目的 AI 助理。你可以用自然语言查询设定、修改角色、调整大纲、修订章节等。破坏性操作有多层防护：助理必须先向你确认，且修改章节时默认做最小化定向修订。\n\n#### 助理能做什么\n\n| 类别 | 示例 |\n|------|------|\n| **查询** | 「当前大纲是什么」「第 3 章写了什么」「有哪些角色」 |\n| **设定管理** | 创建/修改/删除角色、世界观、组织、关系 |\n| **配置** | 修改故事类型、章数、每章字数、写作风格、梗概等 |\n| **大纲** | 生成大纲、按意见修订（章数不变时）、编辑单章 pending 大纲、确认大纲 |\n| **写作** | 生成章节、确认章节、按意见修订某一章、局部编辑段落 |\n| **伏笔** | 建议伏笔、创建/修改/删除伏笔 |\n| **技能** | 查看技能列表、开关技能 |\n\n#### 推荐交给助理的操作\n\n- **批量设定**：「根据梗概生成 5 个主要角色」「添加一条世界观：魔法体系」\n- **大纲微调（章数不变）**：「把第 5 章改成主角在雨夜发现线索」「整体节奏加快，反派提前出场」\n- **单章修订**：「第 8 章对话太生硬，改得更口语化」「把第 3 章结尾的悬念加强」\n- **局部润色**：「把第 6 章第 12–15 行换成更紧张的描写」\n- **查询与导航**：「目前写到哪了」「活跃伏笔有哪些」\n\n#### 可以交给助理，但建议留意结果\n\n- **整本重新生成大纲（改章数）**：可以说「改成 12 章，每章 3000 字，重新生成大纲」。助理应依次更新配置再生成；生成完成后请在大纲页核对章数是否为 12、编号是否从 1 连续到 12。\n- **改配置后已有正文**：若已确认若干章节后修改关键设定，助理保存配置会触发「设定协调」，可能改写待定章节大纲，耗时较长。\n- **异步任务**：生成大纲、生成章节、修订等会启动后台任务，请留意底部日志面板和任务状态，完成后再发下一条指令。\n\n#### 最好不要交给助理的操作\n\n| 操作 | 建议做法 |\n|------|----------|\n| **改总章数 / 整本重写大纲** | 更稳妥：配置页改好章数与字数 → 大纲页「删除大纲」→「生成大纲」。若用助理，请明确说「改成 N 章并重新生成大纲」，生成后务必核对章数。 |\n| **已有确认章节后想整本换大纲** | 助理会拒绝 `generate_outline`（防止覆盖已完成内容）。应在大纲页用「生成后续大纲」追加，或新建项目。 |\n| **缩章 / 减章** | 不要说「删掉后面 18 章」——`delete_chapters_from` 只清正文，不减章数。要减少章数请走「改配置 + 重新生成大纲」。 |\n| **全书优化** | 在写作页「全书优化」面板操作，步骤多、需审阅工单，不适合聊天里一句话完成。 |\n| **续写导入** | 在大纲页「导入已有内容」粘贴文本，界面可预览分析结果再确认。 |\n| **关系图谱布局** | 在「图谱」页拖拽查看，助理无法操作 Canvas。 |\n| **重置整个项目** | 危险操作；若确需重置，请明确说「重置全部进度」并确认助理复述的范围。 |\n\n#### 与页面按钮的分工\n\n- **页面按钮**：生成/确认/修订/删除等核心流程，状态清晰、可预期，**推荐作为默认操作方式**。\n- **AI 助理**：适合需要解释、多步查询、或「用一句话描述意图」的场景；复杂流程（改章数重生、全书优化）建议仍以页面为主、助理为辅。\n\n#### 表述技巧\n\n- **改章数重生**：「把章节数改成 12，每章 3000 字，重新生成全部大纲」——比「大纲不太好，重来」更明确。\n- **改内容不改结构**：「修订大纲：第 3 章增加伏笔，整体不要改章数」——避免助理误走整本重生。\n- **改某一章正文**：「修订第 6 章：……」——不要用「删除第 6 章」来表达修改。\n- **任务进行中**：底部显示「AI 思考中」时，请等待当前任务结束再发新指令；可随时点「停止」中断。\n\n#### 安全机制简述\n\n1. 修改某一章 ≠ 删除：助理被禁止用删除工具实现「修改」。\n2. 删除类操作需你明确确认：助理会先复述影响范围，你回复同意后才会执行。\n3. 用户已在配置页填写的字段，助理不会静默覆盖，会先说明差异并征求同意。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:46.146364"
+  },
+  {
+    "basic_info": {
+      "name": "mercadona-cli",
+      "full_name": "ivorpad/mercadona-cli",
+      "owner": "ivorpad",
+      "description": null,
+      "url": "https://github.com/ivorpad/mercadona-cli",
+      "clone_url": "https://github.com/ivorpad/mercadona-cli.git",
+      "ssh_url": "git@github.com:ivorpad/mercadona-cli.git",
+      "homepage": null,
+      "created_at": "2026-06-26T06:22:39Z",
+      "updated_at": "2026-06-30T02:59:54Z",
+      "pushed_at": "2026-06-27T13:35:09Z"
+    },
+    "stats": {
+      "stars": 257,
+      "forks": 24,
+      "watchers": 257,
+      "open_issues": 0,
+      "size": 188
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 126900,
+        "JavaScript": 4930,
+        "Shell": 3251
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# mercadona\n\nUnofficial, agent-friendly CLI for `tienda.mercadona.es` — search the catalog, read\nprices, build a cart, and check out. Single static Go binary, no runtime\ndeps, structured `--json` output for programmatic/agent use.\n\n> Unofficial. Mercadona has no public API. Bring your own credentials; use at a\n> sane request rate. This talks to the same HTTP endpoints the website does.\n\n## Install\n\n**npm** — downloads the prebuilt binary for your platform on install:\n\n```bash\nnpm install -g @ivorpad/mercadona      # puts `mercadona` on your PATH\nnpx @ivorpad/mercadona search queso    # …or run without installing\n```\n\n**curl** (macOS / Linux):\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/ivorpad/mercadona-cli/main/install.sh | sh\n```\n\nOverride with `MERCADONA_VERSION=v0.1.0` (pin a tag) or `MERCADONA_INSTALL_DIR=/path`\n(install location; defaults to `/usr/local/bin`, else `~/.local/bin`).\n\n**Manual** — download a tarball for your OS/arch from the\n[releases page](https://github.com/ivorpad/mercadona-cli/releases), extract, and put\n`mercadona` on your PATH.\n\n**From source** (Go 1.26+) — clone, then:\n\n```bash\ngo build -o mercadona ./cmd/mercadona\n```\n\n(`go install <module>@latest` isn't wired up yet: the module path is\n`github.com/ivorjpc/mercadona`, which doesn't match the repo URL.)\n\n## Commands\n\n### Read core (anonymous — no login)\n\n```bash\nmercadona search queso                      # full-text product search\nmercadona search --limit 5 --json mayonesa  # structured output for agents\nmercadona batch -f lista.txt                 # many terms in ONE request (≈100 items / call)\nprintf 'queso\\ncarne\\nmayonesa\\n' | mercadona batch -f -\nmercadona product 13406                      # detail, price, nutrition (when available)\nmercadona categories                         # category tree\nmercadona categories --id 112 --json         # one category's products (raw JSON)\n```\n\nCommon flags: `--wh mad1` (warehouse), `--lang es`, `--json` — and they can go anywhere after the (sub)command, not just up front.\nData goes to **stdout**, logs/errors to **stderr**, exit code `1` on error — friendly to scripts and agents.\n\n### Location (warehouse) — set it from your postal code\n\n```bash\nmercadona set-postal 28022   # → resolves to warehouse mad1, saves it as the default\n```\n\nProduct ids **and prices** are per-warehouse, and online checkout needs the cart's warehouse to\nmatch your delivery address — so pin it to the warehouse that serves your postal code (no login\nneeded). Precedence: `--wh` flag > `config.toml [defaults]` > built-in `mad1`. `import-har` also\nauto-detects and saves the warehouse from your session. (Within a city it varies: `28022 → mad1`,\n`28013 → mad3`.)\n\nExample:\n\n```\n$ mercadona batch -f lista.txt\n• queso            → [51110] Queso rallado mozzarella pizza-Roma Hacendado — 1.60€ (8.000€/kg)\n• carne            → [34157] Carne de pimiento choricero Hacendado — 1.55€ (11.072€/kg)\n• mayonesa         → [13406] Mayonesa Hacendado — 1.20€ (2.400€/L)\n```\n\n### Authenticated: `import-har` (preferred) / `import-curl` / `login`, `whoami`, `cart`, `checkout`\n\nThe API authenticates with a **Bearer token** (a SimpleJWT). The first sign-in must happen in a\nbrowser (password login needs a Google reCAPTCHA Enterprise token; Google-account users have no\npassword at all). After that, the **refresh token renews the session headlessly, forever** —\n`POST /api/auth/tokens/ {refresh_token}` needs no captcha and rotates the token. Verified.\n\n**Two login methods, one outcome.** However you sign in, the response carries the same durable\n`refresh_token`, so the CLI automates identically:\n\n| Method | Endpoint | Request body | Response |\n|---|---|---|---|\n| Email + password | `POST /api/auth/tokens/` | `{username, password, recaptcha_token}` | `{access_token, customer_id, refresh_token}` |\n| Google sign-in | `POST /api/auth/social/google/` | `{id_token, postal_code}` | `{access_token, customer_uuid, refresh_token}` |\n\n**✅ Preferred login method — `import-har`.** One browser login (email *or* Google), then\nheadless forever. Export a HAR after signing in and let the CLI pull the refresh token out for you:\n\n```bash\n# DevTools → Network → ⤓ \"Export HAR…\"  (after you've logged in, by either method), then:\nmercadona import-har --file tienda.mercadona.es.har\nmercadona whoami     # confirms it's authenticated\n```\n\n`import-har` seeds `refresh_token` into `~/.mercadona/config.toml` (0600) and caches the current\naccess token + cookie. From then on every `401 token_not_valid` triggers an automatic refresh +\nretry — no browser, no captcha, unattended. (It reads only auth *responses* and Bearer/Cookie\n*headers*; the password in the request body is never touched.)\n\nPrefer to do it by hand? Write the token yourself — `mercadona set-refresh <token>` (or edit\n`~/.mercadona/config.toml`):\n\n```toml\n[auth]\nrefresh_token = \"<your refresh token>\"   # the durable, headless-renewable credential\n[defaults]\nwarehouse = \"mad1\"        # or: `mercadona set-postal ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:47.504288"
+  },
+  {
+    "basic_info": {
+      "name": "rstaspoof",
+      "full_name": "rstagit/rstaspoof",
+      "owner": "rstagit",
+      "description": "ابزار دور زدن DPI با جعل SNI — پشتیبانی از Termux/Android/Linux",
+      "url": "https://github.com/rstagit/rstaspoof",
+      "clone_url": "https://github.com/rstagit/rstaspoof.git",
+      "ssh_url": "git@github.com:rstagit/rstaspoof.git",
+      "homepage": null,
+      "created_at": "2026-05-31T13:56:58Z",
+      "updated_at": "2026-06-28T09:18:09Z",
+      "pushed_at": "2026-06-21T05:10:09Z"
+    },
+    "stats": {
+      "stars": 230,
+      "forks": 32,
+      "watchers": 230,
+      "open_issues": 3,
+      "size": 16456
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 51593
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "دوستان این پروژه به لطف پترنیهای عزیز پا برجاست.ایشون رو حمایت کنید.\nاینم نسخه اپن سورس اندروید:\nhttps://github.com/rstagit/rstang\n\nگروه پروژه داخل تلگرام:\nhttps://t.me/rstasnispoof\n\n\n\n# RSTA SNI Spoof \n\nابزار دور زدن فیلترینگ با روش جعل SNI و فرگمنتیشن TLS  \nنوشته شده به زبان Go — بدون نیاز به روت — قابل اجرا روی Termux/Android/Linux\n\n---\n\n## ویژگی‌ها\n\n- جعل SNI برای فریب سیستم‌های DPI\n- فرگمنتیشن TLS ClientHello با روش‌های مختلف\n- ترفند TTL برای گیج کردن فایروال\n- مانیتور real-time اتصال‌ها\n- بدون نیاز به روت\n- پشتیبانی از Termux / Android / Linux / macOS\n\n---\n\n## نصب و اجرا روی Termux\n\n```bash\npkg install golang git\ngit clone https://github.com/rstagit/rstaspoof.git\ncd rstaspoof\ngo run rstaspoof.go -tddd\n```\n\n---\n\n## روش‌های استفاده\n\n**حالت سریع (پیش‌فرض):**\n```bash\ngo run rstaspoof.go -tddd\n```\n\n**حالت دستی=> در صورتی که پیش فرض کار نداد:**\nآی پی تمیز کلود فلرو اسکن کنین جایگزین کنین.\n```bash\ngo run rstaspoof.go -listen :40443 -connect IP:443 -sni www.hcaptcha.com -method combined\n```\n\n**کامپایل و اجرا:**\n```bash\ngo build -o rstaspoof rstaspoof.go\n./rstaspoof -tddd\n```\n\n---\n\n## آرگومان‌ها\n\n| آرگومان | توضیح | پیش‌فرض |\n|--------|-------|---------|\n| `-listen` | آدرس و پورت پروکسی محلی | `0.0.0.0:40443` |\n| `-connect` | سرور مقصد | `104.18.38.202:443` |\n| `-sni` | دامنه جعلی برای SNI | `cdnjs.cloudflare.com` |\n| `-method` | روش bypass | `fragment` |\n| `-fragment-strategy` | استراتژی فرگمنت | `sni_split` |\n| `-fragment-delay` | تأخیر بین فرگمنت‌ها (ثانیه) | `0.1` |\n| `-ttl-trick` | فعال‌سازی ترفند TTL | - |\n| `-config` | بارگذاری تنظیمات از فایل JSON | - |\n| `-quiet` | حذف خروجی غیرضروری | - |\n| `-no-monitor` | غیرفعال کردن مانیتور | - |\n| `-info` | نمایش قابلیت‌های سیستم | - |\n| `-generate-config` | ساخت فایل تنظیمات پیش‌فرض | - |\n\n---\n\n## روش‌های Bypass\n\n| روش | توضیح |\n|-----|-------|\n| `fragment` | تقسیم ClientHello در محل SNI. بدون نیاز به روت |\n| `fake_sni` | ارسال SNI جعلی با ترفند TTL |\n| `combined` | ترکیب هر دو روش — بهترین نتیجه |\n\n---\n\n## استراتژی‌های فرگمنت\n\n| استراتژی | توضیح |\n|---------|-------|\n| `sni_split` | تقسیم دقیق در محل مقدار SNI *(پیشنهادی)* |\n| `half` | تقسیم به دو نیم |\n| `multi` | تقسیم به تکه‌های ۲۴ بایتی |\n| `tls_record_frag` | فرگمنتیشن در سطح TLS record |\n\n---\n\n## فایل تنظیمات (JSON)\n\n```bash\ngo run rstaspoof.go -generate-config config.json\ngo run rstaspoof.go -config config.json\n```\n\n---\n\n## تنظیم برنامه\n\nبعد از اجرا، پروکسی روی `127.0.0.1:40443` فعال می‌شه.  \nدر برنامه‌ای که می‌خوای از پروکسی استفاده کنه، آدرس پروکسی رو روی:\n\n```\n127.0.0.1:40443\n```\n\nتنظیم کن.\n\n---\n\n## گروه تلگرام\n\nبرای پشتیبانی، سوال و به‌روزرسانی‌ها عضو گروه تلگرام بشید:\n\n**[@rstasnispoof](https://t.me/rstasnispoof)**\n\n---\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:48.926699"
+  },
+  {
+    "basic_info": {
+      "name": "Ferrum",
+      "full_name": "kernelstub/Ferrum",
+      "owner": "kernelstub",
+      "description": "Windows security research toolkit for LPE, persistence, COM hijacking, and attack surface enumeration.",
+      "url": "https://github.com/kernelstub/Ferrum",
+      "clone_url": "https://github.com/kernelstub/Ferrum.git",
+      "ssh_url": "git@github.com:kernelstub/Ferrum.git",
+      "homepage": "https://kernelstub.dev/",
+      "created_at": "2026-06-13T13:44:35Z",
+      "updated_at": "2026-06-28T12:46:47Z",
+      "pushed_at": "2026-06-13T22:12:05Z"
+    },
+    "stats": {
+      "stars": 200,
+      "forks": 27,
+      "watchers": 200,
+      "open_issues": 0,
+      "size": 1109
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 132772,
+        "PowerShell": 273,
+        "Shell": 211
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "enumeration",
+        "lpe",
+        "persistence",
+        "uac-bypass",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "# FERRUM\n\n<img width=\"1920\" height=\"1080\" alt=\"image\" src=\"https://github.com/user-attachments/assets/924c39a5-5f9d-44b1-b9a3-ecd424140408\" />\n\n\nFerrum is a Windows-first vulnerability research and security auditing framework written in Go. It is designed as a single binary, `ferrum.exe`, with modules registered through a small core interface.\n\n## Build\n\n```sh\nGOOS=windows GOARCH=amd64 go build -o ferrum.exe ./cmd\n```\n\nOr use the included script:\n\n```powershell\n.\\scripts\\build-windows.ps1\n```\n\nFrom Linux/macOS:\n\n```sh\n./scripts/build-windows.sh\n```\n\n## Usage\n\n```cmd\nferrum.exe --HELP\n```\n\n## Architecture\n\n- `cmd/` contains the CLI entry point.\n- `core/` contains module registration, context, and banner code.\n- `modules/` contains research modules. New modules implement `core.Module` and call `core.Register`.\n- `windows/` contains build-tagged Windows API wrappers and non-Windows stubs.\n- `output/` contains console logging.\n\n## Output\n\nWrite a single module report:\n\n```cmd\nferrum.exe --CLSID --OUTPUT clsid.txt\n```\n\nRun every module and write one file per module:\n\n```cmd\nferrum.exe --ALL\nferrum.exe --ALL --OUTPUT ferrum-reports\n```\n\nWithout `--OUTPUT`, `--ALL` creates a timestamped folder such as `ferrum-output-20260613-153000`.\n\n## CLSID ProcMon Filter Model\n\n`--CLSID` models this ProcMon workflow for COM hijack/LPE triage:\n\n- `User is NT AUTHORITY\\SYSTEM`\n- `Path contains HKCU\\Software\\Classes`\n- `Path contains InprocServer32`\n- `Path contains LocalServer32`\n- `Result is NAME NOT FOUND`\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:50.339470"
+  },
+  {
+    "basic_info": {
+      "name": "singleserver",
+      "full_name": "dvassallo/singleserver",
+      "owner": "dvassallo",
+      "description": "All your projects on a single server",
+      "url": "https://github.com/dvassallo/singleserver",
+      "clone_url": "https://github.com/dvassallo/singleserver.git",
+      "ssh_url": "git@github.com:dvassallo/singleserver.git",
+      "homepage": "https://singleserver.com",
+      "created_at": "2026-06-07T00:29:25Z",
+      "updated_at": "2026-06-29T04:52:47Z",
+      "pushed_at": "2026-06-21T07:28:36Z"
+    },
+    "stats": {
+      "stars": 199,
+      "forks": 11,
+      "watchers": 199,
+      "open_issues": 0,
+      "size": 879
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 394688,
+        "Shell": 71899,
+        "HTML": 71440,
+        "CSS": 14719,
+        "Dockerfile": 4657,
+        "JavaScript": 3427
+      },
+      "license": "MIT License",
+      "topics": [
+        "cloudflare",
+        "deployment",
+        "docker",
+        "kamal",
+        "paas",
+        "self-hosted",
+        "tailscale",
+        "vps"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://singleserver.com\"><img src=\"www/server-single-wordmark.svg\" alt=\"single server\" width=\"484\"></a>\n</p>\n\n<p><strong>Git push to production in &lt;5 seconds.</strong></p>\n\n<p>One Linux box can run every app you've ever shipped. Single Server wires up Cloudflare, Tailscale, Docker, Kamal, and GitHub. From there, every <strong>git push</strong> goes live in under 5 seconds. No build queue, no per-app bills, no pile of YAML.</p>\n\n<p>This README is for working on Single Server itself. For what it does and why, see <a href=\"https://singleserver.com\">singleserver.com</a>. For the full manual, see the <a href=\"https://singleserver.com/docs/\">docs</a>.</p>\n\n## Quickstart\n\nSSH into any fresh Linux box:\n\n```sh\nssh root@<server_ip>\n```\n\nRun the interactive installer:\n\n```sh\ncurl -fsSL https://singleserver.com/install.sh | sh\n```\n\nPoint it at your repos:\n\n```sh\nsingleserver add https://github.com/you/your-app\n```\n\nEvery push to the configured branch deploys from then on. The [docs](https://singleserver.com/docs/) cover everything else.\n\n## Repository layout\n\n- `cmd/singleserverd` — entry point for the one Go binary, which runs as both the deploy daemon and the CLI.\n- `internal/singleserver` — all of the product: config, deploys, provider connections, and commands.\n- `www` — singleserver.com, including the docs page and `install.sh`. The site deploys as a Single Server app, and its `Dockerfile` builds the hosted binaries it serves at `/bin/`.\n- `test/e2e` — the real-dependency end-to-end harness.\n- `config/apps.example.yml` — an example app config.\n\n## Build and test\n\nThe module targets Go 1.26 and has no service dependencies for development:\n\n```sh\ngo build ./...\ngo test ./...\n```\n\nThe unit tests are plain `go test` with no setup, no network, and no build tags. They also run inside the site's Docker build, so a deploy fails before it ships if a test fails.\n\n`go run ./cmd/singleserverd help` prints the CLI. Most commands expect to run on a configured server, so for real behavior use the E2E harness or a throwaway VPS.\n\n## Releases\n\nTo release a new version, push a SemVer tag. That triggers `.github/workflows/release.yml`, which builds the binaries and publishes a GitHub Release with checksums and notes:\n\n```sh\ngit tag -a v0.2.0 -m \"…\"\ngit push origin v0.2.0\n```\n\n`install.sh` and `singleserver upgrade` read two channels:\n\n- **stable** (default) — the latest tagged release, checksum-verified.\n- **edge** — the latest `main` build at `singleserver.com/bin`.\n\nBoth default to stable. To use edge instead, install a fresh box with:\n\n```sh\ncurl -fsSL https://singleserver.com/install.sh | SINGLESERVER_CHANNEL=edge sh\n```\n\nor switch an existing box with:\n\n```sh\nsingleserver upgrade --edge\n```\n\n## End-to-end tests\n\nThe E2E harness spins up disposable Linux hosts in Docker Desktop and runs the real installer against real Tailscale, Cloudflare, and GitHub. It is serial, stateful, and needs Docker plus a local `.env` of test credentials. [test/e2e/README.md](test/e2e/README.md) covers the `.env` and setup, then:\n\n```sh\ntest/e2e/run.sh\n```\n\n---\n\n<p align=\"center\">MIT License · <a href=\"https://singleserver.com\">singleserver.com</a> · <a href=\"https://singleserver.com/docs/\">Docs</a></p>\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:51.757044"
+  },
+  {
+    "basic_info": {
+      "name": "CLICD",
+      "full_name": "MengMengCode/CLICD",
+      "owner": "MengMengCode",
+      "description": "CLICD is a lightweight LXC/KVM virtualization management panel featuring a web console, batch operations, image management, NAT networking, IPv6 allocation, WebSSH, VNC, resource and bandwidth controls, security monitoring, and delegated user access.",
+      "url": "https://github.com/MengMengCode/CLICD",
+      "clone_url": "https://github.com/MengMengCode/CLICD.git",
+      "ssh_url": "git@github.com:MengMengCode/CLICD.git",
+      "homepage": "https://cli.cd",
+      "created_at": "2026-06-05T11:27:26Z",
+      "updated_at": "2026-06-29T09:41:14Z",
+      "pushed_at": "2026-06-29T01:06:10Z"
+    },
+    "stats": {
+      "stars": 194,
+      "forks": 39,
+      "watchers": 194,
+      "open_issues": 4,
+      "size": 2139
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 795837,
+        "TypeScript": 619579,
+        "PHP": 79069,
+        "HTML": 74427,
+        "Shell": 63365,
+        "CSS": 5204,
+        "JavaScript": 283
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"frontend/public/favicon.svg\" width=\"96\" alt=\"CLICD\">\n</p>\n\n<h1 align=\"center\">CLICD <sub></sub></h1>\n\n<p align=\"center\">\n  <img alt=\"Go\" src=\"https://img.shields.io/badge/Go-1.24-00ADD8?style=flat-square&logo=go&logoColor=white\">\n  <img alt=\"React\" src=\"https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=111111\">\n  <img alt=\"TypeScript\" src=\"https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white\">\n  <img alt=\"Vite\" src=\"https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite&logoColor=white\">\n  <img alt=\"Tailwind CSS\" src=\"https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white\">\n  <img alt=\"LXC\" src=\"https://img.shields.io/badge/LXC-Supported-111111?style=flat-square\">\n  <img alt=\"KVM\" src=\"https://img.shields.io/badge/KVM-Supported-EE0000?style=flat-square\">\n</p>\n\n<p align=\"center\">\n  <img alt=\"WebSSH\" src=\"https://img.shields.io/badge/WebSSH-Built--in-009688?style=flat-square\">\n  <img alt=\"VNC\" src=\"https://img.shields.io/badge/VNC-Supported-7B1FA2?style=flat-square\">\n  <img alt=\"IPv6\" src=\"https://img.shields.io/badge/IPv6-Native-1976D2?style=flat-square\">\n  <img alt=\"NAT\" src=\"https://img.shields.io/badge/NAT-Port_Forwarding-FF9800?style=flat-square\">\n  <img alt=\"REST API\" src=\"https://img.shields.io/badge/API-REST-4CAF50?style=flat-square\">\n  <img alt=\"Multi User\" src=\"https://img.shields.io/badge/Multi_User-Supported-8E24AA?style=flat-square\">\n  <img alt=\"Traffic Control\" src=\"https://img.shields.io/badge/Traffic-Control-795548?style=flat-square\">\n  <img alt=\"Security Alert\" src=\"https://img.shields.io/badge/Security-Alert-orange?style=flat-square\">\n  <img alt=\"CLI\" src=\"https://img.shields.io/badge/CLI-Mode-424242?style=flat-square\">\n  <img alt=\"TLS\" src=\"https://img.shields.io/badge/TLS-Let's_Encrypt-003A70?style=flat-square&logo=letsencrypt&logoColor=white\">\n</p>\n\nCLICD is a lightweight virtualization management panel for LXC and KVM. It combines a web console, CLI tools, REST API, NAT/IPv6 networking, WebSSH/WebVNC access, resource quotas, traffic limits, snapshots, delegated sub-user access, and security alerts into a single deployable service.\n\nCLICD 是一个面向 LXC/KVM 的轻量虚拟化管理面板，集成 Web 控制台、CLI、REST API、NAT/IPv6 网络、WebSSH/WebVNC、资源配额、流量限制、快照、子用户授权和安全告警能力，适合 VPS 商家、实验室、开发者自建虚拟化节点以及需要批量开通容器的场景。\n\n![alt text](/img/image-1.png)\n\n## Installation / 安装\n\nOne-click Install / 一键安装：\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/MengMengCode/CLICD/main/install.sh | sudo sh\n```\n\nOne-click Uninstall / 一键卸载：\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/MengMengCode/CLICD/main/install.sh | sudo sh -s -- uninstall\n```\n\n\n\n## Features / 功能介绍\n\n### English\n\n| Area | What CLICD provides |\n| --- | --- |\n| Virtualization | Manage LXC containers and KVM virtual machines from one panel, including create, reinstall, start, stop, restart, delete, password reset, expiry control, and batch actions. |\n| Images and templates | Built-in template and image management for Ubuntu, Debian, Alpine, CentOS, Arch Linux, Fedora, Rocky Linux, and other common distributions. Images can be enabled, disabled, downloaded, cancelled, or removed from cache. |\n| Networking | NAT4 port quotas, random available port allocation, TCP/UDP port mappings, public IPv4 pool management, IPv6 prefix detection, IPv6 status checks, and per-container IPv6 assignment. |\n| Resource control | CPU, memory, disk, swap, bandwidth usage, traffic reset, traffic limit, and resource limit management, with automatic shutdown behavior for expired or over-quota containers. |\n| Console access | Browser-based WebSSH and WebVNC ticket access, so users can open terminals or consoles without manually exchanging credentials. |\n| Snapshots | Snapshot overview, per-container snapshots, create/delete/restore operations, scheduled snapshots, and quota controls. |\n| Security | Conntrack-based security alerts for port scans, lateral scans, brute-force behavior, SMTP abuse, UDP reflection, mining ports, proxy/VPN/Tor usage, plus security logs, summaries, and configurable settings. |\n| Accounts and audit | Delegated sub-user links, sub-user password rotation, per-user container permissions, audit logs, login logs, and API key management. |\n| Automation | Versioned REST API under `/api/v1`, task queue endpoints, batch create/action endpoints, and a Mofang finance integration module packaged automatically by GitHub Actions. |\n| Operations | Dashboard statistics, host resource overview, routing overview, swap management, CLI-only mode, and release artifacts generated by GitHub Actions. |\n\n### 中文\n\n| 模块 | CLICD 提供的能力 |\n| --- | --- |\n| 虚拟化管理 | 在同一个面板里管理 LXC 容器和 KVM 虚拟机，支持创建、重装、开机、关机、重启、删除、重置密码、到期时间和批量操作。 |\n| 镜像与模板 | 内置模板和镜像管理，支持 Ubuntu、Debian、Alpine、CentOS、Arch Linux、Fedora、Rocky Linux 等常见发行版，镜像可按需下载、取消、启用、禁用和清理缓存。 |\n| 网络能力 | 支持 NAT4 端口配额、随机可用端口、TCP/UDP 端口映射、公网 IPv4 池管理、IPv6 前缀检测、IPv6 状态检查和容器级 IPv6 分配。 |\n| 资源限制 |",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:53.225831"
+  },
+  {
+    "basic_info": {
+      "name": "ainovel-cli",
+      "full_name": "kentjuno/ainovel-cli",
+      "owner": "kentjuno",
+      "description": "CLI sáng tác tiểu thuyết AI đa agent — Bản tiếng Việt của voocel/ainovel-cli",
+      "url": "https://github.com/kentjuno/ainovel-cli",
+      "clone_url": "https://github.com/kentjuno/ainovel-cli.git",
+      "ssh_url": "git@github.com:kentjuno/ainovel-cli.git",
+      "homepage": null,
+      "created_at": "2026-06-25T15:28:12Z",
+      "updated_at": "2026-06-30T03:40:24Z",
+      "pushed_at": "2026-06-25T15:28:26Z"
+    },
+    "stats": {
+      "stars": 194,
+      "forks": 105,
+      "watchers": 194,
+      "open_issues": 1,
+      "size": 6751
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1500679,
+        "Python": 5275,
+        "Shell": 2448,
+        "Dockerfile": 501
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ainovel-cli — Bản tiếng Việt\n\n> **Fork tiếng Việt** của [voocel/ainovel-cli](https://github.com/voocel/ainovel-cli) — toàn bộ giao diện, prompt hệ thống và tài liệu đã được Việt hoá.\n\nCông cụ CLI sáng tác tiểu thuyết dài kỳ hoàn toàn tự động bằng AI. Từ **một câu yêu cầu** đến **tiểu thuyết hoàn chỉnh** — không cần can thiệp thủ công trong quá trình viết.\n\n<p align=\"center\">\n  <img src=\"scripts/sample.gif\" alt=\"ainovel-cli demo\" width=\"800\">\n</p>\n\n---\n\n## Mục lục\n\n1. [Tính năng nổi bật](#tính-năng-nổi-bật)\n2. [Kiến trúc hệ thống](#kiến-trúc-hệ-thống)\n3. [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)\n4. [Cài đặt nhanh](#cài-đặt-nhanh)\n   - [Docker (khuyến nghị)](#docker-khuyến-nghị)\n   - [Build từ source](#build-từ-source)\n5. [Cấu hình](#cấu-hình)\n   - [Ollama (local, miễn phí)](#ollama-local-miễn-phí)\n   - [OpenRouter](#openrouter)\n   - [Anthropic / OpenAI](#anthropic--openai)\n   - [Cấu hình nhiều model theo vai trò](#cấu-hình-nhiều-model-theo-vai-trò)\n6. [Bắt đầu viết](#bắt-đầu-viết)\n7. [Lệnh TUI](#lệnh-tui)\n8. [Can thiệp thời gian thực](#can-thiệp-thời-gian-thực)\n9. [Phong cách và quy tắc tuỳ chỉnh](#phong-cách-và-quy-tắc-tuỳ-chỉnh)\n10. [Khôi phục sau gián đoạn](#khôi-phục-sau-gián-đoạn)\n11. [Cấu trúc thư mục output](#cấu-trúc-thư-mục-output)\n12. [Xuất truyện](#xuất-truyện)\n13. [Troubleshooting](#troubleshooting)\n\n---\n\n## Tính năng nổi bật\n\n| Tính năng | Mô tả |\n|---|---|\n| **Đa agent tự chủ** | Điều phối viên điều phối Kiến trúc sư → Người viết → Biên tập viên trong một vòng lặp LLM duy nhất |\n| **Viết hoàn chỉnh không cần trực** | Nhập một câu, hệ thống tự xây dựng thế giới, lập đề cương, viết và đánh giá toàn bộ |\n| **Hỗ trợ 500+ chương** | Quản lý ngữ cảnh 3 tầng (chương → cung → tập), tự động nén khi đầy |\n| **Kế hoạch cuộn** | Không lập kế hoạch toàn bộ một lần. Cung/tập sau mở rộng dần khi cần, tránh đề cương rỗng tuếch |\n| **Khôi phục cấp step** | Checkpoint sau mỗi lần gọi công cụ thành công — crash/mất mạng/Ctrl+C đều khôi phục chính xác |\n| **Can thiệp thời gian thực** | Nhập ý kiến chỉnh sửa bất cứ lúc nào, không cần dừng, hệ thống tự đánh giá phạm vi ảnh hưởng |\n| **Đánh giá 7 chiều** | Biên tập viên đánh giá: tính nhất quán, nhân vật, nhịp truyện, mạch kể, phục bút, điểm móc, thẩm mỹ |\n| **Chống văn phong AI** | Bộ tiêu chí cơ học + ngữ nghĩa tích hợp sẵn, tự động kiểm tra khi lưu chương |\n| **Nhiều nhà cung cấp LLM** | OpenRouter, Anthropic, Gemini, OpenAI, Deepseek, Ollama (local), và proxy tuỳ chỉnh |\n\n---\n\n## Kiến trúc hệ thống\n\n```\n┌──────────────────────────────────────────────────┐\n│                  Host (vỏ mỏng)                   │\n│   Khởi động / Khôi phục / Quan sát / Can thiệp    │\n└───────────────────────┬──────────────────────────┘\n                        │ Một lần Prompt\n┌───────────────────────▼──────────────────────────┐\n│          Coordinator (vòng lặp dài LLM)           │\n│  Đọc ngữ cảnh → Gọi agent phụ → Đọc kết quả → Tiếp tục │\n└────┬───────────┬──────────┬──────────────────────┘\n     │           │          │\n┌────▼───┐  ┌───▼───┐  ┌───▼────┐\n│Architect│  │Writer │  │ Editor │\n└────┬───┘  └───┬───┘  └───┬────┘\n     └──────────┼───────────┘\n                │ Gọi công cụ (IO + checkpoint)\n┌───────────────▼──────────────────────────────────┐\n│                    Store                          │\n│  Progress / Checkpoint / Outline / Drafts / ...  │\n└──────────────────────────────────────────────────┘\n```\n\n**Nguyên tắc cốt lõi**: LLM quyết định mọi thứ về nội dung và luồng sáng tác. Host chỉ khởi động, quan sát và cung cấp dữ liệu sự thật. Càng ít code, càng ít chỗ hỏng.\n\n---\n\n## Yêu cầu hệ thống\n\n| Phương pháp | Yêu cầu |\n|---|---|\n| **Docker** (khuyến nghị) | Docker Desktop ≥ 24, 4 GB RAM trống |\n| **Build từ source** | Go ≥ 1.21 |\n| **Model AI** | API key từ nhà cung cấp, hoặc Ollama chạy local |\n\n> **Windows**: Khuyến nghị dùng Docker. Không cần cài Go.\n\n---\n\n## Cài đặt nhanh\n\n### Docker (khuyến nghị)\n\n**Bước 1** — Tải source và chuẩn bị thư mục:\n\n```bash\ngit clone https://github.com/<your-username>/ainovel-cli.git\ncd ainovel-cli\nmkdir config workspace\n```\n\n**Bước 2** — Build Docker image:\n\n```bash\ndocker build -t ainovel-cli-vi .\n```\n\n> Lần đầu mất 2–5 phút do tải Go dependencies. Các lần sau dùng cache, rất nhanh.\n\n**Bước 3** — Tạo file cấu hình `config/config.json` (xem [phần Cấu hình bên dưới](#cấu-hình)).\n\n**Bước 4** — Chạy TUI:\n\n```bash\n# Linux / macOS\ndocker run --rm -it \\\n  -v \"$PWD/config:/root/.ainovel\" \\\n  -v \"$PWD/workspace:/workspace\" \\\n  -e TERM=xterm-256color \\\n  ainovel-cli-vi\n\n# Windows (PowerShell)\ndocker run --rm -it `\n  -v \"${PWD}\\config:/root/.ainovel\" `\n  -v \"${PWD}\\workspace:/workspace\" `\n  -e TERM=xterm-256color `\n  ainovel-cli-vi\n\n# Windows (Command Prompt)\ndocker run --rm -it -v \"%CD%\\config:/root/.ainovel\" -v \"%CD%\\workspace:/workspace\" -e TERM=xterm-256color ainovel-cli-vi\n```\n\n> **Windows Terminal**: Mở tab mới tự động —\n> ```powershell\n> Start-Process \"wt.exe\" -ArgumentList \"new-tab\", \"cmd\", \"/k\", 'docker run --rm -it -v \"%CD%\\config:/root/.ainovel\"",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:54.588830"
+  },
+  {
+    "basic_info": {
+      "name": "kiac",
+      "full_name": "saiyam1814/kiac",
+      "owner": "saiyam1814",
+      "description": "Local Kubernetes on Apple's container framework - every node is its own lightweight VM. Metrics, storage, and LoadBalancer included.",
+      "url": "https://github.com/saiyam1814/kiac",
+      "clone_url": "https://github.com/saiyam1814/kiac.git",
+      "ssh_url": "git@github.com:saiyam1814/kiac.git",
+      "homepage": "https://saiyam1814.github.io/kiac/",
+      "created_at": "2026-06-10T18:10:36Z",
+      "updated_at": "2026-06-30T00:35:28Z",
+      "pushed_at": "2026-06-23T07:28:18Z"
+    },
+    "stats": {
+      "stars": 192,
+      "forks": 8,
+      "watchers": 192,
+      "open_issues": 5,
+      "size": 4828
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 57245,
+        "HTML": 9309,
+        "Makefile": 354
+      },
+      "license": "MIT License",
+      "topics": [
+        "apple-silicon",
+        "containers",
+        "kubernetes",
+        "macos"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/banner.png\" alt=\"kiac - Kubernetes in Apple Containers\" width=\"100%\">\n</p>\n\n<p align=\"center\">\n  <b>Local Kubernetes clusters where every node is its own lightweight VM.</b><br>\n  Native on Apple silicon, powered by <a href=\"https://github.com/apple/container\">apple/container</a>. No Docker Desktop. No Lima. No QEMU.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/saiyam1814/kiac/releases\"><img src=\"https://img.shields.io/github/v/release/saiyam1814/kiac?color=326CE5&label=release\" alt=\"release\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-326CE5\" alt=\"MIT\"></a>\n  <img src=\"https://img.shields.io/badge/platform-Apple%20silicon-555\" alt=\"Apple silicon\">\n  <img src=\"https://img.shields.io/badge/Kubernetes-1.32–1.36-326CE5\" alt=\"Kubernetes 1.32-1.36\">\n  <a href=\"https://saiyam1814.github.io/kiac/\"><img src=\"https://img.shields.io/badge/website-kiac-326CE5\" alt=\"website\"></a>\n</p>\n\n<p align=\"center\">\n  <img src=\"assets/kiac-demo.gif\" alt=\"kiac creating a 3-node cluster\" width=\"80%\">\n</p>\n\n```bash\nbrew install saiyam1814/tap/kiac\nkiac create cluster --workers 2\n```\n\n---\n\n## Why this matters\n\nRunning a local Kubernetes cluster on a Mac has always meant a quiet compromise. Your \"nodes\" were containers sharing one kernel inside one hidden Linux VM, all pretending to be separate machines. It worked until you tried to test a node failure, or `kubectl top`, or a `type: LoadBalancer` service, and the illusion cracked.\n\nA Kubernetes node wants to *be* a machine: its own kernel, its own kubelet, its own cgroups, its own IP that can come and go on its own. **kiac gives every node exactly that** by booting each one as its own lightweight virtual machine on Apple's native runtime. The result is a local cluster that behaves like a real one, created with a single command in a couple of minutes.\n\n## Why Apple containers\n\nWhen Apple shipped `container` 1.0, most people read it as \"Docker, but from Apple.\" It is something more interesting underneath: **every container is its own lightweight virtual machine.**\n\n<p align=\"center\">\n  <img src=\"assets/apple-container-anatomy.png\" alt=\"How one Apple container works\" width=\"92%\">\n</p>\n\nThe [Containerization](https://github.com/apple/containerization) framework boots a separate, minimal Linux VM for each container on Apple's `Virtualization.framework`:\n\n- **The image becomes a disk.** The OCI image is turned into an EXT4 filesystem and handed to the VM as its root block device. No overlay mount layered on a shared host kernel.\n- **A dedicated kernel boots.** Each container gets its own minimal, optimized Linux kernel. It is not shared with the host or any other container.\n- **`vminitd` is PID 1.** A tiny Swift init system comes up first, then launches and supervises your process. The host drives it through a gRPC API over `vsock`.\n- **virtio devices, direct networking.** No BIOS, no legacy device emulation, so the VM boots in about a second and gets its own IP you can reach from your Mac.\n\nYou get the developer experience of containers with the isolation boundary of a virtual machine. That combination is exactly what a Kubernetes node wants.\n\n## Why Kubernetes on Apple containers: real isolation\n\nWhen local Kubernetes tools run \"nodes\" as Docker containers, those nodes are processes sharing one Linux kernel, separated only by namespaces. Namespaces are a software boundary *inside* a single shared kernel. With kiac, the boundary between nodes is the **hypervisor** itself.\n\n<p align=\"center\">\n  <img src=\"assets/isolation.png\" alt=\"Where the isolation boundary sits\" width=\"100%\">\n</p>\n\nThat difference is not academic. It changes what the cluster can actually do:\n\n- **Blast radius.** A container escape that reaches the shared kernel reaches every node on it. With a VM per node, an escape is contained to one VM.\n- **Failure domains.** A shared kernel is a shared fate: one panic or runaway sysctl takes everything down together. With kiac, a kernel problem stays inside the VM that caused it.\n- **Real node failure.** Stop one node VM and it behaves like an actual node going offline: NotReady detection, eviction, rescheduling. You cannot meaningfully test that when \"stopping a node\" means killing one of several processes that share a kernel.\n- **Per-node kernel reality.** Each node has its own `/proc`, `/sys`, modules, and sysctls. Node-level behavior is real, not simulated.\n\nContainers are great for packaging software, and kiac depends on them. The point is narrower: when the workload you are isolating is itself a machine, a machine-grade boundary is the right tool.\n\n## Features\n\n- 🔒 **Hardware-grade isolation** — each node is one lightweight VM with its own kernel and cgroups, not namespaces sharing a daemon.\n- 📊 **Metrics out of the box** — `kubectl top nodes` works the moment the cluster is up. metrics-server ships preconfigured.\n- 💾 **PVCs that just bind** — a default StorageClass (local-path-provisioner) is instal",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:56.032305"
+  },
+  {
+    "basic_info": {
+      "name": "agent-compose",
+      "full_name": "chaitin/agent-compose",
+      "owner": "chaitin",
+      "description": null,
+      "url": "https://github.com/chaitin/agent-compose",
+      "clone_url": "https://github.com/chaitin/agent-compose.git",
+      "ssh_url": "git@github.com:chaitin/agent-compose.git",
+      "homepage": null,
+      "created_at": "2026-06-06T08:56:11Z",
+      "updated_at": "2026-06-29T19:16:01Z",
+      "pushed_at": "2026-06-30T03:05:56Z"
+    },
+    "stats": {
+      "stars": 177,
+      "forks": 17,
+      "watchers": 177,
+      "open_issues": 26,
+      "size": 1525
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2286103,
+        "TypeScript": 202649,
+        "JavaScript": 34828,
+        "Shell": 29419,
+        "Python": 11472,
+        "Dockerfile": 8541
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# agent-compose\n\n[![CI](https://github.com/chaitin/agent-compose/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chaitin/agent-compose/actions/workflows/ci.yml)\n[![Images & Release](https://github.com/chaitin/agent-compose/actions/workflows/images.yml/badge.svg?branch=main)](https://github.com/chaitin/agent-compose/actions/workflows/images.yml)\n\nagent-compose is an experimental control plane for running isolated agent\nsessions. It provides a daemon, CLI, Connect APIs, runtime drivers, workspace\nprovisioning, scheduler automation, event history, and a Jupyter proxy for\nnotebook-style guest runtimes.\n\nagent-compose is a public preview project: APIs, runtime packaging, deployment\ndefaults, and operational guidance may still change.\n\nChinese documentation is available at [docs/zh-CN/README.md](docs/zh-CN/README.md).\n\n## What It Does\n\n- Runs a long-lived daemon that owns state, scheduler execution, runtime\n  lifecycle, Connect APIs, and Jupyter proxying.\n- Provides a CLI for `up`, `run`, `logs`, `ps`, `down`, and image operations.\n- Supports project definitions in `agent-compose.yml`.\n- Starts isolated guest runtimes with Docker, BoxLite, or Microsandbox.\n- Provisions workspaces from local directories or Git repositories.\n- Exposes v1 session-oriented APIs and v2 project/run/image APIs.\n- Includes JavaScript runtime components under `runtime/`.\n\nThe web UI lives in a separate repository,\n[agent-compose-ui](https://github.com/chaitin/agent-compose-ui).\n\n## Maturity\n\nagent-compose is currently suitable for experimentation, local development, and\npreview deployments. It is not yet a stable production platform.\n\nBefore using it with untrusted workloads, review the runtime driver behavior,\nnetwork access, authentication settings, workspace upload limits, and Jupyter\nproxy assumptions.\n\n## Repository Layout\n\n```text\ncmd/agent-compose/             daemon and CLI entrypoint\npkg/agentcompose/              sessions, projects, loaders, proxy, stores, APIs\npkg/driver/                    Docker, BoxLite, and Microsandbox runtime drivers\npkg/auth/                      authentication middleware and login flows\npkg/config/                    environment configuration\npkg/imagecache/                OCI image cache helpers\nproto/                         Connect API definitions and generated Go code\nproto-client/                  npm package config for the generated TypeScript client\nruntime/                       guest runtime SDKs and JavaScript scheduler runtime\nguest-images/                  guest image Dockerfiles\nloader-script/                 scheduler script examples and API notes\ndocs/design/                   design notes\n```\n\n## Requirements\n\n- Go toolchain compatible with the version declared in `go.mod`\n- Node.js and npm\n- Task, for the documented `task ...` commands\n- Docker, when using Docker runtime or building Docker images\n- Runtime-specific dependencies for BoxLite or Microsandbox when using those\n  drivers directly\n\n## Quick Start\n\nBuild the CLI and daemon:\n\n```bash\ntask build\n```\n\nStart the daemon:\n\n```bash\nagent-compose daemon\n```\n\nBy default, the daemon listens on a local Unix socket. To expose an HTTP endpoint\nfor local development:\n\n```bash\nHTTP_LISTEN=127.0.0.1:7410 agent-compose daemon\n```\n\nCheck daemon status:\n\n```bash\nagent-compose status\nagent-compose --host http://127.0.0.1:7410 status\n```\n\nCreate an `agent-compose.yml`:\n\n```yaml\nname: demo\nagents:\n  reviewer:\n    provider: codex\n    model: gpt-test\n    image: debian:bookworm-slim\n    scheduler:\n      triggers:\n        - name: hourly\n          cron: \"0 * * * *\"\n          prompt: \"Review the current workspace state.\"\n```\n\nApply and run it:\n\n```bash\nagent-compose up\nagent-compose ps\nagent-compose run reviewer --prompt \"Review this change\"\nagent-compose logs --agent reviewer\nagent-compose down\n```\n\n## CLI\n\nThe main commands are:\n\n- `agent-compose daemon`: start the HTTP/Connect daemon.\n- `agent-compose up`: read `agent-compose.yml` and apply the project to the daemon.\n- `agent-compose run <agent>`: start a project agent run.\n- `agent-compose logs`: inspect project run logs.\n- `agent-compose ps`: list project agents, recent runs, and active sessions.\n- `agent-compose down`: disable managed schedulers and stop running sessions.\n- `agent-compose images`, `pull`, `rmi`, `image inspect`: manage daemon-side images.\n\nUseful flags and environment variables:\n\n- `--file, -f`: choose a compose file.\n- `--project-name`: override the compose project name.\n- `--json`: emit stable JSON for scripts.\n- `--host` or `AGENT_COMPOSE_HOST`: connect to a TCP daemon.\n- `AGENT_COMPOSE_SOCKET`: choose the local Unix socket path.\n\n## Compose File\n\nTop-level fields:\n\n- `name`: project name. If omitted, the compose file directory name is used.\n- `variables`: project variables with `${ENV_NAME}` interpolation.\n- `workspace`: default project workspace.\n- `agents`: agent definitions keyed by agent name.\n- `network.mode`: currently supports `default`.\n\nCommon agent ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:57.417606"
+  },
+  {
+    "basic_info": {
+      "name": "NiniMenu",
+      "full_name": "TryHarder-L/NiniMenu",
+      "owner": "TryHarder-L",
+      "description": "一款温馨的情侣家庭每日菜单推荐与食谱管理应用，告别\"今天吃什么\"的纠结。",
+      "url": "https://github.com/TryHarder-L/NiniMenu",
+      "clone_url": "https://github.com/TryHarder-L/NiniMenu.git",
+      "ssh_url": "git@github.com:TryHarder-L/NiniMenu.git",
+      "homepage": null,
+      "created_at": "2026-06-05T15:33:26Z",
+      "updated_at": "2026-06-30T02:56:55Z",
+      "pushed_at": "2026-06-06T07:53:07Z"
+    },
+    "stats": {
+      "stars": 172,
+      "forks": 26,
+      "watchers": 172,
+      "open_issues": 2,
+      "size": 62640
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 580789,
+        "TypeScript": 358761,
+        "CSS": 7367,
+        "Batchfile": 4503,
+        "HTML": 1606,
+        "JavaScript": 591
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# NiniMenu\n\n> 一款温馨的每日菜单推荐与食谱管理应用，告别\"今天吃什么\"的纠结。\n\nNiniMenu 是一个前后端分离的全栈 Web 应用，旨在帮助用户轻松解决每日饮食决策问题。通过智能推荐、心情匹配、转盘抽奖、盲盒惊喜等多种趣味方式，让选菜变得有趣而不再纠结。同时提供完整的食谱管理、周计划生成、购物清单、成就系统等功能，打造一站式饮食管理体验。\n\n## 应用截图\n\n<p align=\"center\">\n  <a href=\"img/home.png\"><img src=\"img/home.png\" height=\"360\" alt=\"首页\" /></a>\n  <a href=\"img/dishes.png\"><img src=\"img/dishes.png\" height=\"360\" alt=\"菜品列表\" /></a>\n  <a href=\"img/favorites.png\"><img src=\"img/favorites.png\" height=\"360\" alt=\"收藏\" /></a>\n  <a href=\"img/tomorrow.png\"><img src=\"img/tomorrow.png\" height=\"360\" alt=\"明天吃什么\" /></a>\n</p>\n<p align=\"center\">\n  <a href=\"img/history.png\"><img src=\"img/history.png\" height=\"360\" alt=\"历史记录\" /></a>\n  <a href=\"img/achievements.png\"><img src=\"img/achievements.png\" height=\"360\" alt=\"成就\" /></a>\n  <a href=\"img/photo-wall.png\"><img src=\"img/photo-wall.png\" height=\"360\" alt=\"照片墙\" /></a>\n  <a href=\"img/more.png\"><img src=\"img/more.png\" height=\"360\" alt=\"更多\" /></a>\n</p>\n<p align=\"center\">\n  <a href=\"img/admin.png\"><img src=\"img/admin.png\" height=\"360\" alt=\"管理后台\" /></a>\n</p>\n\n- **[使用说明](README_USER.md)** — 如何部署和使用 NiniMenu\n- **[开发指南](README_DEV.md)** — 如何参与开发和构建\n- **[更新日志](CHANGELOG.md)** — 版本更新记录\n\n## 相关链接\n\n* [Linux Do 社区](https://linux.do/)  \n\n## 未来目标\n\n### 功能完善\n\n| # | 功能 | 当前状态 | 计划 |\n|---|------|----------|------|\n| 1 | 食谱营养信息 | 菜品无热量/营养数据 | 添加 calories/protein/fat/carbs 字段，支持每份营养估算 |\n| 2 | 烹饪计时器 | 仅在烹饪模式可用 | 在菜品详情页步骤中也显示小型倒计时 |\n| 3 | 购物清单 | 自动生成、分类、库存标记 | 支持分享购物清单（生成链接/图片）、历史清单对比避免重复购买 |\n| 4 | 历史记录 | 日历视图 + 评分 | 添加统计报表：月度/年度吃饭趋势图、口味偏好饼图、烹饪时长分布 |\n| 5 | 菜品搜索 | 仅名称搜索 | 支持按食材搜索（如\"冰箱里有鸡蛋，能做什么\"）、标签搜索 |\n| 6 | 收藏夹 | 概览统计、智能分组、分类筛选、排序搜索 | 添加收藏自定义分组（如\"减脂餐\"、\"周末大餐\"） |\n| 7 | 周计划 | 7天自动生成 | 支持拖拽调换日期、一键生成购物清单（跨多天合并）、分享周计划 |\n| 8 | 盲盒 | 随机惊喜菜品 | 添加盲盒历史记录、每日限定主题盲盒 |\n| 9 | 转盘 | 简单随机转盘 | 添加自定义转盘（限定分类/难度范围）、多人模式 |\n| 10 | 管理后台 | 基础 CRUD | 添加数据导入导出（JSON/CSV）、操作日志、多管理员支持 |\n| 11 | 成就系统 | 80+ 自动检测 | 添加成就分享图（生成精美卡片图片）、成就进度预告（下一个即将解锁的成就） |\n| 12 | PWA | 基础 manifest | 添加 Service Worker 离线缓存、推送通知（提醒做饭/买菜） |\n\n### 新功能规划\n\n| # | 功能 | 描述 | 实用度 |\n|---|------|------|--------|\n| 1 | 冰箱库存 | 记录冰箱现有食材，推荐\"清冰箱\"菜谱（根据现有食材匹配菜品） | ⭐⭐⭐⭐⭐ |\n| 2 | 健康报告 | 每周/月自动生成饮食健康报告：营养均衡度、重复率、新菜尝试率、烹饪活跃度 | ⭐⭐⭐⭐⭐ |\n| 3 | 食材替换建议 | 某食材缺失时，推荐可替代食材及对应菜品变体 | ⭐⭐⭐⭐ |\n| 4 | 多人家庭模式 | 多成员各自口味偏好，推荐时综合考虑（如一人不吃辣则降低辣菜权重） | ⭐⭐⭐⭐ |\n| 5 | 厨艺进阶路线 | 根据已做菜品难度自动推荐\"下一道挑战菜\"，渐进式提升烹饪水平 | ⭐⭐⭐⭐ |\n| 6 | 智能提醒 | 根据历史用餐时间，在饭点前 30 分钟推送\"今天吃什么\"提醒 | ⭐⭐⭐⭐ |\n| 7 | 菜品对比 | 同一菜品不同次烹饪的评分/照片对比，看厨艺进步 | ⭐⭐⭐ |\n| 8 | 料理挑战 | 每周推荐一道从未做过的菜，完成后获得特殊成就 | ⭐⭐⭐ |\n| 9 | 社区菜谱 | 导入/分享菜谱，关注其他家庭的菜单灵感 | ⭐⭐⭐ |\n| 10 | 价格估算 | 根据购物清单估算大概花费，设置周预算 | ⭐⭐⭐ |\n| 11 | 自定义主题 | 支持切换浅色/深色主题，自定义 accent 颜色 | ⭐⭐⭐ |\n| 12 | 做菜日记 | 每次做菜记录心得/小贴士，形成个人烹饪笔记 | ⭐⭐⭐ |\n| 13 | 过期提醒 | 冰箱食材保质期追踪，临期食材优先推荐使用 | ⭐⭐⭐⭐ |\n| 14 | 菜系地图 | 可视化中国菜系地图，点击区域探索对应菜系菜品 | ⭐⭐ |\n| 15 | 成本追踪 | 记录每餐成本，月底统计饮食开销 | ⭐⭐ |\n| 16 | 语音交互 | 语音输入\"今天想吃清淡的\"智能推荐；烹饪模式语音控制翻页 | ⭐⭐⭐ |\n\n## License\n\nPrivate — All Rights Reserved\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-06-30T04:57:58.790626"
+  },
+  {
+    "basic_info": {
+      "name": "talos",
+      "full_name": "ory/talos",
+      "owner": "ory",
+      "description": "Web-scale and security-hardened API key server for users, services, machine to machine, and AI agents. Token derivation brings fine-grained capability tokens to avoid common API key pitfalls. Apache2 open source for indie deployments, commercial for scalable and HA.",
+      "url": "https://github.com/ory/talos",
+      "clone_url": "https://github.com/ory/talos.git",
+      "ssh_url": "git@github.com:ory/talos.git",
+      "homepage": "https://www.ory.com/talos",
+      "created_at": "2026-06-02T07:28:19Z",
+      "updated_at": "2026-06-30T03:33:29Z",
+      "pushed_at": "2026-06-29T09:22:02Z"
+    },
+    "stats": {
+      "stars": 172,
+      "forks": 6,
+      "watchers": 172,
+      "open_issues": 5,
+      "size": 2517
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2505013,
+        "JavaScript": 46882,
+        "Makefile": 20989,
+        "Shell": 14935,
+        "TypeScript": 8053,
+        "Handlebars": 1430,
+        "CSS": 1361,
+        "HTML": 1168,
+        "Dockerfile": 384,
+        "PLpgSQL": 30,
+        "Jsonnet": 15
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "api-auth",
+        "api-authentication",
+        "api-key",
+        "api-key-management",
+        "api-token",
+        "ory"
+      ]
+    },
+    "content": {
+      "readme": "<!-- Follow-up: upload talos.svg to ory/meta:static/banners/talos.svg. -->\n<h1 align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/ory/meta/master/static/banners/talos.svg\" alt=\"Ory Talos - API credential management for high-throughput systems\">\n</h1>\n\n<h4 align=\"center\">\n  <a href=\"https://www.ory.com/chat\">Chat</a> ·\n  <a href=\"https://github.com/ory/talos/discussions\">Discussions</a> ·\n  <a href=\"https://www.ory.com/l/sign-up-newsletter\">Newsletter</a> ·\n  <a href=\"https://www.ory.com/docs/\">Docs</a> ·\n  <a href=\"https://console.ory.sh/\">Try Ory Network</a> ·\n  <a href=\"https://www.ory.com/jobs/\">Jobs</a>\n</h4>\n\nOry Talos is a scalable and secure API key server optimized for low-latency verification, horizontal\nscaling, and predictable operations. It follows established security best-practices for API keys and\nissues, verifies, revokes, and derives API keys and short-lived tokens for high-throughput systems.\n\n---\n\n<!-- START doctoc generated TOC please keep comment here to allow auto update -->\n<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->\n\n- [What is Ory Talos?](#what-is-ory-talos)\n  - [Why Ory Talos](#why-ory-talos)\n- [Deployment options](#deployment-options)\n  - [Use Ory Talos on the Ory Network](#use-ory-talos-on-the-ory-network)\n  - [Self-host Ory Talos](#self-host-ory-talos)\n- [Quickstart](#quickstart)\n- [Who is using Ory Talos](#who-is-using-ory-talos)\n- [Ecosystem](#ecosystem)\n  - [Ory Kratos: Identity and User Infrastructure and Management](#ory-kratos-identity-and-user-infrastructure-and-management)\n  - [Ory Hydra: OAuth2 & OpenID Connect Server](#ory-hydra-oauth2--openid-connect-server)\n  - [Ory Oathkeeper: Identity & Access Proxy](#ory-oathkeeper-identity--access-proxy)\n  - [Ory Keto: Access Control Policies as a Server](#ory-keto-access-control-policies-as-a-server)\n- [Documentation](#documentation)\n- [Developing Ory Talos](#developing-ory-talos)\n- [Security](#security)\n  - [Disclosing vulnerabilities](#disclosing-vulnerabilities)\n- [Telemetry](#telemetry)\n\n<!-- END doctoc generated TOC please keep comment here to allow auto update -->\n\n## What is Ory Talos?\n\nOry Talos is a server for issuing, verifying, and managing API keys. It follows\n[cloud architecture best practices](https://www.ory.com/docs/ecosystem/software-architecture-philosophy)\nand focuses on:\n\n- Issuing, verifying, and revoking API keys at scale\n- Importing externally-issued API keys for unified verification\n- Deriving short-lived JWT and macaroon tokens from long-lived keys\n- Side-car deployment for fast API key verification\n- Low-latency verification with caching and eventual revocation\n- Predictable operations through structured logging, metrics, and tracing\n\nWe recommend starting with the [Ory Talos documentation](https://www.ory.com/docs/talos) to learn\nmore about its architecture, feature set, and how it compares to other systems.\n\n### Why Ory Talos\n\nOry Talos is designed to:\n\n- Run as a single binary with three deployment modes: admin, self-service, or all-in-one\n- Verify API keys against the database with caching for low latency, while derived JWT and macaroon\n  tokens verify offline without a database lookup\n- Separate admin and self-service surfaces so key creation, revocation, derivation, and verification\n  scale and are secured independently from proof-of-possession self-revocation\n- Scale horizontally with external databases (Postgres, MySQL, CockroachDB) and optional distributed\n  caching\n- Fit modern cloud-native environments such as Kubernetes and managed platforms\n- Mint reduced-scope, short-lived tokens offline so agents, CI/CD jobs, and services don't call the\n  server on every request\n- Keep credential routing, hashing, and verification centralized and constant-time\n\n## Deployment options\n\nYou can run Ory Talos in two main ways:\n\n- As a managed service on the Ory Network\n- As a self-hosted service under your own control, with or without the Ory Enterprise License\n\n### Use Ory Talos on the Ory Network\n\nThe [Ory Network](https://www.ory.com/network) is the fastest way to use Ory Talos in production.\n\nThe Ory Network provides:\n\n- API key issuance, verification, and derivation with low-latency global edge\n- OAuth2 and OpenID Connect for single sign on, API access, and machine to machine authorization\n- Identity and credential management that scales to billions of users and devices\n- Registration, login, and account management flows for passkeys, biometrics, social login, SSO, and\n  multi factor authentication\n- Prebuilt login, registration, and account management pages and components\n- Low latency permission checks based on the Zanzibar model with the Ory Permission Language\n- GDPR friendly storage with data locality and compliance in mind\n- Web based Ory Console and Ory CLI for administration and operations\n- Cloud native APIs compatible with the open source servers\n- Fair, usage based [pricing](https://www.ory.com/pricing)\n\nSign up for a\n[free developer account](https://console.or",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-06-30T04:58:00.207393"
+  }
+]

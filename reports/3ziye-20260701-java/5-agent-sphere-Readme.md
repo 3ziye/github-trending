@@ -1,0 +1,126 @@
+This project is an AI Agent orchestration platform. Driven by an LLM-based decision engine and combined with capabilities (built-in tools, MCP protocol, CLI execution, browser automation, etc.), it implements a primary closed loop of **Perception → Planning → Execution → Feedback**.
+
+It supports configuring different model providers: OpenAI, DeepSeek, QuickRouter (relay station), BigModel (Zhipu AI), LiteLLM.
+---
+
+Screenshots
+
+![ui-register.png](agent-sphere-readme/ui-register.png)
+
+![ui-chat.png](agent-sphere-readme/ui-chat.png)
+
+![ui-chat-toolcalls.png](agent-sphere-readme/ui-chat-toolcalls.png)
+
+![ui-artifact-document.png](agent-sphere-readme/ui-artifact-document.png)
+
+▶ [Click to watch the video demo](https://www.bilibili.com/video/BV1WqTT62Efq/)
+
+[![Video preview](agent-sphere-readme/ui-preview.gif)](https://www.bilibili.com/video/BV1WqTT62Efq/)
+
+## 1. Quick Start for Development
+
+See: [QUICK_START.md](QUICK_START.md)
+
+## 2. Architecture
+
+### 2.1 Overall Structure
+
+![agentsphere-architecture.png](agent-sphere-readme/agentsphere-architecture.png)
+
+### 2.2 Core Components
+
+#### 2.2.1 SessionRunner (ReAct Engine)
+
+Manages the complete execution lifecycle of an AI session, implementing the **Plan → Act → Observe → Learn** loop:
+
+![SessionRunner.run execution lifecycle](agent-sphere-readme/session-runner-flow.png)
+
+**Alignment with the ReAct pattern:**
+
+![ReAct pattern alignment](agent-sphere-readme/react-mode.png)
+
+#### 2.2.2 Capability Layer
+
+| Capability Type | Implementation | Description | Examples |
+|-----------------|----------------|-------------|----------|
+| **MCP (Model Context Protocol)** | MCP Server client | Standard protocol, connects to any MCP Server | Jira, GitHub, Slack, databases |
+| **Builtin (built-in tools)** | SPI: `CapabilityBuiltinToolSpi` | Java SPI extension | WebFetch, WebRead, Chrome, Todowrite, DocWrite |
+| **Chrome Browser** | Chrome Extension bridge | DOM operations + real-time visual feedback | Navigate, click, fill forms, screenshot |
+| **CLI (command line)** | `ProcessBuilder` execution | Local or remote shell | Git operations, build/deploy, system administration |
+| **Skill (composite skills)** | Multi-step task orchestration | LLM-driven task decomposition | Cross-system workflows |
+
+#### 2.2.3 Chrome Extension (Browser Bridge)
+
+![Chrome Extension browser bridge structure](agent-sphere-readme/chrome-extension-structure.png)
+
+---
+
+## 3. Algorithm — Core Algorithms
+
+### 3.1 ReAct Execution Loop
+
+The core loop of AgentSphere follows the **ReAct (Reasoning + Acting)** pattern, combining the LLM's reasoning ability with tool execution ability:
+
+![ReAct execution loop](agent-sphere-readme/react-loop.png)
+
+**Message structure:**
+
+```
+[
+  {role: "system",    content: "You are a browser assistant..."},
+  {role: "user",      content: "Help me check the weather in Guangzhou"},
+  {role: "assistant", tool_calls: [{id: "call_1", name: "navigate", args: "..."}}]},
+  {role: "tool",      tool_call_id: "call_1", content: '{"tabId": 42, "url": "..."}'},
+  {role: "assistant", content: "The weather in Guangzhou tomorrow is..."},
+  {role: "user",      content: "What should I prepare for going out tomorrow"},
+  ...
+]
+```
+
+**Multi-turn tool call example:**
+
+![Multi-turn tool call example](agent-sphere-readme/multi-loop-sequence.png)
+
+### 3.2 Multi-level Memory System
+
+AgentSphere implements a multi-level memory system covering the full chain from persistence to runtime caching:
+
+![Multi-level Memory System](agent-sphere-readme/memory-system.png)
+
+#### Memory Level Details
+
+| Level | Storage | Lifecycle | Capacity | Purpose |
+|-------|---------|-----------|----------|---------|
+| L1: KernelContext | ConcurrentHashMap | During run (TTL 30min) | 1 per session | Tool list, model route |
+| L2: Messages | ArrayList | During run | Dozens of turns | LLM input/output |
+| L3: LLM Interaction | PostgreSQL | Permanent | Configurable | Debugging & audit |
+| L4: Tool Call | PostgreSQL | Permanent | Unlimited | Replay, observation |
+| L5: Compact Record | PostgreSQL | Permanent | Cumulative | Context compression |
+| L6: Session | PostgreSQL | Permanent | 1 per session | Metadata |
+
+#### 3.2.1 Context Assembly
+
+`HistoryLoader` is responsible for loading historical messages from persistent storage and assembling them into the LLM context:
+
+![HistoryLoader context assembly](agent-sphere-readme/history-loader.png)
+
+**Tool result compression flow:**
+
+![Tool result write-time compression flow](agent-sphere-readme/tool-result-compress.png)
+
+#### 3.2.2 Context Compaction
+
+Triggered when the estimated tokens of messages exceed `maxInputTokens × budget-ratio`:
+
+![Context Compaction](agent-sphere-readme/compaction-flow.png)
+
+**Full compression chain flow:**
+
+![Full compression chain flow](agent-sphere-readme/compression-chain.png)
+
+#### 3.2.3 Tool Call Record State Machine
+
+![Tool call record state machine](agent-sphere-readme/tool-call-state-machine.png)
+
+Each record contains:
+- `callId` — Tool call ID generated by th

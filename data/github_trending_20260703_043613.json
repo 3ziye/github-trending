@@ -1,0 +1,909 @@
+[
+  {
+    "basic_info": {
+      "name": "nub",
+      "full_name": "nubjs/nub",
+      "owner": "nubjs",
+      "description": "The fast all-in-one Node.js toolkit",
+      "url": "https://github.com/nubjs/nub",
+      "clone_url": "https://github.com/nubjs/nub.git",
+      "ssh_url": "git@github.com:nubjs/nub.git",
+      "homepage": "https://nubjs.com",
+      "created_at": "2026-06-03T18:36:21Z",
+      "updated_at": "2026-07-03T03:39:36Z",
+      "pushed_at": "2026-07-03T04:05:12Z"
+    },
+    "stats": {
+      "stars": 2559,
+      "forks": 34,
+      "watchers": 2559,
+      "open_issues": 13,
+      "size": 32437
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2900669,
+        "JavaScript": 825140,
+        "Shell": 341052,
+        "MDX": 268780,
+        "TypeScript": 227379,
+        "PowerShell": 35954,
+        "CSS": 19985,
+        "HTML": 16953,
+        "Nix": 11720,
+        "Makefile": 10866,
+        "Slim": 3242
+      },
+      "license": "MIT License",
+      "topics": [
+        "javascript-runtime",
+        "node-version-manager",
+        "nodejs",
+        "package-manager",
+        "script-runner"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://nubjs.com/icon-border.svg\" width=\"200px\" align=\"center\" alt=\"Nub logo\" />\n  <h1 align=\"center\">Nub</h1>\n  <p align=\"center\">\n    A fast all-in-one toolkit that augments Node.js instead of replacing it\n  </p>\n</p>\n\n<div align=\"center\">\n  <a href=\"https://nubjs.com/docs\">Docs</a>\n  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>\n  <a href=\"https://github.com/nubjs/nub\">GitHub</a>\n  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>\n  <a href=\"https://x.com/colinhacks\">𝕏</a>\n  <br/><br/>\n</div>\n\n<p align=\"center\">\n<a href=\"https://github.com/nubjs/nub\" rel=\"nofollow\"><img src=\"https://nubjs.com/stars.svg\" alt=\"stars\"></a>\n</p>\n\n\n\n<br/>\n<br/>\n\nA Bun-like DX on top of stock `node`, written in Rust.\n\n\n```sh\nnub index.ts             # TypeScript-first Node.js runtime\nnub run dev              # 24× faster pnpm run\nnubx prisma generate     # 19× faster npx\nnub install              # 2.5× faster pnpm install\nnub watch src/server.ts  # native watch mode\nnub pm shim              # built-in Corepack-style shims\nnub node install 26      # Node version manager\nnub upgrade              # self update\n```\n\nOne tool to run your files and scripts, install dependencies, and manage Node itself. No new runtime, no vendor-specific API surface, no lock-in.\n\n| Nub | Instead of |\n|---|---|\n| `nub <file>` | `node`, `tsx`, `ts-node`, `dotenv-cli` |\n| `nub run <script>` | `npm run`, `pnpm run` |\n| `nubx` | `npx`, `pnpm dlx / exec` |\n| `nub install` | `npm`, `pnpm` |\n| `nub watch` | `nodemon`, `node --watch`, `tsx watch` |\n| `nub node` | `nvm`, `fnm`, `n`, `volta` |\n| `nub pm` | `corepack` |\n\n<br/>\n\n## Install\n\n```sh\n# macOS / Linux\ncurl -fsSL https://nubjs.com/install.sh | bash\n\n# Windows (PowerShell)\nirm https://nubjs.com/install.ps1 | iex\n\n# Homebrew (macOS / Linux)\nbrew install nubjs/tap/nub\n\n# Nix (flakes)\nnix run github:nubjs/nub\n\n# mise\nmise use -g nub\n\n# Or via npm (pnpm / yarn global add work too)\nnpm install -g --ignore-scripts=false @nubjs/nub\n```\n\nFor GitHub Actions, use [`nubjs/setup-nub`](https://github.com/nubjs/setup-nub) in place of `actions/setup-node`. It's one-to-one compatible.\n\n```diff\n- - uses: actions/setup-node@v4\n+ - uses: nubjs/setup-nub@v0\n```\n\n<br/>\n\n## File runner — `nub <file>`\n\nRun a file. Supports `.js`, `.ts`, `.mjs`, `.cjs`, `.mts`, `.cts`, `.jsx`, and `.tsx`. Flag-for-flag and var-for-var drop-in compatible with `node` (mostly via passthrough).\n\n```sh\nnub index.ts             # TypeScript, JSX, no build step\nnub --watch app.ts       # same path, restart-on-change\n```\n\nIt augments stock Node with some of Bun/Deno's best features:\n\n- 🦆 Full TypeScript support, including `enum`, `namespace`\n- 🧭 TypeScript-friendly resolution: extensionless imports, `tsconfig.json#paths`\n- ⚛️ JSX / TSX\n- 🎂 Decorators and `emitDecoratorMetadata`\n- 🆕 Modern syntax like `using` (downleveled in transpiler when needed)\n- 🔐 Automatic `.env*` loading — Next.js/Vite parity\n- 🗂️ Built-in loaders for common data formats — `.yaml`, `.toml`, `.jsonc`, `.json5`, `.txt`\n- 🌐 Polyfills for `Temporal`, `Worker`, `URLPattern` (when needed)\n- 🔥 Unflags experimental features like `node:sqlite`, `vm.Module`, `localStorage`, `WebSocket`, `EventSource`\n- ⚡ 2.9× faster startup than `tsx`\n\n> **How it works** — Nub takes advantage of Node extension surfaces that mostly didn't exist when Deno and Bun were built: \n> \n> - [`--import`](https://nodejs.org/api/cli.html#--importmodule)/[`--require`](https://nodejs.org/api/cli.html#-r---require-module) preloads\n> - [`module.registerHooks()`](https://nodejs.org/api/module.html#moduleregisterhooksoptions) for transpilation and resolution \n> - [N-API native addons](https://nodejs.org/api/n-api.html): Nub embeds [oxc](https://oxc.rs/) for pre-transpilation\n\n\n### Node provisioning\n\nWhen you run a file with nub, it infers the version of Node your project expects and auto-installs it if needed. It respects (in precedence order):\n\n- `NODE_EXECUTABLE` (override)\n- `package.json#devEngines`\n- `.node-version`\n- `.nvmrc`\n- `package.json#engines`\n\nThis resolved version of Node is installed and your file is executed with it (with Nub's augmentations).\n\n```sh\n$ echo 26 > .node-version\n$ nub hello.ts\nUsing Node.js 26.3.0 (resolved from .node-version)\nInstalled in 9.8s\nHello world!\n```\n\n### Modern APIs\n\nModern API work out of the box under Nub. Node.js experimental APIs are unflagged, others are auto-polyfilled (e.g. `Temporal` on Node 25 and earlier), and others are downleveled in the transpiler (`using`).\n\n| API | How |\n|---|---|\n| [`Temporal`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal) | polyfilled below Node 26, native above |\n| [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) | polyfilled below Node 24, native above |\n| [`RegExp.escape`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/escape) | polyfilled below Node 24, native above |\n| [`Error.isError`](https://developer.mozilla.org/en-",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:14.609614"
+  },
+  {
+    "basic_info": {
+      "name": "meatshell",
+      "full_name": "jeff141/meatshell",
+      "owner": "jeff141",
+      "description": "一个轻量级、低内存占用的 SSH / 终端客户端（A lightweight, low-memory SSH / terminal client）",
+      "url": "https://github.com/jeff141/meatshell",
+      "clone_url": "https://github.com/jeff141/meatshell.git",
+      "ssh_url": "git@github.com:jeff141/meatshell.git",
+      "homepage": "",
+      "created_at": "2026-06-04T07:13:39Z",
+      "updated_at": "2026-07-03T03:07:38Z",
+      "pushed_at": "2026-07-02T16:52:24Z"
+    },
+    "stats": {
+      "stars": 968,
+      "forks": 122,
+      "watchers": 968,
+      "open_issues": 21,
+      "size": 5226
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 636668,
+        "Slint": 459075,
+        "Python": 6002,
+        "Shell": 4717
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# meatshell\n\n**简体中文** | [English](./README.en.md)\n\n一个轻量级、低内存占用的 SSH / 终端客户端，灵感来自 FinalShell，但完全由\n**Rust + [Slint](https://slint.dev)** 实现。目标是保留 FinalShell 的核心体验\n（资源监控侧栏、会话管理、多标签页终端）的同时，把内存占用从 400 MB+ 的\nJVM 压到几十 MB 原生级别。\n\n## 截图\n\n<p align=\"center\">\n  <img src=\"docs/screenshots/01-welcome.png\" alt=\"欢迎页 / 会话管理\" width=\"800\"><br>\n  <em>欢迎页：会话管理 + 左侧本机资源监控</em>\n</p>\n\n<p align=\"center\">\n  <img src=\"docs/screenshots/02-terminal-htop.png\" alt=\"终端 + SFTP\" width=\"800\"><br>\n  <em>多标签页终端（htop 全屏渲染）+ 底部 SFTP 文件浏览 + 远端资源监控</em>\n</p>\n\n## 下载与安装\n\n每次打 `v*` 标签，GitHub Actions 会自动构建 **Windows / Linux / macOS** 三平台二进制，\n发布到 [Releases](https://github.com/jeff141/meatshell/releases) 页面。\n\n### Windows\n\n下载 `meatshell-*-windows-x86_64.zip`，解压后双击 `meatshell.exe`。\n\n### Linux\n\n```bash\ntar -xzf meatshell-*-linux-x86_64.tar.gz\ncd meatshell-*-linux-x86_64\n./meatshell                                  # 直接运行\n# 可选：装应用图标 + 启动器入口（Dock / 应用列表里显示图标，无需传参）\nchmod +x install-linux.sh && ./install-linux.sh\n```\n\n> 需要 glibc ≥ 2.35（Ubuntu 22.04+ / Debian 12+）。Wayland 下首次装完图标可能要注销重登一次。\n\n### macOS\n\n下载得到的是 `.zip`，里面是 `meatshell.app` 应用程序包：\n\n```bash\n# 解压(aarch64 = Apple 芯片，x86_64 = Intel)\nunzip meatshell-*-macos-*.zip\n# 移到「应用程序」(可选，留在原地也行)\nmv meatshell.app /Applications/\n# 去掉「未签名应用」的隔离属性，否则会提示「meatshell 已损坏，无法打开」\nxattr -dr com.apple.quarantine /Applications/meatshell.app\n# 打开(或在「访达」里双击)\nopen /Applications/meatshell.app\n```\n\n> 若未移到 `/Applications`，把上面两条路径换成 `.app` 实际所在位置(如 `~/Downloads/meatshell.app`)即可。\n\n> 从源码构建见下方 [运行](#运行)。\n\n## 功能\n\n### 已实现\n\n- [x] FinalShell 风格 UI，深色 / 浅色 / 跟随系统主题\n- [x] 本机 + 远端资源监控（CPU / 内存 / 交换 / 网络 / 磁盘）\n- [x] 远端进程监控（按 CPU 排序的只读进程表）\n- [x] 完整 VT/ANSI 终端模拟（btop / htop / vim 全屏正常渲染）\n- [x] 多标签页（欢迎页 + 多个会话）\n- [x] 会话管理：新建 / 编辑 / 删除 / 分组，本地 JSON 持久化，导出 / 导入\n  - 配置位置：`%APPDATA%/meatshell/sessions.json`（Windows）\n    / `~/.config/meatshell/sessions.json`（Linux）\n    / `~/Library/Application Support/meatshell/sessions.json`（macOS）\n- [x] SSH（`russh`，纯 Rust）：密码 / 私钥 / 加密私钥（密码短语）\n- [x] SFTP 文件浏览 + 上传 / 下载（拖拽）+ 终端内 ZMODEM（`sz`）接收\n- [x] SSH 端口转发 / 隧道：本地 -L / 远程 -R / 动态 -D（SOCKS5）\n- [x] 快捷命令 + 命令输入框（可群发到所有会话）+ 命令历史\n- [x] 串口 / Telnet 会话\n- [x] 出站代理（SOCKS5 / HTTP）\n- [x] 导入 `~/.ssh/config`\n- [x] 会话密码加密存储（ChaCha20-Poly1305）\n\n### 计划中\n\n- [ ] 已知主机 (known_hosts) 校验\n- [ ] 会话密码改用 OS 钥匙串存储\n- [x] 多标签页终端分屏\n\n## 技术栈\n\n| 模块          | 选型                                                              |\n| ------------- | ----------------------------------------------------------------- |\n| UI            | [Slint](https://slint.dev)（纯 Rust 编译，无 GC）                 |\n| 异步运行时    | [`tokio`](https://tokio.rs)                                       |\n| SSH 协议      | [`russh`](https://crates.io/crates/russh)（无 libssh 依赖）       |\n| 系统指标      | [`sysinfo`](https://crates.io/crates/sysinfo)                     |\n| 序列化        | `serde` + `serde_json`                                            |\n| 日志          | `tracing` + `tracing-subscriber`                                  |\n\n## 运行\n\n```bash\ncargo run --release\n```\n\n首次启动会在 `%APPDATA%/meatshell/sessions.json` 建立空的会话库。点击右上\n角 **“＋ 新建会话”** 添加第一台服务器。\n\n## 项目布局\n\n```\nmeatshell/\n├── Cargo.toml\n├── build.rs                 # Slint 编译器入口\n├── ui/\n│   ├── app.slint            # 顶层窗口\n│   ├── theme.slint          # 设计 tokens\n│   ├── widgets.slint        # 可复用按钮 / 输入框 / sparkline\n│   ├── sidebar.slint        # 左侧系统监控面板\n│   ├── tabs.slint           # 顶部标签栏\n│   ├── welcome.slint        # 欢迎页 / 快速连接\n│   ├── session_dialog.slint # 新建 / 编辑会话弹框\n│   └── terminal_view.slint  # 终端视图（v0.1 行缓冲）\n└── src/\n    ├── main.rs\n    ├── app.rs               # UI ↔ 后端桥接\n    ├── config.rs            # 会话 JSON 持久化\n    ├── system.rs            # CPU / 内存 / 网络采样\n    └── ssh.rs               # SSH 会话 worker\n```\n\n## 开发提示\n\n- Slint 控件有非常严格的布局 DSL，改 `.slint` 后 `cargo check` 是最快的\n  反馈方式。\n- 应用事件循环是单线程（Slint 要求），所有跨线程 UI 更新通过\n  `slint::invoke_from_event_loop` 回调。\n- 目前 `check_server_key` 接受任意服务端密钥（类似 `StrictHostKeyChecking=no`），\n  生产使用前请接入 known_hosts 校验。\n\n## 赞赏 / 请我喝杯咖啡\n\n觉得作品还不错的话，请我喝杯咖啡吧 ☕\n\n<p align=\"center\">\n  <strong>亮出网络乞丐乞讨专用码</strong><br>\n  <img src=\"docs/screenshots/sponsor-wechat.png\" alt=\"微信赞赏码\" width=\"260\">\n</p>\n\n## License\n\nMIT OR Apache-2.0（双许可）。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:15.951279"
+  },
+  {
+    "basic_info": {
+      "name": "skillspec",
+      "full_name": "modiqo/skillspec",
+      "owner": "modiqo",
+      "description": "SkillSpec makes agent skills followable, testable, and provable with Doctor risk reports, guided imports, structured contracts, and alignment proof.",
+      "url": "https://github.com/modiqo/skillspec",
+      "clone_url": "https://github.com/modiqo/skillspec.git",
+      "ssh_url": "git@github.com:modiqo/skillspec.git",
+      "homepage": "https://skillspec.sh",
+      "created_at": "2026-06-19T23:42:55Z",
+      "updated_at": "2026-07-03T04:34:24Z",
+      "pushed_at": "2026-07-02T18:19:08Z"
+    },
+    "stats": {
+      "stars": 583,
+      "forks": 52,
+      "watchers": 583,
+      "open_issues": 7,
+      "size": 2515
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2399435,
+        "Shell": 4763,
+        "Just": 4456
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "ai-evals",
+        "ai-tool"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://github.com/modiqo/skillspec/raw/main/assets/skillspec-wordmark.svg\" alt=\"SkillSpec\" width=\"520\">\n</p>\n\n# Skills that agents can actually follow\n\n[![CI](https://github.com/modiqo/skillspec/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/modiqo/skillspec/actions/workflows/ci.yml)\n\nYou wrote a good `SKILL.md`. But did the agent actually follow it, or skip the\nlate safety rule, grab an undeclared tool, and report \"done\" with no proof?\n\n**SkillSpec tells you.** Run one command and get a risk report. Then turn any\nskill into a contract the agent has to follow, with a record you can inspect at\nthe end.\n\nNo new agent runtime. No orchestration platform. Just a CLI and a small\n`skill.spec.yml` that lives next to your `SKILL.md`.\n\n<p align=\"center\">\n  <a href=\"https://github.com/modiqo/skillspec/blob/main/assets/skillspec-layer-stack.svg\">\n    <img src=\"https://raw.githubusercontent.com/modiqo/skillspec/main/assets/skillspec-layer-stack.svg\" alt=\"SkillSpec sits inside the skills layer\" width=\"1100\">\n  </a>\n</p>\n\n## See It In 30 Seconds\n\nPoint Doctor at any skill, a local folder or a public GitHub URL:\n\n```bash\nskillspec doctor ./my-skill\n```\n\n```text\nSkillSpec Doctor\n================\nTarget: ./my-skill        Shape: simple_skill\n\nAgent follow-through risk: HIGH (74/100)\n\nFindings\n- description is short and generic -> automatic discovery may be unreliable\n- active skill load is 8,482 tokens -> above the balanced target\n- 14 must/never obligations appear after 60% of the body -> easy to miss\n- tools and commands are used, but dependencies are never declared\n- no tests and no progress/trace surface -> \"done\" can't be checked\n\nLikely consequence\nAn agent may follow the broad task but skip a late safety gate, use an\nundeclared tool, or claim completion without evidence.\n\nNext step\nAsk your agent: /skillspec import ./my-skill, compile it, test it, install it,\nand print the alignment summary.\n```\n\nNo install required to try it. Paste a public skill URL into the hosted page:\n\n**<https://skillspec.sh/>**\n\n## Why This Exists\n\nA `SKILL.md` is just text. The harness loads it and hopes the model reads the\nright part. For a throwaway skill, that can be fine. For a skill you rely on,\n\"hope\" is not a plan:\n\n- **Buried rules get skipped.** The important \"never do X\" sits at line 400,\n  and models are most reliable at the start and end of context, not the middle.\n- **Every miss grows the prose.** Each failure becomes another paragraph, which\n  makes the next miss more likely.\n- **You only see the final answer.** There is no durable record of which route\n  ran, which steps happened, or what was skipped.\n\nSkillSpec moves the load-bearing parts out of prose and into a small structured\ncontract:\n\n- when to use the skill\n- which route to take\n- what is forbidden\n- what dependencies must exist\n- what checks must pass\n- what proof should exist at the end\n\n## Install\n\nInstall the CLI:\n\n```bash\ncurl -fsSL https://skillspec.sh/install.sh | sh\nskillspec --version\n```\n\nOr with Cargo:\n\n```bash\ncargo install skillspec\nskillspec --version\n```\n\nThen add the plugin to your harness.\n\nClaude Code:\n\n```bash\nclaude plugin marketplace add modiqo/skillspec --sparse .claude-plugin plugins/skillspec\nclaude plugin install skillspec@skillspec\nclaude plugin list\n```\n\nCodex:\n\n```bash\ncodex plugin marketplace add modiqo/skillspec --ref main --sparse .agents --sparse plugins/skillspec\ncodex plugin add skillspec@skillspec\n```\n\n<details>\n<summary>Other platforms, pinned releases, direct downloads, and local development</summary>\n\nPrebuilt binaries are available on the\n[releases page](https://github.com/modiqo/skillspec/releases):\n\n- `skillspec-macos.tar.gz`\n- `skillspec-linux-x86_64.tar.gz`\n- `skillspec-windows-x86_64.zip`\n\nRelease artifacts include `.sha256` checksums. The installer verifies the\nchecksum and writes to `~/.local/bin` by default.\n\nPin a version or choose an install directory:\n\n```bash\ncurl -fsSL https://skillspec.sh/install.sh \\\n  | SKILLSPEC_VERSION=v0.1.0 SKILLSPEC_INSTALL_DIR=\"$HOME/.local/bin\" sh\n```\n\nInstall unreleased `main`:\n\n```bash\ncargo install --git https://github.com/modiqo/skillspec --package skillspec --force\nskillspec --version\n```\n\nInstall from a local checkout:\n\n```bash\ncargo install --path crates/skillspec-cli --force\nskillspec --version\n```\n\nLocal development can also install the skill folder directly:\n\n```bash\n# Codex\nskillspec install skill skills/skillspec --target codex --retire-existing\n\n# Agents\nskillspec install skill skills/skillspec --target agents --retire-existing\n\n# Claude local project\nskillspec install skill skills/skillspec --target claude-local --retire-existing\n```\n\nFor day-to-day development, the repository includes a `Justfile` that keeps the\ncrate split and local harness install flow in one place:\n\n```bash\n# Show the local crate hierarchy and dependency direction.\njust packages\n\n# Build every workspace package.\njust build-debug\njust build-release\n\n# Instal",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:17.257953"
+  },
+  {
+    "basic_info": {
+      "name": "codeseek",
+      "full_name": "CodeBendKit/codeseek",
+      "owner": "CodeBendKit",
+      "description": "Rust-powered code intelligence CLI for AI coding agents. Builds call graphs and hybrid semantic search indexes (Dense + Sparse + RRF + Reranker) across 7 languages. Ships as native MCP tools for Claude Code and Codex CLI.",
+      "url": "https://github.com/CodeBendKit/codeseek",
+      "clone_url": "https://github.com/CodeBendKit/codeseek.git",
+      "ssh_url": "git@github.com:CodeBendKit/codeseek.git",
+      "homepage": "",
+      "created_at": "2026-06-03T05:41:22Z",
+      "updated_at": "2026-07-03T02:13:52Z",
+      "pushed_at": "2026-07-02T03:34:55Z"
+    },
+    "stats": {
+      "stars": 479,
+      "forks": 33,
+      "watchers": 479,
+      "open_issues": 0,
+      "size": 1217
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 774871,
+        "Python": 56146,
+        "TypeScript": 15122,
+        "JavaScript": 14560,
+        "Shell": 3219,
+        "Ruby": 919
+      },
+      "license": "MIT License",
+      "topics": [
+        "bm25",
+        "c-li",
+        "call-graph",
+        "claude-code",
+        "cli",
+        "code-analysis",
+        "code-intelligence",
+        "cross-encoder",
+        "embedding",
+        "hybrid-search",
+        "lancedb",
+        "mcp",
+        "q-wen",
+        "qwen",
+        "reranker",
+        "rust",
+        "semantic-search",
+        "tree-sitter"
+      ]
+    },
+    "content": {
+      "readme": "# CodeSeek\n\n**Code intelligence CLI tool for Claude Code.** AST-based call graph analysis + semantic search — right from your terminal.\n\n## Quick Start\n\n```bash\n# Install via npm (handles setup wizard + binary download automatically)\nnpm install -g codeseek\n\n# First run — interactive setup wizard configures your embedding model\ncodeseek\n\n# Index your project\ncodeseek init\n\n# Search code by symbol name\ncodeseek search main --limit 10\n\n# Query call graph\ncodeseek callers main\ncodeseek callees process_data\n\n# Register with Claude Code / Codex as MCP tools\ncodeseek install\n\n# Check status\ncodeseek status\n\n# Auto-index on git commits\ncodeseek install-hooks\n```\n\n## Install\n\n### npm\n\n```bash\nnpm install -g codeseek\n```\n\nThe npm package ships a lightweight JS wrapper that handles:\n\n| Step | Description |\n|------|-------------|\n| **First-run wizard** | Interactive CLI prompts for embedding API token, model, and base URL |\n| **Binary download** | Automatically pulls the correct Rust binary for your platform from GitHub Releases |\n| **Pass-through** | All commands (`init`, `search`, `callers`, etc.) are forwarded to the native binary |\n\nSupported platforms:\n\n| Platform | Architecture |\n|----------|-------------|\n| macOS | arm64 (Apple Silicon), x64 (Intel) |\n| Linux | x64 |\n\n### Homebrew\n\n```bash\nbrew tap CodeBendKit/codeseek git@github.com:CodeBendKit/codeseek.git\nbrew install codeseek\n```\n\n### From source\n\n```bash\ngit clone https://github.com/CodeBendKit/codeseek.git\ncd codeseek\n./build.sh --release\n```\n\n`build.sh` compiles both the TypeScript wrapper (`dist/`) and the Rust binary, then installs to `~/.codeseek/bin/`.\n\n## Commands\n\n| Command | Description |\n|---------|-------------|\n| `codeseek` | First-time setup wizard (configures embedding model interactively) |\n| `codeseek init` | Build/update code index (full on first run, MD5-incremental thereafter) |\n| `codeseek status` | Index statistics: functions, files, last update |\n| `codeseek search <query>` | Symbol name search (falls back from vector → graph name match) |\n| `codeseek callers <symbol>` | Find functions that call this symbol |\n| `codeseek callees <symbol>` | Find functions this symbol calls |\n| `codeseek list` | List all indexed projects with paths |\n| `codeseek install` | Register codeseek as MCP tools in Claude Code / Codex |\n| `codeseek uninstall` | Remove MCP integration |\n| `codeseek uninit` | Delete the current project index |\n| `codeseek install-hooks` | Install git hooks (post-commit/post-merge → `codeseek init`) |\n| `codeseek serve --mcp` | Start MCP server (stdio JSON-RPC, used by Claude Code internally) |\n\nAll query commands support `--json` for machine-readable output.\n\n## Claude Code / Codex Integration\n\n```bash\ncodeseek install\n```\n\nWrites MCP server config to:\n\n| Agent | Config file |\n|-------|------------|\n| **Claude Code** | `~/.claude.json` (global, all projects) or `./.mcp.json` (project-local) |\n| **Codex CLI** | `~/.codex/config.toml` |\n\nClaude Code auto-discovers these tools after restart:\n\n| Tool | Capability |\n|------|-----------|\n| `codeseek_search` | Find symbols by name |\n| `codeseek_callers` | Trace upstream callers |\n| `codeseek_callees` | Trace downstream callees |\n| `codeseek_status` | Check index health |\n\nRemove integration:\n\n```bash\ncodeseek uninstall\n```\n\n## How It Works\n\n### Index Building (`codeseek init`)\n\n```\nSource files\n  → Tree-sitter AST parse (7 languages)\n  → Extract functions / classes / methods\n  → Batch embed via API (20 texts per call, SQLite cache)\n  → Store vectors in LanceDB\n  → Build BM25 index in Tantivy\n  → Serialize call graph (PetCodeGraph)\n  → Save to ~/.codeseek/<project_hash>/\n```\n\n**Idempotent**: first run is full build, subsequent runs compare MD5 hashes — only changed files are re-processed. Use `codeseek install-hooks` for automatic re-index on git commit/merge.\n\n### Hybrid Search Pipeline (`codeseek search`)\n\n```\n                        ┌─────────────────────┐\nUser query ────────────→│  Embedding Model     │──→ Query vector\n                        └─────────────────────┘\n                                  │\n          ┌───────────────────────┼───────────────────────┐\n          ▼                       ▼                       ▼\n   ┌─────────────┐       ┌─────────────┐       ┌─────────────┐\n   │ Dense Search │       │ Sparse Search│       │ Graph Search │\n   │ (LanceDB ANN)│       │ (Tantivy BM25)│      │ (PetCodeGraph)│\n   └──────┬───────┘       └──────┬──────┘       └──────┬──────┘\n          │                      │                      │\n          └──────────────────────┼──────────────────────┘\n                                 ▼\n                        ┌─────────────────┐\n                        │   RRF Fusion    │  ← Reciprocal Rank Fusion\n                        │  (Top-20 candidates)│\n                        └────────┬────────┘\n                                 │\n                                 ▼\n                        ┌─────────────────┐\n                        │    Reranker     │  ← C",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:18.548212"
+  },
+  {
+    "basic_info": {
+      "name": "loom",
+      "full_name": "valkor-ai/loom",
+      "owner": "valkor-ai",
+      "description": "Loop engineering for agentic software delivery.",
+      "url": "https://github.com/valkor-ai/loom",
+      "clone_url": "https://github.com/valkor-ai/loom.git",
+      "ssh_url": "git@github.com:valkor-ai/loom.git",
+      "homepage": "",
+      "created_at": "2026-06-09T03:46:34Z",
+      "updated_at": "2026-07-03T04:10:38Z",
+      "pushed_at": "2026-07-03T02:22:19Z"
+    },
+    "stats": {
+      "stars": 470,
+      "forks": 40,
+      "watchers": 470,
+      "open_issues": 1,
+      "size": 4961
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2827036,
+        "Smarty": 14613,
+        "Python": 13225,
+        "JavaScript": 11596,
+        "Shell": 6665,
+        "PowerShell": 4943
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"./assets/headbar.png\" alt=\"Loom\" width=\"100%\">\n  <p><strong>Loop engineering for agentic software delivery.</strong></p>\n  <p>An open delivery harness that turns Claude Code, Codex, OpenCode and other coding agents into repeatable software delivery systems.</p>\n  <p>\n    <a href=\"./README.zh-CN.md\">Simplified Chinese</a>\n    ·\n    <a href=\"https://zonodqioyxil6r3k.public.blob.vercel-storage.com/Loomline-v0.pdf\">Technical Report</a>\n    ·\n    <a href=\"./docs/use-cases.md\">Use Cases</a>\n    ·\n    <a href=\"#quick-start\">Quick Start</a>\n    ·\n    <a href=\"#how-to-use\">How to Use</a>\n    ·\n    <a href=\"#token-saving-context\">Token Saving</a>\n    ·\n    <a href=\"#faq\">FAQ</a>\n  </p>\n  <p>\n    <a href=\"./LICENSE\"><img alt=\"License: Apache-2.0\" src=\"https://img.shields.io/badge/License-Apache--2.0-blue.svg\"></a>\n    <a href=\"https://discord.gg/Yr7UjwbYPC\"><img alt=\"Discord\" src=\"https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white\"></a>\n    <img alt=\"Rust\" src=\"https://img.shields.io/badge/Rust-MCP%20runtime-b7410e?logo=rust&logoColor=white\">\n    <img alt=\"Python\" src=\"https://img.shields.io/badge/Python-algorithms-3776AB?logo=python&logoColor=white\">\n    <img alt=\"Status\" src=\"https://img.shields.io/badge/status-open-brightgreen\">\n  </p>\n</div>\n\n## What Is Loom?\n\nLoom is an open-source delivery harness for existing coding agents. It does not replace the model or editor you already use; it turns each delivery goal into a structured loop of planning, building, verification, repair, preview, and handoff.\n\nLoom uses dynamic workflows to choose the right delivery path for each goal, then makes that path durable: project context, task contracts, backend state, test results, preview evidence, repair notes, and handoff reports are persisted so the next session or agent can continue without starting over.\n\nInstead of a one-shot prompt chain, Loom treats delivery as a loop: route the next step, execute, verify, record evidence, repair when needed, and continue from saved state.\n\nCoding agents can write code. Loom helps them keep the delivery promise from idea to release, with fewer wasted tokens.\n\nUse Loom when a request is larger than a one-shot edit: a feature needs clarification, architecture, task splitting, implementation evidence, review, repair, preview, deployment, or a clean handoff.\n\n## Why a Harness?\n\nWebsite and app generation is becoming table stakes. The harder problem is reliable delivery: keeping the agent aligned after compaction, preserving requirements across many turns, verifying its own work without bias, repairing failures, and resuming from the right step after an interruption.\n\nLong-running agent work tends to break down in predictable ways:\n\nFailure mode | Loom response\n--- | ---\nPartial completion | Bounded tasks, explicit result files, continue routing, and final-response guards keep agents from declaring done after partial progress.\nGoal drift | Confirmed scope, architecture contracts, task plans, and compact context packs preserve the original objective across sessions.\nSelf-check bias | Review, verification, repair requests, and evidence records separate implementation from validation.\nToken waste | Project summaries, task graphs, backend/runtime state, test results, and deployment evidence reduce repeated whole-repo reads.\nHandoff gaps | Delivery reports, preview checks, logs, and repair history make the final state inspectable by humans and other agents.\n\nThe hard part is the harness around the model: durable state, scoped work, routing, verification, recovery, and human-readable evidence. Loom uses dynamic workflows as the operating pattern, then lifts them to the project level so delivery can survive interruptions, compaction, agent switches, and future handoffs.\n\nThat is where Loom is different from prompt files, one-off workflows, and single-agent scripts: it stores delivery state in `.loom/`, exposes an MCP tool protocol to coding agents, and makes verification, repair, preview, and handoff first-class protocol steps.\n\n## From Demo to Delivery\n\nVibe Coding and AI Coding are making software creation accessible to more builders than ever. More people can now turn an idea into a demo, prototype a product, or build a tool for themselves with the help of coding agents.\n\nBut there is still a large gap between a demo that works once and a production-grade application that can be trusted, shipped, repaired, and evolved.\n\nThat gap is not only about model capability. Even as models improve, builders still need to clarify requirements, preserve project context, make architectural decisions, prepare backend/runtime state, run checks, inspect failures, repair issues, verify again, preview the result, and collect delivery evidence.\n\nLoom exists to close that gap.\n\nIt is an open-source delivery layer for existing coding agents. It helps agents move from one-shot coding to repeatable software delivery: clarify the request, plan the work, split tas",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:19.872889"
+  },
+  {
+    "basic_info": {
+      "name": "open_oura",
+      "full_name": "Th0rgal/open_oura",
+      "owner": "Th0rgal",
+      "description": "A Rust toolkit for the Oura Ring (Gen 3/4/5): reverse-engineered BLE protocol, event decoders, and reimplemented data-processing algorithms. Sync, store, and analyze your data locally.",
+      "url": "https://github.com/Th0rgal/open_oura",
+      "clone_url": "https://github.com/Th0rgal/open_oura.git",
+      "ssh_url": "git@github.com:Th0rgal/open_oura.git",
+      "homepage": "",
+      "created_at": "2026-06-21T10:43:18Z",
+      "updated_at": "2026-07-02T21:22:05Z",
+      "pushed_at": "2026-07-02T19:46:45Z"
+    },
+    "stats": {
+      "stars": 391,
+      "forks": 56,
+      "watchers": 391,
+      "open_issues": 3,
+      "size": 2147
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 228610,
+        "Python": 85769
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# open_oura\n\nReverse-engineering the Oura ring BLE protocol, plus an independent, **cloud-free**\nclient that reads your data straight from the ring.\n\nTested live against a Ring 3 Horizon and a Ring 5 (pairing, auth, and event sync\nconfirmed on both). Designed for Ring 3/4/5, which share the same GATT layout,\npacket framing, and authentication flow.\n\n## What you can recover\n\nStraight from the ring, with no Oura account: device info, battery, live heart rate\n(IBI to BPM), latest HR / SpO2, and the full history-event stream. That stream\ncarries raw PPG/IBI/temperature/motion/SpO2 samples plus the ring's **on-device**\nsleep stages, activity MET levels, and HRV.\n\nThe ring itself does **not** emit the 0-100 Readiness / Sleep / Activity / Stress\nscores. But those are **not** computed in\nOura's cloud either: they're computed **on the phone** by the native `ecore`\nengine and a set of on-device PyTorch models (the same `.pt` we run here), then\nuploaded; the cloud only stores and syncs them back. So they're reproducible\noffline. The one genuine cloud-only step is **workout auto-classification**\n(`POST /api/activity-tagging/v2`). See\n[`docs/data-recovery-map.md`](docs/data-recovery-map.md),\n[`docs/algorithms/README.md`](docs/algorithms/README.md), and\n[`docs/model-runners.md`](docs/model-runners.md) for what runs.\n\n> **Those PyTorch models are Oura's proprietary IP and are NOT included in this\n> repo** (gitignored under `notes/models/`). The runners reference them by path; you\n> decrypt and supply your own locally. Nothing model-related is committed or pushed.\n\n## Repository map\n\n- **`crates/`**: the Rust client, split by concern (`oura-protocol` decode,\n  `oura-link` fetch, `oura-analysis` metrics, `oura-store` SQLite, `oura-cli`).\n  Start here: [`crates/README.md`](crates/README.md) and\n  [`docs/architecture.md`](docs/architecture.md).\n- **`tools/`**: Python research bench for protocol exploration. `oura_protocol.py`\n  (full command matrix, auth, danger-gated ops, JSONL capture) and\n  `oura_realtime_listener.py`.\n- **`docs/`**: protocol and reverse-engineering reference (index below).\n- **`reverse/`, `captures/`**: local-only, gitignored. The decompiled app and raw\n  captures (which may contain serials, MACs, and auth keys).\n\n## Quick start (Rust client)\n\n```bash\ncargo build --release\n./target/release/oura scan\n./target/release/oura --key-file key.hex info\n```\n\nSee [`crates/README.md`](crates/README.md) for all commands (`scan`, `pair`,\n`info`, `sync`, `latest`, `live-hr`, `accel`, `viz`, `game`, `features`, `rdata`,\n`events`, `redecode`, `sleep-analyze`, `sessions`) and the auth-key details. `oura viz` opens a\nreal-time 3D motion visualizer in the browser; `oura game` is a tilt-controlled\nasteroid game driven by the ring.\n\n## Research bench (Python)\n\n```bash\npython3 -m venv .venv && .venv/bin/pip install -r requirements.txt\n.venv/bin/python tools/oura_protocol.py --list\n```\n\nState-changing and destructive commands are hidden behind `--include-state` and\n`--include-danger`. On macOS, grant Bluetooth permission to the terminal.\n\n## Documentation\n\n- [`docs/horizon-ring3-protocol-cheatsheet.md`](docs/horizon-ring3-protocol-cheatsheet.md):\n  the protocol command reference (requests, responses, auth, features), Ring 3.\n- [`docs/android-app-reversing.md`](docs/android-app-reversing.md): app internals,\n  BLE constants, the auth operations, key generation, and nonce encryption.\n- [`docs/data-recovery-map.md`](docs/data-recovery-map.md): what the ring emits vs\n  what only the cloud computes.\n- [`docs/sync-orchestration.md`](docs/sync-orchestration.md): when and how the app\n  pulls each data channel, and the minimal client sync recipe.\n- [`docs/ring-5-observations.md`](docs/ring-5-observations.md): Ring 5 BLE surface\n  and first-contact findings.\n- [`docs/ring-features.md`](docs/ring-features.md): the feature capabilities, runtime\n  modes, what's on by default, and which event each enabled feature produces (incl.\n  what `experimental` does — and doesn't).\n- [`docs/model-runners.md`](docs/model-runners.md): running Oura's decrypted on-device\n  models on your synced data — what runs (activity, sleep, CVA, SpO2) vs what's blocked.\n- [`docs/cva-cardiovascular-age.md`](docs/cva-cardiovascular-age.md): decoding the raw\n  PPG (`cva_raw_ppg_data` 0x81) and running the cardiovascular-age model.\n- [`docs/spo2-calibration.md`](docs/spo2-calibration.md): turning the SpO2 R-ratio into\n  a percentage with Oura's own calibration.\n- [`docs/firmware-update.md`](docs/firmware-update.md): the DFU/OTA opcodes, the\n  working cloud download pipeline + codename map, per-device encryption status, and\n  why the firmware key is unreachable (device-resident; not brute-forceable).\n- [`docs/security-observations.md`](docs/security-observations.md): findings-only\n  notes on the model/firmware encryption (the \"what\", not the \"how\" — no keys,\n  endpoints, or procedures).\n- [`docs/architecture.md`](docs/architecture.md): the fetch/interpret/apply crate\n  laye",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:21.226042"
+  },
+  {
+    "basic_info": {
+      "name": "solana-copytrading-bot",
+      "full_name": "DexCrancer/solana-copytrading-bot",
+      "owner": "DexCrancer",
+      "description": "A high-performance Solana copy-trading bot written in Rust. It watches a target wallet’s on-chain activity and mirrors trades on Raydium and Pump.fun as soon as matching transactions appear.",
+      "url": "https://github.com/DexCrancer/solana-copytrading-bot",
+      "clone_url": "https://github.com/DexCrancer/solana-copytrading-bot.git",
+      "ssh_url": "git@github.com:DexCrancer/solana-copytrading-bot.git",
+      "homepage": "",
+      "created_at": "2026-06-17T12:54:15Z",
+      "updated_at": "2026-07-03T02:15:43Z",
+      "pushed_at": "2026-06-27T18:03:09Z"
+    },
+    "stats": {
+      "stars": 359,
+      "forks": 261,
+      "watchers": 359,
+      "open_issues": 0,
+      "size": 86
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 29915
+      },
+      "license": null,
+      "topics": [
+        "copy-trading",
+        "copytrade-bot",
+        "solana",
+        "solana-bot",
+        "trading-bot"
+      ]
+    },
+    "content": {
+      "readme": "# Solana Copy Trading Bot\n\nA high-performance **Solana copy-trading bot** written in **Rust**. It watches a target wallet’s on-chain activity and mirrors trades on **Raydium** and **Pump.fun** as soon as matching transactions appear.\n\nThe bot uses **WebSocket transaction streaming** (Helius-style `transactionSubscribe`) for low-latency detection and can submit copies via **Jito bundles** for faster inclusion.\n\n---\n\n## Table of contents\n\n- [How it works](#how-it-works)\n- [Features](#features)\n- [Example](#example)\n- [Requirements](#requirements)\n- [Quick start](#quick-start)\n- [Configuration](#configuration)\n- [Project structure](#project-structure)\n- [How trades are detected](#how-trades-are-detected)\n- [Supported venues](#supported-venues)\n- [Logging](#logging)\n- [Security](#security)\n- [Risks and disclaimer](#risks-and-disclaimer)\n- [Troubleshooting](#troubleshooting)\n- [Contact](#contact)\n\n---\n\n## How it works\n\n```mermaid\nflowchart LR\n    A[Target wallet trades] --> B[Solana RPC WebSocket]\n    B --> C[Bot filters Raydium / Pump.fun txs]\n    C --> D[Parse direction, mint, amount]\n    D --> E[Build swap on your wallet]\n    E --> F[Sign and send via RPC / Jito]\n```\n\n1. **Subscribe** — Connect to an RPC WebSocket endpoint that supports `transactionSubscribe` (e.g. [Helius](https://helius.dev)).\n2. **Filter** — Only transactions that touch Raydium AMM or Pump.fun program accounts are considered.\n3. **Parse** — Extract trade direction (buy/sell), token mint, size, and pool metadata from the target’s transaction.\n4. **Mirror** — Execute a proportional swap from **your** wallet using the same venue (Raydium or Pump.fun).\n5. **Submit** — Broadcast the signed transaction; optionally route through **Jito** block-engine bundles for priority landing.\n\n---\n\n## Features\n\n| Feature | Description |\n|--------|-------------|\n| **Real-time streaming** | WebSocket `transactionSubscribe` with `processed` commitment for early detection |\n| **Multi-DEX** | Raydium AMM swaps and Pump.fun buy/sell |\n| **Target filtering** | Monitors a configurable `TARGET_PUBKEY` |\n| **Noise reduction** | Excludes known aggregator/program accounts (e.g. Jupiter) via `accountExclude` |\n| **Jito integration** | Optional bundle submission and tip configuration for competitive landing |\n| **Structured modules** | Separate `dex`, `engine`, `core`, and `services` layers for maintainability |\n\n---\n\n## Example\n\n**Target wallet**\n\n`GXAtmWucJEQxuL8PtpP13atoFi78eM6c9Cuw9fK9W4na`\n\n**Copy wallet**\n\n`HqbQwVM2fhdYJXqFhBE68zX6mLqCWqEqdgrtf2ePmjRz`\n\n| Role | Transaction |\n|------|-------------|\n| Target | [View on Solscan](https://solscan.io/tx/2nNc1DsGxGoYWdweZhKQqnngfEjJqDA4zxnHar2S9bsAYP2csbLRgMpUmy68xuG1RaUGV9xb9k7dGdXcjgcmtJUh) |\n| Copied | [View on Solscan](https://solscan.io/tx/n2qrk4Xg3gfBBci6CXGKFqcTC8695sgNyzvacPHVaNkiwjWecwvY5WdNKgtgJhoLJfug6QkXQuaZeB5hVazW6ev) |\n\n---\n\n## Requirements\n\n### Software\n\n- **[Rust](https://rustup.rs/)** 1.70+ (edition 2021)\n- **Windows**: [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/) with the **Desktop development with C++** workload (provides `link.exe` for native dependencies)\n- **Linux / macOS**: standard build tools (`build-essential`, Xcode CLI tools)\n\n### Solana / RPC\n\n- A Solana **HTTP RPC** endpoint (`RPC_ENDPOINT`) with good read performance\n- A Solana **WebSocket RPC** endpoint (`RPC_WEBSOCKET_ENDPOINT`) that supports **`transactionSubscribe`** (Helius and similar providers)\n- A funded **copy wallet** with enough SOL for swaps, ATA creation, and fees (plus Jito tips if enabled)\n\n### Optional\n\n- **[Jito](https://jito.wtf/)** block-engine URL and tip stream URL for bundle-based submission\n\n---\n\n## Quick start\n\n### 1. Clone the repository\n\n```bash\ngit clone https://github.com/<your-org>/Copy-trading-bot.git\ncd Copy-trading-bot\n```\n\n### 2. Configure environment\n\n```bash\ncp .env.example .env\n```\n\nEdit `.env` with your RPC URLs, target wallet, slippage, and Jito settings. See [Configuration](#configuration) for every variable.\n\n### 3. Add your wallet key\n\nThe bot loads the signing keypair from **`key.txt`** in the project root (Base58-encoded secret key, one line, no quotes):\n\n```text\nyour_base58_private_key_here\n```\n\n> **Never commit `key.txt` or `.env`.** Both are ignored by `.gitignore` for `.env`; ensure `key.txt` is also kept local-only.\n\n### 4. Build and run\n\n```bash\ncargo build --release\ncargo run --release\n```\n\nOn success you should see a startup log line similar to:\n\n```text\n---------------------   Copy-trading-bot start!!!  ------------------\n```\n\n---\n\n## Configuration\n\nCopy `.env.example` to `.env` and set the values below.\n\n| Variable | Required | Description |\n|----------|----------|-------------|\n| `RPC_ENDPOINT` | Yes | HTTP Solana RPC URL (e.g. `https://mainnet.helius-rpc.com/?api-key=...`) |\n| `RPC_WEBSOCKET_ENDPOINT` | Yes | WebSocket URL for `transactionSubscribe` |\n| `TARGET_PUBKEY` | Yes | Public key of the wallet whose trades you want to copy |\n| `JUP_PUBKEY` | Yes | Ac",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:22.587543"
+  },
+  {
+    "basic_info": {
+      "name": "spike-bot",
+      "full_name": "ale2348/spike-bot",
+      "owner": "ale2348",
+      "description": "Polymarket Arbitrage Bot || Polymarket Trading Bot || Polymarket Arbitrage Bot || Polymarket Trading Bot || Polymarket Arbitrage Bot || Polymarket Trading Bot || Polymarket Arbitrage Bot || Polymarket Trading Bot || Polymarket Arbitrage Bot || Polymarket Trading Bot || Polymarket Arbitrage Bot || Polymarket Trading Bot || Polymarket Arbitrage Bot",
+      "url": "https://github.com/ale2348/spike-bot",
+      "clone_url": "https://github.com/ale2348/spike-bot.git",
+      "ssh_url": "git@github.com:ale2348/spike-bot.git",
+      "homepage": "https://polymarket.com/@antsaslyku",
+      "created_at": "2026-06-12T14:48:52Z",
+      "updated_at": "2026-07-03T02:58:36Z",
+      "pushed_at": "2026-06-30T15:17:58Z"
+    },
+    "stats": {
+      "stars": 318,
+      "forks": 173,
+      "watchers": 318,
+      "open_issues": 0,
+      "size": 19936
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 119101,
+        "JavaScript": 511
+      },
+      "license": null,
+      "topics": [
+        "polymarket-arbitrage-bot",
+        "polymarket-trading-bot"
+      ]
+    },
+    "content": {
+      "readme": "# Polymarket Spike Bot\n\n> ## ⚠️ Public demo version — not the production bot\n>\n> **This repository is the version shared for selling / demonstration.** It does **not** include the real production settings used on the live account, including:\n>\n> - **Strike time**\n> - **Entry point**\n> - **Momentum variables**\n>\n> The constants in this repo are illustrative. Results on [@antsaslyku](https://polymarket.com/@antsaslyku) come from the **full, tuned configuration** — not from this public copy alone.\n>\n> **Want the complete bot or to collaborate?** Contact on Telegram:\n>\n> ### [**t.me/antsaslyku**](https://t.me/antsaslyku)\n\n**Repository:** [github.com/ale2348/spike-bot](https://github.com/ale2348/spike-bot) · **Author:** [@ale2348](https://github.com/ale2348)\n\nA **Rust** bot for **Polymarket 5-minute crypto Up/Down** markets — **BTC, ETH, SOL, and XRP**. It watches **Binance** spot prices for momentum, then places a **limit buy** on the matching Polymarket Up or Down token at the **current ask**, holds through resolution, and tracks P/L.\n\n**Live profile using this strategy family:** [**@antsaslyku on Polymarket**](https://polymarket.com/@antsaslyku)\n\nThe bot connects to Polymarket Gamma + CLOB APIs, streams live order-book prices, and can run in **simulation mode** (no real orders) or **live mode** with your wallet. Press **Ctrl+C** to stop.\n\n---\n\n## Live proof — buy → redeem cycles\n\nThese are real on-chain transactions from [@antsaslyku](https://polymarket.com/@antsaslyku) on Polygon. Each pair shows the same pattern the bot follows: **buy the favorite late in the window → redeem at $1.00 after resolution**.\n\n### Trade 1 — Jun 11, 2026 · ~$0.99 entry\n\n| Step | Time (UTC) | Details | Polygonscan |\n|------|------------|---------|-------------|\n| **Buy** | 09:30:01 | ~**$67.32** USDC → **68 shares** @ **~$0.99** (late-window favorite) | [View buy tx](https://polygonscan.com/tx/0x6874a18bcd84c18a6e9d5cffd0a94eb0bdc148089a364370eb9120384bc4e21c) |\n| **Redeem** | 09:31:03 | Market resolves → shares redeemed for **~$1.00** each | [View redeem tx](https://polygonscan.com/tx/0x17e8fbc7ed8d995c44127da034e487733a43f18c6638cdcba9088a519b11ad63) |\n\n**Approx. gross profit:** ~**$0.68** on ~$67 stake (~**1%**) before fees, in **~62 seconds**.\n\n### Trade 2 — Jun 11, 2026 · ~$0.99 entry\n\n| Step | Time (UTC) | Details | Polygonscan |\n|------|------------|---------|-------------|\n| **Buy** | 08:55:01 | Buy favorite @ **~$0.98–$0.99** near window end | [View buy tx](https://polygonscan.com/tx/0x7fa58be45dc24afbc8bd135fc6a7147fb548e2c00ad2f5b6100fa7510dd58b45) |\n| **Redeem** | 08:55:30 | Resolution redeem **~29s** after buy | [View redeem tx](https://polygonscan.com/tx/0x4edaaa3a6a6d854fe6ec938280ab3cfd34d07f34fcc75c7f4757feccfc9d30dc) |\n\n> **How to read these txs:** The **buy** tx interacts with `Polymarket: CTF Exchange V2` — USDC out, outcome shares in. The **redeem** tx settles winning shares back to USDC at **$1.00** per share when the 5m window resolves. Repeat this across many windows and P/L compounds — see the full history on [polymarket.com/@antsaslyku](https://polymarket.com/@antsaslyku).\n\n### Profile screenshots ([@antsaslyku](https://polymarket.com/@antsaslyku))\n\nLive Polymarket dashboard — portfolio growth and buy/redeem activity on **BTC** and **XRP** 5m markets at **96–99¢**:\n\n![Polymarket profile — past day profit/loss and recent trades](doc/daily_pnl.png)\n\n- Past year P/L: **+$82,537.48**\n- Past day P/L: **+$208.04**\n- 24h Return: **+3.51%**\n- Portfolio Value: **~$3,467**\n\nTrade history includes repeated entries in late-stage crypto prediction markets followed by successful redemptions at settlement.\n\n---\n\n## How it works\n\nEach **5-minute Up/Down** market (BTC, ETH, SOL, XRP) runs for **300 seconds**. The bot streams **Binance** mid-prices and **Polymarket** best asks in real time.\n\n```\nBinance price move (lookback window)\n        │\n        ▼\n  Up or Down signal?\n        │\n        ▼\nLimit buy @ current Polymarket ask  ──►  cancel if unfilled after N seconds\n        │\n        ▼\nHold to resolution  ──►  redeem winning shares @ $1.00\n```\n\n1. **Subscribe** to Binance book-ticker feeds for configured symbols\n2. **Detect momentum** — price moved up or down by a USD threshold within `lookback_secs`\n3. **Buy Up** on upward momentum, **buy Down** on downward momentum\n4. **Place a limit order** at the current Polymarket ask (skipped if ask > `max_ask_price`)\n5. **Cancel** unfilled orders after `cancel_after_secs`\n6. **Track fills and resolution** — wins pay ~$1/share; losses cost the entry notional\n\n| | Typical win | Risk |\n|---|-------------|------|\n| **Math** | Buy @ ~$0.50–$0.98 → redeem @ **$1.00** if correct side wins | Wrong side → stake lost |\n| **Edge** | Momentum + early entry before the crowd | Reversal or no fill → missed or losing trade |\n\n---\n\n## Configuration\n\nCopy [`config.json.example`](config.json.example) to `config.json` and fill in your wallet details. **Never commit `config.json`** — it is gitignored and",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:23.980524"
+  },
+  {
+    "basic_info": {
+      "name": "cliare",
+      "full_name": "modiqo/cliare",
+      "owner": "modiqo",
+      "description": "CLI agent-readiness measurement, command-shape inference, and CI scorecards",
+      "url": "https://github.com/modiqo/cliare",
+      "clone_url": "https://github.com/modiqo/cliare.git",
+      "ssh_url": "git@github.com:modiqo/cliare.git",
+      "homepage": "https://cliare.sh",
+      "created_at": "2026-06-13T00:38:35Z",
+      "updated_at": "2026-07-03T04:32:40Z",
+      "pushed_at": "2026-07-02T18:51:12Z"
+    },
+    "stats": {
+      "stars": 290,
+      "forks": 40,
+      "watchers": 290,
+      "open_issues": 0,
+      "size": 19906
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1326356,
+        "Just": 12836,
+        "Shell": 4697,
+        "Ruby": 591
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "cli"
+      ]
+    },
+    "content": {
+      "readme": "# CLIARE\n\n**CLIARE audits command-line interfaces for agent readiness.**\n\n> It is like OpenAPI/Swagger for CLIs, but generated from runtime evidence rather than hand-written docs.\n\nAgents increasingly use terminals as their operating surface, but most CLIs were designed for humans reading help text. An agent harness needs a different contract before it spends tokens trying commands:\n\n- Which commands actually exist?\n- Which flags and positionals are safe to use?\n- Which commands have parseable JSON/YAML output?\n- Which paths require auth, a project directory, fixtures, network access, or a local daemon?\n- Which \"safe\" discovery commands quietly write files?\n\nCLIARE answers those questions by measuring the released CLI binary as a black box. It probes runtime behavior under bounded controls, records evidence, infers the command surface, detects side effects, and emits command indexes, issue ledgers, scorecards, one-command summaries, persona reports, CI artifacts, and agent skills.\n\nCLIARE stands for **CLI Agent Readiness Evaluation**.\n\n## From CLI Drift to Agent-Ready Command Surfaces\n\nCLIARE is pronounced like \"Claire\": she cares about whether your CLI can be used reliably by agents, maintainers, and security reviewers.\n\n### 1. CLIs are becoming agent hands\n\n![CLIs are agent hands](docs/assets/storybook/01-agent-hands.png)\n\nAgents increasingly use CLIs as their hands: the practical surface for reaching code hosts, cloud systems, payment services, internal platforms, and local developer workflows.\n\n```sh\ncargo install cliare\ncliare metadata --format json\n```\n\n### 2. CLI surfaces drift as they grow\n\n![Docs, help, and runtime drift](docs/assets/storybook/02-cli-drift.png)\n\nWhen a CLI evolves quickly, the docs, `--help`, and the released binary can start telling different stories. Humans can work around that drift. Agents tend to discover it the expensive way.\n\n```sh\ncliare measure mycli --out .cliare/mycli --profile standard --refresh\n```\n\n### 3. Drift becomes token burn\n\n![Agents burn tokens rediscovering CLI shape](docs/assets/storybook/03-token-burn.png)\n\nWithout an evidence-backed command index, an agent harness has to rediscover the surface repeatedly: run help, try a flag, hit a missing operand, back up, and try again. That loop costs tokens, latency, and reliability.\n\n```sh\ncliare summary --out .cliare/mycli\n```\n\n### 4. CLIARE probes the CLI like an agent would\n\n![CLIARE probes a released CLI in a chosen context](docs/assets/storybook/04-cliare-probes.png)\n\nCLIARE exercises the released binary as a black box. You choose the context: clean, repository, authenticated, host, fixture-backed, or CI. CLIARE records evidence instead of relying on stale assumptions.\n\n```sh\ncliare measure mycli \\\n  --out .cliare/mycli \\\n  --context authenticated \\\n  --auth-state present \\\n  --execution-mode host \\\n  --profile deep \\\n  --refresh\n```\n\n### 5. Maintainers get a release-time fix queue\n\n![Maintainers use CLIARE in CI to keep CLI releases aligned](docs/assets/storybook/05-maintainer-ci.png)\n\nFor maintainers, CLIARE turns agent-readiness gaps into a concrete queue: missing help, confusing diagnostics, parseable-output gaps, unsafe discovery side effects, precondition blockers, and command-shape drift.\n\n```sh\ncliare summary --out .cliare/mycli\ncliare report maintainer --out .cliare/mycli --format markdown\ncliare issues list --out .cliare/mycli --format markdown\ncliare playbook maintainer --target mycli\n```\n\n### 6. Harnesses get a command index\n\n![Agent harnesses use a command index instead of guessing](docs/assets/storybook/06-agent-index.png)\n\nFor agent harnesses, CLIARE builds the map: an evidence-backed command index that describes command paths, flags, operands, preconditions, output contracts, confidence, suitability, and evidence references.\n\n```sh\ncliare describe .cliare/mycli --write\ncliare summary --out .cliare/mycli --format json\ncliare report harness --out .cliare/mycli --write\ncliare playbook harness --target mycli\n```\n\nThe harness can then load:\n\n```text\n.cliare/mycli/command-index.json\n.cliare/mycli/AGENT_SKILL.md\n.cliare/mycli/persona-harness.json\n```\n\n### 7. Skills teach; indexes map\n\n![Skills teach intent, command indexes map the real surface](docs/assets/storybook/07-skills-and-indexes.png)\n\nSkills are useful, but they are not command indexes. A skill can teach intent, workflow, and policy. A command index tells the harness what the CLI actually supports right now. Agents need both: instruction for judgment, evidence for navigation.\n\n```sh\ncliare summary --out .cliare/mycli\ncliare report harness --out .cliare/mycli --format markdown\ncliare report security --out .cliare/mycli --format markdown\ncliare issues list --out .cliare/mycli --format human\n```\n\nCLIARE helps maintainers keep CLIs aligned, helps security reviewers catch undocumented side effects, and helps agents use CLIs deliberately instead of rediscovering syntax by trial and error.\n\n## Why Run CLIARE?\n\n### For CLI Maintainers\n\nCLIARE turns vagu",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:25.362232"
+  },
+  {
+    "basic_info": {
+      "name": "autoshorts",
+      "full_name": "JayWebtech/autoshorts",
+      "owner": "JayWebtech",
+      "description": "AutoShorts is a local-first desktop application for turning long-form video or audio recordings into high-impact, vertical short-form clip candidates (9:16 portrait) with AI-powered viral moment ranking.",
+      "url": "https://github.com/JayWebtech/autoshorts",
+      "clone_url": "https://github.com/JayWebtech/autoshorts.git",
+      "ssh_url": "git@github.com:JayWebtech/autoshorts.git",
+      "homepage": "",
+      "created_at": "2026-06-22T13:08:10Z",
+      "updated_at": "2026-07-03T04:30:40Z",
+      "pushed_at": "2026-07-01T17:05:23Z"
+    },
+    "stats": {
+      "stars": 283,
+      "forks": 70,
+      "watchers": 283,
+      "open_issues": 4,
+      "size": 1868
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 95294,
+        "TypeScript": 62183,
+        "CSS": 32444,
+        "HTML": 297
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "⭐ [Support AutoShorts](#support)\n\n# AutoShorts\n\nAutoShorts is a local-first desktop application for turning long-form video or audio recordings into high-impact, vertical short-form clip candidates (9:16 portrait) with AI-powered viral moment ranking.\n\nThis repository implements the desktop app foundation using **Tauri 2 + React + TSX + Rust + SQLite**.\n\n<img width=\"1397\" height=\"918\" alt=\"Screenshot 2026-06-22 at 4 10 13 PM\" src=\"https://github.com/user-attachments/assets/3a58ff60-6d9b-46fc-81e8-2778c96aba62\" />\n\n---\n\n## Key Features\n\n- **Dynamic Multi-LLM Support**: Supports both **DeepSeek** (default) and **Claude** (anthropic) for viral moment detection and hooks analysis.\n- **Automated Pipeline**: Imports media, extracts audio, transcribes using Deepgram, and automatically analyzes and ranks moments in a single automated chain.\n- **Local SQLite Storage**: Saves transcripts, candidates, custom names, and rendering data locally.\n- **Native Project Manager**: Create, open, rename, and delete projects from the dashboard.\n- **Portrait Auto-Cropping**: Automatically center-crops landscape videos to vertical H.264 portrait clips using native `ffmpeg` integration.\n- **Key Warnings**: Built-in visual warnings that identify missing environment variables and prompt you directly in the UI.\n\n---\n\n## Prerequisites\n\nTo run the application, **FFmpeg & FFprobe** must be installed and available on your system `PATH` to handle cropping, audio extraction, and dynamic captions:\n\n* **macOS**: Install using Homebrew:\n  ```bash\n  brew install ffmpeg\n  ```\n  *Note: To ensure full captions rendering support, if standard Homebrew FFmpeg lacks drawtext/subtitles filters, tap and install the `homebrew-ffmpeg` formula:*\n  ```bash\n  brew tap homebrew-ffmpeg/ffmpeg\n  brew install homebrew-ffmpeg/ffmpeg/ffmpeg\n  ```\n* **Windows**: Install using Winget (in PowerShell):\n  ```powershell\n  winget install Gyan.FFmpeg\n  ```\n  *(Or download the release build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and add it to your system PATH environment variables).*\n* **Linux**: Install via your native package manager:\n  ```bash\n  sudo apt install ffmpeg      # Debian/Ubuntu\n  sudo pacman -S ffmpeg        # Arch Linux\n  sudo dnf install ffmpeg      # Fedora\n  ```\n\n---\n\n## Installation Guide (For Users)\n\nDownload the correct package matching your system from the latest [GitHub Releases](https://github.com/JayWebtech/autoshorts/releases/tag/autoshorts).\n\n### 🖥️ macOS Installation\n1. **Download**:\n   * **Apple Silicon (M1/M2/M3)**: Select the `aarch64.dmg` package.\n   * **Intel Mac**: Select the `x64.dmg` package.\n2. **Install**: Double-click the `.dmg` file and drag **AutoShorts** to your **Applications** folder.\n3. **Bypass Gatekeeper** (For unsigned local builds):\n   * Right-click `AutoShorts.app` in Finder, select **Open**, and click **Open** in the warning dialog.\n   * *Alternatively*, run this command in Terminal:\n     ```bash\n     xattr -cr /Applications/AutoShorts.app\n     ```\n\n### 🪟 Windows Installation\n1. **Download**: Select the `.msi` (installer) or `.exe` (portable executable) package.\n2. **Install**: Double-click the `.msi` file to run the setup wizard.\n3. **SmartScreen Bypass**: Since the package is self-signed, Windows SmartScreen may show a warning. Click **\"More Info\"** in the window and choose **\"Run anyway\"**.\n\n### 🐧 Linux Installation\n1. **Download**: Select the `.deb` (Debian/Ubuntu) or `.AppImage` (universal portable binary).\n2. **Install `.deb`**:\n   ```bash\n   sudo dpkg -i autoshorts_*.deb\n   ```\n3. **Run `.AppImage`**:\n   Make it executable and launch it:\n   ```bash\n   chmod +x autoshorts_*.AppImage\n   ./autoshorts_*.AppImage\n   ```\n\n### 🚀 First-Launch Onboarding & AI Configuration\n\nWhen you first launch the application, you will be greeted by an **Onboarding Wizard** that lets you choose your preferred workflow:\n\n#### Option A: Fully Offline (Ollama + Whisper)\n1. **Ollama Setup**: Select a local model card (`llama3.2 3B`, `qwen2.5 3B`, or `qwen2.5 7B`). The application will check if Ollama is running and automatically pull the model weights, showing a downloader progress bar.\n2. **Local Whisper**: Follow the prompt instructions to verify Python is installed and run `pip3 install openai-whisper` to enable fully offline transcription.\n\n#### Option B: Cloud API Keys\n1. Enter your API credentials for:\n   * **Deepgram**: For fast, accurate cloud transcription.\n   * **DeepSeek**: (Highly Recommended) For cheap, high-quality cloud moment detection.\n   * **Claude**: For premium copywriting, hooks, and moment detection.\n2. Click **Save & Start** to immediately load the dashboard.\n\n---\n\n### ⚙️ Modifying Settings & Resetting Onboarding\n\n* **Update Credentials**: Click the **API Settings** gear icon in the top right of your app dashboard to switch engines, select different local models, or update API keys.\n* **Reset Onboarding**: If you want to switch from Cloud to Offline (or vice-versa) and start setup from scratch, click the **",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:26.684061"
+  },
+  {
+    "basic_info": {
+      "name": "Godcoder",
+      "full_name": "eli-labz/Godcoder",
+      "owner": "eli-labz",
+      "description": "A local-first, open-source coding agent for your desktop. Bring your own LLM key; your code stays on your machine and only ever leaves to the model provider. The AI Agent builds its own Harnes.",
+      "url": "https://github.com/eli-labz/Godcoder",
+      "clone_url": "https://github.com/eli-labz/Godcoder.git",
+      "ssh_url": "git@github.com:eli-labz/Godcoder.git",
+      "homepage": "",
+      "created_at": "2026-06-27T00:56:36Z",
+      "updated_at": "2026-07-03T01:56:26Z",
+      "pushed_at": "2026-06-30T02:50:25Z"
+    },
+    "stats": {
+      "stars": 272,
+      "forks": 3,
+      "watchers": 272,
+      "open_issues": 0,
+      "size": 16032
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1263332,
+        "Go": 1111525,
+        "TypeScript": 709573,
+        "CSS": 88227,
+        "Starlark": 22055,
+        "Dockerfile": 12275,
+        "PowerShell": 7899,
+        "Batchfile": 7871,
+        "Python": 7765,
+        "Shell": 5106,
+        "JavaScript": 2233,
+        "HTML": 1505
+      },
+      "license": "Other",
+      "topics": [
+        "ai",
+        "coding-agent",
+        "desktop-app",
+        "llm",
+        "local-first",
+        "mcp",
+        "open-source",
+        "openai",
+        "rust",
+        "tauri"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# ⚡ Godcoder\n\n### A local-first, open-source AI coding agent for your desktop.\n\n**Bring your own LLM key. Your code never leaves your machine.**\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n[![Built with Rust](https://img.shields.io/badge/Built%20with-Rust-orange?logo=rust)](https://www.rust-lang.org/)\n[![Tauri 2](https://img.shields.io/badge/Tauri-2.0-blue?logo=tauri)](https://tauri.app/)\n[![Stars](https://img.shields.io/github/stars/eli-labz/Godcoder?style=social)](https://github.com/eli-labz/Godcoder/stargazers)\n[![Forks](https://img.shields.io/github/forks/eli-labz/Godcoder?style=social)](https://github.com/eli-labz/Godcoder/network/members)\n\n[**Download**](#getting-started) · [**Features**](#what-godcoder-can-do) · [**Architecture**](ARCHITECTURE.md) · [**Contribute**](CONTRIBUTING.md)\n\n</div>\n\n---\n\n## 🚀 What is Godcoder?\n\nGodcoder is a **local-first, fully open-source AI coding agent** that runs as a native desktop app. Unlike cloud-based tools, your source code never transits a vendor backend — API requests go straight from your machine to whichever model provider you configure.\n\nIt goes beyond editing code: Godcoder can **build and continuously improve its own agent harness** (Harness mode) and **self-train to drive the Open Cowork desktop app**, even **executing human-action tasks** — clicking, typing, opening apps, sending email, e-signing — through GUI/OS automation (CoWork mode). Both modes run a self-optimizing loop that compounds lessons over time, so the agent gets measurably better with use.\n\n```\nYour Machine ──► Model Provider (OpenAI / Anthropic / Any OpenAI-compatible API)\n     ▲\n     │  (no middleman, no cloud backend, no data lock-in)\n     │\n  Your Code\n```\n\n> Reimagined from the ground up. The original 2024 autonomous-dev pipeline is frozen under `v1/` — preserved, not maintained.\n\n---\n\n## 🧬 The Agent Builds Its Own Harness — Live\n\n> **Godcoder doesn't just use a harness. It writes one, improves it, and optimizes it — autonomously, in real time.**\n\nThis is the defining capability that sets Godcoder apart. Activate **Harness mode** and the agent takes over its own agent loop: it scaffolds a live sandbox, engineers its own tools and workflows, runs improvement cycles, measures what works, and compounds that knowledge — all without you writing a single prompt.\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│              HARNESS MODE  —  Real-Time Self-Build          │\n│                                                             │\n│  START                                                      │\n│    │                                                        │\n│    ▼                                                        │\n│  🏗️  Scaffold  →  creates harness-build/ sandbox            │\n│    │                                                        │\n│    ▼                                                        │\n│  🗺️  Route     →  selects the highest-value next change     │\n│    │                                                        │\n│    ▼                                                        │\n│  📋  Plan      →  designs the improvement                   │\n│    │                                                        │\n│    ▼                                                        │\n│  ⚙️  Execute   →  writes, edits, runs code                  │\n│    │                                                        │\n│    ▼                                                        │\n│  ✅  Evaluate  →  verifies with the project's own checks    │\n│    │                                                        │\n│    ▼                                                        │\n│  📝  Log       →  records outcome in persistent memory      │\n│    │                                                        │\n│    ▼                                                        │\n│  🔁  Optimize  →  biases future iterations toward success   │\n│    │                                                        │\n│    └──────────────────────────────► repeat                  │\n└─────────────────────────────────────────────────────────────┘\n```\n\n**How it works:**\n- Pick **Harness** in the new-session composer and press start — no prompt to type, no folder to choose.\n- The agent instantly creates a dedicated `harness-build/` workspace, opens it in your file explorer, and confines all new work there — reading the rest of the repo for reference but never rewriting it.\n- Each iteration makes **one decisive, verifiable change**: keep it if it's an improvement, discard it otherwise.\n- Results are stored in a **persistent memory store** (via the ResearchSwarm bridge) so lessons from past runs rank and steer future iterations — the harness compounds knowledge over time.\n- Like Freestyle mode, every tool call is auto-approved after the first confirmation.\n\nThe loop is powered by the [`self-optimizing-harness`](./crates/agent/default-sk",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:27.997276"
+  },
+  {
+    "basic_info": {
+      "name": "umadev",
+      "full_name": "umacloud/umadev",
+      "owner": "umacloud",
+      "description": "UmaDev: A coding agent that works like a real dev team, commanding the Claude Code / Codex / OpenCode you already use.",
+      "url": "https://github.com/umacloud/umadev",
+      "clone_url": "https://github.com/umacloud/umadev.git",
+      "ssh_url": "git@github.com:umacloud/umadev.git",
+      "homepage": "https://umadev.goder.ai",
+      "created_at": "2026-06-19T16:43:11Z",
+      "updated_at": "2026-07-03T01:20:35Z",
+      "pushed_at": "2026-07-02T22:19:06Z"
+    },
+    "stats": {
+      "stars": 217,
+      "forks": 56,
+      "watchers": 217,
+      "open_issues": 0,
+      "size": 123900
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 8005690,
+        "TypeScript": 234030,
+        "CSS": 142516,
+        "JavaScript": 17578,
+        "Shell": 7075,
+        "Python": 5273
+      },
+      "license": "MIT License",
+      "topics": [
+        "agents",
+        "ai",
+        "ai-agents",
+        "ai-coding",
+        "claude-code",
+        "codex-cli",
+        "coding",
+        "coding-agent",
+        "coding-agents",
+        "open-code",
+        "rag",
+        "rust",
+        "rust-agent",
+        "rust-lang",
+        "tui",
+        "vibe-coding"
+      ]
+    },
+    "content": {
+      "readme": "# umadev\n\n<div align=\"center\">\n\n<img src=\"docs/assets/umadev-logo-en.png\" alt=\"umadev\" width=\"760\">\n\n### UmaDev: A coding agent that works like a real dev team, commanding the Claude Code / Codex / OpenCode you already use.\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Rust](https://img.shields.io/badge/Rust-1.87%2B-orange)](https://www.rust-lang.org/)\n[![Spec](https://img.shields.io/badge/Spec-UMADEV__HOST__SPEC__V1-blue)](spec/UMADEV_HOST_SPEC_V1.md)\n[![Version](https://img.shields.io/badge/Version-1.0.x-success)](CHANGELOG.md)\n\nEnglish | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)\n\n</div>\n\n---\n\numadev is **a coding agent that works like a real dev team**. It drives an AI coding CLI you already have — Claude Code, Codex, or OpenCode — as one continuous session, and owns no model of its own: the model your base is connected to is the brain.\n\nWhat you get is **a whole AI development team**. Eight specialists — product manager, architect, UI/UX designer, frontend engineer, backend engineer, QA, security, and DevOps — plan, build, review, and sign off the way a real team does, borrowing your already-logged-in base as their shared brain. You describe what you want in plain language, and the team turns it into runnable, shippable, auditable software: it researches, writes the PRD, architecture, and UI/UX, builds the frontend and backend, runs the quality and governance checks, and hands back the code plus a delivery proof. It sizes itself to the task — a small edit stays a small edit; a full project convenes the full roster.\n\nA ninth seat, the **coordinator** (the team's technical lead), routes the request, owns a visible plan, schedules the team, enforces the gates, and leaves the audit trail. It doesn't write code; the base — the AI coding CLI — is the engineer that does that. The roles coordinate through shared artifact files and structured verdicts, never by chatting to each other.\n\nIt's a single Rust binary. npm is just the delivery shell.\n\n---\n\n## Table of Contents\n\n- [Install](#install)\n- [Quickstart](#quickstart)\n- [Project Origin](#project-origin)\n- [What Problem It Solves](#what-problem-it-solves)\n- [Features](#features)\n- [How It Works](#how-it-works)\n- [The Team](#the-team)\n- [Why You Can Trust the Output](#why-you-can-trust-the-output)\n- [Runtime Modes](#runtime-modes)\n- [The Full Delivery Flow](#the-full-delivery-flow)\n- [Quality Gate](#quality-gate)\n- [Governance](#governance)\n- [Knowledge Base](#knowledge-base)\n- [Deliverables](#deliverables)\n- [Commands](#commands)\n- [Configuration](#configuration)\n- [Rust Architecture](#rust-architecture)\n- [Development](#development)\n- [License](#license)\n\n---\n\n## Install\n\n```bash\nnpm install -g umadev\n```\n\nThe npm package is a distribution shim. The actual program is a Rust binary. Prebuilt binaries ship for macOS (Apple Silicon and Intel), Linux (x86_64 and ARM64), and Windows (x86_64).\n\nThe install also pulls a small local embedding model (`multilingual-e5-small`, f16, ~224 MB) as an optional dependency and wires it up automatically — it powers the offline vector search with no API key and no runtime network, no manual download step. If your registry or network skips the optional download, umadev still works: retrieval falls back to BM25-only, and re-running `npm install -g umadev` restores the vector channel.\n\nBuild from source:\n\n```bash\ngit clone https://github.com/umacloud/umadev.git\ncd umadev && cargo build --release --features vector-local\n./target/release/umadev --version\n```\n\n> **Building from source? The embedding model is not in the repo (it's too large for git, ~224 MB).** A plain `cargo build --release` gives a **BM25-only** binary; the local vector channel needs the `--features vector-local` flag **and** the model on disk. The prebuilt binaries and `npm i` bundle both automatically — for a source build, download `multilingual-e5-small` into `~/.umadev/embed-model/` once:\n>\n> ```bash\n> mkdir -p ~/.umadev/embed-model && cd ~/.umadev/embed-model\n> for f in config.json tokenizer.json model.safetensors; do\n>   curl -fsSL \"https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/$f\" -o \"$f\"\n> done\n> ```\n>\n> umadev auto-discovers it there (or point `UMADEV_EMBED_MODEL_DIR` at any directory with those three files). Without the model, umadev still works — retrieval just falls back to BM25-only.\n\nYou also need one AI coding CLI installed and logged in — that's the brain umadev drives:\n\n| Base | Install | Log in |\n|---|---|---|\n| Claude Code | `npm i -g @anthropic-ai/claude-code` | `claude auth login` |\n| Codex | `npm i -g @openai/codex` | `codex login` |\n| OpenCode | see opencode.ai | `opencode auth login` |\n\numadev injects nothing into the base. Whatever your base is configured with — an official login or your own third-party / local-model routing — is exactly what runs.\n\n---\n\n## Quickstart\n\n```bash\numadev                       # launch the chat UI; first run lets you pick a base\n```\n\nTell it what yo",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:29.336688"
+  },
+  {
+    "basic_info": {
+      "name": "nourish",
+      "full_name": "y5-snowies/nourish",
+      "owner": "y5-snowies",
+      "description": "Nourish OS. The modern way of using a computer.",
+      "url": "https://github.com/y5-snowies/nourish",
+      "clone_url": "https://github.com/y5-snowies/nourish.git",
+      "ssh_url": "git@github.com:y5-snowies/nourish.git",
+      "homepage": "http://nourish.snowies.com/",
+      "created_at": "2026-06-20T10:14:04Z",
+      "updated_at": "2026-07-03T03:27:30Z",
+      "pushed_at": "2026-07-02T04:07:35Z"
+    },
+    "stats": {
+      "stars": 202,
+      "forks": 6,
+      "watchers": 202,
+      "open_issues": 4,
+      "size": 209543
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4246206,
+        "GLSL": 230209,
+        "Shell": 118265,
+        "JavaScript": 36966,
+        "TypeScript": 31247,
+        "WGSL": 31080,
+        "HTML": 26312,
+        "Dockerfile": 19862,
+        "CSS": 16334,
+        "Nix": 9795,
+        "Roff": 4240,
+        "C": 390
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "compositor",
+        "linux",
+        "operating-system",
+        "wayland"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"compositor.website/assets/favicon.svg\" alt=\"Nourish\" width=\"84\" height=\"84\">\n\n# Nourish\n\n<img src=\"compositor.website/assets/hero-sphere.png\" alt=\"The Nourish world — one endless canvas\" width=\"300\">\n\n<br><br>\n\n\n[![CI](https://github.com/y5-snowies/nourish/actions/workflows/ci.yml/badge.svg)](https://github.com/y5-snowies/nourish/actions/workflows/ci.yml)\n[![Release](https://img.shields.io/github/v/release/y5-snowies/nourish?sort=semver)](https://github.com/y5-snowies/nourish/releases)\n[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)\n\n### Simple, next generation operating system\n\nhttps://github.com/user-attachments/assets/03d78832-c451-451f-a701-713710a20051\n\n**[nourish.snowies.com](https://nourish.snowies.com)**  ·  [Guide](https://nourish.snowies.com/guide)  ·  [Discord](https://discord.gg/kasec5bYb)\n\n</div>\n\n---\nNourish is a Linux desktop that doesn't limit you to your screen size.\n \nIt's free and open source, and stable enough to be a daily driver. It collects\nno data whatsoever — no telemetry, no analytics, not even crash reports. Nothing\never leaves your machine.\n \nIt's performant, and renders using Vulkan. Optionally, you can set an automatic\nfallback or explicitly select GLES on systems where Vulkan is not supported.\n \nIt fully supports NVIDIA and cards that use Mesa drivers such as Intel and AMD.\n\n## Features\n \n- A viewport you can zoom and pan, giving you an effectively infinite amount of\n  space to work on.\n- Built on the Wayland protocol with fractional-scale support, so compliant\n  windows stay sharp at any zoom level instead of turning blurry.\n- Non-intrusive multitasking aids that make it easy to work ergonomically across\n  many contexts at once.\n- Carefully designed for stability, with attention to avoiding faults and\n  performance issues.\nVisit **[nourish.snowies.com](https://nourish.snowies.com)** to see what it looks\nlike and the full list of features.\n\n## Install\n\nOn Fedora 44, it's one command. You get a prebuilt build, so there's no toolchain to set up:\n\n```bash\ncurl -fsSL https://nourish.snowies.com/release/latest/fedora44/package.tar.gz | tar -xz && y5-install/install.sh\n```\n\nThe installer is interactive and safe to re-run. For the full walkthrough see\n[`https://nourish.snowies.com/guide.html`](https://nourish.snowies.com/guide.html).\n\nPrefer a pinned build? Every release is also published immutably under its version —\n`https://nourish.snowies.com/release/v1.0.0/fedora44/package.tar.gz` — while `latest`\nalways points at the newest. Browse them on the\n[releases page](https://github.com/y5-snowies/nourish/releases).\n\nFor any other distribution, please see [`https://nourish.snowies.com/guide.html`](https://nourish.snowies.com/guide.html) I currently do not publish individual binaries for different distributions and generally recommend using Fedora.\nIf you are using a different distribution, it is easy to build from source which will link against your distribution system libraries versions automatically. \n\n## Source\n \nUnder the hood the engine is called **`y5`** — a Wayland compositor written in\nRust, standing on patched forks of\n[smithay](https://github.com/Smithay/smithay) (Wayland),\n[bevy](https://bevyengine.org) + [wgpu](https://wgpu.rs) (rendering), and\n[iced](https://iced.rs) (interface), all kept in-tree under `vendor/`.\n \nA thorough guide is available [here](https://nourish.snowies.com/guide.html).\n \n> **Note:** y5 was architected and hand-written, and only later enhanced with AI.\n> It contains a lot of generated code, all of which was pre-directed and reviewed\n> carefully.\n \n```bash\n# Build & run nested in your current Wayland session\nenvironment/run-host.sh winit release\n \n# Build the binary for use\nenvironment/build-release.sh system\n```\n \nIf you get errors about missing libraries, these are system libraries that the\nproject links against. On Fedora you can install them with\n`environment/install-deps.sh`. On another distribution, feed that script to your\nAI agent and ask which equivalent packages it needs.\n\n\n## Short term roadmap (~V1.5)\n\n1. AMD support for the Vulkan renderer.\n2. Multimonitor features — a few ideas and options are available, some of which\n   imply additional new features. Feel free to send a cool idea over Discord.\n3. Multiple binaries (i.e. common distribution and architecture configurations)\n   created as part of the CD pipeline and added as release artifacts on GitHub,\n   with one universal one-click installer.\n\n## Contributing\n \nContributions are welcome! If you hit a bug or have an idea, please\n[open an issue](https://github.com/y5-snowies/nourish/issues) — bug reports and\nfeature requests are genuinely appreciated. Pull requests are welcome too.\n\n## License\n\nLicensed under either of [Apache License 2.0](LICENSE-APACHE) or\n[MIT license](LICENSE-MIT) at your option.\n",
+      "default_branch": "upstream-integration"
+    },
+    "fetched_at": "2026-07-03T04:36:30.695665"
+  },
+  {
+    "basic_info": {
+      "name": "tokenscope",
+      "full_name": "HduSy/tokenscope",
+      "owner": "HduSy",
+      "description": "MacOS menu-bar dashboard for Claude CLI token usage, estimated cost, and per-model / MCP / Skill breakdowns.",
+      "url": "https://github.com/HduSy/tokenscope",
+      "clone_url": "https://github.com/HduSy/tokenscope.git",
+      "ssh_url": "git@github.com:HduSy/tokenscope.git",
+      "homepage": "https://tokenscope.app",
+      "created_at": "2026-06-05T11:46:24Z",
+      "updated_at": "2026-07-03T03:08:14Z",
+      "pushed_at": "2026-06-30T15:22:23Z"
+    },
+    "stats": {
+      "stars": 193,
+      "forks": 8,
+      "watchers": 193,
+      "open_issues": 1,
+      "size": 5374
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 99285,
+        "TypeScript": 53583,
+        "HTML": 44390,
+        "Python": 2478
+      },
+      "license": "MIT License",
+      "topics": [
+        "analytics",
+        "claude",
+        "claude-cli",
+        "cost-tracking",
+        "tauri",
+        "token-counter",
+        "token-usage"
+      ]
+    },
+    "content": {
+      "readme": "# Tokenscope\n\n**English** · [中文](README-zh.md)\n\n<a href=\"https://www.producthunt.com/products/tokenscope-2?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-tokenscope-2\" target=\"_blank\" rel=\"noopener noreferrer\"><img alt=\"Tokenscope - MacOS menu-bar dashboard for Claude CLI token usage | Product Hunt\" width=\"250\" height=\"54\" src=\"https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1165012&amp;theme=light&amp;t=1780816780292\"></a>\n\nA **menu-bar / system-tray app for macOS and Windows** that shows your Claude CLI **daily token usage, estimated cost, and per-model / MCP / Skill call breakdown**.\n\nStack: **Tauri 2 + React + TypeScript** (frontend) / **Rust** (data layer).\n\n![Tokenscope panel (dark / light)](docs/screenshot.png)\n\n## What it does\n\n- Shows today's token count next to the menu-bar icon (e.g. `⬡ 14.00M`)\n- Click to open the panel: Day / Week / Month toggle\n- Metrics: total tokens (input/output), estimated cost, requests / sessions\n- Three breakdowns: **by model** / **by MCP call** / **by Skill call**\n- Cost donut (hover for a single model), year-long activity heatmap\n- **Counts only the MCP servers / Skills you installed yourself** — all Claude built-in tools and Anthropic's bundled MCP servers are filtered out\n\n## Data sources (zero-intrusion, read-only)\n\n| Purpose | Path |\n|---------|------|\n| Session logs (tokens / model / tool calls) | `~/.claude/projects/**/*.jsonl` |\n| User MCP whitelist | `~/.claude.json` → `mcpServers` + `projects[*].mcpServers` |\n| User Skill whitelist | `~/.claude/skills/` directory |\n| Model prices | **Primary**: [models.dev](https://models.dev/api.json) (bare model names, matching Claude CLI logs) → **Fallback**: [LiteLLM](https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json) → built-in snapshot. Cached in `~/Library/Caches/tokenscope/`, refreshed every 24h, with offline fallback |\n\n### Key processing\n- Deduplicated by `message.id` (streaming/retries repeat the same usage); when one message spans multiple lines, its tool calls are merged and the token usage is counted once\n- Token split: `input` (uncached) / `cache` (creation+read) / `output`; the UI folds cache into \"In\" by default and shows a separate \"cached %\"\n- Price matching: exact id → normalized id (strip vendor prefix + `.`↔`p`, e.g. `glm-5.1`⇄`glm-5p1`); models.dev's official bare-name price wins\n- Cost is priced per the four token types; each model carries a `priced` flag — **models not found in either source still count tokens but are labelled \"no price\" in the UI**\n- Logs contain only the bare model name (no vendor) → third-party models default to the official vendor price (an estimate)\n- Tool classification: `mcp__<server>__*` where the server is in your config → MCP; a Skill call (the `Skill` tool's `input.skill`, or a `/skill` slash command) whose name is in your skills directory → Skill; everything else is ignored\n\n> Cost is an **estimate** based on public prices; subscription users should read it as \"equivalent spend value\".\n\n### Token types & cost formula\n\nEvery assistant message's `usage` reports four **mutually exclusive** token counts (they never double-count the same token):\n\n| Stage | `usage` field | What it is | Price (relative to input) |\n|-------|---------------|------------|---------------------------|\n| **Input** (uncached) | `input_tokens` | New prompt tokens sent this turn | 1× |\n| **Cache write** | `cache_creation_input_tokens` | Context written into the prompt cache | ~1.25× |\n| **Cache read** (hit) | `cache_read_input_tokens` | Context replayed from the cache | ~0.1× (much cheaper) |\n| **Output** | `output_tokens` | Tokens the model generated | ~5× |\n\n**Tokens** (per period, summed over messages):\n\n```\ntotal  = input + cache_creation + cache_read + output\n# the UI shows:  In = input + cache_creation + cache_read,  Out = output,  cached % = cache_read / total\n```\n\n**Cost** (each stage priced at its own per-token rate from the price table):\n\n```\ncost = input            × price.input\n     + cache_creation   × price.cache_creation\n     + cache_read       × price.cache_read     # cache hits billed at the discounted read rate\n     + output           × price.output\n```\n\nSo a cache hit is **not** billed as normal input — it uses the dedicated (cheaper) `cache_read` rate, which is why heavily-cached usage shows a huge token count but a modest cost. The UI folds cache into \"In\" for display only; billing always uses the four separate rates above.\n\n## Install\n\n### Option 1: Homebrew (recommended)\n\n```bash\nbrew install --cask hdusy/tokenscope/tokenscope\n```\n\nThe cask's `postflight` strips the quarantine attribute (`xattr -cr`) automatically, so **it opens on first launch without the \"Apple cannot verify\" prompt**.\n\nAfter you open it once it registers as a login item, then **launches in the menu bar automatically on every boot**.\n\nUpgrade:\n\n```bash\nbrew update && brew upgrade --cask tokenscope\n```\n\n### Optio",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:32.024939"
+  },
+  {
+    "basic_info": {
+      "name": "ashell",
+      "full_name": "rust-kotlin/ashell",
+      "owner": "rust-kotlin",
+      "description": "ashell is a modern, fast, GPUI Component-based desktop terminal client written in Rust.",
+      "url": "https://github.com/rust-kotlin/ashell",
+      "clone_url": "https://github.com/rust-kotlin/ashell.git",
+      "ssh_url": "git@github.com:rust-kotlin/ashell.git",
+      "homepage": "",
+      "created_at": "2026-06-08T07:17:51Z",
+      "updated_at": "2026-07-03T03:16:19Z",
+      "pushed_at": "2026-07-02T20:57:26Z"
+    },
+    "stats": {
+      "stars": 187,
+      "forks": 24,
+      "watchers": 187,
+      "open_issues": 10,
+      "size": 22091
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 763027,
+        "Shell": 2114
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "[中文](README.md) | [English](README.en.md)\n\n# ashell\n\n![Preview](preview.png)\n\n`ashell` 是一款现代化的、基于 GPUI Component 构建的 Rust 桌面终端客户端。\n\n该项目旨在通过结合本地和远程环境，并内置丰富的核心功能，提供一个高性能且美观的 Shell 工作区。\n\n## 🚀 v0.4 版本重要升级\n\nv0.4 在 v0.3 打下的基础上，重点带来了更完整的工作区操作能力和更顺手的日常体验：\n- ✨ **键位管理功能**：支持在设置中可视化查看和修改常用快捷键，并提供冲突提示。\n- ✨ **设置页优化**：设置页的布局和交互更加紧凑顺手，整体信息层级更清晰。\n- ✨ **Tab 内多 Pane 与类 tmux 体验**：一个 tab 内现在可以管理多个 pane，支持分屏、聚焦和切换，提供更接近 tmux 的工作流。\n- ✨ **传输历史增强**：传输历史面板展示更完整的任务信息，便于回溯上传和下载过程。\n- ✨ **SSH passphrase 支持**：现在可以为私钥填写 passphrase，并在连接时自动使用保存的口令。\n- ✨ **终端显示优化**：终端渲染进一步增强，支持 Block Elements 等自定义图形字符的更完整显示。\n\n## 下载\n\n您可以从 [GitHub Releases 页面](https://github.com/rust-kotlin/ashell/releases/latest) 下载 macOS、Windows 和 Linux 版本的最新预编译程序。\n\n## Mac 安装指南\n\n### 方法 1: Homebrew 安装 (推荐)\n\n如果您使用 [Homebrew](https://brew.sh/)，可以通过以下命令快速安装：\n\n```bash\nbrew install rust-kotlin/taps/ashell --cask\n```\n\n更新应用：\n\n```bash\nbrew update\nbrew upgrade ashell --cask\n```\n\n> **注意**: 由于应用采用本地签名，Homebrew 在安装或更新过程中会执行一个后置脚本来自动处理隔离属性（quarantine flag），这需要您输入管理员密码以授权。\n\n### 方法 2: 手动下载\n\n1. 从 [Releases 页面](https://github.com/rust-kotlin/ashell/releases/latest) 下载并解压。\n2. 将 `ashell.app` 拖入或移动到 **应用程序 (Applications)** 目录。\n3. 由于应用采用本地签名，初次启动时如果系统提示“App 已损坏，无法打开”，请打开终端（Terminal）并执行以下命令：\n\n```bash\nsudo xattr -cr /Applications/ashell.app\n```\n\n## 功能特性\n\n当前版本提供了一个功能完备的 GPUI 原生工作区：\n\n- **本地与远程会话**：支持打开本地终端标签页或通过 SSH 连接到远程服务器。\n- **高级 SSH 认证**：支持基于密码和基于密钥（文件路径或内联内容）的 SSH 连接方式。\n- **会话管理**：可以轻松地保存、重新打开、编辑和删除您的 SSH 会话。\n- **SFTP 集成**：内置 SFTP 文件管理器，可以浏览、上传、下载以及管理远程文件。\n- **强大的终端模拟器**：使用 `alacritty_terminal` 解析终端输出，支持丰富的 ANSI 颜色代码、极速渲染和完整的键盘输入转发。\n- **系统遥测**：在左侧边栏实时可视化显示 CPU、内存、Swap、网络和磁盘的使用指标。\n- **主题系统**：支持直接从顶部工具栏切换多种 GPUI Component 颜色主题。\n- **内置字体**：开箱即用，内置 Maple Mono NF CN 字体，提供卓越的中日韩（CJK）字符与 Nerd Font 图标支持。\n- **v0.3 核心增强**：全局字体与字号可调，支持 SFTP 并发传输、布局记忆、断线感知、多语言热切换，以及终端右键复制粘贴等增强能力。\n\n## 运行\n\n在本地运行该应用：\n\n```bash\ncargo run --release\n```\n\n## 打包 macOS 应用\n\n```bash\n./scripts/package-macos-app.sh\nopen target/release/ashell.app\n```\n\n该打包脚本会创建一个标准的 `.app` 应用程序包。它没有附加 entitlements 文件，并且在签名后会验证是否不存在 `com.apple.security.app-sandbox`（这意味着它在非沙盒模式下运行）。\n\n## 协议\n\n本项目采用 [GPL-3.0-or-later 协议](LICENSE) 开源。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:33.382135"
+  },
+  {
+    "basic_info": {
+      "name": "Skiff",
+      "full_name": "DrizzleTime/Skiff",
+      "owner": "DrizzleTime",
+      "description": "Skiff is a local cross-platform disk cleanup tool for inspecting caches, applications, duplicate files, and large files before removal.",
+      "url": "https://github.com/DrizzleTime/Skiff",
+      "clone_url": "https://github.com/DrizzleTime/Skiff.git",
+      "ssh_url": "git@github.com:DrizzleTime/Skiff.git",
+      "homepage": "",
+      "created_at": "2026-06-07T03:01:20Z",
+      "updated_at": "2026-07-03T04:31:18Z",
+      "pushed_at": "2026-06-29T10:56:26Z"
+    },
+    "stats": {
+      "stars": 183,
+      "forks": 8,
+      "watchers": 183,
+      "open_issues": 1,
+      "size": 507
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 370098,
+        "TypeScript": 341216,
+        "CSS": 11028,
+        "HTML": 4301
+      },
+      "license": "MIT License",
+      "topics": [
+        "cleanup",
+        "linux",
+        "rust",
+        "tauri",
+        "typescript"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"right\">\n  <a href=\"./README.zh-CN.md\">简体中文</a>\n</div>\n\n<div align=\"center\">\n  <img src=\"src-tauri/icons/tray.png\" alt=\"Skiff\" width=\"64\" height=\"64\" />\n\n  <p>\n    Skiff is a local cross-platform disk cleanup tool for inspecting caches,\n    applications, duplicate files, and large files before removal.\n  </p>\n\n  <p>\n    <img alt=\"Tauri\" src=\"https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white\" />\n    <img alt=\"React\" src=\"https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111111\" />\n    <img alt=\"Rust\" src=\"https://img.shields.io/badge/Rust-2021-000000?logo=rust&logoColor=white\" />\n    <img alt=\"Linux\" src=\"https://img.shields.io/badge/Linux-supported-FCC624?logo=linux&logoColor=111111\" />\n    <img alt=\"macOS\" src=\"https://img.shields.io/badge/macOS-supported-000000?logo=apple&logoColor=white\" />\n    <img alt=\"Windows\" src=\"https://img.shields.io/badge/Windows-supported-0078D4?logo=windows&logoColor=white\" />\n    <img alt=\"Bun\" src=\"https://img.shields.io/badge/Bun-runtime-000000?logo=bun&logoColor=white\" />\n  </p>\n</div>\n\n## Interface Preview\n\nSkiff provides two main workflows: a classic cleanup interface for direct inspection and an AI-assisted analysis interface for understanding space usage.\n\n### Classic Cleanup Tool\n\nCheck disk usage, cache cleanup targets, large files, duplicate files, and application cleanup items.\n\n<a href=\"https://shiyu.dev/uploads/2026/06/b7762be8-c277-48a9-b951-b02e10345c92.png\">\n  <img src=\"https://shiyu.dev/uploads/2026/06/b7762be8-c277-48a9-b951-b02e10345c92.png\" alt=\"Skiff classic cleanup tool interface\" width=\"100%\" />\n</a>\n\n### AI Smart Space Analysis\n\nUnderstand disk usage from local scan results and get readable cleanup suggestions.\n\n<a href=\"https://shiyu.dev/uploads/2026/06/12af9c6c-8672-46ee-92e1-0d7cf8c9de6c.png\">\n  <img src=\"https://shiyu.dev/uploads/2026/06/12af9c6c-8672-46ee-92e1-0d7cf8c9de6c.png\" alt=\"Skiff AI smart space analysis interface\" width=\"100%\" />\n</a>\n\n## Features\n\n- **Disk overview**: reads total, used, available space, usage ratio, and disk location for the current user's home directory.\n- **Junk cleanup**: scans and cleans platform-specific cache locations, including system caches, browser caches, developer tool caches, Flatpak and Arch package caches on Linux, and Homebrew cache on macOS.\n- **Large file scan**: scans common user directories for large files and moves selected files to the system Trash after confirmation.\n- **Duplicate file scan**: finds duplicate files by size, content hash, and byte-by-byte comparison, then moves selected files to the system Trash.\n- **Application cleanup**: reads Linux packages, macOS applications and Homebrew packages, or Windows uninstall registry entries, with filtering, search, selection, and confirmed uninstall.\n- **Cleanup history**: shows recent cleanup, Trash, uninstall, and Agent cleanup results. The main UI keeps the latest 50 records.\n- **Settings**: adjusts file scan paths, large-file scan thresholds, duplicate-file scan thresholds, and whether advanced feature entries are shown. Custom paths must stay inside the current user's HOME directory.\n- **Tray behavior**: closing the main window hides it to the system tray instead of exiting the app.\n\n## Safety Boundaries\n\nSkiff performs real file deletion and package uninstall operations. The current implementation has these boundaries:\n\n- Linux, macOS, and Windows are supported by the local app and CLI. Each platform has its own cleanup target list.\n- Junk cleanup removes contents from predefined cache directories. Some package-manager cleanup targets call system commands.\n- Large-file and duplicate-file handling only allows regular files inside the current user's HOME directory. Files are moved to the system Trash by default instead of being permanently deleted. They become unrecoverable only after the Trash is emptied.\n- Large-file and duplicate-file scans default to common user directories such as Desktop, Documents, Downloads, media folders, code/project folders, and common cloud-drive folders. Application data directories such as `.config`, `AppData`, and macOS `Library` must be added manually in Settings.\n- Duplicate-file detection first groups files by size, then computes a content hash, and finally confirms equality with a byte-by-byte comparison.\n- Application uninstall uses the platform's registered uninstall mechanism:\n  - APT: `apt-get remove -y`\n  - RPM: prefers `dnf remove -y`, then `yum remove -y`, `zypper --non-interactive remove`, and finally `rpm -e`\n  - Pacman: `pacman -R --noconfirm -- <package>`\n  - Flatpak: `flatpak uninstall -y --app`\n  - macOS `.app`: moves the app bundle to Trash\n  - Homebrew: `brew uninstall --formula` or `brew uninstall --cask`\n  - Windows: reads `UninstallString` / `QuietUninstallString` from the registry and runs that command\n- Linux commands that require administrator privileges use `pkexec` when available. macOS and Windows may show their native authorization prompts.",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:34.752078"
+  },
+  {
+    "basic_info": {
+      "name": "geolibre-rust",
+      "full_name": "opengeos/geolibre-rust",
+      "owner": "opengeos",
+      "description": "whitebox_next_gen geospatial tools (plus new GeoLibre tools) compiled to WebAssembly (WASI) for in-browser use in GeoLibre",
+      "url": "https://github.com/opengeos/geolibre-rust",
+      "clone_url": "https://github.com/opengeos/geolibre-rust.git",
+      "ssh_url": "git@github.com:opengeos/geolibre-rust.git",
+      "homepage": "http://opengeos.org/geolibre-rust",
+      "created_at": "2026-06-17T03:00:55Z",
+      "updated_at": "2026-07-02T09:41:36Z",
+      "pushed_at": "2026-07-02T02:36:33Z"
+    },
+    "stats": {
+      "stars": 176,
+      "forks": 22,
+      "watchers": 176,
+      "open_issues": 2,
+      "size": 341
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 304851,
+        "Python": 13910,
+        "JavaScript": 5068,
+        "Dockerfile": 2791,
+        "Shell": 1824
+      },
+      "license": "MIT License",
+      "topics": [
+        "geolibre",
+        "geospatial",
+        "open-source",
+        "rust",
+        "whiteboxtools"
+      ]
+    },
+    "content": {
+      "readme": "# geolibre-rust\n\n[![npm version](https://img.shields.io/npm/v/geolibre-wasm.svg)](https://www.npmjs.com/package/geolibre-wasm)\n[![PyPI version](https://img.shields.io/pypi/v/geolibre-wasm.svg)](https://pypi.org/project/geolibre-wasm/)\n[![npm downloads](https://img.shields.io/npm/dm/geolibre-wasm.svg)](https://www.npmjs.com/package/geolibre-wasm)\n[![CI](https://github.com/opengeos/geolibre-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/opengeos/geolibre-rust/actions/workflows/ci.yml)\n[![license](https://img.shields.io/npm/l/geolibre-wasm.svg)](https://github.com/opengeos/geolibre-rust#license)\n[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/opengeos/geolibre-rust/blob/main/examples/geolibre_wasm.ipynb)\n\nA pure-Rust geospatial toolkit for [GeoLibre](https://github.com/opengeos/GeoLibre),\nbuilt on [`opengeos/whitebox-wasm`](https://github.com/opengeos/whitebox-wasm)\n(the WASM-ready fork of\n[`whitebox_next_gen`](https://github.com/jblindsay/whitebox_next_gen)) and\ncompiled to WebAssembly. It is a **superset of `whitebox-wasm`**: everything that\npackage offers, plus new GeoLibre-authored tools.\n\nThe published npm package (`geolibre-wasm`) ships two layers:\n\n- **Browser library** (`.` export, `wasm-bindgen`) -- typed in-memory APIs for\n  GeoTIFF/COG read+write, projections, vector, LiDAR, and topology\n  (`GeoTiffReader`, `CogBuilder`, `CogStream`, ...). Same surface as\n  `whitebox-wasm`.\n- **Tool runner** (`./tools` export, WASI) -- the whitebox tool registry **plus\n  GeoLibre's own tools**, run over an in-memory `/work` filesystem via\n  [`@bjorn3/browser_wasi_shim`](https://github.com/bjorn3/browser_wasi_shim).\n\nNo server, no GDAL, no native install. Use it from JavaScript (npm\n`geolibre-wasm`) or Python (PyPI `geolibre-wasm`). New tools live in the\n`geolibre-tools` crate and are registered alongside whitebox's, so GeoLibre sees\nthem through the same interface as the built-ins.\n\n## Try it in the browser\n\n`demo/index.html` is a self-contained page that loads every tool manifest,\nrenders a parameter form for whichever tool you pick, and runs it on a sample DEM\n(or your own GeoTIFF) entirely in the browser via the WASI runner.\n\n```bash\n./build.sh          # once, to produce npm/geolibre-cli.wasm and npm/tools.mjs\n./demo/serve.sh     # serve on http://localhost:8000 (pass a port to override)\n```\n\nOpen the printed URL, filter the tool list, fill in the auto-generated form, and\nclick **Run** to see the exit code, stdout, output files, and a download link.\n`serve.sh` stages the runtime (`npm/tools.mjs`, `npm/geolibre-cli.wasm`) and the\nsample raster (`examples/sample.tif`) next to the page in a temp directory, so the\nrepo's `demo/` stays clean; Ctrl-C stops the server and cleans up.\n\n### Self-host with Docker\n\nThe same demo ships as a container image so you can host it yourself. The image\nis a static site (nginx) — every tool still runs in the visitor's browser, so\nthere's no server-side compute, GDAL, or database.\n\nPull the published image with Docker Compose:\n\n```bash\ndocker compose up -d        # serves on http://localhost:8080\n```\n\nOr build and run it straight from source (needs only Docker — the Rust/WASM\ntoolchain lives inside the build):\n\n```bash\ndocker build -t geolibre-rust .\ndocker run --rm -p 8080:80 geolibre-rust\n```\n\nImages are published to `ghcr.io/opengeos/geolibre-rust` on each release (and on\n`v*` tags); `:latest` tracks the most recent release. To build from source via\nCompose instead of pulling, uncomment `build: .` in `docker-compose.yml`.\n\n## Architecture\n\n```\ncrates/geolibre-wasm   wasm-bindgen browser library  -> geolibre_wasm{.js,_bg.wasm,.d.ts}  (npm \".\")\ncrates/geolibre-cli    WASI tool runner              -> geolibre-cli.wasm + tools.mjs       (npm \"./tools\")\ncrates/geolibre-tools  new Tool impls (raster_normalize, ...), registered by geolibre-cli\n\nJS (browser/Node)                WASI binary (geolibre-cli.wasm)\n-----------------                --------------------------------\ntools.mjs                        crates/geolibre-cli (main.rs)\n  write inputs -> /work    -->     argv -> ToolArgs (JSON)\n  argv [\"slope\", \"--...\"]  -->     ToolRegistry::run\n  read new files from /work <--      register_default_tools (whitebox)\n                                     + geolibre_tools (new tools)\n                                   tool writes via std::fs to /work\n```\n\n## GeoLibre-authored tools\n\nIn addition to the whitebox suite, `geolibre-tools` ships cloud-native I/O and\nrendering tools that the whitebox suite lacks (all pure-Rust, running in WASM):\n\n| Tool id | What it does |\n|---|---|\n| `reproject_raster` | Reproject (warp) a raster into a target EPSG CRS, with selectable resampling. |\n| `render_raster_png` | Render a raster band to a PNG through a colormap (viridis/magma/turbo/terrain/grayscale); no-data becomes transparent. |\n| `raster_to_tiles` | Slice a raster into a Web Mercator (EPSG:3857) XYZ PNG tile pyramid for",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:36.137618"
+  },
+  {
+    "basic_info": {
+      "name": "qeli",
+      "full_name": "litvinovtd/qeli",
+      "owner": "litvinovtd",
+      "description": "Self-hosted, censorship-resistant VPN with REALITY / anti-DPI obfuscation and post-quantum (X25519 + ML-KEM-768) crypto. Rust core + native Android/Windows/macOS clients. Works on networks with active DPI (Iran, China, Russia).",
+      "url": "https://github.com/litvinovtd/qeli",
+      "clone_url": "https://github.com/litvinovtd/qeli.git",
+      "ssh_url": "git@github.com:litvinovtd/qeli.git",
+      "homepage": "https://qeli.ru",
+      "created_at": "2026-06-07T18:28:51Z",
+      "updated_at": "2026-07-02T21:40:56Z",
+      "pushed_at": "2026-07-02T21:20:23Z"
+    },
+    "stats": {
+      "stars": 165,
+      "forks": 6,
+      "watchers": 165,
+      "open_issues": 17,
+      "size": 26006
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1318992,
+        "Python": 715980,
+        "C#": 543522,
+        "HTML": 294361,
+        "Kotlin": 259806,
+        "Shell": 82663,
+        "JavaScript": 82554,
+        "CSS": 16981,
+        "Makefile": 5554,
+        "Dockerfile": 3913,
+        "PowerShell": 658
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "android",
+        "anti-censorship",
+        "anti-dpi",
+        "censorship-circumvention",
+        "deep-packet-inspection",
+        "dpi-bypass",
+        "macos",
+        "ml-kem",
+        "obfuscation",
+        "post-quantum",
+        "quic",
+        "reality",
+        "rust",
+        "self-hosted",
+        "vpn",
+        "vpn-client",
+        "vpn-server",
+        "windows",
+        "wireguard-alternative",
+        "xray"
+      ]
+    },
+    "content": {
+      "readme": "# Qeli — self-hosted anti-censorship VPN with REALITY / anti-DPI obfuscation\n\n**Qeli** — самостоятельно-хостируемый (self-hosted) VPN с современной криптографией\nи настраиваемой **обфускацией транспорта**, спроектированный для работы в сетях с\nактивной **DPI** (Deep Packet Inspection). Один Rust-движок протокола и нативные\nклиенты под **Android, Windows и macOS** на общем ядре через FFI; есть\nэкспериментальный клиент для роутеров **Keenetic** (клиент под **OpenWrt** — в разработке).\n\n**Qeli** is a **self-hosted, censorship-resistant VPN** with modern cryptography and\nconfigurable **transport obfuscation**, built to keep working on networks with active\n**Deep Packet Inspection (DPI)**. One Rust protocol engine plus native **Android /\nWindows / macOS** clients sharing a native core via FFI, plus an experimental\n**Keenetic** router client (an **OpenWrt** client is in development).\n\nКриптография · Cryptography: эфемерный **X25519** + post-quantum **ML-KEM-768**\n(гибридный handshake) · **ChaCha20-Poly1305** AEAD · **Argon2id** для паролей.\n\n## Статус · Status\n\n> ⚠️ **Бета.** Все компоненты сейчас в бета-версиях и могут работать нестабильно.\n> Стабильной считается линейка начиная с версии **1.0** — она выйдет после\n> тестирования и сбора обратной связи от пользователей.\n>\n> ⚠️ **Beta.** All components are currently beta releases and may be unstable.\n> The **1.0** line will be the first stable one — it will ship after testing and\n> user feedback.\n\n## Возможности · Features\n\n- **Режимы обфускации (wire modes) · obfuscation/wire modes:** `plain`, `fake-tls`,\n  `obfs`, **`reality-tls` (REALITY)**, `quic` — выбираются на профиль, по TCP и UDP.\n- **REALITY (`reality-tls`):** настоящий TLS 1.3-handshake к реальному стороннему сайту\n  (cert-borrowing / TLS-camouflage) — трафик выглядит как обычный HTTPS к этому сайту,\n  устойчив к **active probing** и блокировке по SNI. A genuine TLS 1.3 handshake to a\n  real decoy site, so the connection is indistinguishable from ordinary HTTPS and\n  resists active probing & SNI-based blocking.\n- **Анти-DPI форма потока · traffic flow shaping:** cover-трафик в простое (Poisson) +\n  опциональный **stealth**-режим, чтобы поток не выглядел как «bulk-загрузка» для\n  статистического DPI.\n- **Post-quantum:** гибридный X25519 + **ML-KEM-768** во внутреннем handshake — защита\n  от «harvest-now, decrypt-later».\n- **Кроссплатформенные клиенты · cross-platform clients:** Android, Windows (WPF),\n  macOS (Avalonia), общий нативный core (Rust FFI) + экспериментальный Keenetic\n  (OpenWrt — в разработке: procd + UCI + LuCI).\n- **Self-hosted сервер · server:** Linux, `.deb`-пакет + systemd, **веб-панель**\n  администрирования, CLI, full-tunnel NAT, мульти-профиль (по профилю на режим/порт).\n- **Импорт в один шаг · one-tap import:** `qeli://`-ссылки и QR для телефонов.\n\n## Работает при активном DPI · Works under active DPI\n\nQeli создан для **устойчивости к цензуре** в сетях, где обычный VPN (WireGuard,\nOpenVPN, IKEv2) распознаётся и блокируется DPI — например в **Иране**, **Китае**\n(Great Firewall / GFW) и **России** (ТСПУ). Режим **REALITY** маскирует туннель под\nобычный HTTPS к легитимному сайту, а форма потока сбивает статистические эвристики DPI.\n\nQeli is designed for **censorship circumvention** on networks where ordinary VPN\nprotocols are fingerprinted and blocked by DPI — e.g. **Iran**, **China** (the Great\nFirewall / GFW) and **Russia** (TSPU). **REALITY** makes the tunnel look like normal\nHTTPS to a legitimate site, and traffic shaping defeats statistical DPI heuristics.\n\n> По духу — самохостируемая альтернатива связке Xray/V2Ray/sing-box (REALITY/VLESS),\n> но с собственным протоколом, нативными GUI-клиентами и post-quantum handshake.\n> In spirit a self-hosted alternative to Xray / V2Ray / sing-box (REALITY/VLESS)\n> setups, but with its own protocol, native GUI clients and a post-quantum handshake.\n\n## Быстрый старт · Quick start\n\n**Сервер за одну команду (REALITY на :443) · one-command REALITY server:**\n\n```bash\n# на чистом Linux-сервере (Debian/Ubuntu), от root:\ncurl -fsSL https://raw.githubusercontent.com/litvinovtd/qeli/main/install-reality-server.sh | bash\n```\n\nСкрипт ставит `.deb` из [Releases](https://github.com/litvinovtd/qeli/releases), пишет\nreality-tls-конфиг на :443 с full-tunnel NAT, создаёт пользователей и печатает готовые\n`qeli://`-ссылки. Затем поставьте клиент из [Releases](https://github.com/litvinovtd/qeli/releases)\nи вставьте/отсканируйте ссылку. Подробный разбор «с нуля» (CLI + веб-панель) —\n[GETTING-STARTED.md](eng/GETTING-STARTED.md) · [GETTING-STARTED.md (рус)](ru/GETTING-STARTED.md).\n\nThe script installs the `.deb` from Releases, writes a reality-tls config on :443 with\nfull-tunnel NAT, creates users and prints ready-to-use `qeli://` links. Then install a\nclient from Releases and paste/scan a link. Full from-scratch guide (CLI + web panel) is\nin [GETTING-STARTED.md](eng/GETTING-STARTED.md).\n\n## Документация · Documentation\n\n- 🇷🇺 **Русский** — [`docs/ru/README.md`](ru/READ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:37.537522"
+  },
+  {
+    "basic_info": {
+      "name": "prototype",
+      "full_name": "encrypted-spaces/prototype",
+      "owner": "encrypted-spaces",
+      "description": "A cryptographic framework for building collaborative applications over an untrusted server. Research prototype.",
+      "url": "https://github.com/encrypted-spaces/prototype",
+      "clone_url": "https://github.com/encrypted-spaces/prototype.git",
+      "ssh_url": "git@github.com:encrypted-spaces/prototype.git",
+      "homepage": "https://encryptedspaces.org",
+      "created_at": "2026-06-11T04:43:13Z",
+      "updated_at": "2026-07-03T03:55:27Z",
+      "pushed_at": "2026-06-11T12:09:32Z"
+    },
+    "stats": {
+      "stars": 162,
+      "forks": 8,
+      "watchers": 162,
+      "open_issues": 0,
+      "size": 3300
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3645513,
+        "Python": 31836,
+        "Dockerfile": 15314,
+        "Shell": 4084,
+        "RenderScript": 1
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Encrypted Collaboration Spaces\n\nA cryptographic framework for building collaborative applications over an\nuntrusted server, and a working prototype implementation.\n\nThe cryptographic design is described in full in the\n[whitepaper](https://encryptedspaces.org/whitepapers/encrypted-spaces.pdf). For a\nhigh-level overview of the project, see\n[encryptedspaces.org](https://encryptedspaces.org).\n\n## ⚠️⚠️⚠️ DO NOT USE IN PRODUCTION ⚠️⚠️⚠️\n\nThis is experimental code published for research purposes.\n\nThe implementation remains under active development and has not yet undergone the level of security review, testing, auditing, and hardening required for production deployment. The issues tracked in this repository are not a complete accounting of security limitations, known issues, or remaining risks.\n\n***This code MUST NOT be used to protect sensitive data or in security-critical applications.***\n\nFor example:\n- **Authentication is a placeholder.** The reference server accepts a\n  client-asserted identity on connection and does not yet verify it. Security\n  rests on the cryptographic verification each client performs on server\n  responses, *not* on server-enforced access control.\n- **Fast-forward proofs require `--features real-proofs`.** Default builds run\n  RISC Zero in dev mode (`RISC0_DEV_MODE=1`), which accepts non-cryptographic\n  \"fake\" receipts for fast iteration. Builds intended to rely on succinct\n  fast-forward proofs must enable the `real-proofs` feature.\n- **DoS hardening is incomplete.** Some deserialization paths are not yet\n  depth-bounded, so malformed input can exhaust resources. The insider-DoS\n  resistance described in the design goals below is a target, not a hardened\n  guarantee in this prototype.\n\n## What is this?\n\nMost collaboration software stores shared application state on servers in\nplaintext, requiring users to trust those servers (and any integrated\nservices) with the contents of their documents, chats, and databases.\nEnd-to-end encryption addresses messaging but does not directly generalize\nto applications where participants must read, modify, and verify long-lived\nstructured state.\n\nAn *Encrypted Collaboration Space* is a shared, mutable application state\nwith dynamic membership, shared cryptographic key material, an authenticated\nhistory of operations, and a verifiable database representing current\ncontents. The server holds only ciphertexts and proof material; clients\nverify every server response locally with cryptographic proofs.\n\nThe design targets four security properties:\n\n- **Verifiable history.** Members can confirm that the membership list and\n  shared data are the correct result of all previous operations.\n- **Selective data retention.** Members can delete shared data items and\n  give new members access to the non-deleted older data.\n- **Insider robustness.** Malicious insiders cannot compromise security of\n  communications occurring before or after their membership, or cause\n  denial of service for other members.\n- **Deniable sender authentication.** Members can authenticate the author\n  of each data object without producing publicly-verifiable cryptographic\n  evidence of user relationships.\n\n## Architecture at a glance\n\n- **Changelog.** Append-only, hash-chained log of operations. The\n  authenticated history of a Space.\n- **Verifiable database.** Current state exposed via Merkle search trees;\n  clients check the database commitment against the latest changelog\n  commitment on every response.\n- **Tables, lists, text.** Relational rows with primary-key and\n  secondary-index search trees; ordered lists via keyless\n  order-statistic trees; collaborative text layered on lists.\n- **Membership.** A members table tracks who can participate. Existing\n  members invite new ones by issuing provisional keys; removal triggers a\n  rekey of the remaining members, without requiring re-encryption of data.\n- **Access control.** Per-table rules constrain which members can write or\n  delete which rows, enforced cryptographically rather than by\n  server policy.\n- **Retention.** Members can grant new joiners access to historic data, or\n  selectively delete data before a chosen point so neither the server nor\n  future members can read it, without re-encrypting the entire Space.\n- **Fast-forward proofs.** Succinct zero-knowledge proofs that let clients\n  skip ahead in the changelog without replaying every operation.\n\n## Repository layout\n\n| Path           | Contents                                                |\n| -------------- | ------------------------------------------------------- |\n| `sdk/`         | Client SDK and verifiable database API (start here)     |\n| `crypto/`      | Core cryptographic primitives                           |\n| `zkp/`         | Zero-knowledge proof system                             |\n| `ffproof/`     | Fast-forward changelog proofs                           |\n| `retention/`   | Selective data retention construction                   |\n| `key_manager/` | Group key sta",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:38.955632"
+  },
+  {
+    "basic_info": {
+      "name": "blade-deepseek",
+      "full_name": "echoVic/blade-deepseek",
+      "owner": "echoVic",
+      "description": "Orca is a DeepSeek-native coding agent.",
+      "url": "https://github.com/echoVic/blade-deepseek",
+      "clone_url": "https://github.com/echoVic/blade-deepseek.git",
+      "ssh_url": "git@github.com:echoVic/blade-deepseek.git",
+      "homepage": "",
+      "created_at": "2026-06-05T07:19:56Z",
+      "updated_at": "2026-07-03T04:35:04Z",
+      "pushed_at": "2026-07-03T04:35:17Z"
+    },
+    "stats": {
+      "stars": 150,
+      "forks": 0,
+      "watchers": 150,
+      "open_issues": 0,
+      "size": 3499
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3634763,
+        "JavaScript": 111077,
+        "TypeScript": 95162,
+        "CSS": 24417,
+        "Shell": 9621,
+        "HTML": 6850
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Orca\n\nOrca is a DeepSeek-native coding agent.\n\nA local terminal coding agent built in Rust, focused on DeepSeek reasoning and tool-use semantics. It runs a multi-turn agent loop with SSE streaming, automatic context window management, and HTTP retry with exponential backoff.\n\n## Installation\n\n### npm\n\n```bash\nnpm install -g @blade-ai/orca\norca --version\n```\n\nThe npm package installs a small Node.js launcher and the native `orca` binary for supported platforms.\n\nSupported npm platforms:\n\n- macOS Apple Silicon (`darwin/arm64`)\n- macOS Intel (`darwin/x64`)\n- Linux x64 (`linux/x64`)\n- Linux ARM64 (`linux/arm64`)\n\n### curl\n\n```bash\ncurl -fsSL https://orcaagent.dev/install.sh | sh\n```\n\nThe installer downloads the native binary for your platform from GitHub Releases.\nSet `INSTALL_DIR` to choose a destination and `ORCA_VERSION` to pin a version:\n\n```bash\ncurl -fsSL https://orcaagent.dev/install.sh | \\\n  INSTALL_DIR=/usr/local/bin ORCA_VERSION=0.1.106 sh\n```\n\n### GitHub Releases\n\nDownload the archive for your platform from the latest GitHub Release, extract it, and place `orca` on your `PATH`.\n\n## Community\n\n- QQ group: `472309526`\n- Telegram: https://t.me/+11No1w5ZbTMyZTQ1\n\n## Quick Start\n\n```sh\n# Set your API key\nexport DEEPSEEK_API_KEY=sk-...\n\n# Run a task\norca exec \"fix this test\"\n\n# With options\norca exec --approval-mode full-auto \"refactor the auth module\"\norca exec --model deepseek-v4-pro \"explain this codebase\"\norca exec --verifier \"cargo test\" \"fix the failing test\"\n```\n\n## Configuration\n\nPriority chain (highest wins): Environment variables > CLI arguments > Config file > Defaults.\n\n### Environment Variables\n\n- `DEEPSEEK_API_KEY` — API key (required)\n- `DEEPSEEK_MODEL` — Model override\n- `DEEPSEEK_BASE_URL` — API base URL override\n- `DEEPSEEK_REASONING_EFFORT` — Reasoning effort override (`high` or `max`; default `max`)\n- `ORCA_NODE_PATH` — Node.js executable used by workflow scripts when `node` is not on `PATH` (npm installs set this automatically)\n\n### Config File\n\n`~/.orca/config.toml`:\n\n```toml\nmodel = \"auto\"\nreasoning_effort = \"max\"\napi_key = \"sk-...\"\nbase_url = \"https://api.deepseek.com\"\n```\n\n### Updates\n\nWhen `update_check` is enabled, Orca checks for a newer release before opening the interactive TUI. If a newer release is available, Orca shows a startup prompt with `Update now`, `Skip`, and `Skip until next version`. Choosing `Update now` updates the currently running install: npm-managed launches run the npm upgrade command, while direct binary launches rerun the curl installer into the current executable's directory. Choosing either skip option continues into the TUI.\n\nIf you installed with curl and later switch to npm, make sure the npm global bin directory appears before `~/.local/bin` on `PATH`, or remove the older curl-installed `~/.local/bin/orca`. Otherwise your shell may keep running the curl-installed binary.\n\nDisable the startup check with:\n\n```toml\nupdate_check = false\n```\n\nHooks may return structured JSON on stdout. `{\"action\":\"deny\",\"reason\":\"...\"}` blocks, `{\"action\":\"modify\",\"modified_target\":\"...\"}` rewrites a tool target, and `{\"action\":\"inject\",\"context\":\"...\"}` adds model context. When JSON declares an `action`, Orca validates the action and required string fields so typoed or malformed structured outputs fail visibly. Plain non-JSON stdout and JSON without `action` are treated as injected context for compatibility. Supported events are `session_start`, `session_end`, `pre_tool_use`, `post_tool_use`, `pre_model_call`, `post_model_call`, `on_budget_warning`, `pre_compact`, and `post_compact`.\n\nCustom tools can be added with TOML descriptors under `~/.orca/tools/`:\n\n```toml\nname = \"deploy\"\ndescription = \"Deploy the current branch\"\naction_kind = \"write\"\ncommand = \"./scripts/deploy.sh\"\nschema = { target = { type = \"string\", description = \"environment\" } }\n```\n\nExternal tool commands run from the workspace directory. The raw JSON arguments are provided on stdin and in `ORCA_TOOL_ARGS`.\n\nTool output truncation can be configured under `[tools]`. Byte mode preserves the historical 8 KiB default; token mode adds an explicit warning with original token and line counts before compacting large outputs:\n\n```toml\n[tools]\noutput_truncation = { mode = \"tokens\", limit = 2000 }\n```\n\n### Defaults\n\n- Model: `auto` (main loop uses `deepseek-v4-pro`, auxiliary tasks use `deepseek-v4-flash`)\n- Reasoning effort: `max`\n- Base URL: `https://api.deepseek.com`\n- Approval mode: `suggest`\n- Output format: `text`\n- Max turns: 128\n\n## Command\n\n```sh\norca exec [options] <prompt>\norca --mode=server\n```\n\nFor headless harnesses, `orca exec` also accepts prompt input from stdin:\n\n```sh\nprintf 'fix the failing test\\n' | orca exec --output-format jsonl\nprintf 'review this diff\\n' | orca exec --output-format jsonl -\nprintf 'compiler output\\n' | orca exec --output-format jsonl 'summarize this failure'\n```\n\nWhen no prompt argument is provided, stdin becomes the prompt. A lone `-` also\nforces reading the prompt from st",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-03T04:36:40.290373"
+  }
+]

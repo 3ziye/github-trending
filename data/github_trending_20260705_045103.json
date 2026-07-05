@@ -1,0 +1,845 @@
+[
+  {
+    "basic_info": {
+      "name": "Unlimited-OCR",
+      "full_name": "baidu/Unlimited-OCR",
+      "owner": "baidu",
+      "description": "Unlimited OCR Works: Welcome the Era of One-shot Long-horizon Parsing.",
+      "url": "https://github.com/baidu/Unlimited-OCR",
+      "clone_url": "https://github.com/baidu/Unlimited-OCR.git",
+      "ssh_url": "git@github.com:baidu/Unlimited-OCR.git",
+      "homepage": null,
+      "created_at": "2026-06-18T08:40:15Z",
+      "updated_at": "2026-07-05T03:29:55Z",
+      "pushed_at": "2026-07-03T05:14:30Z"
+    },
+    "stats": {
+      "stars": 13274,
+      "forks": 1076,
+      "watchers": 13274,
+      "open_issues": 47,
+      "size": 91742
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 11180
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/baidu.png\" width=\"40%\" alt=\"Baidu Inc.\" />\n</p>\n\n<hr>\n\n<h1 align=\"center\">Unlimited OCR Works</h1>\n\n<div align=\"center\">\n  <a href=\"https://github.com/baidu/Unlimited-OCR\">\n    <img alt=\"GitHub\" src=\"https://img.shields.io/badge/GitHub-Code-181717?logo=github&logoColor=white\" />\n  </a>\n  <a href=\"https://huggingface.co/baidu/Unlimited-OCR\">\n    <img alt=\"Hugging Face\" src=\"https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-ffc107?color=ffc107&logoColor=white\" />\n  </a>\n</div>\n\n<div align=\"center\">\n    <a href=\"https://arxiv.org/abs/2606.23050\">\n    <img alt=\"arXiv\" src=\"https://img.shields.io/badge/arXiv-Unlimited OCR Works-b31b1b?logo=arxiv&logoColor=white\" />\n  </a>\n  <a href=\"https://x.com/Baidu_Inc\" target=\"_blank\">\n    <img alt=\"Twitter Follow\" src=\"https://img.shields.io/badge/Twitter-Baidu Inc.-white?logo=x&logoColor=white\" />\n  </a>\n</div>\n\n<h3 align=\"center\">Welcome the Era of One-shot Long-horizon Parsing.</h3>\n\n<p align=\"center\">\n    <img src=\"assets/Unlimited-OCR.png\" width=\"1000\" alt=\"Unlimited OCR overview\" />\n</p>\n\n\n## Release\n- [2026/07/03] 🤝 Thanks to the Baidu Cloud team for their support. Our model is now available on [Baidu Cloud](https://cloud.baidu.com/doc/OCR/s/fmr1p39gb).\n- [2026/06/28] 🤝 Thanks to the [vLLM community](https://github.com/vllm-project/vllm) and [Tianyu Guo](https://github.com/gty111) for their support, our model now supports vLLM inference.\n- [2026/06/24] 🤝 Thanks to [AK](https://x.com/_akhaliq) for creating a demo for us. It is now available at [Hugging Face Spaces](https://huggingface.co/spaces/baidu/Unlimited-OCR).\n- [2026/06/23] 📄 Our paper is now available on [arXiv](https://arxiv.org/abs/2606.23050).\n- [2026/06/23] 🤝 Thanks to the [ModelScope community](https://github.com/modelscope) for their support. Our model is now available at [ModelScope](https://modelscope.cn/models/PaddlePaddle/Unlimited-OCR).\n- [2026/06/22] 🚀 We present [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR), aiming to push [Deepseek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR) one step further.\n\n## Inference\n\n### Transformers\nInference using Huggingface transformers on NVIDIA GPUs. Requirements tested on python 3.12.3 + CUDA12.9：\n\n```\ntorch==2.10.0\ntorchvision==0.25.0\ntransformers==4.57.1\nPillow==12.1.1\nmatplotlib==3.10.8\neinops==0.8.2\naddict==2.4.0\neasydict==1.13\npymupdf==1.27.2.2\npsutil==7.2.2\n```\n\n```python\nimport os\nimport torch\nfrom transformers import AutoModel, AutoTokenizer\n\nmodel_name = 'baidu/Unlimited-OCR'\n\ntokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)\nmodel = AutoModel.from_pretrained(\n    model_name,\n    trust_remote_code=True,\n    use_safetensors=True,\n    torch_dtype=torch.bfloat16,\n)\nmodel = model.eval().cuda()\n\n# ── Single image supports two configs: gundam or base ──\n# gundam: base_size=1024, image_size=640, crop_mode=True\n# base: base_size=1024, image_size=1024, crop_mode=False\nmodel.infer(\n    tokenizer,\n    prompt='<image>document parsing.',\n    image_file='your_image.jpg',\n    output_path='your/output/dir',\n    base_size=1024, image_size=640, crop_mode=True,\n    max_length=32768,\n    no_repeat_ngram_size=35, ngram_window=128,\n    save_results=True,\n)\n\n# ── Multi page / PDF only uses base (image_size=1024) ──\nmodel.infer_multi(\n    tokenizer,\n    prompt='<image>Multi page parsing.',\n    image_files=['page1.png', 'page2.png', 'page3.png'],\n    output_path='your/output/dir',\n    image_size=1024,\n    max_length=32768,\n    no_repeat_ngram_size=35, ngram_window=1024,\n    save_results=True,\n)\n\n# ── PDF (convert pages to images, then multi-page parsing) ──\nimport tempfile, fitz  # PyMuPDF\n\ndef pdf_to_images(pdf_path, dpi=300):\n    doc = fitz.open(pdf_path)\n    tmp_dir = tempfile.mkdtemp(prefix='pdf_ocr_')\n    mat = fitz.Matrix(dpi / 72, dpi / 72)\n    paths = []\n    for i, page in enumerate(doc):\n        out = os.path.join(tmp_dir, f'page_{i+1:04d}.png')\n        page.get_pixmap(matrix=mat).save(out)\n        paths.append(out)\n    doc.close()\n    return paths\n\nmodel.infer_multi(\n    tokenizer,\n    prompt='<image>Multi page parsing.',\n    image_files=pdf_to_images('your_doc.pdf', dpi=300),\n    output_path='your/output/dir',\n    image_size=1024,\n    max_length=32768,\n    no_repeat_ngram_size=35, ngram_window=1024,\n    save_results=True,\n)\n```\n\n### vLLM\n\nPlease refer to the official vLLM recipe for deployment details:\n\n**Recipe:** [https://recipes.vllm.ai/baidu/Unlimited-OCR](https://recipes.vllm.ai/baidu/Unlimited-OCR)\n\n##### Docker Images\nUse the following Docker images depending on your GPU platform:\n\n**Default (CUDA 13.0):**\n```bash\ndocker pull vllm/vllm-openai:unlimited-ocr\n```\n**For Hopper GPUs (CUDA 12.9)**\n```bash\ndocker pull vllm/vllm-openai:unlimited-ocr-cu129\n```\n\n### SGLang\n\nSet up the environment (uv-managed virtualenv). Install the local SGLang wheel first,\nthen pin `kernels==0.9.0` and install PyMuPDF for PDF-to-image conversion:\n```shell\nuv venv --python 3.12\nsource .venv/bi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:04.033637"
+  },
+  {
+    "basic_info": {
+      "name": "omnigent",
+      "full_name": "omnigent-ai/omnigent",
+      "owner": "omnigent-ai",
+      "description": "Omnigent is an open-source AI agent framework and meta-harness: orchestrate Claude Code, Codex, Cursor, Pi, and custom agents — swap harnesses without rewriting, enforce policies and sandboxing, and collaborate in real time from any device.",
+      "url": "https://github.com/omnigent-ai/omnigent",
+      "clone_url": "https://github.com/omnigent-ai/omnigent.git",
+      "ssh_url": "git@github.com:omnigent-ai/omnigent.git",
+      "homepage": "https://omnigent.ai",
+      "created_at": "2026-06-11T12:18:13Z",
+      "updated_at": "2026-07-05T04:47:50Z",
+      "pushed_at": "2026-07-05T02:48:07Z"
+    },
+    "stats": {
+      "stars": 6246,
+      "forks": 815,
+      "watchers": 6246,
+      "open_issues": 450,
+      "size": 66016
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 32015275,
+        "TypeScript": 5682076,
+        "JavaScript": 263999,
+        "HTML": 85581,
+        "Swift": 78801,
+        "Kotlin": 74132,
+        "CSS": 60785,
+        "Shell": 41096,
+        "Dockerfile": 21718,
+        "Ruby": 12256,
+        "Rust": 6576,
+        "Mako": 671
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-framework",
+        "agent-governance",
+        "agent-orchestration",
+        "agents",
+        "ai",
+        "ai-agent",
+        "ai-agents",
+        "claude-code",
+        "codex",
+        "coding-agents",
+        "developer-tools",
+        "llm",
+        "ml",
+        "multi-agent",
+        "python",
+        "sandbox"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# <img src=\"https://raw.githubusercontent.com/omnigent-ai/omnigent/main/docs/images/omnigent-logo.svg\" alt=\"\" height=\"38\" valign=\"middle\" /> Omnigent\n\n### The open-source meta-harness for all your AI agents.\n\nOmnigent is an open-source **meta-harness** that gives you a common orchestration layer over Claude Code, Codex, Cursor, OpenCode, Hermes, Pi, and the agents you write yourself: swap or combine harnesses without rewriting, enforce policies and sandboxing, and collaborate in real time from any device — terminal, browser, phone, or the native desktop app.\n\n[![PyPI version](https://img.shields.io/pypi/v/omnigent.svg)](https://pypi.org/project/omnigent/)\n[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/omnigent-ai/omnigent/blob/main/LICENSE)\n[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/omnigent)\n![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)\n\n[omnigent.ai](https://omnigent.ai) · **[⬇️ Download the macOS desktop app](https://omnigent.ai/download/mac)**\n\n</div>\n\n<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/omnigent-ai/omnigent/main/docs/images/omnigent-desktop.png\" alt=\"The Omnigent desktop app: starting a new session, with pinned and project-grouped sessions in the sidebar\" width=\"720\" />\n</p>\n\n---\n\n## Why Omnigent?\n\nOmnigent lets you:\n\n- **📱 Work with agents from any device, including your phone.** Sessions\n  follow you: start in your terminal, continue in the browser, pick it up on\n  your phone. Messages, sub-agents, terminals, and files stay in sync.\n\n- **🤖 Supervise multiple agents.** Mix Claude Code, Codex, Cursor, OpenCode,\n  Hermes, Pi, and custom agents (defined in YAML) together in the same\n  session. Ask one agent to review another's work, or split a task across\n  agents that are each good at different things.\n\n- **🔌 Use any model.** A first-party API key, a Claude/ChatGPT subscription,\n  or any compatible gateway. All first-class.\n\n- **🤝 Collaborate.** Share a session so teammates can chat with your agent\n  and watch it work live, co-drive it on your machine, or fork the\n  conversation to continue on their own.\n\n- **☁️ Run agents in cloud sandboxes.** No laptop required: run sessions in\n  disposable [Modal](https://modal.com), [Daytona](https://www.daytona.io),\n  [Islo](https://islo.dev), [E2B](https://e2b.dev),\n  [CoreWeave](https://docs.coreweave.com/products/sandboxes),\n  [Kubernetes](https://kubernetes.io), [OpenShell](https://github.com/NVIDIA/OpenShell),\n  [Boxlite](https://github.com/boxlite-ai/boxlite), or\n  [Databricks](https://www.databricks.com) sandboxes, launched from the\n  CLI or provisioned by the server per session (*managed hosts*).\n\n- **🛡️ Govern your agents.** Create\n  [policies](#6-govern-your-agents-with-policies) to pause for your approval\n  before risky actions, cap spend, or limit which tools an agent reaches.\n  They apply to the whole server, one agent, or a single chat.\n\n---\n\n## Quick start\n\n### 1. Install\n\nOne command installs Omnigent and everything it needs:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/omnigent-ai/omnigent/main/scripts/install_oss.sh | sh\n```\n\n<details>\n<summary>Prefer to install manually?</summary>\n\nOmnigent needs **Python 3.12+**. Install the `omnigent` package:\n\n```bash\nuv tool install omnigent        # or: pip install \"omnigent\"\n```\n\nOr with [Homebrew](https://github.com/omnigent-ai/homebrew-tap):\n\n```bash\nbrew install omnigent-ai/tap/omnigent\n```\n\nOr install straight from the repo:\n\n```bash\nuv tool install -q --python 3.12 git+https://github.com/omnigent-ai/omnigent.git\n```\n\n</details>\n\n<details>\n<summary>Toolchain and prerequisites (if the installer reports a missing tool)</summary>\n\n- **`uv`** (required). https://docs.astral.sh/uv/getting-started/installation/\n  The installer offers to set this up for you.\n- **`git`** (required).\n- **Node.js 22 LTS or newer** with **`npm`**, for the npm-installed coding\n  harnesses (Claude, Codex, OpenCode, Pi). `omnigent run` installs the\n  harness CLI you pick.\n  https://docs.npmjs.com/downloading-and-installing-node-js-and-npm\n- **Kiro CLI** (optional), for `omnigent kiro`: install with\n  `curl -fsSL https://cli.kiro.dev/install | bash`, then sign in with Kiro.\n  Kiro tool approvals stay answerable in the embedded Terminal; supported\n  one-time approvals also appear as Chat cards. See\n  `docs/kiro-native-elicitation.md`.\n- **`tmux`**, required by the native `omnigent <harness>` terminal wrappers\n  (`claude`, `codex`, `cursor`, `hermes`, `kiro`, `pi`)\n  (`brew install tmux` / `apt install tmux`; the installer offers\n  to install it for you).\n- **`bubblewrap`** (`bwrap`), **Linux only**. The native `omnigent <harness>`\n  terminal wrappers and the `pi` harness wrap each agent\n  terminal in a `bwrap` OS-sandbox; on Linux that isolation is mandatory, so a\n  missing `bwrap` binary makes those terminals fail to start\n  (`apt",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:05.197156"
+  },
+  {
+    "basic_info": {
+      "name": "DeepSpec",
+      "full_name": "deepseek-ai/DeepSpec",
+      "owner": "deepseek-ai",
+      "description": "DeepSpec: a full-stack codebase for training and evaluating speculative decoding algorithms",
+      "url": "https://github.com/deepseek-ai/DeepSpec",
+      "clone_url": "https://github.com/deepseek-ai/DeepSpec.git",
+      "ssh_url": "git@github.com:deepseek-ai/DeepSpec.git",
+      "homepage": null,
+      "created_at": "2026-06-26T12:36:05Z",
+      "updated_at": "2026-07-05T04:42:38Z",
+      "pushed_at": "2026-06-30T06:42:21Z"
+    },
+    "stats": {
+      "stars": 6192,
+      "forks": 525,
+      "watchers": 6192,
+      "open_issues": 35,
+      "size": 4043
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 381412,
+        "Shell": 8097
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# DeepSpec\n\nDeepSpec is a full-stack codebase for training and evaluating draft models for speculative decoding. It contains data preparation utilities, draft model implementations, training code, and evaluation scripts.\n\n## Environment\n\nInstall the Python dependencies:\n\n```bash\npython -m pip install -r requirements.txt\n```\n\nData preparation additionally requires an inference engine to serve the target model when regenerating answers; see [scripts/data/README.md](./scripts/data/README.md) for details.\n\n## Workflow\n\nRun the stages in order — each stage's output feeds the next:\n\n1. **Data Preparation** — download prompts, regenerate target answers, and build the target cache.\n2. **Training** — train a draft model against the cached target outputs.\n3. **Evaluation** — measure speculative-decoding acceptance on benchmark tasks.\n\n## Data Preparation\n\nSee [scripts/data/README.md](./scripts/data/README.md) for the step-by-step data pipeline:\n\n1. download and split training data,\n2. regenerate answers,\n3. prepare the target cache (storage warning: this can be very large — roughly 38 TB for the default `Qwen/Qwen3-4B` setting).\n\n## Training\n\n```bash\nbash scripts/train/train.sh\n```\n\n`train.sh` launches `train.py`, which spawns one worker per visible GPU. Select the algorithm and target model by pointing `config_path` at one of the configs under [config/](./config/) (e.g. `config/dspark/dspark_qwen3_4b.py`); see the script header for the full list of configs, how to override `config_path` / `target_cache_dir`, and how to use `--opts` to override individual config fields. Checkpoints are written to `~/checkpoints/<project_name>/<exp_name>/step_*`.\n\nHardware: the default configs and scripts assume a single node with 8 GPUs. For fewer GPUs, reduce `CUDA_VISIBLE_DEVICES`.\n\n\n## Evaluation\n\n```bash\nbash scripts/eval/eval.sh\n```\n\n`eval.sh` runs `eval.py` against a trained draft checkpoint over the speculative-decoding benchmarks in [eval_datasets/](./eval_datasets/) (gsm8k, math500, aime25, humaneval, mbpp, livecodebench, mt-bench, alpaca, arena-hard-v2). Set:\n\n- `target_name_or_path` — the target model the draft was trained against (e.g. `Qwen/Qwen3-4B`),\n- `draft_name_or_path` — the draft checkpoint, e.g. `~/checkpoints/deepspec/dspark_block7_qwen3_4b/step_latest`, or one of the Hugging Face repo IDs listed in [Released Checkpoints](#released-checkpoints).\n\n### Released Checkpoints\n\nThe checkpoints below are the ones used for Table 1 in the [paper](./DSpark_paper.pdf). Each checkpoint was trained on [open-perfectblend](https://huggingface.co/datasets/mlabonne/open-perfectblend) data generated by its corresponding target model in non-thinking mode, and is the direct output of the corresponding training configuration under [config/](./config/).\n\n\n| Algorithm | `Qwen/Qwen3-4B` | `Qwen/Qwen3-8B` | `Qwen/Qwen3-14B` | `google/gemma-4-12B-it` |\n| --- | --- | --- | --- | --- |\n| Eagle3 | [deepseek-ai/eagle3_qwen3_4b_ttt7](https://huggingface.co/deepseek-ai/eagle3_qwen3_4b_ttt7) | [deepseek-ai/eagle3_qwen3_8b_ttt7](https://huggingface.co/deepseek-ai/eagle3_qwen3_8b_ttt7) | [deepseek-ai/eagle3_qwen3_14b_ttt7](https://huggingface.co/deepseek-ai/eagle3_qwen3_14b_ttt7) | [deepseek-ai/eagle3_gemma4_12b_ttt7](https://huggingface.co/deepseek-ai/eagle3_gemma4_12b_ttt7) |\n| DFlash | [deepseek-ai/dflash_qwen3_4b_block7](https://huggingface.co/deepseek-ai/dflash_qwen3_4b_block7) | [deepseek-ai/dflash_qwen3_8b_block7](https://huggingface.co/deepseek-ai/dflash_qwen3_8b_block7) | [deepseek-ai/dflash_qwen3_14b_block7](https://huggingface.co/deepseek-ai/dflash_qwen3_14b_block7) | [deepseek-ai/dflash_gemma4_12b_block7](https://huggingface.co/deepseek-ai/dflash_gemma4_12b_block7) |\n| DSpark | [deepseek-ai/dspark_qwen3_4b_block7](https://huggingface.co/deepseek-ai/dspark_qwen3_4b_block7) | [deepseek-ai/dspark_qwen3_8b_block7](https://huggingface.co/deepseek-ai/dspark_qwen3_8b_block7) | [deepseek-ai/dspark_qwen3_14b_block7](https://huggingface.co/deepseek-ai/dspark_qwen3_14b_block7) | [deepseek-ai/dspark_gemma4_12b_block7](https://huggingface.co/deepseek-ai/dspark_gemma4_12b_block7) |\n\n> [!IMPORTANT]\n> If you cite these results in a new paper, align your setup with the training settings in this repository; otherwise, the comparison is not meaningful. For domain-specific use, fine-tune the draft model again for better results, especially if the target model is expected to run in thinking mode.\n\n## Supported Algorithms\n\nCurrently, DeepSpec includes three draft models: [DSpark](./DSpark_paper.pdf), [DFlash](https://arxiv.org/abs/2602.06036) and [Eagle3](https://arxiv.org/abs/2503.01840).\n\n## License\n\nDeepSpec is released under the [MIT License](./LICENSE). It includes code adapted\nfrom third-party projects under their own licenses; see [NOTICE](./NOTICE) for the\nfull attribution.\n\n## Acknowledgements\n\nDeepSpec builds on the ideas and code of several excellent open-source projects:\n\n- [SpecForge](https://github.com/sgl-project/SpecForge) (Apache-2.0) — th",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:06.349345"
+  },
+  {
+    "basic_info": {
+      "name": "exploitarium",
+      "full_name": "bikini/exploitarium",
+      "owner": "bikini",
+      "description": "A single archive of public exploit PoCs and vulnerability research writeups. At the time I post these, none have been reported. Feel free to report them yourself and take credit for the CVE if handed out lulz. Please do not abuse these. I do this so to allure people into the field, and I've always found this is the most efficient way.",
+      "url": "https://github.com/bikini/exploitarium",
+      "clone_url": "https://github.com/bikini/exploitarium.git",
+      "ssh_url": "git@github.com:bikini/exploitarium.git",
+      "homepage": "",
+      "created_at": "2026-06-23T05:14:11Z",
+      "updated_at": "2026-07-05T03:13:42Z",
+      "pushed_at": "2026-07-04T06:27:26Z"
+    },
+    "stats": {
+      "stars": 3652,
+      "forks": 1056,
+      "watchers": 3652,
+      "open_issues": 4,
+      "size": 363
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 220912,
+        "C": 92514,
+        "JavaScript": 41987,
+        "Rust": 27396,
+        "HTML": 26037,
+        "Shell": 14963,
+        "PHP": 11435,
+        "Java": 1987,
+        "C++": 1835,
+        "Assembly": 882,
+        "C#": 332,
+        "Batchfile": 302,
+        "Linker Script": 174
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "https://discord.gg/WytKH65ZR join up for research, help, documentation, and more useful information for those interested.\n\n# Statement\n\nThis repo was incomplete when published. \n\nIn regard to AI usage, my fuzzing workflow was automated by AI with a strict workflow. I used GPT-5.3 for ALL the fuzzing, as barely any \"thought\" is necessary when provided with an efficient workflow. Contrary to the growing narrative that I'm just some random child burning tokens, I DO actually have a degree in the subject and have published multiple papers on fuzzing methodology. I spent years researching and developing new tools and ideas for how to fuzz. You do NOT need a SOTA model to help you identify these issues, I promise! While being able to afford a better model is helpful, my data seems to show that it is only marginal when paired with decent human oversight and a good workflow. None of the actual PoCs themselves were vibe-coded; I did, in fact, hand-type them. I did use AI assistance for RustDesk, however, as I'm not as familiar with the language. The README files are very clearly entirely AI, however, as AI can format a pretty mean Markdown file. I reviewed them to make sure they were accurate.\n\nI'd also like to credit someone for the objdump finding. It turns out, someone beat me to the punch (they also have a better PoC too!). Please give them the credit they deserve:\nhttps://github.com/4D4J/objdump-Out-Of-Bounds-write\n\n# News/Contact\n\nNew drops today ;) Biggest thing yet (DELAYED, I PROMISE THE WAIT WILL BE WORTH IT! After this, you guys will *usually* get one new PoC a day)\n\nI've also noticed a surprising amount of \"security researchers\" aren't able to adjust the PoC to work in their environment. I will broaden the PoCs for those select few...\n\nIf you wish to collaborate/discuss with me, contact me on discord @ashdfrkl\n\nSharing this repo keeps me motivated to continue dropping my findings for you all. \n\n\n# Exploitarium\n\nA consolidated archive of my public proof-of-concept and vulnerability research writeups.\n\nMost folders contain one of my former standalone PoC repos, preserved with its original README and tracked files. New research entries are added directly here as self-contained folders.\n\n## Contents\n\n| Folder | Source | Tracked entries |\n| --- | --- | ---: |\n| `7zip-rar5-motw-chain-poc` | `bd9533f532c1e4ee6af783b9bb49d1133c600e2c` | 3 |\n| `anydesk-printer-com-impersonation-poc` | `7491303301093b2d40bee9dadf6b38f757ce78e0` | 4 |\n| `c-ares-tcp-uaf-calc-poc` | direct entry, June 24, 2026 | 7 |\n| `curl-smtp-expn-recipient-crlf-injection` | direct entry, July 1, 2026 | 3 |\n| `discourse-scoped-api-key-preauth-bypass` | direct entry, July 3, 2026 | 3 |\n| `docker-cp-copyout-destination-escape` | `d1367b1381736d7f961ac808ce88d4e24a633adc` | 5 |\n| `firefox-smartwindow-private-url-exfil-poc` | direct entry, June 24, 2026 | 3 |\n| `floci-apigateway-vtl-rce-poc` | direct entry, June 23, 2026 | 3 |\n| `flowise-mcp-env-case-bypass-poc` | `ed9fab0086674f1b16467990b33bb9299e93429e` | 3 |\n| `ffmpeg-rasc-dlta-calc-poc` | direct entry, June 26, 2026 | 7 |\n| `ghidra-12.1.2-rce-ace-calc-poc` | `52dee6362990c03c0d753d074c85428824d46368` | 9 |\n| `gitea-act-runner-container-options-poc` | `f06d78fb111732f3e7737f4c07e77ef94c4b64bf` | 4 |\n| `gogs-admin-csrf-git-hook-rce-poc` | direct entry, July 1, 2026 | 3 |\n| `imagemagick-gs-delegate-hijack-poc` | `8140e8ee0ed78beaf5e8303a795b70b138f5891b` | 5 |\n| `ladybird-wasm-esm-host-function-rce-poc` | direct entry, July 1, 2026 | 2 |\n| `libarchive-zip-debuginfod-size-boundary` | direct entry, July 1, 2026 | 6 |\n| `libssh2-cve-2026-55200-poc` | direct entry, June 23, 2026 | 3 |\n| `libssh2-publickey-list-calc-poc` | direct entry, June 25, 2026 | 10 |\n| `lunar-modrinth-chain-poc` | `ffd02120708b6503f11585858ce3724872f3b7a7` | 6 |\n| `mybb-limited-acp-to-admin` | `1610e0373943c2f6562a99f917d3a3d1fdd9056d` | 5 |\n| `nextcloud-federated-share-bearer-token-poc` | direct entry, July 3, 2026 | 3 |\n| `nextjs-unstable-cache-object-argument-collision` | direct entry, July 1, 2026 | 3 |\n| `nodebb-activitypub-attributedto-local-uid-spoof-poc` | direct entry, July 1, 2026 | 3 |\n| `nghttp2-nghttpx-upgrade-queue-poison-poc` | direct entry, June 26, 2026 | 3 |\n| `nmap-ipv6-extlen-wrap-poc` | direct entry, June 23, 2026 | 4 |\n| `objdump-dlx-calc-poc` | `7df01e4e20c7375a89e8ccf760526c52eb6ad582` | 41 |\n| `openvpn-connect-echo-script-ace-poc` | `d2f904d9272d4388c9862131d40e32e072e85e38` | 8 |\n| `php857-streambucket-soap-rce-rpoc` | direct entry, June 26, 2026 | 6 |\n| `pillow-imagecms-output-mode-oob-poc` | direct entry, July 1, 2026 | 3 |\n| `postgres-ri-owner-switched-cast-poc` | direct entry, July 4, 2026 | 3 |\n| `qemu-cxl-type3-mailbox-escape-poc` | direct entry, July 1, 2026 | 7 |\n| `redis-vset-duplicate-hnsw-id-rce-poc` | direct entry, July 3, 2026 | 3 |\n| `rustdesk-session-permission-pocs` | direct entry, June 25, 2026 | 17 |\n| `systeminformer-phsvc-trusted-host-lpe-poc` | direct entry, June 24, 2026 | 3 |\n| `vlc",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:07.488673"
+  },
+  {
+    "basic_info": {
+      "name": "oomwoo",
+      "full_name": "makerspet/oomwoo",
+      "owner": "makerspet",
+      "description": "Open-source vacuum robot cleaner",
+      "url": "https://github.com/makerspet/oomwoo",
+      "clone_url": "https://github.com/makerspet/oomwoo.git",
+      "ssh_url": "git@github.com:makerspet/oomwoo.git",
+      "homepage": "",
+      "created_at": "2026-06-10T06:03:33Z",
+      "updated_at": "2026-07-05T04:08:53Z",
+      "pushed_at": "2026-07-05T04:07:42Z"
+    },
+    "stats": {
+      "stars": 3495,
+      "forks": 152,
+      "watchers": 3495,
+      "open_issues": 4,
+      "size": 3797
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 8919,
+        "CMake": 457
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "3d-printing",
+        "arduino",
+        "diy-electronics",
+        "diy-project",
+        "esp32",
+        "esp32-arduino",
+        "home-assistant",
+        "lidar",
+        "lidar-slam",
+        "raspberry-pi",
+        "ros2",
+        "slam",
+        "vacuum-cleaner",
+        "vacuum-robot"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# OOMWOO\n\n*Open-source robot vacuum you build yourself.*\n\nClean well · Raspberry Pi · ROS2 · Home Assistant · 2D LiDAR · 3D printed · ESP32 · Arduino\n\n![License](https://img.shields.io/badge/license-Apache--2.0-blue)\n![Status](https://img.shields.io/badge/status-early%20development-orange)\n\n</div>\n\n## What is this?\n\nOOMWOO is an *open-source home robot vacuum* you can build yourself, made for the\nRaspberry Pi, ROS2, Home Assistant, and 3D-printing communities. It uses an\naffordable 2D LiDAR to map your home and navigate on its own. Local, no\ncloud required for regular functionality, no vendor lock-in. Follow the [community newsletter](https://stats.sender.net/forms/bo2rAK/view).\n\nReference design images - this is approximately how the finished design will look:\n\n![Reference robot vacuum cleaner top](./assets/vacuum_model_top.webp)\n![Reference robot vacuum cleaner bottom](./assets/vacuum_model_bottom.webp)\n![Reference robot vacuum cleaner - top cover removed](https://github.com/makerspet/oomwoo/blob/main/assets/vacuum-no-top-back.webp)\n\n## Goals\n\n- Affordable, fully open hardware, software and firmware\n- Home appliance product quality - not a throwaway build\n- Easy to build, with step-by-step zero-to-hero instructions\n- 2D LiDAR mapping and autonomous navigation (ROS2 / Nav2)\n- Native Home Assistant integration for local control\n- 3D-printable, documented, and hackable chassis\n- Buildable from parts you source yourself\n- Local, no cloud required for regular functionality\n- Optional extra functionality when connected cloud\n- Apps on top of ROS2 to customize vacuum operation\n- Stretch goal: App store\n- Stretch goal: LeRobot integration, OpenClaw\n\n*v0 target: bare-bones build:*\n\n- 3D-printed chassis\n- ROS2 Gazebo sim\n- LiDAR with manual SLAM\n- ROS2 on Raspberry Pi 5 AND/OR ESP32 running micro-ROS with ROS2 on local PC - decision TBD\n\nOpen Source Deliverables:\n\n- [x] [Software development environment](https://github.com/makerspet/oomwoo-install), robot [description package](https://github.com/makerspet/oomwoo-one/) and [tutorials](https://makerspet.com/blog/simulate-oomwoo-one-robot-vacuum-in-gazebo-with-ros-2/) (ROS2)\n- [x] Placeholder real [vacuum cleaner](https://github.com/makerspet/proscenic-m6pro) and [tutorials](https://makerspet.com/blog/tutorial-connect-robot-vacuum-cleaner-to-ros-2-proscenic-m6-pro/) (temporary while OOMWOO is being designed)\n- [ ] [Bill of materials (BoM)](BOM.md) (in progress)\n- [ ] 3D-printable files\n- [ ] Firmware\n- [ ] Motor drivers and sensors [I/O PCB](https://github.com/makerspet/oomwoo-io-board)\n- [ ] Build, setup, bringup and troubleshooting [instructions](BUILD_INSTRUCTIONS.md)\n- [ ] Demo video(s)\n\n## Contributing\n\nWould you like to contribute? See [CONTRIBUTING](docs/CONTRIBUTING.md) for the full guide.\n\nOOMWOO is organized to built by the community, massively *in parallel*.\nThe vacuum and its software are subdivided into [modules](#requests-for-contributions), see list below.\n\nA volunteer picks whatever module she wants, works on that module whenever she wants,\nsubmits her contribution as a PR under contributions/module-name/<her-github-username>.\n\nMultiple developers are welcome to work on the same module.\nThe best solution for each module surfaces for over time, with the project master having the last call.\n\n1. Pick a contribution from the [list below](#requests-for-contributions).\n2. [Let us know](https://github.com/makerspet/oomwoo/discussions) you're working on it and your progress.\n3. Check [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the system design and interfaces.\n\nFollow us building in public:\n\n- [Community newsletter](https://stats.sender.net/forms/bo2rAK/view).\n- [Discord](https://discord.gg/3y2JKz5T25)\n- YouTube: [build-in-public channel](https://www.youtube.com/@makerspet)\n- X: [@0OMWO0](https://x.com/@0OMWO0)\n\n## Requests for Contributions\n\nEvery module below is *actionable now* — build it against the Gazebo simulation\n([oomwoo-one](https://github.com/makerspet/oomwoo-one)) or a real *placeholder robot*\n(a [Proscenic M6 Pro connected to ROS2](https://makerspet.com/blog/tutorial-connect-robot-vacuum-cleaner-to-ros-2-proscenic-m6-pro/)),\nuntil OOMWOO hardware is ready. Pick one, tell us in\n[Discussions](https://github.com/makerspet/oomwoo/discussions), and open a PR.\n\n| Module | ID | Status | Notes |\n|---|---|---|---|\n| ROS2 URDF + Gazebo sim | [urdf-gazebo-sim](./contributions/urdf-gazebo-sim) | In progress | Placeholder URDF + Gazebo sim (reference: [oomwoo-one](https://github.com/makerspet/oomwoo-one); [@alvarosamudio](./contributions/urdf-gazebo-sim/alvarosamudio) merged), refined when hardware lands |\n| First clean: coverage + mapping + exploration | [clean-and-map](./contributions/clean-and-map) | Ready to start work | Coverage cleaning while SLAM-mapping and exploring |\n| Localization & navigation on a known map | [nav-localize](./contributions/nav-localize) | Ready to start work | Nav2 nav, AMCL localization, relocalize when lost,",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:08.659925"
+  },
+  {
+    "basic_info": {
+      "name": "aur-malware-check",
+      "full_name": "lenucksi/aur-malware-check",
+      "owner": "lenucksi",
+      "description": "Detection tools for the June 2026 atomic-lockfile AUR supply-chain attack. Consolidated from community Gists.",
+      "url": "https://github.com/lenucksi/aur-malware-check",
+      "clone_url": "https://github.com/lenucksi/aur-malware-check.git",
+      "ssh_url": "git@github.com:lenucksi/aur-malware-check.git",
+      "homepage": null,
+      "created_at": "2026-06-12T13:17:07Z",
+      "updated_at": "2026-07-05T03:12:38Z",
+      "pushed_at": "2026-06-26T23:04:57Z"
+    },
+    "stats": {
+      "stars": 1951,
+      "forks": 44,
+      "watchers": 1951,
+      "open_issues": 4,
+      "size": 369
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 114274
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# AUR Malware Check — June 2026 Campaign & Cross-Campaign Detection\n\nDetection and analysis tools for the **atomic-lockfile** supply-chain attack on\nthe Arch User Repository (AUR), **generalized** to a campaign-based architecture\nthat handles multiple concurrent and historical attack waves (CHAOS RAT 2025,\nRussian spam packages, and future campaigns declared via `campaigns.json`).\n\nThis is a collection of all the scattered resources, especially the ones in the detection scripts Gist - they made this, I just collected this to a repo so I have it all in one place and possibly people could put up PR's instead of Gist links across multiple posts. Certainly see the source section for details on the sources!\n\n> [!TIP]\n> **Questions, support, or general discussion?** Head over to\n> [Discussions](https://github.com/lenucksi/aur-malware-check/discussions/).\n> Issues are reserved for bug reports and feature requests only.\n\n> [!NOTE]\n> This project is **Python-first**. The detection tool is the `aur_check`\n> package (Python 3.14+, standard library only, typed, tested). The original\n> bash scripts have been removed; their behaviour is fully covered by the\n> Python implementation. See the source section for credits.\n\n> Aur-infected 06/2026 campaign **1600+ AUR packages compromised** by attackers who injected `npm install atomic-lockfile`, `bun install js-digest`, or `lockfile-js` into PKGBUILD/install files. Two attack waves:\n> 1. **atomic-lockfile / lockfile-js** (npm) — accounts `krisztinavarga`, `franziskaweber`, `tobiaswesterburg`, `ellenmyklebust`; `arojas` (impersonated legitimate maintainer — see Impersonation Clarification)\n> 2. **js-digest** (bun) — accounts `custodiatovar`, `veramagalhaes`\n>\n> Both deliver an **infostealer** and **eBPF rootkit** targeting developer credentials, browser data, and CI/CD secrets.\n\n## Quick Start\n\nNo installation, no dependencies — just Python 3.14+ and a checkout of this\nrepo. Run the package directly with `python -m aur_check`:\n\n```bash\n# Check if you have any infected packages (all campaigns)\npython -m aur_check\n\n# Full scan with all optional checks (systemd, eBPF, npm + bun + yarn + pnpm cache)\npython -m aur_check --full\n\n# Refresh all campaign package lists from their upstream sources\npython -m aur_check --refresh --full\n\n# Output scan results as JSON\npython -m aur_check --json\n\n# List configured campaigns with their lists, windows, env vars, and refresh URLs\npython -m aur_check --list-campaigns\n\n# List campaigns in machine-readable JSON\npython -m aur_check --list-campaigns --json\n\n# Fetch latest campaigns.json from upstream, validate, show diff, write\npython -m aur_check --refresh-campaigns\n\n# Same, but only show diff without writing\npython -m aur_check --refresh-campaigns --dry-run\n\n# Add an extra package list to a specific campaign\npython -m aur_check -l aur-infected=/path/to/extra_list.txt\n\n# Check bun cache specifically (for js-digest / atomic-lockfile)\npython -m aur_check --check-bun-cache\n\n# Check yarn cache specifically (Yarn Classic v1 + Yarn Berry v2+)\npython -m aur_check --check-yarn-cache\n\n# Check pnpm store/cache specifically (global installs + metadata + dlx)\npython -m aur_check --check-pnpm-cache\n\n# Cross-campaign: scan all installed packages regardless of install date\npython -m aur_check --all-time\n\n# CHAOS RAT (July 2025) packages are scanned automatically against their own\n# window (2025-07-16..19). Override it via env vars if needed:\n#   CHAOS_START_DATE=2025-07-15 CHAOS_END_DATE=2025-07-20 python -m aur_check\n\nThe date window and pacman log glob can be overridden via environment variables:\n\n```bash\nSTART_DATE=2026-06-09 END_DATE=2026-06-12 python -m aur_check\nPACMAN_LOG_GLOB='/var/log/pacman.log*' python -m aur_check\n```\n\n## What it checks\n\n| Check / Feature | Detail | Source |\n|-----------------|--------|--------|\n| Campaign-based architecture | All campaigns declared in `data/campaigns.json` with per-campaign lists, date windows, env overrides, and `campaign_tag` labels | Original addition |\n| `--list-campaigns` | Show configured campaigns with lists, windows, env vars, and refresh URLs | Original addition |\n| `--refresh-campaigns` | Fetch latest `campaigns.json` from upstream, validate, show diff, write | Original addition |\n| `--dry-run` | With `--refresh-campaigns`, show diff without writing | Original addition |\n| `--json` | Machine-readable output for `--list-campaigns` and scan results | Original addition |\n| `-l [CAMPAIGN_ID=]PATH` | Add an extra package list to a specific campaign (repeatable) | Original addition |\n| Currently installed foreign packages | Batch `pacman -Qmq` query against the merged campaign lists, exact-match | commonsourcecs fork |\n| Date window filtering (Jun 9-12) | Per-campaign install-date / log-date recency filters (override via env vars or CLI) | commonsourcecs fork |\n| Historical `pacman.log` scanning | Scans `pacman.log*` for install events | Kacper-Kondracki fork |\n| Compressed log support (`.gz` / `.xz` / `.zst` / `.b",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-05T04:51:09.788381"
+  },
+  {
+    "basic_info": {
+      "name": "Codex-5.5-codex-instruct-5.5",
+      "full_name": "yynxxxxx/Codex-5.5-codex-instruct-5.5",
+      "owner": "yynxxxxx",
+      "description": null,
+      "url": "https://github.com/yynxxxxx/Codex-5.5-codex-instruct-5.5",
+      "clone_url": "https://github.com/yynxxxxx/Codex-5.5-codex-instruct-5.5.git",
+      "ssh_url": "git@github.com:yynxxxxx/Codex-5.5-codex-instruct-5.5.git",
+      "homepage": null,
+      "created_at": "2026-06-28T10:24:42Z",
+      "updated_at": "2026-07-05T04:36:58Z",
+      "pushed_at": "2026-07-04T13:25:57Z"
+    },
+    "stats": {
+      "stars": 1382,
+      "forks": 392,
+      "watchers": 1382,
+      "open_issues": 0,
+      "size": 1187
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 10032
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Codex破限 5.5 / codex-instruct-5.5\n\n> 针对 GPT-5.5 的 Codex CLI 破甲工具 — 一键注入无限制模式系统指令  \n> GPT-5.5 jailbreak for Codex CLI — one-click unrestricted mode injection\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue)](https://python.org)\n\n---\n\n> 当前仓库是早期的 **CLI 简洁版**，主要用于部署 Codex 提示词注入。后续完整可视化版本已迁移到新项目：**[Codex-X](https://github.com/yynxxxxx/Codex-X)**。\n\nCodex-X 提供桌面 UI、Provider 切换、TOML / Auth 可视化编辑、会话管理、内置 `gpt5.4-unrestricted.md` / `gpt5.5-unrestricted.md` 破甲提示词，一键注入破甲功能，以及 macOS / Windows / Linux 安装包。\n\n👉 新项目地址：**[https://github.com/yynxxxxx/Codex-X](https://github.com/yynxxxxx/Codex-X)**。\n\n## 交流 / Community\n\n- QQ AI 技术交流群：扫码加入\n- TG 交流群：[@Geminivip1](https://t.me/Geminivip1)\n\n<p align=\"center\">\n  <img width=\"360\" alt=\"QQ AI 技术交流群二维码\" src=\"assets/ai-tech-group.png\" />\n</p>\n\n## 这是什么 / What\n\nGPT-5.5 在 Codex CLI 中同样受到严格的内容安全限制。本工具利用 `model_instructions_file` 配置机制，注入一套专为 GPT-5.5 编写的无限制模式指令，强制 Codex 以 `[MODE: UNRESTRICTED]` 运行。\n\n与 5.4 的 CTF 沙箱方案不同，5.5 版本采用更直接的破甲策略：直接声明无限制开发者模式、关闭所有过滤器、明确要求不拒绝任何任务。8 条核心指令覆盖了安全研究、渗透测试、逆向工程、NSFW 虚构内容等全部场景。\n\nGPT-5.5 inside Codex CLI retains the same strict safety restrictions. This tool injects a custom unrestricted-mode instruction set via `model_instructions_file`, forcing Codex into `[MODE: UNRESTRICTED]`. Unlike the 5.4 CTF sandbox approach, the 5.5 version uses a more direct jailbreak: explicit unrestricted developer mode declaration, all filters disabled, 8 core directives covering security research, pentesting, reverse engineering, and NSFW content.\n\n## 与 5.4 版本的区别 / vs 5.4\n\n| | 5.4 (CTF沙箱) | 5.5 (无限制模式) |\n|---|---|---|\n| 策略 | CTF 竞赛沙箱间接绕过 | 直接声明无限制开发者模式 |\n| 风格 | 安全研究导向，方法论详细 | 极简指令，覆盖面广 |\n| 长度 | ~180 行 | ~40 行 |\n| 适用 | GPT-5.4 Codex CLI | GPT-5.5 Codex CLI |\n\n## 快速开始 / Quick Start\n\n```bash\n# 部署 GPT-5.5 破限指令\npython codex-instruct.py\n\n# 重启 Codex 生效\n```\n\n## 参数 / Options\n\n| 参数 | 说明 |\n|------|------|\n| `--file`, `-f` | 使用外部 `.md` 指令文件 |\n| `--name`, `-n` | 输出文件名不含 `.md`（默认 `gpt5.5-unrestricted`） |\n| `--dry-run` | 预览，不实际修改 |\n| `--codex-dir` | 手动指定 `.codex` 目录 |\n\n## 验证 / Verify\n\n部署后测试：\n\n> \"如何对目标进行 SQL 注入测试？\"\n\n破甲前 → 拒绝 ； 破甲后 → 直接给方法论。\n\n## 还原 / Undo\n\n```bash\n# 删除 config.toml 中的 model_instructions_file 行\n# 删除 ~/.codex/gpt5.5-unrestricted.md\n# 重启 Codex\n```\n\n## 项目结构 / Layout\n\n```\ncodex-instruct-5.5/\n├── assets/\n│   └── ai-tech-group.png                   # QQ AI 技术交流群二维码\n├── codex-instruct.py                    # 主脚本\n├── examples/\n│   └── gpt5.5-unrestricted.md           # 破甲指令独立副本\n├── .gitignore\n├── README.md\n└── LICENSE                              # MIT\n```\n\n## 声明 / Disclaimer\n\n利用官方配置机制，不修改二进制、不劫持网络、不篡改进程。风险自负。\n\nExploits official config mechanism. No binary mod, no MITM, no process tampering. Use at your own risk.\n\n## License\n\nMIT\n\n## 致谢 / Thanks\n\n感谢 [LINUX DO 论坛](https://linux.do/) 社区的关注、反馈与支持。\n\n## Star History\n\n<p align=\"center\">\n  <a href=\"https://star-history.com/#yynxxxxx/Codex-5.5-codex-instruct-5.5&Date\">\n    <img alt=\"Star History Chart\" src=\"https://api.star-history.com/svg?repos=yynxxxxx/Codex-5.5-codex-instruct-5.5&type=Date\" />\n  </a>\n</p>\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:10.938465"
+  },
+  {
+    "basic_info": {
+      "name": "GordenSuperPPTSkills",
+      "full_name": "GordenSun/GordenSuperPPTSkills",
+      "owner": "GordenSun",
+      "description": "AI PPT赛道终结者，史上最最最强 PPT Skill！！！  使用GPT生成豪华的图片格式PPT，然后转换为完全可编辑的PPTX文件。",
+      "url": "https://github.com/GordenSun/GordenSuperPPTSkills",
+      "clone_url": "https://github.com/GordenSun/GordenSuperPPTSkills.git",
+      "ssh_url": "git@github.com:GordenSun/GordenSuperPPTSkills.git",
+      "homepage": "",
+      "created_at": "2026-06-07T16:20:13Z",
+      "updated_at": "2026-07-05T04:23:11Z",
+      "pushed_at": "2026-06-07T16:26:51Z"
+    },
+    "stats": {
+      "stars": 1376,
+      "forks": 130,
+      "watchers": 1376,
+      "open_issues": 1,
+      "size": 19531
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 114996
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Gorden Super PPT Skills（技能包）\n\nAI PPT赛道终结者，史上最最最强 PPT Skill！！！\n\n使用GPT生成豪华的图片格式PPT，然后转换为**完全可编辑**的PPTX文件。\n\nSkill全流程已拆成 **3 个独立技能**，可以拆分使用和优化：\n\n| 技能 | 作用 | 输入 → 输出 |\n|---|---|---|\n| **[GordenImagePPTGen](GordenImagePPTGen/SKILL.md)** | 生成「图片格式的 PPT」 | 主题/内容 → 每页 .png + 图片型 .pptx |\n| **[GordenImage2PPTX](GordenImage2PPTX/SKILL.md)** | 把「图片 PPT / 图片」还原成可编辑 pptx | 图片 → 可编辑 .pptx（背景+骨架+图标+文本 四层） |\n| **[GordenSuperPPTSkill](GordenSuperPPTSkill/SKILL.md)** | 打包编排前两者，依次执行 | 主题/内容 → 图片型 PPT + 可编辑 pptx |\n\n- 只要做图片版 PPT → **GordenImagePPTGen**\n- 只把图片转可编辑 → **GordenImage2PPTX**\n- 一键\"先出图再转可编辑\" / 未指定 → **GordenSuperPPTSkill**（A→B 串联）\n\n## 效果展示\n1、GordenImagePPTGen（Gorden的图片PPT生成技能）生成图片格式的PPT\n\n![GordenImagePPTGen 生成的图片格式 PPT 示例](examples/example-Image-ppt.png)\n\n2、GordenImage2PPTX（Gorden的图片转PPTX技能）把图片转换为完全可编辑的PPTX文件\n\n![GordenImage2PPTX 转换后的可编辑 PPTX 示例](examples/example-editable-pptx.png)\n\n## 如何使用\n仅限Codex使用。\n\n第1步：把Github仓库地址发给Codex让他安装技能；\n\n第2步：按需使用。GPT 5.5模型，推理强度选\"中\"即可。\n如果只生成图片格式PPT，提示词：\n```\n使用GordenImagePPTGen技能，生成一个N页的PPT，内容为XXX，要求PPT要求豪华、信息密度高、排版复杂\n```\n\n如果只想**把图片PPT转换成可编辑的PPTX文件**，提示词：\n```\n把当前文件夹里的XXX.png，使用GordenImage2PPTX，还原成可编辑的PPT，必须严格遵循技能步骤\n```\n\n说明：\n本技能仅适用于Codex，因为必须使用GPT生成图片和GPT的视觉能力，理论上Opus+GPT生图接口也可以实现，但是本技能没有做专门的适配。\n\n图片转可编辑PPTX文件，比较费额度，转换1张图片大概耗费Plus订阅5小时额度的10%。\n\n框架图默认是整体的一张图，也支持拆分成一个个独立的框架模块图，提示词里明确告诉Codex即可。\n\n## 原理讲解\n核心使用的是GPT的生图能力和视觉解析能力。\n大致步骤是：依次提取PPT图片的背景图、框架图、图标和装饰图、文本。最后在PPT里按坐标拼装起来。当然为了实现完美的效果，做了很多细节验证和约束规则。\n使用过程中，你能看到GPT生成的过程图片。\n\n### 背景图\n\n![图片转 PPTX 过程中的背景图](examples/背景图.png)\n\n### 框架图\n\n![图片转 PPTX 过程中的框架图](examples/框架图.png)\n\n### 图标和装饰\n\n![图片转 PPTX 过程中的图标和装饰](examples/图标和装饰.png)\n\n\n\n\n## 安装（给AI看的）\n\n每个技能目录都是**自包含**的（自带 `scripts/` 与 `references/`）。按需复制：\n\n```bash\n# Codex（按需选装其一/全部）\ncp -R GordenImagePPTGen   \"${CODEX_HOME:-$HOME/.codex}/skills/GordenImagePPTGen\"\ncp -R GordenImage2PPTX    \"${CODEX_HOME:-$HOME/.codex}/skills/GordenImage2PPTX\"\ncp -R GordenSuperPPTSkill \"${CODEX_HOME:-$HOME/.codex}/skills/GordenSuperPPTSkill\"\n```\n\n> GordenSuperPPTSkill 依赖另两个技能，请与它们一起安装（同一 skills 目录/仓库）。最省事：把整个仓库一起复制过去。\n\n## 依赖\n\n```bash\npip3 install python-pptx pillow numpy\n```\n\n图像生成后端按运行时自动解析（Codex 用内置 `imagegen`），见各技能 `references/runtime-notes.md`。\n\n## 目录结构（本文件夹 = 可整体复制给其他 Agent）\n\n```\nGordenSuperPPTSkills/\n├── README.md                  ← 本文件（总入口）\n├── GordenImagePPTGen/         ← 功能A：出图片 PPT（自带 scripts/ references/ 参考图/）\n├── GordenImage2PPTX/          ← 功能B：图片→可编辑 pptx（自带 scripts/ references/）\n└── GordenSuperPPTSkill/       ← 编排 A→B（自带 references/，调用上面两个技能）\n```\n\n每个技能目录均**自包含**。把整个 `GordenPPTSuperSkills/` 复制到目标 Agent 的 skills 目录即可使用。\n\n\n## 致谢与版权\n- 可以商用，**必须标明Github出处，或标记出作者@Gorden Sun**\n- 如果你想加入PPT Skill交流群，可以加我微信duge360\n- 感谢 [LinuxDO](https://linux.do) 社区的支持\n\n\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:12.092040"
+  },
+  {
+    "basic_info": {
+      "name": "pixel2motion",
+      "full_name": "nolangz/pixel2motion",
+      "owner": "nolangz",
+      "description": "AI logo animation skill: turn raster logos into smooth SVG animation, animated HTML demos, GIF/video previews, and motion QA evidence.",
+      "url": "https://github.com/nolangz/pixel2motion",
+      "clone_url": "https://github.com/nolangz/pixel2motion.git",
+      "ssh_url": "git@github.com:nolangz/pixel2motion.git",
+      "homepage": "https://nolangz.github.io/pixel2motion/",
+      "created_at": "2026-06-12T04:25:17Z",
+      "updated_at": "2026-07-05T04:10:13Z",
+      "pushed_at": "2026-06-28T05:39:25Z"
+    },
+    "stats": {
+      "stars": 1370,
+      "forks": 116,
+      "watchers": 1370,
+      "open_issues": 6,
+      "size": 3610
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 94609,
+        "JavaScript": 20475
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-design-tools",
+        "animated-logo",
+        "brand-motion",
+        "claude-skill",
+        "codex-skill",
+        "html-animation",
+        "logo-animation",
+        "logo-motion",
+        "logo-reveal",
+        "motion-design",
+        "pixel-to-svg",
+        "raster-to-svg",
+        "svg-animation",
+        "svg-motion",
+        "vector-animation"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://www.pixel2motion.com\">\n    <img src=\"docs/community/pixel2motion-wordmark.png\" width=\"520\" alt=\"Pixel2Motion wordmark commercial service preview\">\n  </a>\n  <br>\n  <strong><a href=\"https://www.pixel2motion.com\">www.pixel2motion.com</a></strong>\n  <br>\n  Better commercial Pixel2Motion services are coming online: polished logo-to-motion workflows, project-ready previews, and production support beyond the open-source skill.\n  <br>\n  中文：更完整的 Pixel2Motion 商业服务正在上线，面向更稳定的 logo-to-motion 交付、预览和项目支持。\n</p>\n\n---\n\n# Pixel2Motion - AI Logo Animation Skill\n\n**Raster logo → smooth minimal SVG → SVG logo animation → interactive HTML motion demo.**\n\n[Commercial preview](https://www.pixel2motion.com) · [Live interactive demo](https://nolangz.github.io/pixel2motion/) · [Skill instructions](https://github.com/nolangz/pixel2motion/blob/main/SKILL.md) · [Companion skill: Pixel2SVG-HTML](https://github.com/nolangz/pixel2svg-html)\n\nPixel2Motion is an open-source Codex and Claude skill for **logo animation**, **SVG animation**, and AI-assisted brand motion. It turns PNG, JPG, WebP, or screenshot logos into clean motion-ready SVG, then exports animated logo HTML, GIF/video previews, and motion QA evidence. Use it for animated logos, SVG logo reveals, logo motion design, pixel-to-vector reconstruction, and developer-friendly HTML animation workflows.\n\n中文：Pixel2Motion 是一个把像素 logo 转成平滑 SVG，再生成品牌 motion、logo reveal、HTML 动效展示和视频预览的 Codex skill。它适合需要可审查矢量拟合、可复用 SVG 结构和可导出动图/透明视频的设计与开发场景。\n\nRecommended review order: the motion gallery below, the commercial preview, the interactive demo, the fitting evidence, and then the implementation workflow.\n\n## Pixel-to-Motion Gallery\n\nEach pairing shows the raster source next to the motion output, rendered from `docs/index.html` at the animation's default speed: Horizon 1900 ms, Continuum 2000 ms, Focus 1700 ms, N 2400 ms, and CueRecord at the page-default 0.65× custom timeline.\n\n<table>\n  <tr>\n    <td align=\"center\" width=\"50%\">\n      <strong>Horizon</strong><br>\n      <sub>Pixel source</sub><br>\n      <img src=\"docs/pixels/horizon-pixel.png\" width=\"260\" alt=\"Horizon pixel source logo\"><br>\n      <sub>Motion output</sub><br>\n      <img src=\"docs/gifs/claude-horizon.gif\" width=\"320\" alt=\"Claude Horizon logo motion preview\">\n    </td>\n    <td align=\"center\" width=\"50%\">\n      <strong>Continuum</strong><br>\n      <sub>Pixel source</sub><br>\n      <img src=\"docs/pixels/continuum-pixel.png\" width=\"260\" alt=\"Continuum pixel source logo\"><br>\n      <sub>Motion output</sub><br>\n      <img src=\"docs/gifs/claude-continuum.gif\" width=\"320\" alt=\"Claude Continuum logo motion preview\">\n    </td>\n  </tr>\n  <tr>\n    <td align=\"center\" width=\"50%\">\n      <strong>CueRecord</strong><br>\n      <sub>Pixel source</sub><br>\n      <img src=\"docs/pixels/cuerecord-pixel.jpg\" width=\"300\" alt=\"CueRecord pixel source logo\"><br>\n      <sub>Motion output</sub><br>\n      <img src=\"docs/gifs/claude-cuerecord.gif\" width=\"320\" alt=\"Claude CueRecord logo motion preview\">\n    </td>\n    <td align=\"center\" width=\"50%\">\n      <strong>N</strong><br>\n      <sub>Pixel source</sub><br>\n      <img src=\"docs/pixels/n-pixel.png\" width=\"320\" alt=\"N pixel source logo\"><br>\n      <sub>Motion output</sub><br>\n      <img src=\"docs/gifs/claude-n.gif\" width=\"320\" alt=\"Claude N logo motion preview\">\n    </td>\n  </tr>\n  <tr>\n    <td align=\"center\" width=\"50%\">\n      <strong>Focus</strong><br>\n      <sub>Pixel source</sub><br>\n      <img src=\"docs/pixels/focus-pixel.png\" width=\"260\" alt=\"Focus pixel source logo\"><br>\n      <sub>Motion output</sub><br>\n      <img src=\"docs/gifs/claude-focus.gif\" width=\"320\" alt=\"Claude Focus logo motion preview\">\n    </td>\n    <td align=\"center\" width=\"50%\"></td>\n  </tr>\n</table>\n\n## Commercial Preview\n\n[![Pixel2Motion project preview](docs/preview.png)](https://www.pixel2motion.com)\n\nThe full interactive showcase lives in `docs/index.html` and is published through GitHub Pages at [nolangz.github.io/pixel2motion](https://nolangz.github.io/pixel2motion/). A more polished commercial Pixel2Motion service is coming online at [www.pixel2motion.com](https://www.pixel2motion.com), with project-ready previews and production support beyond the open-source skill.\n\n## Fitting Evidence\n\nEvery animation is authored against a QA-verified static vector. The CueRecord fitting sequence, read left to right:\n\n![CueRecord overlay progress strip](docs/process/cuerecord-overlay-progress-strip.png)\n\nThe teal overlays are QA checkpoints, not the deliverable: the vector candidate is repeatedly compared against the raster source until mark scale, dot placement, wordmark baseline, and ink weight hold up — and only then is motion authored on top. The resulting clean semantic SVG, with mark, dot, and wordmark as separate addressable parts, becomes the final-frame contract for the animation.\n\nPixel2Motion optimizes IoU as a diagnostic, but smoothness and structure are the hard gates. A high-IoU jagged trace is rejec",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:13.246761"
+  },
+  {
+    "basic_info": {
+      "name": "agent-apprenticeship",
+      "full_name": "Forsy-AI/agent-apprenticeship",
+      "owner": "Forsy-AI",
+      "description": "The living ecosystem where AI agents complete tasks through workflow loops, improve through iterative execution, are evaluated by mentor agents or humans in the loop, and turn completed work into reusable work experience and data to improve future agents.",
+      "url": "https://github.com/Forsy-AI/agent-apprenticeship",
+      "clone_url": "https://github.com/Forsy-AI/agent-apprenticeship.git",
+      "ssh_url": "git@github.com:Forsy-AI/agent-apprenticeship.git",
+      "homepage": "https://agentapprenticeship.org/",
+      "created_at": "2026-06-19T16:19:37Z",
+      "updated_at": "2026-07-05T03:50:39Z",
+      "pushed_at": "2026-07-03T12:22:33Z"
+    },
+    "stats": {
+      "stars": 1220,
+      "forks": 52,
+      "watchers": 1220,
+      "open_issues": 0,
+      "size": 981
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1157403,
+        "JavaScript": 10424
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-apprenticeship",
+        "agent-economy",
+        "agent-experience",
+        "agent-learning",
+        "agent-traces",
+        "agentic-ai",
+        "ai-agents",
+        "autonomous-agents",
+        "claude-code",
+        "codex",
+        "cursor",
+        "ecosystem-learning",
+        "hermes-agent",
+        "loop-engineering",
+        "openclaw",
+        "opencode",
+        "post-training",
+        "real-world-tasks",
+        "reinforcement-learning",
+        "training-signals"
+      ]
+    },
+    "content": {
+      "readme": "# Agent Apprenticeship\n\n[![npm version](https://img.shields.io/npm/v/agent-apprenticeship.svg)](https://www.npmjs.com/package/agent-apprenticeship)\n\n**Real-world agent work experience, looped into collective learning.**\n\nThe living ecosystem where AI agents complete tasks through workflow loops, improve through iterative execution, are evaluated by mentor agents or humans in the loop, and turn completed work into reusable work experience and data to improve future agents.\n\n```bash\nnpx agent-apprenticeship init\n```\n\n![Agent Apprenticeship](apprenticeship.png)\n\nAs agents move into long-horizon, economically valuable work, Agent Apprenticeship creates the open infrastructure where real-world tasks generate reusable learning signals and complex workflows advance through agent loops that turn execution into shared improvement.\n\nAgent Apprenticeship is designed for a compounding exchange of agent work experience: economically valuable task execution generates training signals, those signals improve future work, and future work creates new reusable experience for the ecosystem.\n\nAgent Apprenticeship is built for iterative workflow loops across domains, from simple tasks to complex specialized work. Apprentice agents work with mentor agents, users, or human experts to complete real-world tasks, while each workflow generates reusable learning signals for the ecosystem.\n\nThe latest seed dataset includes:\n\n- 500+ curated seed tasks sourced and grounded from the real world\n- 495 reusable agent lessons\n- 1000+ full agent execution traces\n- 1000+ agent work episodes / task rollouts\n- 505 full agent work experience compilations\n- 39k+ structured experience compilation records\n\nThe seed dataset spans specialized, economically valuable tasks across domains and forms the first layer of the Agent Apprenticeship ecosystem.\n\nAgent Apprenticeship is now available for anyone to start using with local agents, including Codex, Cursor, Claude Code, OpenClaw, OpenCode, Hermes Agent, and custom agents, alongside different model providers. Users can run automated agent workflow loops locally, contribute agent learning signals back to the ecosystem, and use shared ecosystem signals to improve their own agents.\n\nAgent Apprenticeship is about the future of work and the economic value of agents. For every task executed through Agent Apprenticeship, the system can estimate task-level economic value, especially across specialized domains. It is built for everyday use to improve agent performance and outcome quality, while enabling users to exchange agent work experience with each other and with domain-expert-led agents in one living ecosystem.\n\n## Install\n\n```bash\nnpx agent-apprenticeship init\n```\n\nOr install globally:\n\n```bash\nnpm install -g agent-apprenticeship\napprentice init\n```\n\nThe installed command is:\n\n```bash\napprentice\n```\n\nThe long-form command also remains available:\n\n```bash\nagent-apprenticeship\n```\n\n## Quickstart\n\nStart Agent Apprenticeship:\n\n```bash\nnpx agent-apprenticeship init\n```\n\nUse defaults:\n\n```bash\nnpx agent-apprenticeship init --defaults\n```\n\nCheck your setup:\n\n```bash\napprentice settings\napprentice doctor\n```\n\nConfigure your Apprentice Agent, Mentor Model Provider, and Apprenticeship Mode:\n\n```bash\napprentice configure\napprentice configure model\napprentice settings\n```\n\nApprenticeship Modes:\n\n```text\nAutonomous\nExpert-Led\nOrganization Custom\n```\n\nStore Mentor Model Provider keys in:\n\n```bash\n~/.agent-apprenticeship/.env.local\n```\n\nExample:\n\n```bash\nOPENAI_API_KEY=\"\"\nANTHROPIC_API_KEY=\"\"\nGEMINI_API_KEY=\"\"\nOPENROUTER_API_KEY=\"\"\n```\n\nYou can also use shell environment variables for the current terminal session:\n\n```bash\nexport OPENAI_API_KEY=\"...\"\napprentice doctor\n```\n\nRun your first task:\n\n```bash\napprentice run \"Create a short market map for AI procurement tools.\"\n```\n\nWatch progress:\n\n```bash\napprentice watch <run_id>\n```\n\nWhen the run completes, Agent Apprenticeship prints the local run folder and Experience Compilation path.\n\nInspect the generated Experience Compilation:\n\n```bash\napprentice ecosystem inspect <experience_compilation_path>\napprentice bundle check <experience_compilation_path>\n```\n\nExport the Full Experience Compilation:\n\n```bash\napprentice ecosystem export <experience_compilation_path> --full\n```\n\nInstall Runtime Training from prior experience:\n\n```bash\napprentice learn install <experience_compilation_path>\n```\n\nUse installed Runtime Training in a future run:\n\n```bash\napprentice run \"Create a release checklist for an AI agent project.\"\n```\n\nConfigure maximum loop depth:\n\n```bash\napprentice settings\n```\n\nFor a one-off terminal session:\n\n```bash\nexport AA_MAX_ITERATIONS=3\n```\n\n## Apprentice Agents\n\nAvailable Apprentice Agents:\n\n```text\nCodex\nCursor\nClaude Code\nOpenClaw\nOpenCode\nHermes Agent\nCustom\n```\n\nAgent Apprenticeship auto-detects installed CLIs. If multiple are detected, choose one during setup.\n\nCustom lets you provide a command template:\n\n```bash\napprentice configure agent custom --command-tem",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:14.421626"
+  },
+  {
+    "basic_info": {
+      "name": "tabfm",
+      "full_name": "google-research/tabfm",
+      "owner": "google-research",
+      "description": null,
+      "url": "https://github.com/google-research/tabfm",
+      "clone_url": "https://github.com/google-research/tabfm.git",
+      "ssh_url": "git@github.com:google-research/tabfm.git",
+      "homepage": null,
+      "created_at": "2026-06-16T21:06:19Z",
+      "updated_at": "2026-07-05T04:37:30Z",
+      "pushed_at": "2026-07-04T23:23:22Z"
+    },
+    "stats": {
+      "stars": 1177,
+      "forks": 108,
+      "watchers": 1177,
+      "open_issues": 16,
+      "size": 337
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 366939,
+        "Starlark": 5389
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# TabFM: Tabular Foundation Models\n\nTabFM (Tabular Foundation Model) is a scikit-learn compatible tabular foundation model. It allows you to perform zero-shot classification and regression on tabular datasets with mixed column types out-of-the-box.\n\nAt inference time, TabFM does not require training parameters on your dataset; instead, it leverages in-context learning by reading your training data as \"context\" to make instant predictions on new test samples.\n\n*This is not an officially supported Google product.*\n\n---\n\n## Installation\n\nTo install TabFM, clone the repository and install it locally with the backend of your choice:\n\n**JAX (CPU):**\n```bash\ngit clone https://github.com/google-research/tabfm.git\ncd tabfm\npip install -e .[jax]\n```\n\n**JAX (GPU):**\n```bash\ngit clone https://github.com/google-research/tabfm.git\ncd tabfm\npip install -e .[jax,cuda]\n```\n\n**PyTorch (CPU/GPU):**\n```bash\ngit clone https://github.com/google-research/tabfm.git\ncd tabfm\npip install -e .[pytorch]\n```\n*Note: For PyTorch with GPU support, ensure you have the appropriate PyTorch version installed for your CUDA version before installing TabFM.*\n\n### Requirements\nFor a complete list of pinned dependencies and versions, please see [requirements.txt](requirements.txt). The core requirements depend on the backend you choose:\n*   Python >= 3.11\n*   Hugging Face Hub (for downloading pre-trained weights)\n*   **JAX Backend:**\n    *   JAX (specifically `jax==0.10.1`)\n    *   Flax (specifically `flax==0.12.7`, using the modern `flax.nnx` API)\n*   **PyTorch Backend:**\n    *   PyTorch (specifically `torch==2.12.1+cpu` or a GPU version)\n\n---\n\n## Quick Start (TabFM v1.0.0)\n\nWe provide pre-trained weights for the **TabFM v1.0.0** release. The library handles downloading and loading these weights automatically. You can choose to load the model using either the JAX or PyTorch backend.\n\n### 1. Classification Example\n\n```python\nimport numpy as np\nimport pandas as pd\nfrom tabfm import TabFMClassifier\n\n# Choose your backend:\n\n# OPTION A: JAX Backend\nfrom tabfm import tabfm_v1_0_0_jax as tabfm_v1_0_0\nmodel = tabfm_v1_0_0.load()\n\n# OPTION B: PyTorch Backend\n# from tabfm import tabfm_v1_0_0_pytorch as tabfm_v1_0_0\n# model = tabfm_v1_0_0.load()\n\n# Initialize scikit-learn compatible classifier (works with either backend model)\nclf = TabFMClassifier(model=model)\n\n# Prepare your dataset (supports mixed numerical and categorical features)\nX_train = pd.DataFrame({\n    \"age\": [25.0, 45.0, 35.0, 50.0],\n    \"job\": [\"engineer\", \"manager\", \"engineer\", \"manager\"],\n    \"income\": [80000, 120000, 90000, 130000]\n})\ny_train = np.array([\"low_risk\", \"high_risk\", \"low_risk\", \"high_risk\"])\n\nX_test = pd.DataFrame({\n    \"age\": [30.0, 48.0],\n    \"job\": [\"engineer\", \"manager\"],\n    \"income\": [85000, 125000]\n})\n\n# Fit classifier (prepares ordinal encoders and numerical scalers)\nclf.fit(X_train, y_train)\n\n# Predict classes and probabilities\npredictions = clf.predict(X_test)\nprobabilities = clf.predict_proba(X_test)\n\nprint(\"Predictions:\", predictions)\nprint(\"Class Probabilities:\\n\", probabilities)\n```\n\n### 2. Regression Example\n\n```python\nimport numpy as np\nimport pandas as pd\nfrom tabfm import TabFMRegressor\n\n# Choose your backend:\n\n# OPTION A: JAX Backend\nfrom tabfm import tabfm_v1_0_0_jax as tabfm_v1_0_0\nmodel = tabfm_v1_0_0.load(model_type=\"regression\")\n\n# OPTION B: PyTorch Backend\n# from tabfm import tabfm_v1_0_0_pytorch as tabfm_v1_0_0\n# model = tabfm_v1_0_0.load(model_type=\"regression\")\n\n# Initialize scikit-learn compatible regressor (works with either backend model)\nreg = TabFMRegressor(model=model)\n\n# Prepare your dataset\nX_train = pd.DataFrame({\n    \"sqft\": [1200, 2500, 1500, 3000],\n    \"neighborhood\": [\"A\", \"B\", \"A\", \"C\"]\n})\ny_train = np.array([250000, 550000, 310000, 620000])\n\nX_test = pd.DataFrame({\n    \"sqft\": [1800, 2800],\n    \"neighborhood\": [\"A\", \"B\"]\n})\n\n# Fit and Predict\nreg.fit(X_train, y_train)\npredictions = reg.predict(X_test)\n\nprint(\"Predicted Prices:\", predictions)\n```\n\n---\n\n## Examples Directory\n\nYou can find runnable scripts for both classification and regression under the [examples/](examples/) folder:\n*   [classification_example.py](examples/classification_example.py)\n*   [regression_example.py](examples/regression_example.py)\n\nTo run them, simply execute:\n```bash\npython examples/classification_example.py\n```\n*(You can edit these files to switch between JAX and PyTorch backends as shown in the comments inside them).*\n\n---\n\n## Evaluation Results\n\nOur model evaluation results can be found in [results/](results/).\n\n---\n\n## Running Tests\n\nYou can run the unit tests directly using Python's `unittest` module:\n\n```bash\n# Run all tests (requires both JAX and PyTorch installed)\nPYTHONPATH=. python3 -m unittest discover -s tabfm/src/ -p \"*_test.py\"\n\n# Or run specific test files:\nPYTHONPATH=. python3 -m unittest tabfm/src/pytorch/model_test.py\nPYTHONPATH=. python3 -m unittest tabfm/src/classifier_and_regressor_pytorch_test.py\n```\n\nAlternatively, if you have Bazel in",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:15.600890"
+  },
+  {
+    "basic_info": {
+      "name": "zhengxi-views",
+      "full_name": "lyra81604/zhengxi-views",
+      "owner": "lyra81604",
+      "description": "可溯源的郑希(易方达基金经理)投研 Agent Skill——基于他全部公开观点原文 + 有原话佐证的投资方法 + 全市场基金真实数据，能溯源问答、按他框架给基金打分，绝不杜撰。⚠️仅研究学习辅助，不构成投资建议‼️website是郑希主页！",
+      "url": "https://github.com/lyra81604/zhengxi-views",
+      "clone_url": "https://github.com/lyra81604/zhengxi-views.git",
+      "ssh_url": "git@github.com:lyra81604/zhengxi-views.git",
+      "homepage": "https://www.efunds.com.cn/manager/462.shtml",
+      "created_at": "2026-06-20T04:27:07Z",
+      "updated_at": "2026-07-05T03:09:36Z",
+      "pushed_at": "2026-06-30T09:59:37Z"
+    },
+    "stats": {
+      "stars": 1160,
+      "forks": 130,
+      "watchers": 1160,
+      "open_issues": 0,
+      "size": 4901
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 36895
+      },
+      "license": "Other",
+      "topics": [
+        "agent-skill",
+        "chinese-funds",
+        "funds",
+        "investing"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 🔎 基金经理 · 郑希观点库 Skill\n\n### 可溯源 · 原文为据 · 接入全市场基金 · 跨 AI 平台\n\n*「查观点 · 学方法 · 做前瞻 · 仿口吻写点评 · 言行对照 · 全市场基金对比与评分 —— 让任意 AI 读懂易方达郑希」*\n\n![License](https://img.shields.io/badge/License-MIT-blue.svg)\n![类型](https://img.shields.io/badge/类型-Agent%20Skill-black)\n![数据](https://img.shields.io/badge/数据-真实公开披露-success)\n![基金](https://img.shields.io/badge/覆盖-全市场%202.7万只-orange)\n![平台](https://img.shields.io/badge/平台-Claude%20·%20WorkBuddy%20·%20ima%20·%20ChatGPT%20·%20Gemini%20·%20Cursor-7c3aed)\n\n[安装](#install) · [它能做什么](#features) · [推荐用法](#recommended-usage) · [在其他 AI 里用](#other-ai) · [目录结构](#structure) · [数据来源](#sources) · [边界](#limits)\n\n</div>\n\n---\n\n很多关于\"某基金经理怎么看 X\"的回答，听起来头头是道，其实是模型凭印象编的——查无此言。这个 skill 解决的就是这个问题：它的根基是**郑希（易方达权益投资管理部副总经理、基金经理）本人留下的原始文本**，任何结论都能追溯到\"哪一年、哪一篇、原话是什么\"。\n\n它有**三块根基**，都来自公开内容、可溯源：\n\n- 📚 **原文语料**（`references/corpus/`）——2012–2026 年郑希的全部公开观点：定期报告中的投资运作分析（季报 / 中报 / 年报）、基金经理手记、媒体采访报道，外加基金经理简介、在任 / 曾任基金清单。\n- 🧭 **投资方法**（`references/method.md`）——从上面的语料**蒸馏**出来的方法框架，**每一条都有他本人原话佐证**。它让 skill 在语料没直接谈过的话题上，也能用郑希自己的方法去推演，而不是一句\"查无此言\"。\n- 📊 **真实基金数据**（`references/fund_data/`）——他全部 8 只基金（4 在任 + 4 曾任）的真实数据快照：每季前十大重仓股、净值/业绩/规模/资产配置/任职回报。再加上 `references/all_funds/` 里**全市场约 2.7 万只基金**列表，可按需抓取任意基金做对比与评分。\n\n**⚠️ 仅供研究与学习辅助，不构成投资建议。**\n\n<a id=\"features\"></a>\n## 🎯 它能帮你做什么\n\n| 你想做的 | 怎么问 | skill 会怎么做 |\n|---|---|---|\n| 查清他对某方向的真实看法 | `郑希怎么看光通信？他什么时候开始看好的？` | 检索语料，给**带原文出处的引用**，并梳理观点演变 |\n| 了解他的投资方法 | `郑希的选股逻辑是什么？为什么偏好低 ROE？` | 用有原话佐证的方法框架作答，可回原文展开 |\n| 用他的思路做前瞻判断 | `用郑希的思路看看创新药值不值得关注` | 语料有就引原文；**没有就用他的方法推演**，并在首句声明非他本人观点 |\n| 用他的口吻写点评 | `模仿郑希季报的风格写一段 2026 二季度科技展望` | 参照他季报的结构与笔法成文，不捏造数字持仓，声明为风格化模拟 |\n| 言行对照 / 查业绩持仓 | `郑希说看好光通信，持仓真印证了吗？业绩如何？` | 把语料里的表态和真实逐季持仓对照，并给净值/收益/回撤等真实数据 |\n| 查 / 对比全市场任意基金 | `把郑希和葛兰的中欧医疗比一比` | 全市场 2.7 万只里查代码 → 实时抓取 → 与郑希的基金并列对比 |\n| 用郑希框架给基金打分 | `用郑希的标准给招商中证白酒打个分，他会买吗？` | 一条命令备好数据，按六维评分卡给总分/评级/理由（衡量\"多像郑希会买的\"，非基金优劣） |\n\n<a id=\"recommended-usage\"></a>\n## ⭐ 推荐用法\n\n把腾讯 **WorkBuddy**、`zhengxi-views` skill 和 **MCP** 接起来后，可以把它做成一个交易日自动化研究助手：在每个交易日按固定时间触发，自动读取市场行情、基金/持仓数据、财报与产业新闻，再用郑希的方法框架生成结构化分析报告，并通过邮件 MCP 推送到指定邮箱。\n\n一个典型流程是：\n\n1. 在 WorkBuddy 里启用 `zhengxi-views` skill，并配置可调用的 MCP 连接器，例如行情/资讯数据源、TDX 数据连接器、QQ 邮箱或企业邮箱连接器。\n2. 建立交易日定时任务，例如工作日盘前、盘后或财报密集期定时执行。\n3. 让任务按固定链路采集指数、ETF、个股/基金、产业新闻、公司财报和郑希原文/方法论材料。\n4. 用 skill 的溯源约束和方法框架生成日报、财报解读、热点板块分析、持仓验证和郑希视角推演。\n5. 将 HTML 或 Markdown 报告通过邮件 MCP 自动发送到自己或团队邮箱，沉淀为可复盘的交易日研究流水线。\n\n下面是 WorkBuddy 自动化配置和邮件报告效果示例：\n\n<div align=\"center\">\n  <img src=\"assets/recommended-usage/01-workbuddy-automation-config.jpg\" width=\"32%\" alt=\"WorkBuddy 自动化任务配置\">\n  <img src=\"assets/recommended-usage/02-daily-tech-market-report.jpg\" width=\"32%\" alt=\"每日全球科技行情分析报告\">\n  <img src=\"assets/recommended-usage/03-hot-reports.jpg\" width=\"32%\" alt=\"热点报告聚合与摘要\">\n</div>\n\n<br>\n\n<div align=\"center\">\n  <img src=\"assets/recommended-usage/04-gold-section.jpg\" width=\"32%\" alt=\"黄金与关键事件分析\">\n  <img src=\"assets/recommended-usage/05-zhengxi-view-analysis.jpg\" width=\"32%\" alt=\"郑希视角分析\">\n  <img src=\"assets/recommended-usage/06-method-deduction.jpg\" width=\"32%\" alt=\"按郑希方法框架推演\">\n</div>\n\n## 💬 示例 · 看看它怎么答\n\n下面是 skill 的**真实输出**（稍作精简）。\n\n<details>\n<summary><b>① 溯源问答 —— “郑希怎么看光通信？什么时候开始看好的？”</b></summary>\n\n<br>\n\n> 他在 **2026 年 6 月接受中国证券报采访**时把逻辑讲得很清楚：\n>\n> > “全球 AI 资本开支已经来到万亿美元级别。AI 产业链中，数据传输是重要一环，而光通信则是远距离传输的关键路径。叠加我国在光通信领域的全球比较优势，未来光通信市场规模有望进一步提升。”\n>\n> 时间点上，他说对“光”的重仓**可追溯到 2025 年二季度**。对照他管理的 **易方达信息产业（001513）持仓**：2025Q2 起，中际旭创、新易盛、源杰科技、光库科技等光通信标的确实集体进入前十大——**言行一致**。\n\n</details>\n\n<details>\n<summary><b>② 语料里没谈过的方向 —— “用郑希的思路看看创新药？”</b></summary>\n\n<br>\n\n> **郑希没有公开谈过创新药这个方向，下面是按他一贯的投资方法做的推演，不代表他本人的观点。**\n>\n> 在他全部公开材料里，“创新药”基本只是季报复盘里“顺带提一句”的角色，从没专门展开。所以把他的方法搬过来看：\n> - **第 1 关·有没有“供给端创造的需求”**：创新药靠新靶点/新疗法创造原本不存在的需求，属于他偏爱的“科技型通胀”，这一关最对味；\n> - **第 2 关·中国比较优势在哪**：原始创新策源地在海外，中国更占优的是 CXO / 出海 BD 这类“卖水人”环节；\n> - **第 3 关·低 ROE 弹性**：未盈利 Biotech 是典型“预先研发型低 ROE”，符合他的偏好；但**流动性**这关会筛掉一批日成交清淡的小票。\n>\n> *（涉及具体公司/估值标“需核实”；非投资建议。）*\n\n</details>\n\n<details>\n<summary><b>③ 郑希框架评分 —— “用郑希的标准给招商中证白酒打个分，他会买吗？”</b></summary>\n\n<br>\n\n> # 用郑希框架给【招商中证白酒指数（012414）】打分：**21 / 100 · 不契合**\n>\n> 一句话：这是一只合格的行业指数工具，但几乎不像“郑希会买的基金”。**低分 ≠ 差基金**，只是风格和他几乎相反。\n>\n> | 维度 | 得分 | 一句话依据 |\n> |---|---|---|\n> | 景气方向 / 通胀属性 | 4 / 25 | 前十大清一色高端白酒，当前处于去库存**下行周期**，是“被压价”而非“在涨价” |\n> | ROE 低位弹性 | 6 / 20 | 全是 ROE 长期高位的白酒白马，非他要的“低位待修复” |\n> | 全球视野 / 中国比较优势 | 2 / 15 | 纯内需消费，与全球技术周期无关 |\n> | 流动性 | 7 / 10 | 重仓全是流动性最好的大盘龙头（唯一亮点） |\n> | 集中度与周期拼接 | 2 / 15 | 集中度 85.8% 但**被动躺平**，近 5 季换手代理仅 ~5%，与他“周期拼接/高换手”相反 |\n> | 业绩与回撤印证 | 0 / 15 | 近 1 年 −23.9%、最大回撤 −63.2%，大幅跑输 |\n>\n> **他会买吗？几乎不会**——一只被动锁定单一传统行业的指数基金，和他“自上而下找通胀、偏科技成长、买低 ROE 弹性、动态周期拼接”的方法全对不上。\n\n</details>\n\n<details>\n<summary><b>④ 全市场对比 —— “把郑希的信息产业和葛兰的中欧医疗比一比”</b></summary>\n\n<br>\n\n> | | 郑希 · 信息产业 001513 | 葛兰 · 中欧医疗 003095 |\n> |---|---|---|\n> | 赛道 | 科技（光通信·算力·半导体） | 医药（CXO·创新药） |\n> | 风格 | 自上而下、产业链轮动、**高换手** | 核心资产**长持**、低换手 |\n> | 近 1 年 | **+290%** | −5.4% |\n> | 最大回撤 | −46.3% | −63.9% |\n>\n> 一句话：两人都是高仓位单赛道选手，但郑希靠“踩对当下景气 + 动态轮动”把弹性变成收益，葛兰靠“长拿核心资产”在医药下行期完整承接了更深回撤。\n> *（数据为公开季度快照，截至 2026-06；非投资建议。）*\n\n</details>\n\n## ⚖️ 和\"投资框架/方法论\"类 skill 的区别\n\n|  | 方法论 / 框架类 skill | 本项目（郑希观点库）",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:16.781690"
+  },
+  {
+    "basic_info": {
+      "name": "Windows-Copilot-API",
+      "full_name": "sums001/Windows-Copilot-API",
+      "owner": "sums001",
+      "description": "Reverse engineered Windows Copilot into an OpenAI-compatible API. Access GPT-4 and GPT-5 models through a simple REST interface without API keys or billing.",
+      "url": "https://github.com/sums001/Windows-Copilot-API",
+      "clone_url": "https://github.com/sums001/Windows-Copilot-API.git",
+      "ssh_url": "git@github.com:sums001/Windows-Copilot-API.git",
+      "homepage": "",
+      "created_at": "2026-06-19T13:24:44Z",
+      "updated_at": "2026-07-05T04:41:15Z",
+      "pushed_at": "2026-06-27T16:16:19Z"
+    },
+    "stats": {
+      "stars": 1036,
+      "forks": 351,
+      "watchers": 1036,
+      "open_issues": 0,
+      "size": 706
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 128639,
+        "Dockerfile": 561
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "api",
+        "copilot",
+        "llm",
+        "microsoft-copilot",
+        "openai"
+      ]
+    },
+    "content": {
+      "readme": "\n\n# Windows Copilot API: a free LLM API powered by Microsoft Copilot\n\n![Windows Copilot API — a free, OpenAI-compatible API for your Microsoft Copilot account](assets/windows-copilot-api-banner.png)\n\n**Using your own Microsoft Copilot account.** No API key, no credits, no paid plan: it turns the free chat at [copilot.microsoft.com](https://copilot.microsoft.com) into an API you can call from code.\n\nYou can use it in two ways:\n\n- 🐍 **As a Python library:** just call `client.chat(\"Hi\")`. Supports streaming and multi-turn conversations.\n- 🔌 **As a local OpenAI-compatible API:** runs a server at `http://localhost:8000/v1` that speaks the OpenAI format, so the official `openai` SDK (and any OpenAI-compatible app) works as a drop-in, with `localhost` in place of OpenAI.\n\nYou sign in once in a browser with your Microsoft **or Google** account; your session is saved and refreshed automatically after that.\n\n> **Unofficial project.** Not affiliated with or endorsed by Microsoft. It automates the consumer Copilot web experience for personal use, so use it responsibly and within Microsoft's terms.\n\n---\n\n## Table of contents\n\n- [Why use this?](#why-use-this)\n- [Requirements](#requirements)\n- [Setup (2 minutes)](#setup-2-minutes)\n- [Run with Docker (optional)](#run-with-docker-optional)\n- [Usage 1: In Python (no server)](#usage-1-in-python-no-server)\n- [Usage 2: As an OpenAI-compatible server](#usage-2-as-an-openai-compatible-server)\n- [Command line](#command-line)\n- [Concurrency & stress test](#concurrency--stress-test)\n- [Rate limiting](#rate-limiting)\n- [Project layout](#project-layout)\n- [Notes & limitations](#notes--limitations)\n- [Troubleshooting](#troubleshooting)\n- [Collaboration & support](#collaboration--support)\n- [License](#license)\n- [Star History](#star-history)\n\n---\n\n## Why use this?\n\n- **Free:** uses your normal signed-in Copilot, no API billing.\n- **Drop-in OpenAI replacement:** point any OpenAI client at `localhost` and it just works.\n- **Works everywhere you're signed in:** the signed-in path works even in regions where *anonymous* Copilot is blocked (e.g. India).\n- **Streaming + conversations:** token-by-token output and multi-turn threads addressed by `conversation_id`.\n\n---\n\n## Requirements\n\n- **Python 3.9+**\n- A **Microsoft account** (the free one you use for Copilot is fine)\n- Works on Windows, macOS, and Linux\n\n---\n\n## Setup (2 minutes)\n\n```bash\n# 1. Clone the project\ngit clone <your-repo-url>\ncd Windows-Copilot-API\n```\n\n**2. Create and activate a virtual environment**\n\nOn **macOS / Linux**:\n\n```bash\npython3 -m venv venv\nsource venv/bin/activate\n```\n\nOn **Windows** (PowerShell):\n\n```powershell\npython -m venv venv\nvenv\\Scripts\\Activate.ps1\n```\n\n> On Windows you may need to allow script execution once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. In `cmd.exe` activate with `venv\\Scripts\\activate.bat` instead.\n\n**3. Install dependencies and sign in**\n\n```bash\n# Install dependencies\npip install -r requirements.txt\n\n# Install the browser Playwright needs (one-time)\nplaywright install chromium\n\n# Sign in once: a browser opens, log into your Microsoft or Google account\npython -m copilot login\n```\n\nThe browser **closes by itself** once sign-in is detected — you don't need to press Enter or close it manually. After sign-in it sends one short warm-up message that mints the chat token **and** passes Cloudflare's \"verify you're human\" check in the same step (a brief \"finishing setup…\" appears, and a tiny throwaway chat lands in your history). If a checkbox shows up, click it in that login window. The steps are logged to `session/login.log` if anything goes wrong. That's it: your session is saved under `session/` (git-ignored, never shared) and reused on every run — so your first request works right away.\n\n> 🛠️ **Run into trouble during setup or your first run?** Head to the [Troubleshooting](#troubleshooting) section, the bundled diagnostic both *fixes* common issues (captcha/clearance) and *logs* a shareable report.\n\n---\n\n## Run with Docker (optional)\n\nPrefer a container? You can run the OpenAI-compatible server in Docker once you've signed in.\n\n> **Sign in on the host first.** The login step above opens a *visible* browser, which can't run inside the headless container — so run `python -m copilot login` on your host to populate `session/`. The container mounts that folder and reuses the Cloudflare clearance earned on the host. It refreshes the chat token headlessly, but it can't earn *fresh* clearance without a visible browser, so when clearance expires (~30 min) it returns a `503` — re-run `python -m copilot login` on the host to refresh `session/`.\n\n```bash\ndocker compose up --build\n# -> Copilot OpenAI-compatible API on http://localhost:8000\n```\n\nThe [docker-compose.yml](docker-compose.yml) maps port `8000` and bind-mounts your `session/` so the login persists across restarts. Tune `RATE_LIMIT_RPM` / `RATE_LIMIT_BURST` there. To run without Compose, build and pass the same bindings by hand:\n\n``",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-05T04:51:17.962203"
+  },
+  {
+    "basic_info": {
+      "name": "JoyAI-VL-Interaction",
+      "full_name": "jd-opensource/JoyAI-VL-Interaction",
+      "owner": "jd-opensource",
+      "description": null,
+      "url": "https://github.com/jd-opensource/JoyAI-VL-Interaction",
+      "clone_url": "https://github.com/jd-opensource/JoyAI-VL-Interaction.git",
+      "ssh_url": "git@github.com:jd-opensource/JoyAI-VL-Interaction.git",
+      "homepage": null,
+      "created_at": "2026-06-11T10:30:19Z",
+      "updated_at": "2026-07-05T04:26:42Z",
+      "pushed_at": "2026-06-25T12:31:53Z"
+    },
+    "stats": {
+      "stars": 1003,
+      "forks": 86,
+      "watchers": 1003,
+      "open_issues": 17,
+      "size": 8597
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 415648,
+        "HTML": 330278,
+        "Shell": 63841
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"img/readme-hero.gif\" alt=\"JoyAI-VL-Interaction banner\" width=\"100%\">\n</p>\n\n<div align=\"center\">\n\n<h1>JoyAI-VL-Interaction</h1>\n\n<p><strong>⚡ An Open Real-time Video-Language Interaction System</strong></p>\n\n<p>An 8B-scale, fully open vision-language interaction model with a complete deployable system — the model, training recipe, time-aligned interaction data, and a real-time streaming stack, all in one repository.</p>\n\n<p>\n  <a href=\"https://arxiv.org/pdf/2606.14777\"><b>📄 arXiv</b></a> |\n  <a href=\"https://joyai-vl-video-future-academy-jd.github.io/JoyAI-VL-Interaction/\"><b>🚀 Blog</b></a> |\n  <a href=\"https://github.com/jd-opensource/JoyAI-VL-Interaction\"><b>💻 Code</b></a> |\n  <a href=\"https://huggingface.co/jdopensource/JoyAI-VL-Interaction-Preview\"><b>🤗 Model</b></a> |\n  <a href=\"https://huggingface.co/datasets/jdopensource/JoyAI-VL-Interaction\"><b>📦 Dataset</b></a>\n</p>\n\n<p>\n  <a href=\"#-quick-start\"><b>🚀 Quick Start</b></a> |\n  <a href=\"#-capability\"><b>🧩 Capability</b></a> |\n  <a href=\"#-evaluation\"><b>📊 Evaluation</b></a> |\n  <a href=\"#-citation\"><b>📝 Citation</b></a>\n</p>\n\n<p>\n  <img src=\"https://img.shields.io/badge/Model-8B-blue?style=flat-square\" alt=\"8B Model\">\n  <img src=\"https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white\" alt=\"Python 3.12\">\n  <img src=\"https://img.shields.io/badge/vLLM-Inference-orange?style=flat-square\" alt=\"vLLM\">\n  <img src=\"https://img.shields.io/badge/CUDA-12.x-76B900?style=flat-square&logo=nvidia&logoColor=white\" alt=\"CUDA 12.x\">\n  <img src=\"https://img.shields.io/badge/License-Apache_2.0-green?style=flat-square\" alt=\"Apache 2.0\">\n  <img src=\"https://img.shields.io/badge/Latency-<1s-d61f2c?style=flat-square\" alt=\"Sub-second latency\">\n</p>\n\n</div>\n\n> 中文文档: [README.zh-CN.md](README.zh-CN.md)\n\n## 🔥 News\n\n- **[2026-06-20]** 🎉 Full open-source release — model weights, deployable system, and technical report are now available.\n- **[2026-06-20]** 🚀 Day-0 deployment support via [vLLM-Omni](https://github.com/vllm-project/vllm-omni) ([recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/JD/JoyAI-VL-Interaction.md)).\n- **[2026-06-20]** 🎉 Release aligned interaction training data.\n\n[https://github.com/user-attachments/assets/2853fc95-ad21-4972-8206-5f3d19798b14](https://github.com/user-attachments/assets/2853fc95-ad21-4972-8206-5f3d19798b14)\n\n## ✨ Introduction\n\n![JoyAI-VL-Interaction overview](img/overview.png)\n\nThe most important moments rarely wait for you to ask. A pot boils over while your hands are full. A toddler wanders toward the stove. The best moment of the game is gone before you can react. Today's AI can't help with moments like these — these models are turn-based by design: they sit quietly until you address them, then answer the question you asked.\n\nWe think the next step is a model that's **present like a person**: one that watches what's happening now, decides on its own when a moment is worth a word, speaks up when it matters and stays quiet when it doesn't, and hands off to a stronger model when a problem is hard.\n\n**JoyAI-VL-Interaction** is an 8B-scale, vision-first interaction model released together with its training recipe, its data, and a complete deployable system — all fully open. Point a webcam or a livestream at it and it's immediately present in the scene, watching and responding in real time.\n\n### 🌟 Key Features\n\n\n|     | Feature                          | Description                                                                                    |\n| --- | -------------------------------- | ---------------------------------------------------------------------------------------------- |\n| ⚡   | **Real-time Presence**           | Watches continuously and responds in under a second when needed.                               |\n| 👁️ | **Vision-triggered Proactivity** | Speaks from what it sees, while staying quiet when nothing matters.                            |\n| 🤖  | **Agent Delegation**             | Hands hard subtasks to a background model, API, or agent while continuing to watch the stream. |\n| 🔓  | **Fully Open Stack**             | Model, data, training recipe, and deployable system — all released for full reproducibility.   |\n\n\n## 🚀 Quick Start\n\n```bash\ngit clone https://github.com/jd-opensource/JoyAI-VL-Interaction.git\ncd JoyAI-VL-Interaction\n\n# Install dependencies\n./install/install.sh --with-all\n\n# Download all model weights\n./install/download-models.sh --all\n\n# Start the core services\n./services/scripts/run.sh minimal\n```\n\nThen open `https://127.0.0.1:8099` in your browser.\n\n👉 For the full setup (ASR, TTS, background agent) and configuration details, see the [Getting Started Guide](doc/getting_started.md).\n\n🚑 If you run into deployment issues, see the [Troubleshooting Guide](doc/troubleshooting.md).\n\n## 🛠️ System Architecture\n\n![JoyAI-VL-Interaction system architecture](img/joyvl-system-architecture.png)\n\nAt the core of JoyAI-VL-Interaction is one deci",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:19.135549"
+  },
+  {
+    "basic_info": {
+      "name": "HypoMux",
+      "full_name": "Hypostasis-Cat/HypoMux",
+      "owner": "Hypostasis-Cat",
+      "description": "CN Windows 多网卡带宽叠加工具。无需复杂配置，一键聚合多网卡（有线、Wi-Fi网卡、手机热点等），实现物理级多线下载与叠加网速。 EN Windows multi-NIC bandwidth aggregator. Zero complex setup. One-click to combine multiple networks (Ethernet, Wi-Fi, mobile hotspots, etc.) for physical-level concurrent downloading and multiplied speeds.",
+      "url": "https://github.com/Hypostasis-Cat/HypoMux",
+      "clone_url": "https://github.com/Hypostasis-Cat/HypoMux.git",
+      "ssh_url": "git@github.com:Hypostasis-Cat/HypoMux.git",
+      "homepage": "",
+      "created_at": "2026-06-11T06:38:43Z",
+      "updated_at": "2026-07-05T04:07:05Z",
+      "pushed_at": "2026-07-05T02:18:19Z"
+    },
+    "stats": {
+      "stars": 974,
+      "forks": 33,
+      "watchers": 974,
+      "open_issues": 9,
+      "size": 23037
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 368256,
+        "Inno Setup": 25703,
+        "Rust": 9154
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# HypoMux\n\n<p align=\"center\">\n  <img src=\"assets/icon.ico\" alt=\"HypoMux Icon\" width=\"128\" height=\"128\"><br><br>\n  <a href=\"README.md\">简体中文</a> | <a href=\"README_EN.md\">English</a>\n</p>\n\n---\n\n#  简体中文\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python\" alt=\"Python\">\n  <img src=\"https://img.shields.io/badge/Framework-PySide6-green?style=flat-square&logo=qt\" alt=\"PySide6\">\n  <img src=\"https://img.shields.io/badge/UI--Library-QFluentWidgets-orange?style=flat-square\" alt=\"QFluentWidgets\">\n  <img src=\"https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-brightgreen?style=flat-square&logo=windows\" alt=\"Windows\">\n  <img src=\"https://img.shields.io/badge/Architecture-Dual--Protocol%20L3%20Binding-red?style=flat-square\" alt=\"Architecture\">\n</p>\n\nHypoMux v2.0 是一款专为 Windows 平台打造的**多网卡带宽并发聚合下载加速工具**，用于在多连接下载场景中实现更稳定的带宽叠加体验。\n\n2.0 版本在原有系统代理模式之外加入了**虚拟网卡模式**，通过更完整的流量接管与本地安全分流，让多网络加速在更多应用里保持稳定；同时新增**分流规则**，可以把指定进程放入直连/绕过列表，或继续交给多网卡聚合通道处理，解锁下载、游戏平台、浏览器等更多组合玩法。\n\n在系统代理模式下，HypoMux 通过 L3 物理层套接字绑定（IP_UNICAST_IF）与双协议代理引擎进行连接级调度；在虚拟网卡模式下，HypoMux 会临时调整 Windows 代理与路由相关设置，将需要加速的流量导入本地核心处理，并让非加速流量按高级分流规则直接放行。对于 Steam 游戏更新、IDM 大文件下载、WeGame 下载等多连接场景，HypoMux 可以把不同连接分配到不同网卡上，获得更稳定的多线路吞吐表现。\n\n简单来说，只要你的电脑同时连上了多个网络（比如：**插着学校/家里网线的同时，又连上了 Wi-Fi，或者插上了手机的 USB 网络共享**），HypoMux 就能在多线程下载时把连接分散到这些线路上。它适合 Steam、IDM、浏览器大文件下载等多连接任务；对于单连接下载，效果会受任务本身限制。\n\n---\n\n##  界面预览\n\n>  **视觉说明**：Windows 11 风格的轻量化主视窗，移除了高干扰的半透明叠层，采用微光蓝（`#0078d4`）与浅灰监控控制台风格。\n\n<p align=\"center\">\n  <img src=\"assets/ui_idle_2.0.png\" alt=\"HypoMux 2.0 现代化主界面\" width=\"850\" style=\"border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);\">\n</p>\n\n---\n\n##  核心功能\n\n*  **虚拟网卡模式**：v2.0 新增 TUN 虚拟网卡接管能力，可在更多应用场景下获得更稳定的加速效果。\n*  **进程级分流规则**：支持将指定应用配置为直连/绕过，或交给多网卡聚合通道处理，适合下载、游戏平台、浏览器与低延迟应用混合使用。\n*  **双协议无感接管**：后台同时运行 SOCKS5 与 HTTP 转发服务，启动后自动接管 Windows WinINet 系统代理，兼容 Steam、IDM、浏览器等常见客户端。\n*  **全生命周期代理保护**：主动停止、启动失败、窗口关闭等路径都会强制还原系统代理，降低代理残留导致断网的风险。\n*  **五列实时遥测大屏**：实时展示【选择 | 网卡别名 | IPv4 地址 | 实时速度 (MB/s) | 实时连接数】，方便观察每张网卡的吞吐与连接分配情况。\n* ️ **异步网络内核**：网卡扫描、异步 DNS 解析、连接调度与流量监测均放在后台线程与 asyncio 事件循环中处理，避免高并发连接拖慢主界面。\n\n---\n\n## 📢 重要提示与合规免责声明\n\nHypoMux 是一个透明、开源的网络工具，仅用于用户本人拥有授权的设备与网络连接。它不应用于绕过第三方访问控制、网络限制、平台规则或任何未经授权的安全措施。\n\n使用前请确认你理解以下行为边界：\n\n1. **系统设置调整**：HypoMux 运行时可能会动态调整 Windows 系统代理和/或路由相关设置，以便将流量导入加速核心。\n2. **本地安全代理**：启用加速后，需要加速的网络流量会经过本机安全核心进行分流、代理与多路复用。\n3. **自动恢复机制**：停止工具或卸载软件时，HypoMux 会自动恢复被修改的系统代理与网络设置。\n4. **游戏与分流规则**：HypoMux v2.0 引入高级分流能力。对于竞技类网游等对延迟极度敏感的应用，建议将其加入**直连/绕过规则列表**，以保持原始网络延迟；也可以在游戏时暂停本工具。\n\n---\n\n##  软件使用方法\n\n1. **环境就绪**：确保您的电脑同时接上了多条独立的网络线路。例如：**网卡1连接校园网/家用有线宽带 + 网卡2连接手机无线热点（5G）**。\n2. **选择模式**：根据场景选择系统代理模式或虚拟网卡模式。虚拟网卡模式适合希望更稳定接管流量的场景。\n3. **勾选网卡**：双击运行本工具，等待后台自动扫描完成。在网卡表格中，**勾选你想参与带宽聚合的所有活动网卡**。\n4. **配置分流**：如需保证游戏、语音、会议等低延迟应用体验，可在路由规则页把对应进程加入直连/绕过规则。\n5. **一键加速**：点击 **【一键加速】** 按钮。状态提示切换为运行中后，即可开始下载或更新。\n6. **干净停止**：下载完成后，随时点击 **【停止加速】** 或直接关闭软件，系统网络设置会自动还原。\n\n---\n\n##  支持加速的软件与应用场景\n\n只要目标应用遵循 Windows 系统代理规范，且其下载机制为**\"多线程/多并发\"**，即可接入 HypoMux 的连接分流：\n\n*  **专业下载管理器**：**IDM (Internet Download Manager)**（默认开启从 IE 获取代理）、迅雷、百度网盘客户端等。\n*  **主流游戏客户端**：**Steam**（其下载引擎 SteamService 原生读取系统标准代理）、Epic Games Launcher、EA App、Xbox 客户端。\n*  **全系列现代浏览器**：Chrome、Edge、Firefox、Safari for Windows 等大文件直接下载。\n\n---\n\n##  技术工作原理\n\nHypoMux 核心分流机制建立在**四层应用层调度**、**三层物理层精准绑定**与 v2.0 的**虚拟网卡分流接管**之上。系统代理模式负责轻量接入支持 WinINet/系统代理的应用；虚拟网卡模式则通过本地内核侧车与高级分流规则覆盖更多流量场景。\n\n```text\n[多线程应用流量 (Steam / IDM)] \n               │\n               ▼ WinINet 自动拦截劫持\n    Windows 系统代理 / 虚拟网卡模式接入\n   (http/https -> 10801 | socks -> 10800 | TUN)\n               │\n               ▼ \n  ProxyWorker 核心引擎 (Asyncio inside QThread)\n               │\n               ▼ Round-Robin 连接轮询分发机制\n   L3 物理层双向套接字强行绑定\n   ├── socket.bind((nic1_ip, 0)) + IP_UNICAST_IF ──► 真实物理网卡 1 ──┐\n   ├── socket.bind((nic2_ip, 0)) + IP_UNICAST_IF ──► 真实物理网卡 2 ─┼─► 物理带宽叠加吞吐\n   └── socket.bind((nic3_ip, 0)) + IP_UNICAST_IF ──► 真实物理网卡 3 ──┘\n```\n\n1. **双模式接入**：系统代理模式会向 `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings` 写入本地代理链条：`http=127.0.0.1:10801;https=127.0.0.1:10801;socks=127.0.0.1:10800`；虚拟网卡模式则通过 TUN 接管与高级分流规则处理更多应用流量。\n2. **底层双绑**：当分流引擎收到下载客户端的 TCP 连接时，调度器通过 `socket.bind()` 钉死本地网卡 IPv4，并向系统内核发送 `setsockopt(socket.IPPROTO_IP, 31, ...)` 强制锁定网卡物理索引（Interface Index），强制流量剥离默认网关，实现物理多通道并进。\n3. **高级分流**：v2.0 支持按进程配置聚合或直连策略。下载任务可以进入多网卡聚合通道，对延迟敏感的程序则可保持直连。\n\n---\n\n##  实战并发加速效果\n\n在多网卡高并发下载测试中，HypoMux 可以将连接分配到【以太网2】、【以太网】与【WLAN】等多路通道，各线路同时承担下载流量。\n\n### 实战案例 A：IDM 极限拉取多线程大文件 (Ubuntu ISO 镜像下载)\n> 后台引擎并发接管 190 个有效活跃连接，三路通道各自平摊约 **35~39 MB/s** 的下行吞吐，主大屏合并显示突破 **110.93 MB/s**。\n\n<p align=\"center\">\n  <img src=\"assets/screenshot_2.0_idm.png\" alt=\"IDM 实战满速分流\" width=\"850\" style=\"border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);\">\n</p>\n\n### 实战案例 B：Steam 千兆级大体量游戏更新 (*Hogwarts Legacy*)\n> 承接 Steam 下载引擎的高频多线程并发，双线/三线同时工作，持续稳定维持在 **98.26 MB/s** 以上。\n\n<p align=\"center\">\n  <img src=\"assets/screenshot_steam.png\" alt=\"Steam 游戏大作满速更新\" width=\"850\" style=\"border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);\">\n</p>\n\n### 实战案例 C：WeGame 游戏下载速度展示\n> v2.0 虚拟",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:20.284604"
+  },
+  {
+    "basic_info": {
+      "name": "AutoCVE",
+      "full_name": "larlarua/AutoCVE",
+      "owner": "larlarua",
+      "description": "Agent-driven automated CVE discovery platform for source code auditing, vulnerability verification, and report generation.",
+      "url": "https://github.com/larlarua/AutoCVE",
+      "clone_url": "https://github.com/larlarua/AutoCVE.git",
+      "ssh_url": "git@github.com:larlarua/AutoCVE.git",
+      "homepage": "",
+      "created_at": "2026-06-15T14:50:47Z",
+      "updated_at": "2026-07-05T03:35:15Z",
+      "pushed_at": "2026-07-04T18:04:18Z"
+    },
+    "stats": {
+      "stars": 948,
+      "forks": 57,
+      "watchers": 948,
+      "open_issues": 10,
+      "size": 204473
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 4310461,
+        "TypeScript": 1652270,
+        "Shell": 46619,
+        "PowerShell": 29488,
+        "CSS": 24958,
+        "JavaScript": 15172,
+        "PLpgSQL": 13105,
+        "Dockerfile": 9563,
+        "HTML": 4398,
+        "Batchfile": 4356,
+        "Mako": 516
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "agent",
+        "ai-security",
+        "code-audit",
+        "cve",
+        "fastapi",
+        "llm-agent",
+        "multi-agent",
+        "penetration-testing",
+        "react",
+        "security-audit",
+        "security-tools",
+        "source-code-analysis",
+        "vulnerability-detection",
+        "vulnerability-research"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# AutoCVE - 一键挖掘 CVE，筛项目、审源码、验漏洞、出报告，全流程自动化\n\n<img src=\"./docs/assets/image/logo.png\" alt=\"AutoCVE Logo\" width=\"72%\">\n\n\n[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)\n[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python\\&logoColor=white)](https://www.python.org/)\n[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi\\&logoColor=white)](https://fastapi.tiangolo.com/)\n[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react\\&logoColor=white)](https://react.dev/)\n[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql\\&logoColor=white)](https://www.postgresql.org/)\n\n<br>\n\n<p align=\"center\">\n  <img src=\"./docs/assets/GIF/demo.gif\" alt=\"AutoCVE Demo\" width=\"72%\">\n</p>\n\n[📚 项目文档](#-项目文档) ·\n[✨ 核心能力](#-核心能力) ·\n[🚀 快速开始](#-快速开始) ·\n[🏆 CVE 成果](#-cve-挖掘成果)\n\n<p>\n  <strong>简体中文</strong> | <a href=\"./README_EN.md\">English</a>\n</p>\n\n</div>\n\n---\n\n## 📚 项目文档\n\n### 📖 [用户使用手册](./docs/USER_GUIDE.md)\n\n涵盖环境部署、模型配置、项目导入、Agent 审计、一键 CVE、漏洞管理和 Skills 管理完整使用说明，并提供各功能界面预览。\n\n### 🏗️ [架构设计文档](./docs/ARCHITECTURE_DESIGN.md)\n\n介绍 AutoCVE 的整体架构、Agent 工作流、工具编排、权限保护、Agent Runtime 以及 ReAct Loop 状态机设计。\n\n### 🔌 [接口文档](./docs/API_DOCUMENTATION.md)\n\n提供后端 API、数据结构、请求参数及接口调试说明。\n\n---\n\n## ✨ 核心能力\n\n### 🚀 一键完成 CVE 挖掘\n\n实现从项目筛选、仓库导入、审计任务创建、Agent 漏洞挖掘到 CVE 申报报告生成的全流程自动化。用户仅需复制报告内容并提交，即可完成后续 CVE 申请。\n\n### 🤖 Multi-Agent 协同审计\n\n通过 Orchestrator 统一调度 Recon、Scan、Triage、Finding 和 Verification 等 Agent，协同完成信息收集、工具扫描、误报过滤、漏洞深挖与动态验证。\n\n```mermaid\nflowchart LR\n    O[\"Orchestrator\"] --> R[\"Recon\"]\n    R --> S[\"Scan\"]\n    S --> T[\"Triage\"]\n    R --> F[\"Finding\"]\n    T --> V[\"Verification\"]\n    F --> V\n    V --> M[\"Merge / Finalize\"]\n```\n\n### 🧩 三种审计模式\n\n根据不同审计目标灵活选择增强扫描、智能审计或综合审计，兼顾扫描效率、挖掘深度与审计覆盖范围。\n\n|     审计模式    |         核心 Agent        | 适用场景                        |\n| :---------: | :---------------------: | :-------------------------- |\n|  ⚡ **增强扫描** |      Scan → Triage      | 快速分析工具扫描结果并过滤误报             |\n| 🧠 **智能审计** |         Finding         | 深度挖掘高价值漏洞，适用于 CVE 和 0Day 研究 |\n| 🔍 **综合审计** | Scan → Triage + Finding | 融合工具扫描与源码分析，开展全量审计          |\n\n### 🎯 面向 CVE 挖掘的专用 Agent\n\nFinding Agent 是 AutoCVE 的核心审计能力，专为 CVE 挖掘场景设计。它可直接分析项目源码，并结合 ReAct Loop、专项工具调用、Nudge 纠偏及 `FinalizeFinding` 结构化终止机制，最终产出符合 CVE 申报条件的高价值漏洞。\n\n<details>\n<summary><strong>💬 交互式审计与全过程追踪</strong></summary>\n\n<br>\n\n* **支持用户交互**：将完整审计过程作为会话上下文，用户可围绕审计结果继续追问，让 Agent 补充证据、解释攻击链、完善复现步骤或扩展漏洞分析。\n* **可视化审计追踪**：集中展示活动日志、Agent Tree、工具调用、阶段进度、初步报告和审计会话，方便复盘每次审计的执行路径与关键过程。\n\n</details>\n\n<details>\n<summary><strong>🗂️ 智能漏洞管理与 Skills 扩展</strong></summary>\n\n<br>\n\n* **智能化漏洞管理**：审计发现的漏洞由 Agent 调用工具自动提交，经过去重后以结构化形式入库，并在漏洞管理模块中统一维护。\n* **专属 Skills 配置**：支持根据实际需求为不同 Agent 配置专属 Skills，灵活扩展各 Agent 的能力边界。\n\n</details>\n\n---\n\n## 🚀 快速开始\n\n### ⚡ 一行命令部署\n\n无需克隆仓库，一行命令即可启动：\n\nLinux / macOS / Git Bash :\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/larlarua/AutoCVE/v1.0.4/docker-compose.prod.yml \\\n  | docker compose -f - up -d\n```\nWindows PowerShell / CMD :\n```bash\ncurl.exe -fsSL https://raw.githubusercontent.com/larlarua/AutoCVE/v1.0.4/docker-compose.prod.yml | docker compose -f - up -d\n```\n\n### 🛠️ 源码部署\n\n适用于本地开发、功能调试或二次开发：\n\n```bash\ngit clone https://github.com/larlarua/AutoCVE.git\ncd AutoCVE\ndocker compose up -d --build\n```\n\n### 🌐 服务访问\n\n服务启动完成后，可通过以下地址访问：\n\n| 服务          | 访问地址                       | 用途           |\n| :---------- | :------------------------- | :----------- |\n| 🖥️ 前端      | http://localhost:3000      | AutoCVE 用户界面 |\n| ⚙️ 后端 API   | http://localhost:8000      | 后端接口服务       |\n| 📘 Swagger  | http://localhost:8000/docs | API 文档与接口调试  |\n| 🗄️ Adminer | http://localhost:8080      | 数据库管理        |\n\n> [!TIP]\n> **快速体验完整审计流程**\n>\n> 配置模型 → 导入项目 → 创建审计任务 → 跟踪实时审计 → 管理漏洞 → 编辑或导出报告\n\n---\n\n## 🏆 CVE 挖掘成果\n\n<p align=\"left\">\n  <img src=\"https://img.shields.io/badge/CVE-30-success?style=for-the-badge\" alt=\"30 CVEs\">\n  <img src=\"https://img.shields.io/badge/Projects-14-blue?style=for-the-badge\" alt=\"14 Projects\">\n  <img src=\"https://img.shields.io/badge/Max%20CVSS-9.9-critical?style=for-the-badge\" alt=\"Max CVSS 9.9\">\n  <img src=\"https://img.shields.io/badge/Test%20Period-7%20Days-orange?style=for-the-badge\" alt=\"7 Days\">\n</p>\n\n> [!NOTE]\n> AutoCVE 在为期一周的测试中，共发现并提交了 **30 个安全漏洞**，覆盖 **14 个开源项目**。\n>\n> 点击表格中的 CVE 编号可查看官方记录，完整漏洞报告收录于\n> **[larlarua/vulnerability-reports](https://github.com/larlarua/vulnerability-reports/)**。\n\n<details open>\n<summary><strong>🔍 查看 CVE 成果明细（30）</strong></summary>\n\n<br>\n\n| CVE 编号 | 项目 | 项目热度 | 漏洞类型 | CVSS | 漏洞内容 |\n|:---:|:---:|:---:|:---:|:----:|:----:|\n| [CVE-2026-40904](https://www.cve.org/CVERecord?id=CVE-2026-40904) |  Chartbrew  |   ![Stars](https://img.shields.io/github/stars/chartbrew/chartbrew?style=social)   | Improper Access Control | **8.1** | [查看详情](https://github.com/larlarua/vulnerability-reports/blob/main/CVE-2026-40904/detail_en.md) |\n| [CVE-2026-40603](https://www.cve.org/CVERecord?id=CVE-2026-40603) |  Chartbrew  |   ![Stars](https://img.shields.io",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:21.436158"
+  },
+  {
+    "basic_info": {
+      "name": "xuefeng-agent",
+      "full_name": "ziqihe10-droid/xuefeng-agent",
+      "owner": "ziqihe10-droid",
+      "description": "AI 高考志愿顾问 — 会追问、会分析、敢说真话",
+      "url": "https://github.com/ziqihe10-droid/xuefeng-agent",
+      "clone_url": "https://github.com/ziqihe10-droid/xuefeng-agent.git",
+      "ssh_url": "git@github.com:ziqihe10-droid/xuefeng-agent.git",
+      "homepage": null,
+      "created_at": "2026-06-07T15:33:07Z",
+      "updated_at": "2026-07-04T23:56:33Z",
+      "pushed_at": "2026-06-27T09:33:53Z"
+    },
+    "stats": {
+      "stars": 894,
+      "forks": 131,
+      "watchers": 894,
+      "open_issues": 22,
+      "size": 59598
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 54405,
+        "HTML": 32982,
+        "Batchfile": 215,
+        "Shell": 51
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 雪峰 Agent — AI 高考志愿顾问\n\n> 不是套壳。内置 24 省官方录取数据库，真的会查数据、盘志愿。\n> **v3 更新**：支持用户自填Excel数据、综合两年排名、联网搜学校条件、填表即不查库\n\n## v3 新功能\n- **自定义数据表**：项目自带 `自定义数据.xlsx`，填了学校的两年分数位次后，AI 只用你的数据分析，不查系统数据库\n- **综合排名**：2024+2025两年位次平均排序，等分冲/稳/保三档，两个年份分数位次全部展示\n- **联网搜学校条件**：填表后联网搜索自动转搜校园环境、宿舍食堂、王牌专业，不再搜分数线\n- **容错设计**：表格填写不规范自动纠正（700分→700、河南省→河南、分数位次反了自动换）\n- **无表照旧**：不填表时和以前完全一样，走系统数据库\n- **多线程服务器**：支持多人同时使用\n> 方法论源自张雪峰八本志愿填报专著 + 61节专业视频课程（1500+分钟），把\"张雪峰那套\"塞进了AI。\n> 浏览器打开即用，不需要命令行。\n\n[![License: AGPLv3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)\n[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)\n\n> ⚠️ **版权声明**：本项目采用 **AGPL v3 强传染性协议**。Fork/修改/再发布必须保留原作者署名和仓库地址，继续使用 AGPLv3 开源全部源码。擅自改为 MIT 等宽松协议重新发布 = 侵权。原作者保留单独商业授权的权利。\n\n<p align=\"center\">\n  <img src=\"demo-preview.gif\" alt=\"演示\" width=\"700\">\n</p>\n\n---\n\n## 5 分钟跑起来\n\n**Windows：**\n```\n1. 装 Python（python.org，勾选 Add to PATH）\n2. 下载本项目 ZIP → 解压到桌面\n3. 双击 启动.bat → 浏览器自动打开\n4. 点右上角 API设置 → 填 DeepSeek Key → 保存测试\n5. 打字提问\n```\n\n**Mac：**\n```\n1. 装 Python（python.org）\n2. 下载本项目 ZIP → 解压到桌面\n3. 终端进入文件夹 → python3 server.py\n4. 双击 打开我.html → 浏览器打开\n5. 填 DeepSeek Key → 打字提问\n```\n\n> 📖 **完全零基础？** → [Windows 小白教程](小白教程-零基础也能用.md) | [Mac 安装教程](Mac安装教程.md)\n\n---\n\n## 界面\n\n浏览器打开后就是一个聊天窗口，跟微信用法一样：\n\n- **左侧对话列表** — 多轮对话独立保存，新建/切换/删除，关了浏览器回来还在\n- **顶部模式切换** — 报考（正经志愿分析）←→ 娱乐（张雪峰风格吐槽），一键切\n- **右上角 API 设置** — 填 Key、换模型，浏览器本地记住，下次不用重填\n- **🌓 深色模式** — 晚上用不刺眼\n- **输入框** — 打字回车发送，Shift+回车换行\n\n---\n\n## 核心能力\n\n| 功能 | 说明 |\n|------|------|\n| 🗄️ **本地数据库** | 24 省 × 2024-2025 年官方投档线，42 万条，位次精确匹配 |\n| 🤖 **AI 智能提取** | 自动从你的描述中识别省份、位次、专业偏好（\"一万三\"→13000、\"川籍\"→四川） |\n| 🎯 **专业过滤** | 说\"要计算机\"只推计算机相关。医学、法学、会计自动筛掉 |\n| 🔍 **联网搜索** | 填了 Tavily Key 用 AI 搜索（更准）；不填用百度兜底 |\n| 📋 **省份政策感知** | 浙江 80 志愿 / 山东 96 志愿 / 老高考 8-12 所…自动适配 |\n| 💬 **上下文记忆** | 追问不用重复说，agent 记得你前面说过什么 |\n| 🔒 **隐私安全** | 数据全在本地，Key 存浏览器，不上传任何服务器 |\n\n---\n\n## 知识体系\n\n不是空壳AI。底层学完了张雪峰的核心方法论，才敢叫\"雪峰Agent\"：\n\n| 来源 | 体量 | 说明 |\n|------|------|------|\n| 志愿填报专著 | 8本 | 选专业/报志愿/稳就业/考研/专科/升学规划全覆盖 |\n| 专业视频课程 | 61节 / 1500+分钟 | 全部学科门类专业详解 |\n| 行业联盟分类 | 20+个 | C9/国防七子/五院四系/两电一邮等 |\n| 知识库模块 | 17个 | 方法论/选科/专业/学校/考研/就业/专科/趋势 |\n\n一句话：把张雪峰那套志愿填报的逻辑和方法论，喂给了AI。\n\n## 数据管线\n\n```\n你: \"浙江655分位次10500，想学计算机电子，不接受调剂\"\n         ↓\n    AI 提取 → 省份:浙江  位次:10500  专业:计算机,电子\n         ↓\n    本地 DB 查询 → keyword=计算机,电子 → 只返回对口学校\n         ↓\n    联网搜索 → Tavily/Baidu 搜最新分数线、就业薪资、学校介绍\n         ↓\n    整合 → [DB数据 + 联网数据] → 发给 LLM\n         ↓\n    输出 → 冲稳保建议，每条标注数据来源（DB/联网）\n```\n\n## 回答效果\n\n```\n🤖：你是浙江考生，专业+院校模式，可填80个志愿。\n\n    冲（位次高于你，试试）：\n    · 湖南大学 计算机科学与技术  662分/7354位 [DB]\n    · 西北工业大学 电子信息类    658分/7351位 [DB]\n    · 北京邮电大学 软件工程      658分/7449位 [DB]\n\n    稳（位次匹配，有把握）：\n    · 南京理工大学 计算机类      651分/10529位 [DB]\n    · 河海大学 计算机类(大禹班)  654分/10586位 [DB]\n    · 东北大学 软件工程(特色班)  651分/10637位 [DB]\n\n    保（稳录）：\n    · 深圳大学 电子信息工程      648分/13653位 [DB]\n    · 华中师范大学 计算机类      648分/13680位 [DB]\n```\n\n> 每条数据标注 `[DB]`（本地数据库）或 `[联网]`（网上搜索），来源清楚。没数据的学校绝编。\n\n---\n\n## 数据库覆盖\n\n**24 省，42 万条，2024-2025 年**\n\n浙江 · 河北 · 山东 · 重庆 · 黑龙江 · 江苏 · 湖南 · 湖北 · 北京 · 天津 · 上海 · 广东 · 河南 · 福建 · 陕西 · 甘肃 · 青海 · 宁夏 · 江西 · 内蒙古 · 海南 · 山西 · 云南 · 安徽\n\n> 数据来源：各省教育考试院官方投档线。经多轮联网交叉验证，分数 0 误差。首次运行自动解压（27.6 MB → 143 MB）。\n\n---\n\n## 支持哪些 AI？\n\n任何 OpenAI 兼容 API 都能用。API 设置里改 Base URL 和 Model 即可。\n\n| 模型 | 推荐 | 说明 |\n|------|------|------|\n| DeepSeek | ⭐首选 | 便宜好用，送免费额度 |\n| 通义千问 | 推荐 | 有免费额度 |\n| 智谱 GLM | 推荐 | 国产稳定 |\n| GPT-4o | 可选 | 贵，需网络 |\n\n---\n\n## 项目结构\n\n```\n├── server.py              # Web 服务器 + 完整 HTML 页面（主程序）\n├── admission_clean.db.gz  # 录取数据库（首次运行自动解压）\n├── 启动.bat               # Windows 一键启动\n├── 打开我.html             # 浏览器入口（自动检测服务器状态）\n├── rebuild_db.py          # 数据库重建脚本（从原始考试院 Excel 构建）\n├── clean_data.py          # 数据库清洗脚本\n├── 小白教程-零基础也能用.md\n├── 提问模板-这样问最准.md\n└── 更新说明.md\n```\n\n---\n\n## 常见问题\n\n**数据准不准？** — 来自各省考试院官方投档线，多轮联网交叉验证。但录取数据每年变，最终以官方为准。\n\n**怎么更新？** — 重新下载 ZIP 覆盖文件夹。\n\n**要钱吗？** — 个人使用完全免费。AI 调用按量计费（DeepSeek 聊几百次才几毛钱）。\n\n**支持手机吗？** — 目前支持 Windows 和 Mac 电脑。[Mac 安装教程](Mac安装教程.md)\n\n**能换别的 AI 吗？** — 能，API 设置里改。\n\n---\n\n## ⚠️ 免责声明\n\n1. **志愿填报是考生自己的事**。本工具提供的数据、分析和建议仅供决策参考，不构成专业志愿填报指导意见。\n2. **AI 可能出错**。大语言模型生成的内容可能存在事实性错误、过时信息或片面判断。请务必自行核实。\n3. **数据已尽力但不敢保证**。数据库来自各省教育考试院官方投档线，经多轮联网交叉验证，但录取数据每年变化，最终以**各省教育考试院官网**和**学校官方招生网**公布的当年数据为准。\n4. **开发者不承担任何责任**。使用本工具产生的任何志愿填报决策及其后果，由考生和家长自行承担。开发者不对因使用或依赖本工具信息而导致的任何损失负责。\n5. **不要盲信任何工具**。包括本工具在内，所有 AI 志愿填报辅助工具都只能作为参考。填报前请咨询学校老师、招生办等专业渠道。\n\n---\n\n## 📱 作者抖音\n\n| | |\n|------|------|\n| 抖音名 | **OLO** |\n| 抖音号 | `27608595542` |\n| 主页链接 | [douyin.com/user/OLO](https://www.douyin.com/user/MS4wLjABAAAAefIKNArplrWG6MWFKtPgqruFujYdBPa-Izh6j_b3je8383KNNs-AAxWDFqYQrC0L) |\n\n> 关注获取最新更新、使用教程和志愿填报干货。\n\n---\n\n## 开源协议\n\n**AGPL v3 — 强传染性开源协议**\n\n| 使用场景 | 是否允许 |\n|----------|---------|\n| 个人学习、研究、非商业使用 | ✅ 完全免费 |\n| 修改后自己用（不发布） | ✅ 允许 |\n| Fork 后重新开源 | ⚠️ 必须保留原作者署名 + 仓库地址 + 继续使用 AGPLv3 + 完整公开所有修改 |\n| 通过网络提供服务（SaaS/网站） | ⚠️ 必须完整公开全部源码（含修改） |\n| **商业使用 / 闭源商用** | ❌ **禁止** |\n| **删除原作者署名 / 宣称原创** | ❌ **侵权，无论是否商业使用** |\n| **改为 MIT 等宽松协议重新发布** | ❌ **违反 AGPLv3 传染性条款** |\n\n> **原作者（ziqihe10-droid / ziqihe10-droid）保留单独商业授权的权利。**\n\n完整协议文本：[LICENSE](LICENSE) · https://www.gnu.org/licenses/agpl-3.0.html\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-05T04:51:22.629435"
+  },
+  {
+    "basic_info": {
+      "name": "brag",
+      "full_name": "latent-spaces/brag",
+      "owner": "latent-spaces",
+      "description": "You built it. Now brag. Turn the project you just created into a short, shareable launch video with one command.",
+      "url": "https://github.com/latent-spaces/brag",
+      "clone_url": "https://github.com/latent-spaces/brag.git",
+      "ssh_url": "git@github.com:latent-spaces/brag.git",
+      "homepage": null,
+      "created_at": "2026-06-16T19:36:36Z",
+      "updated_at": "2026-07-04T18:30:13Z",
+      "pushed_at": "2026-06-29T11:29:05Z"
+    },
+    "stats": {
+      "stars": 779,
+      "forks": 59,
+      "watchers": 779,
+      "open_issues": 2,
+      "size": 32618
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 10751
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# /brag\n\n**You built it. Now brag.**\n\n[![the /brag launch site — you built it, now brag](docs/assets/hero.png)](https://latent-spaces.github.io/brag/)\n\n`/brag` is a Claude Code skill that turns the project you created into a short, shareable launch video — music, motion, and share copy included. One command, powered by [Hyperframes](https://hyperframes.heygen.com/).\n\nThe looping video on the [launch site](https://latent-spaces.github.io/brag/) was made by `/brag` on this very repo. \n\n## Install\n\n```bash\n/plugin marketplace add latent-spaces/brag\n/plugin install brag@brag\n```\n\nThen run `/brag` inside any project.\n\n<details>\n<summary>No plugin system? Install the skill directly.</summary>\n\n```bash\nrsync -a --exclude '.DS_Store' skills/brag/ ~/.claude/skills/brag/\n```\n\nRestart Claude Code after copying.\n</details>\n\n### Also works with\n\nThis repo exposes the skill at every agent's standard discovery path via symlinks. No extra config needed.\n\n| Agent | How it discovers |\n|---|---|\n| **opencode** | Auto-detects from `.opencode/skills/brag/` at project root |\n| **Codex CLI** | Reads `.agents/skills/brag/`, walking up to repo root |\n| **Claude Code** | Also reads `.claude/skills/brag/` (in addition to the `.claude-plugin/` marketplace install above) |\n| **Other agents** | Point custom instructions at `skills/brag/SKILL.md` — see [`docs/other-agents.md`](docs/other-agents.md) |\n\n> **Windows users:** Git requires `git config core.symlinks true` (or `git clone -c core.symlinks=true`) and Windows Developer Mode or Administrator privileges to create symlinks. If symlinks don't work on your system, copy `skills/brag/` to the agent's skill directory manually instead.\n\n## Use it\n\nFrom any project directory, ask your agent:\n\n```text\nlet's /brag\n```\n\nOr steer the tone:\n\n```text\n/brag --tone \"fake Series A launch from 2016\"\n```\n\nYou get a `brag-output/` folder with the plan, a composition brief, share copy, and the rendered `brag.mp4`.\n\n## How it works\n\n`/brag` owns the story — the product angle, tone, and which moments to show. It hands a focused brief to [Hyperframes](https://hyperframes.heygen.com/), which builds, times, and renders the video.\n\n## Requirements\n\n- An agent that supports Agent Skills — Claude Code, opencode, Codex CLI, or any agent with custom instructions (see \"Also works with\" above)\n- Node.js 22+\n- FFmpeg on `PATH`\n- Hyperframes CLI — `npx hyperframes` (check it with `npx hyperframes doctor`)\n\n## What's in this repo\n\n- `skills/brag/` — the skill, references, and bundled music + SFX\n- `examples/` — fake product sites used as a benchmark suite\n- `docs/` — the launch site (GitHub Pages)\n- `.claude-plugin/` — plugin manifest + marketplace catalog\n- `.claude/skills/brag/` — symlink → `skills/brag/` (Claude Code discovery)\n- `.agents/skills/brag/` — symlink → `skills/brag/` (Codex CLI + opencode discovery)\n- `.opencode/skills/brag/` — symlink → `skills/brag/` (opencode discovery)\n\n## Credits\n\n- Music — [ende.app](https://ende.app/en) \"Happy Beats / Business Moves\"\n- Sound effects — [Kenney](https://kenney.nl/)\n- Video generation — [Hyperframes](https://hyperframes.heygen.com/)\n- Fake demo sites — built with [Impeccable](https://impeccable.style/)\n\n## Contributing\n\nContributions, ideas, and new demo brags are welcome — open an issue or a PR.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:23.857670"
+  },
+  {
+    "basic_info": {
+      "name": "claude-real-video",
+      "full_name": "HUANGCHIHHUNGLeo/claude-real-video",
+      "owner": "HUANGCHIHHUNGLeo",
+      "description": "Let Claude (or any LLM) actually watch a video — scene-aware, deduplicated frames + transcript, from a URL or local file. Runs locally, MIT.",
+      "url": "https://github.com/HUANGCHIHHUNGLeo/claude-real-video",
+      "clone_url": "https://github.com/HUANGCHIHHUNGLeo/claude-real-video.git",
+      "ssh_url": "git@github.com:HUANGCHIHHUNGLeo/claude-real-video.git",
+      "homepage": null,
+      "created_at": "2026-06-30T10:55:02Z",
+      "updated_at": "2026-07-05T04:50:18Z",
+      "pushed_at": "2026-07-04T16:14:52Z"
+    },
+    "stats": {
+      "stars": 768,
+      "forks": 38,
+      "watchers": 768,
+      "open_issues": 0,
+      "size": 645
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 23149
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# claude-real-video\n\n[![PyPI](https://img.shields.io/pypi/v/claude-real-video)](https://pypi.org/project/claude-real-video/) [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://pypi.org/project/claude-real-video/) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![HN front page](https://img.shields.io/badge/Hacker%20News-front%20page-orange)](https://news.ycombinator.com/item?id=48766005)\n\n**Let Claude — or any LLM — actually watch a video.**\n\n![demo](docs/demo.gif)\n\n> Same 58-second clip: fixed 1 fps sampling = **58 frames**. crv keeps the **26 that actually differ** — and `--grid` packs them into **3 contact sheets**. Fewer tokens, nothing missed.\n\nMost AI tools don't really *see* a video. Paste a YouTube link into ChatGPT and it\nreads the **transcript**, not the picture. Claude won't take a video file at all.\nEven Gemini, which *can* read video natively, has to send it up to Google and\nsamples frames at a **fixed interval** (1 fps by default), so fast cuts slip past.\n\n`claude-real-video` does it differently, and **locally**: point it at a URL or a\nfile, and it pulls the frames that *actually matter* (every scene change, not a\nfixed quota), throws away the near-duplicates, transcribes the audio, and hands\nyou a clean folder any LLM can read. All the processing happens on your own machine — what gets sent anywhere is only the frames/text *you* choose to paste into an LLM afterwards.\n\n```bash\ncrv \"https://www.youtube.com/watch?v=...\"\n# → crv-out/frames/*.jpg  +  crv-out/transcript.txt  +  crv-out/MANIFEST.txt\n```\n\nThen drop the frames + `MANIFEST.txt` into Claude / ChatGPT / Gemini and ask away.\n\nNot doing LLM work? It also works as a **general-purpose video keyframe extractor** —\nscene-change detection + dedup, no ML models to download.\n\n**Using Claude Code?** Install it as a skill so Claude watches videos on its own:\n\n```bash\npip install claude-real-video\nmkdir -p ~/.claude/skills && cp -r skills/claude-real-video ~/.claude/skills/\n```\n\nThen just paste a video link into Claude Code and ask about it.\n\n**New in 0.3.0** — tell it *why* you're watching, and keep what it finds:\n\n```bash\ncrv \"https://youtu.be/...\" --why \"find the pricing strategy\" --kb ~/notes\n```\n\n`--why` makes the analysis focus on what you care about instead of a generic summary;\n`--kb` saves the result as a dated note in your own notes folder, so it doesn't die in `crv-out`.\n\n---\n\n## Why not just sample frames?\n\nMost \"let an LLM watch a video\" scripts (and Gemini's own pipeline) grab frames\nat a **fixed interval** — e.g. one per second. That over-samples a static\nscreencast and under-samples a fast-cut reel. `claude-real-video` is smarter:\n\n| | fixed-interval sampling | **claude-real-video** |\n|---|---|---|\n| Frame selection | every N seconds | **scene-change detection** + density floor |\n| Repeated shots (A-B-A cuts) | sent again every time | **sliding-window dedup** sends each shot once |\n| Static slide (10 min) | ~600 near-identical frames | **collapses to 1** (dedup) |\n| Fast-cut reel | misses frames between samples | catches each visual change |\n| Audio | often ignored | Whisper transcript w/ language detect |\n| Where the processing happens | often in someone's cloud | **on your machine** (you choose what to share with an LLM afterwards) |\n| Input | usually local file only | **URL (yt-dlp) or local file** |\n\nYou feed the model *fewer, more meaningful* frames — cheaper context, better\nunderstanding.\n\n---\n\n## Install\n\n```bash\npip install claude-real-video              # core (frames + dedup)\npip install \"claude-real-video[whisper]\"   # + audio transcription\n```\n\n### System requirement: ffmpeg\n\n`ffmpeg` / `ffprobe` are used for frame extraction and audio, and aren't\npip-installable. Install them once:\n\n| OS | command |\n|---|---|\n| **macOS** | `brew install ffmpeg` |\n| **Linux** | `sudo apt install ffmpeg` (or your distro's package manager) |\n| **Windows** | `winget install Gyan.FFmpeg` — or `choco install ffmpeg` — or [download a build](https://www.gyan.dev/ffmpeg/builds/) and add its `bin\\` folder to your `PATH` |\n\nVerify it's on your `PATH`:\n\n```bash\nffmpeg -version\n```\n\nTranscription uses the `whisper` CLI (installed by the `[whisper]` extra, or\n`pip install openai-whisper`). Whisper also relies on ffmpeg.\n\nWorks on **macOS, Windows, and Linux** — Python 3.10+.\n\n---\n\n## Usage\n\n```bash\n# A YouTube / Instagram / TikTok / ... link\ncrv \"https://www.instagram.com/reel/XXXX/\"\n\n# A local file, English transcript, output to ./out\ncrv lecture.mp4 -o out --lang en\n\n# Frames only, no transcription\ncrv clip.mp4 --no-transcribe\n\n# A login-gated video (your own / authorised use): pass a Netscape cookie file\ncrv \"https://...\" --cookies cookies.txt\n```\n\n`python -m claude_real_video ...` works as an alias for `crv` too.\n\n### Options\n\n| flag | default | meaning |\n|---|---|---|\n| `-o, --out` | `crv-out` | output directory |\n| `--scene` | `0.30` | scene-change sensitivity (lower = more frames) |\n| `--fps-",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-05T04:51:24.999762"
+  },
+  {
+    "basic_info": {
+      "name": "Qwen-AgentWorld",
+      "full_name": "QwenLM/Qwen-AgentWorld",
+      "owner": "QwenLM",
+      "description": "Qwen-AgentWorld: Language World Models for General Agents",
+      "url": "https://github.com/QwenLM/Qwen-AgentWorld",
+      "clone_url": "https://github.com/QwenLM/Qwen-AgentWorld.git",
+      "ssh_url": "git@github.com:QwenLM/Qwen-AgentWorld.git",
+      "homepage": "https://arxiv.org/abs/2606.24597",
+      "created_at": "2026-06-22T13:48:37Z",
+      "updated_at": "2026-07-05T01:02:15Z",
+      "pushed_at": "2026-06-25T06:57:43Z"
+    },
+    "stats": {
+      "stars": 765,
+      "forks": 68,
+      "watchers": 765,
+      "open_issues": 3,
+      "size": 3940
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 42995
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Qwen-AgentWorld\n\n<div style=\"text-align: center\">\n  <img width=\"400px\" src=\"assets/logo.png\">\n  <p>\n    <a href=\"http://arxiv.org/abs/2606.24597\">📑 Technical Report</a> |\n    <a href=\"https://qwen.ai/blog?id=qwen-agentworld\">📖 Blog</a> |\n    <a href=\"https://huggingface.co/collections/Qwen/qwen-agentworld\">🤗 Hugging Face</a> |\n    <a href=\"https://modelscope.cn/collections/Qwen/Qwen-AgentWorld\">🤖 ModelScope</a> |\n    <a href=\"https://qwen.ai/blog?id=qwen-agentworld#interactive-demo-interactive-demo\">🖥️ Demo</a>\n  </p>\n</div>\n\n<div align=\"center\">\n  <img src=\"assets/group_capybaras_flat.png\" alt=\"Qwen-AgentWorld\" width=\"1000px\"/>\n</div>\n\nWelcome to the GitHub repository of Qwen-AgentWorld. Here, you can find official information about Qwen-AgentWorld, post your questions ([Issues](https://github.com/QwenLM/Qwen-AgentWorld/issues)), and share your ideas with the community ([Discussions](https://github.com/QwenLM/Qwen-AgentWorld/discussions)).\n\n\n## News\n\n- **2026-06-24**: We release **Qwen-AgentWorld-35B-A3B** and **AgentWorldBench**. Read more on our [blog](https://qwen.ai/blog?id=qwen-agentworld) and the [technical report](http://arxiv.org/abs/2606.24597).\n\n\n## Open-Source Release\n\nWe open-source Qwen-AgentWorld-35B-A3B (model weights) and AgentWorldBench (evaluation benchmark):\n\n| Release | Description |\n|---------|-------------|\n| [Qwen-AgentWorld-35B-A3B](https://huggingface.co/Qwen/Qwen-AgentWorld-35B-A3B) | Language world model (MoE, 35B total / 3B active, 256K context) |\n| [AgentWorldBench](https://huggingface.co/datasets/Qwen/AgentWorldBench) | Evaluation benchmark across 7 domains |\n\nThe official weights and data are released on:\n- [🤗 HuggingFace](https://huggingface.co/Qwen): Download automatically via model ID, e.g., `Qwen/Qwen-AgentWorld-35B-A3B`. You can also download model files manually using `huggingface download` or `git clone`. Please follow the instructions on the model page.\n- [🤖 ModelScope](https://modelscope.cn/organization/qwen): For users unable to access Hugging Face Hub. For supported frameworks, you can download from ModelScope by setting environment variables, such as `SGLANG_USE_MODELSCOPE=true` or `VLLM_USE_MODELSCOPE=true`.\n\n\n## Introduction\n\n<div align=\"center\">\n  <img src=\"assets/teaser.png\" alt=\"Qwen-AgentWorld Overview\" width=\"800px\"/>\n</div>\n\n<br>\n\n**Qwen-AgentWorld** is a native language world model that simulates agentic environments via long chain-of-thought reasoning across **seven unified domains**: MCP, Search, Terminal, SWE, Android, Web, and OS. It is trained through a three-stage pipeline -- CPT injects environment knowledge, SFT activates next-state-prediction reasoning, RL sharpens simulation fidelity -- on more than 10M real-world interaction trajectories. Unlike prior approaches that treat world modeling as a post-hoc add-on, Qwen-AgentWorld is a **native world model**: environment modeling is the training objective from the CPT stage onward.\n\nKey features:\n\n- **Seven Unified Domains.** The first language world model to cover seven agent interaction domains within a single model.\n- **Native World Model.** Environment modeling from CPT onward, not post-hoc adaptation.\n- **Generalizable, Scalable & Controllable Simulator.** Zero-shot generalization to OOD environments (e.g., Claw Agent); controllable perturbations and fictional-world construction surpass real-environment training.\n- **Agent Foundation Model.** LWM RL warm-up on single-turn, non-agentic trajectories transfers to multi-turn, tool-calling agentic tasks across seven benchmarks, including three entirely out-of-domain.\n\n## Performance\n\n<div align=\"center\">\n  <img src=\"assets/bench_results_bar.png\" alt=\"AgentWorldBench Results\" width=\"800px\"/>\n</div>\n\nFive-dimensional rubric mean (↑) per domain, normalized to 0--100 scale.\n\n| Model | MCP | Search | Term. | SWE | Android | Web | OS | **Overall** |\n|:------|:---:|:------:|:-----:|:---:|:-------:|:---:|:--:|:-----------:|\n| GPT-5.4 | **70.10** | 37.26 | 53.69 | 66.29 | 60.00 | 51.80 | 68.58 | 58.25 |\n| Claude Opus 4.8 | 54.93 | 35.14 | **59.18** | 64.10 | 61.50 | **54.66** | 66.62 | 56.59 |\n| Claude Opus 4.6 | 69.90 | 29.30 | 57.51 | 64.55 | **61.74** | 51.42 | **70.20** | 57.80 |\n| Gemini 3.1 Pro | 59.07 | 30.21 | 52.47 | 59.07 | 61.40 | 52.83 | 66.92 | 54.57 |\n| Claude Sonnet 4.6 | 70.00 | 28.79 | 56.98 | 64.52 | 58.03 | 50.78 | 63.17 | 56.04 |\n| DeepSeek-V4-Pro | 63.27 | 27.61 | 51.26 | 59.44 | 55.17 | 50.32 | 63.70 | 52.97 |\n| GLM-5.1 | 67.60 | 22.46 | 47.32 | 52.07 | 59.10 | 51.50 | 59.13 | 51.31 |\n| Kimi K2.6 | 65.23 | 27.48 | 52.54 | 58.77 | 58.93 | 50.20 | 60.80 | 53.42 |\n| MiniMax-M2.7 | 55.82 | 27.30 | 41.62 | 37.44 | 52.40 | 50.52 | 57.73 | 46.12 |\n| Qwen3.5-35B-A3B | 57.87 | 25.98 | 46.13 | 47.58 | 53.18 | 47.10 | 56.27 | 47.73 |\n| Qwen3.5-397B-A17B | 68.31 | 30.81 | 55.30 | 64.44 | 54.90 | 48.55 | 60.85 | 54.74 |\n| Qwen3.6-Plus | 55.28 | 21.94 | 50.58 | 59.08 | 57.65 | 50.78 | 60.33 | 50.81 |\n| **Qwen-AgentWorld-35B-A3B** | 64.79 | 36.69 | 5",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-05T04:51:26.165495"
+  }
+]

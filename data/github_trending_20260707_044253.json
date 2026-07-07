@@ -1,0 +1,881 @@
+[
+  {
+    "basic_info": {
+      "name": "kage",
+      "full_name": "tamnd/kage",
+      "owner": "tamnd",
+      "description": "Shadow any website for offline viewing, with the JavaScript stripped out",
+      "url": "https://github.com/tamnd/kage",
+      "clone_url": "https://github.com/tamnd/kage.git",
+      "ssh_url": "git@github.com:tamnd/kage.git",
+      "homepage": "https://kage.tamnd.com",
+      "created_at": "2026-06-14T11:21:55Z",
+      "updated_at": "2026-07-07T03:50:47Z",
+      "pushed_at": "2026-07-07T01:40:00Z"
+    },
+    "stats": {
+      "stars": 2696,
+      "forks": 100,
+      "watchers": 2696,
+      "open_issues": 10,
+      "size": 1344
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 308353,
+        "Python": 4896,
+        "Dockerfile": 2192,
+        "Makefile": 1193
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# kage\n\n[![ci](https://github.com/tamnd/kage/actions/workflows/ci.yml/badge.svg)](https://github.com/tamnd/kage/actions/workflows/ci.yml)\n[![Release](https://img.shields.io/github/v/release/tamnd/kage)](https://github.com/tamnd/kage/releases/latest)\n[![Go Reference](https://pkg.go.dev/badge/github.com/tamnd/kage.svg)](https://pkg.go.dev/github.com/tamnd/kage)\n[![Go Report Card](https://goreportcard.com/badge/github.com/tamnd/kage)](https://goreportcard.com/report/github.com/tamnd/kage)\n[![License](https://img.shields.io/github/license/tamnd/kage)](./LICENSE)\n\n**kage** (影, \"shadow\") clones a website into a folder you can browse offline, with every script stripped out. It opens each page in real headless Chrome, waits for the page to settle, snapshots the DOM a human would have seen, then deletes all the JavaScript and pulls the CSS, images, and fonts down to local paths. What lands on disk looks like the live site and runs no code.\n\n[Install](#install) • [Quick start](#quick-start) • [Commands](#commands) • [Clone](#clone) • [Pack](#pack-it-into-one-file) • [Double-click app](#a-double-click-app) • [Native window](#a-real-window-not-a-browser-tab) • [How it works](#how-it-works)\n\n![kage cloning paulgraham.com, packing it into one file, and serving it back offline](docs/static/demo.gif)\n\nYou already know the problem. You hit \"Save As\" on a page you want to keep, and six months later you open it to find a blank screen, a spinner that never stops, or a copy that still tries to phone home to an analytics server that no longer exists. The page was never really yours. It was a thin client for someone else's JavaScript.\n\nkage takes the other road. It drives a real browser, lets the page finish doing whatever it does, grabs the finished result, and then rips every script out of it. No tracking, no network calls, no surprises. Just `.html` files you can open straight off disk, hand to a friend, or pack into a single file and forget about for a decade.\n\nFull docs and guides live at **[kage.tamnd.com](https://kage.tamnd.com)**.\n\n## Install\n\n```bash\ngo install github.com/tamnd/kage/cmd/kage@latest\n```\n\nPrefer a prebuilt binary? Grab an archive, a `.deb`/`.rpm`/`.apk`, or a checksum from [releases](https://github.com/tamnd/kage/releases). Or let a package manager handle it:\n\n```bash\n# Homebrew (macOS)\nbrew install --cask tamnd/tap/kage\n\n# Scoop (Windows)\nscoop bucket add tamnd https://github.com/tamnd/scoop-bucket\nscoop install kage\n\n# apt (Debian, Ubuntu)\ncurl -fsSL https://tamnd.github.io/linux-repo/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/tamnd.gpg\necho \"deb [signed-by=/usr/share/keyrings/tamnd.gpg] https://tamnd.github.io/linux-repo/apt stable main\" | sudo tee /etc/apt/sources.list.d/tamnd.list\nsudo apt update && sudo apt install kage\n\n# dnf (Fedora, RHEL)\nsudo dnf config-manager --add-repo https://tamnd.github.io/linux-repo/dnf/tamnd.repo\nsudo dnf install kage\n```\n\nOr skip installing Chrome yourself and use the container image, which bundles Chromium:\n\n```bash\ndocker run --rm -v \"$PWD/out:/out\" ghcr.io/tamnd/kage clone paulgraham.com\n```\n\nkage drives a real browser, so it needs Chrome or Chromium on the host. It finds a system install on its own; point it somewhere specific with `--chrome` or the `KAGE_CHROME` environment variable. The container needs nothing extra.\n\nShell completion ships in the box: `kage completion bash|zsh|fish|powershell`.\n\n## Quick start\n\nLet's mirror Paul Graham's essays so you can read them on a plane, on a laptop with no wifi, or in the year 2050 after the site has finally changed its design:\n\n```bash\n# 1. Clone the site into $HOME/data/kage/paulgraham.com/\nkage clone paulgraham.com\n\n# 2. Read it back offline in your browser\nkage serve $HOME/data/kage/paulgraham.com\n# open http://127.0.0.1:8800\n```\n\nThat's the whole loop. Every essay, every image, every stylesheet, frozen on your disk and runnable with zero network. The next two steps are optional but nice: collapse the whole thing into one file, and pop it open in its own window.\n\n```bash\n# 3. Squeeze the mirror into a single shareable file\nkage pack paulgraham.com               # -> paulgraham.com.zim\nkage open paulgraham.com.zim\n\n# 4. Or into one executable that *is* the site\nkage pack paulgraham.com --format binary -o paulgraham\n./paulgraham                           # serves itself, needs nothing installed\n```\n\n## Commands\n\n| Command | What it does |\n| --- | --- |\n| `kage clone <url>` | render a site in headless Chrome and write a browsable, script-free mirror |\n| `kage serve [dir]` | preview a cloned folder over a local HTTP server |\n| `kage pack <mirror-dir>` | collapse a mirror into one ZIM archive, a self-contained viewer binary, or a double-click app |\n| `kage open <file.zim>` | serve a packed ZIM back for offline reading |\n\n## Clone\n\n```bash\n# The whole site, into $HOME/data/kage/<host>/\nkage clone https://paulgraham.com\n\n# Just the first 50 pages, two links deep, for a quick taste\nkage clone paulgraham.com --max-pages",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:42:54.338492"
+  },
+  {
+    "basic_info": {
+      "name": "flock",
+      "full_name": "duckbugio/flock",
+      "owner": "duckbugio",
+      "description": "Autonomous AI dev-team bot",
+      "url": "https://github.com/duckbugio/flock",
+      "clone_url": "https://github.com/duckbugio/flock.git",
+      "ssh_url": "git@github.com:duckbugio/flock.git",
+      "homepage": "https://roost.duckbug.io",
+      "created_at": "2026-06-08T15:48:15Z",
+      "updated_at": "2026-07-06T19:22:29Z",
+      "pushed_at": "2026-07-06T19:22:29Z"
+    },
+    "stats": {
+      "stars": 572,
+      "forks": 4,
+      "watchers": 572,
+      "open_issues": 0,
+      "size": 901
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 959442,
+        "Dockerfile": 20548,
+        "Go Template": 20347,
+        "Jinja": 9606,
+        "JavaScript": 8073,
+        "Shell": 2434
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agent",
+        "anthropic",
+        "autonomous-agents",
+        "chatbot",
+        "claude",
+        "claude-code",
+        "code-review",
+        "golang",
+        "llm",
+        "self-hosted",
+        "telegram-bot",
+        "vk-bot"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <b>English</b> ·\n  <a href=\"README.ru.md\">Русский</a> ·\n  <a href=\"README.zh.md\">中文</a> ·\n  <a href=\"README.es.md\">Español</a> ·\n  <a href=\"README.de.md\">Deutsch</a> ·\n  <a href=\"README.fr.md\">Français</a> ·\n  <a href=\"README.pt-BR.md\">Português (BR)</a> ·\n  <a href=\"README.ja.md\">日本語</a>\n</p>\n\n# Flock\n\n**Run a Claude Code AI dev team on your server and drive it from chat.** Describe a feature in Telegram or VK; the team plans it, builds it on a branch, tests it, reviews it, and opens a PR — each chat in its own isolated workspace.\n\n[![CI](https://github.com/duckbugio/flock/actions/workflows/ci.yml/badge.svg)](https://github.com/duckbugio/flock/actions/workflows/ci.yml)\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)\n[![Go 1.26](https://img.shields.io/badge/Go-1.26-00ADD8.svg)](go.mod)\n[![image: ghcr.io](https://img.shields.io/badge/image-ghcr.io-2496ED.svg)](https://github.com/orgs/duckbugio/packages)\n\nIt runs on your Claude **Pro/Max subscription** (no per-token billing) or an Anthropic API key, ships as **prebuilt Docker images** (no build step), and keeps every chat in its own sandboxed workspace.\n\n## Quick start (Docker)\n\n```bash\ngit clone https://github.com/duckbugio/flock\ncd flock/adapters/telegram\ncp .env.example .env        # fill in the REQUIRED block (4 values)\ndocker compose up -d\n```\n\nThat pulls the prebuilt image `ghcr.io/duckbugio/flock-telegram` — no build, no Ansible — then message your bot. The minimum `.env`:\n\n| Variable | What |\n|---|---|\n| `TELEGRAM_BOT_TOKEN` | from [@BotFather](https://t.me/botfather) |\n| `TELEGRAM_BOT_USERNAME` | your bot's @username (no `@`) |\n| `ALLOWED_USERS` | comma-separated Telegram user IDs allowed to use the bot |\n| `CLAUDE_CODE_OAUTH_TOKEN` | `claude setup-token` (subscription) — *or* set `ANTHROPIC_API_KEY` |\n\nEverything else in [`.env.example`](adapters/telegram/.env.example) has sensible defaults. Update later with `docker compose pull && docker compose up -d`.\n\n> **Region:** host in an **Anthropic-supported region** (some countries, e.g. RU/CN, are geo-blocked) — otherwise Claude calls fail.\n\n**VK** is the same pattern under [`adapters/vk/`](adapters/vk/), built on the same core and published as `ghcr.io/duckbugio/flock-vk`. It ships only an env template (no compose file): `cp .env.example .env`, then `docker run --env-file .env ghcr.io/duckbugio/flock-vk`. Claude auth and core settings match Telegram; only the three transport vars change:\n\n| Variable | What |\n|---|---|\n| `VK_BOT_TOKEN` | community access token (VK community → Manage → API usage → access token) |\n| `VK_GROUP_ID` | your community's numeric id (long-poll server + mention parse) |\n| `VK_ALLOWED_USERS` | comma-separated VK user IDs allowed to use the bot |\n\n## Highlights\n\n- **The conversation is the task source** — describe what you want in chat and review the PR that comes back; the agent's shell and editor are sandboxed inside the container.\n- **A real dev-team pipeline, not a single prompt** — spec-first acceptance criteria, build/regression gates, and an arbiter that breaks loops.\n- **Multi-transport** — **Telegram** and **VK** today, both on the same core; a new platform is a thin adapter, not a fork.\n- **PR reactions without inbound webhooks** — the bot *polls* your git host for new review comments and routes each back to the chat that opened the PR.\n- **Subscription-friendly** — authenticate with a Claude Pro/Max token (no per-token cost) or an Anthropic API key.\n\n## How it works\n\n```\nYou (in a chat): \"implement X across the api + web services\"\n  → bot's Claude (Lead) → planner → confirm scope → coder ⇄ tester → PR per repo\n                                                      → reviewer (inline comments) ⇄ coder → arbiter\n                                                                                        ├ APPROVE → you merge\n                                                                                        └ ESCALATE → asks you\n```\n\nThe five subagents — **planner → coder → tester → reviewer → arbiter** — run as native Claude Code subagents in [`core/agents/`](core/agents/). A plain question is just answered; a build request triggers the team. The **arbiter** is the risk-aware, cycle-limited loop-breaker so agents never spin forever. Branches are named `duck/<chatid>/<slug>` so PR-webhook/poll events route back to the right chat.\n\nThe team is built for a **microservices** workspace: a feature can span several services, and it coordinates branches and one cross-linked PR per repo. The full pipeline, guardrails, and role table live in [`core/README.md`](core/README.md).\n\n## Repo layout (monorepo)\n\nThe platform-agnostic dev-team brain lives in [`core/`](core/); each platform is a thin adapter under `adapters/<name>/` that shares it.\n\n| Adapter | Path | Prebuilt image |\n|---|---|---|\n| Telegram | [`adapters/telegram/`](adapters/telegram/) | `ghcr.io/duckbugio/flock-telegram` |\n| VK | [`adapters/vk/`](adapters/vk/) | `ghcr.io/duc",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:42:55.582266"
+  },
+  {
+    "basic_info": {
+      "name": "make-look-scanned",
+      "full_name": "overflowy/make-look-scanned",
+      "owner": "overflowy",
+      "description": "Makes PDFs look scanned (CLI or in the browser via WASM)",
+      "url": "https://github.com/overflowy/make-look-scanned",
+      "clone_url": "https://github.com/overflowy/make-look-scanned.git",
+      "ssh_url": "git@github.com:overflowy/make-look-scanned.git",
+      "homepage": "https://overflowy.github.io/make-look-scanned/",
+      "created_at": "2026-06-20T17:39:59Z",
+      "updated_at": "2026-07-07T03:07:09Z",
+      "pushed_at": "2026-06-21T10:39:21Z"
+    },
+    "stats": {
+      "stars": 531,
+      "forks": 23,
+      "watchers": 531,
+      "open_issues": 0,
+      "size": 45
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 26501,
+        "HTML": 8830,
+        "Python": 3473,
+        "Shell": 431
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "go",
+        "pdf",
+        "scan",
+        "wasm"
+      ]
+    },
+    "content": {
+      "readme": "# make-look-scanned\n\nA CLI that takes a PDF and degrades it to look like a physical scan of a\nprintout — skew, grayscale, warm paper tone, scanner grain, defocus, edge\nshadow, and JPEG compression artifacts. Also [runs client-side in the browser](https://overflowy.github.io/make-look-scanned/) via WASM.\n\n<img width=\"1990\" height=\"1252\" alt=\"example\" src=\"https://github.com/user-attachments/assets/9653fd3b-3abe-4427-ad82-03a78d4429b5\"/>\n\nEach page is rasterized to an image, run through the effect pipeline, and\nreassembled into a new **image-only** PDF (the original selectable text is\ngone — faithful to a basic scanner).\n\n## Build\n\nRequires Go and a C toolchain (go-fitz links MuPDF via cgo, so the binary is\nself-contained — nothing to install at runtime).\n\n```sh\ngo build -o make-look-scanned .\n```\n\n## Usage\n\n```sh\nmake-look-scanned [flags] input.pdf\n```\n\nFlags may appear before or after the input filename.\n\n```sh\nmake-look-scanned in.pdf                 # -> in.scanned.pdf\nmake-look-scanned in.pdf -o out.pdf\nmake-look-scanned in.pdf --noise 0.4 --skew 2.5 --jpeg-quality 30\n```\n\n### Flags\n\n| Flag             | Default | Meaning                                   |\n|------------------|---------|-------------------------------------------|\n| `-o`             | `<input>.scanned.pdf` | output path                 |\n| `--preset`       | —       | named preset from `config.toml`           |\n| `--seed`         | content hash | random seed (override for a new look) |\n| `--force`        | false   | overwrite an existing output file         |\n| `--dpi`          | 150     | render resolution                         |\n| `--skew`         | 0.6     | max rotation degrees (0 disables)         |\n| `--grayscale`    | true    | desaturate (`--grayscale=false` keeps color) |\n| `--paper-tone`   | 0.6     | warm paper tint strength 0..1             |\n| `--noise`        | 0.08    | scanner grain 0..1                        |\n| `--blur`         | 0.4     | defocus gaussian sigma                    |\n| `--edge-shadow`  | 0.15    | border vignette 0..1                      |\n| `--jpeg-quality` | 70      | JPEG quality 1..100                       |\n\nEach numeric knob disables its effect at `0`.\n\n## Determinism\n\nOutput is **deterministic by default**: the seed is derived from the input\nPDF's content, so the same file always produces the same scan. Pass `--seed N`\nfor a different (but reproducible) look. Same input + seed yields a\nbyte-identical PDF.\n\n## Presets\n\nDefine reusable bundles in\n`$XDG_CONFIG_HOME/make-look-scanned/config.toml` (falls back to\n`~/.make-look-scanned/config.toml` when `XDG_CONFIG_HOME` is unset). Keys\nmirror the flag names with underscores:\n\n```toml\n[presets.medium]\nskew = 1.5\npaper_tone = 0.6\nnoise = 0.2\nblur = 0.6\nedge_shadow = 0.3\njpeg_quality = 45\n```\n\n```sh\nmake-look-scanned --preset medium in.pdf\n```\n\nPrecedence: built-in defaults → selected preset → explicit CLI flags (flags\nalways win).\n\n## Browser (WebAssembly)\n\nThe effect pipeline also runs in the browser. go-fitz/MuPDF can't compile to\nwasm, so the browser uses **PDF.js** to rasterize pages and hands the pixels to\nthe *same* Go effects + assembly code compiled to wasm.\n\nDev (needs network for the PDF.js CDN):\n\n```sh\n./web/build.sh                       # builds web/main.wasm + wasm_exec.js\n(cd web && python3 -m http.server 8080)   # then open http://localhost:8080\n```\n\nSingle self-contained file (works offline, nothing to serve):\n\n```sh\ntask build:web                       # writes dist/make-look-scanned.html (~8 MB)\n```\n\n`dist/make-look-scanned.html` inlines the wasm, Go's runtime glue, and PDF.js\n(library + worker) as base64 — open it directly in a browser. Output is\nvisually equivalent to the CLI but not byte-identical, since PDF.js and MuPDF\nrasterize differently.\n\n## License\n\n[AGPL-3.0](LICENSE). The CLI statically links MuPDF (via go-fitz), which is\nAGPL-3.0, so the combined binary is AGPL-3.0 — distributing it requires offering\nthe corresponding source. The browser build does not include MuPDF (it uses\nPDF.js, Apache-2.0).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:42:56.789081"
+  },
+  {
+    "basic_info": {
+      "name": "ku",
+      "full_name": "bjarneo/ku",
+      "owner": "bjarneo",
+      "description": "A fast, keyboard-driven Kubernetes TUI. Browse any resource, edit objects, follow logs, and shell into pods. ",
+      "url": "https://github.com/bjarneo/ku",
+      "clone_url": "https://github.com/bjarneo/ku.git",
+      "ssh_url": "git@github.com:bjarneo/ku.git",
+      "homepage": "",
+      "created_at": "2026-06-13T14:38:25Z",
+      "updated_at": "2026-07-07T03:06:19Z",
+      "pushed_at": "2026-07-06T19:44:23Z"
+    },
+    "stats": {
+      "stars": 486,
+      "forks": 18,
+      "watchers": 486,
+      "open_issues": 2,
+      "size": 322
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 418714,
+        "Shell": 3146,
+        "Makefile": 1101
+      },
+      "license": "MIT License",
+      "topics": [
+        "bubbletea",
+        "charmlibs",
+        "cli",
+        "client-go",
+        "devops",
+        "go",
+        "golang",
+        "k8s",
+        "k9s",
+        "kubectl",
+        "kubernetes",
+        "terminal",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# ku\n\n```\n\\|/          (__)\n     `\\------(oo)\n       ||    (__)\n       ||w--||     \\|/\n   \\|/\n```\n\n`ku` is short for **KU**bernetes. It is also the Norwegian word for cow.\n\nA fast, keyboard-driven Kubernetes TUI. Browse any resource, read and edit\nobjects, follow logs, port-forward Services, and open a shell in a pod, without\nleaving the terminal.\nInspired by k9s, Lens, and lazygit.\n\nhttps://github.com/user-attachments/assets/48756c6b-00ae-470d-8fb5-3f93ecbd46df\n\n## Install\n\nInstall the latest release with the installer:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/bjarneo/ku/main/install.sh | sh\n```\n\nOr with Go:\n\n```bash\ngo install github.com/bjarneo/ku@latest\n```\n\nOr from a clone:\n\n```bash\nmake install   # builds and installs to ~/.local/bin, /usr/local/bin, or your last $PATH dir\ngo build -o ku .\n```\n\nBuilding from source requires Go 1.26.3+. Running ku requires a reachable\ncluster.\n\n## Quick start\n\n```\nku                       # current context, remembered namespace\nku -n kube-system        # start in a namespace\nku --resource deploy     # start on a resource type\nku --theme tokyonight    # switch theme\nku --edit                # start in edit mode (default is read-only)\nku --dev                 # developer view, app resources only\nku upgrade               # replace the current binary with the latest release\n```\n\nPress `?` for help, `Ctrl+K` for the command palette, and `Shift+E` to toggle\nedit mode.\n\n## Modes\n\n`ku` starts read-only. Every mutating or live access action is off: edit,\ndelete, rollout restart, scale, CronJob trigger, cordon, drain, shell into pods\nor nodes, and Service port-forward. Read, describe, YAML, logs, and the\n`kubectl` command preview still work. For all you fat-fingers out there, your\ncluster is safe.\n\nTo make changes, press `Shift+E` or open the command palette (`Ctrl+K`) and pick\n\"Enter edit mode\", then confirm the prompt. The header chip flips from a green\n`● READ-ONLY` to a red `● EDIT`, and the mutating keys come back. Press\n`Shift+E` again or pick \"Return to read-only\" to switch back. Pass `--edit` to\nstart in edit mode instead.\n\n`--dev` switches to a developer view that hides cluster admin resources (nodes,\npersistent volumes, storage classes, namespaces, events) and disables node\noperations. CRD discovery is off too. Use it when you only manage your own app.\nIt composes with edit mode.\n\n```\nku                       # read-only, full nav\nku --edit                # edit mode, full nav\nku --dev                 # read-only, developer view\nku --dev --edit          # edit mode, developer view\n```\n\nDisabled keys are dropped from the footer hints and the command palette, and `?`\nsummarizes the active mode.\n\n## Configuration\n\n`ku` reads an optional config file from `~/.config/ku/config.yaml` for sidebar\ncustomization and stores session state in `~/.config/ku/state.json`.\n\n### Add custom resources (CRDs) to the sidebar\n\nThe sidebar lists common built-in resources by default. CRDs are not shown until\nyou add them. Seed the config, then edit the `sidebar:` list:\n\n```bash\nku config init     # write ~/.config/ku/config.yaml with the defaults\nku config path     # print the config file location\n```\n\nAdd an item under any section (or a new one). The `resource` field accepts a\nplural, singular, kind, short name, or group-qualified key. Use the\ngroup-qualified form (`<plural>.<group>`) to avoid ambiguity:\n\n```yaml\nsidebar:\n  - section: CRDs\n    items:\n      - { label: ScaledObjects, resource: scaledobjects.keda.sh }\n      - { label: Certificates, resource: certificates.cert-manager.io }\n      - { label: HPAs, resource: horizontalpodautoscalers }\n```\n\nRestart `ku` to apply the change. Resources your cluster does not expose are\ndropped, and empty sections are hidden.\n\nSee [Configuration](docs/configuration.md) for the full reference.\n\n## Highlights\n\n- A cockpit overview on launch: cluster health, node CPU and memory gauges, pod and deployment status, and recent warnings.\n- Server-rendered tables for any resource, the same columns as `kubectl get`, including CRDs.\n- lazygit-style layout: a left resource nav, `Tab` between panes, and a status bar that always shows the keys that work right now.\n- Config summaries, raw YAML, logs, Service port-forward, edit-in-editor, shell into pods or nodes, delete, scale, restart, and CronJob trigger, all inside the TUI.\n- ANSI colors that match your terminal in light or dark mode, with Tokyo Night as a fallback (`--theme tokyonight`).\n- A customizable sidebar menu via an optional config file (`ku config init`): add CRDs like HPAs, KEDA ScaledObjects, or OpenTelemetry collectors.\n- `C` shows the equivalent `kubectl` command, and `O` opens upstream Kubernetes docs for known resources.\n- Remembers your last context and namespace.\n\n## Docs\n\n- [Getting started](docs/getting-started.md)\n- [Configuration](docs/configuration.md)\n- [Keybindings](docs/keybindings.md)\n- [Features](docs/features.md)\n\nFull index: [docs/](docs/README.md).\n\n## License\n\n[MIT](LICEN",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:42:57.993646"
+  },
+  {
+    "basic_info": {
+      "name": "perfectpixel-studio",
+      "full_name": "gykim80/perfectpixel-studio",
+      "owner": "gykim80",
+      "description": "AI-powered animation sprite studio — generate character sprite sheets with 8 directions and 100+ actions from a single text prompt (Wails + Go + React)",
+      "url": "https://github.com/gykim80/perfectpixel-studio",
+      "clone_url": "https://github.com/gykim80/perfectpixel-studio.git",
+      "ssh_url": "git@github.com:gykim80/perfectpixel-studio.git",
+      "homepage": null,
+      "created_at": "2026-06-14T04:23:45Z",
+      "updated_at": "2026-07-06T15:02:07Z",
+      "pushed_at": "2026-06-22T22:36:11Z"
+    },
+    "stats": {
+      "stars": 422,
+      "forks": 65,
+      "watchers": 422,
+      "open_issues": 2,
+      "size": 38120
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 337795,
+        "TypeScript": 156458,
+        "CSS": 49964,
+        "HTML": 25179,
+        "NSIS": 13156,
+        "JavaScript": 11795,
+        "Shell": 4016
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "game-development",
+        "golang",
+        "pixel-art",
+        "sprite",
+        "spritesheet",
+        "wails"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# PerfectPixel\n\n**An AI-powered animation sprite generation studio**\n\nTurn a one-line character description into a base character, then auto-generate 100+ motion\nanimations (walk, run, attack, magic, …) and complete 8-direction sprite sets — exported in\nformats your game engine can import directly.\n\n![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)\n![Wails](https://img.shields.io/badge/Wails-v2-DF0000)\n![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)\n![License](https://img.shields.io/badge/license-MIT-green)\n\n**[🌐 Homepage](https://pp.andrew-ai.app/)**\n\n**English** · [한국어](README.ko.md)\n\n<img src=\"samples/power-up.gif\" alt=\"Pixel-art character power-up animation generated by PerfectPixel\" width=\"280\" />\n\n<sub>A power-up animation generated end-to-end by the actual pipeline (`gemini-3-pro-image`).</sub>\n\n</div>\n\n---\n\n## Why this is a hard problem\n\nPlenty of tools draw a pretty picture. Game developers need something else: a 6-frame walk\nmust be *exactly* 6 frames, every frame must read as the *same* character, the background must\nbe fully alpha-transparent, and the character's anchor must not jitter between frames — all in a\nformat an engine can import as-is.\n\nAI models are bad at these constraints. Frame counts come out wrong, poses bleed into each\nother, hair color drifts mid-strip (*identity drift*), and the chroma-key background spills\nonto the character's silhouette.\n\n**PerfectPixel's core idea: let the AI render, but enforce quality, consistency, and precision\nwith a deterministic post-processing pipeline.** Even when the AI's output is non-deterministic,\nthe result converges to a consistent quality bar. That is the engineering moat — see the\nbefore/after comparisons below, all produced by the *real* pipeline code on *real* AI output.\n\n## Features\n\n- **Text → character**: describe a character, pick a style (pixel art, chibi, cartoon …), and\n  generate a base character with the background auto-removed.\n- **100+ motion presets**: a categorized keyword catalog — walk, run, jump, attack, magic,\n  emotes, and more.\n- **8-direction sets**: 5 directions are generated by AI and the 3 mirror directions are\n  derived by horizontal mirroring, for a consistent set at **37.5% lower generation cost**.\n- **Self-correcting quality loop**: generate → matte → extract → inspect → corrective\n  regenerate, up to 3 passes, converging frame count and motion quality.\n- **Real pixelization**: shared-palette quantization + pixel-grid snapping for authentic dot art.\n- **Engine-friendly export**: sprite sheet + `manifest.json` + Aseprite-compatible JSON +\n  per-state GIF/APNG + individual frame PNGs, all in one pass.\n- **Multi-provider**: choose Gemini, OpenRouter, fal.ai, or BytePlus as the backend.\n- **Sessions & gallery**: work state is persisted to disk and results are auto-archived.\n\n## Sample Output\n\n<div align=\"center\">\n\n| Walk | Idle | Cheer | Power Up |\n|------|------|-------|----------|\n| <img src=\"samples/walk.gif\" width=\"100\" /> | <img src=\"samples/idle.gif\" width=\"100\" /> | <img src=\"samples/cheer.gif\" width=\"100\" /> | <img src=\"samples/power-up.gif\" width=\"100\" /> |\n| Dance | Victory | Block | Low HP |\n| <img src=\"samples/dance1.gif\" width=\"100\" /> | <img src=\"samples/victory-north.gif\" width=\"100\" /> | <img src=\"samples/block-east.gif\" width=\"100\" /> | <img src=\"samples/low-hp.gif\" width=\"100\" /> |\n\n</div>\n\n## How it works\n\nGenerating one state (animation) runs this pipeline in the Go backend:\n\n```\ndescription + style + motion preset\n        │\n        ▼\n  build prompt ──► AI image generation (horizontal filmstrip)\n        │\n        ▼\n  background detect & matte ──► frame extraction (cell segmentation)\n        │\n        ▼\n  inspect (frame count / identity drift / motion presence)\n        │\n        ├─ pass ─────────────► pixel quantization ──► done\n        │\n        └─ fail ─► corrective retry hint ──► regenerate (up to 3×)\n```\n\nTwo things make this more than a naive retry loop:\n\n- **Best-candidate scoring** — every attempt is scored `score = Found*100 − errors*10`, and the\n  best candidate is kept. A perfect result returns immediately; if 3 passes still aren't perfect,\n  the best-so-far is returned (never an empty hand). API errors and cancellations bail early.\n- **Measurement-driven retry hints** — defects detected during inspection are converted into\n  precise English correction instructions injected into the next prompt (e.g. *\"the previous\n  result read as 7 poses but exactly 6 are required; split the canvas into 6 even columns…\"*).\n  Combined with user feedback, each pass becomes a **closed-loop self-correction** that converges\n  on the defect rather than rolling the dice again.\n\n---\n\n## The engineering: deterministic correction\n\nThe design philosophy in one line: **signal processing, not heuristics.** Three signal-processing\naxes — wrapped in a self-diagnostic, self-correcting closed loop.\n\n### 1. Background removal — chrominance-b",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:42:59.214439"
+  },
+  {
+    "basic_info": {
+      "name": "mercadona-cli",
+      "full_name": "ivorpad/mercadona-cli",
+      "owner": "ivorpad",
+      "description": "Unofficial, agent-friendly Mercadona shopping CLI (Go) — search products, read prices, build a cart and prepare checkout from the terminal. BYO credentials.",
+      "url": "https://github.com/ivorpad/mercadona-cli",
+      "clone_url": "https://github.com/ivorpad/mercadona-cli.git",
+      "ssh_url": "git@github.com:ivorpad/mercadona-cli.git",
+      "homepage": "https://www.npmjs.com/package/@ivorpad/mercadona",
+      "created_at": "2026-06-26T06:22:39Z",
+      "updated_at": "2026-07-06T16:30:21Z",
+      "pushed_at": "2026-06-27T13:35:09Z"
+    },
+    "stats": {
+      "stars": 299,
+      "forks": 26,
+      "watchers": 299,
+      "open_issues": 2,
+      "size": 188
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 126900,
+        "JavaScript": 4930,
+        "Shell": 3251
+      },
+      "license": null,
+      "topics": [
+        "ai-agents",
+        "claude-code",
+        "cli",
+        "command-line",
+        "golang",
+        "grocery-shopping",
+        "llm-tools",
+        "mercadona",
+        "shopping-cart",
+        "spain"
+      ]
+    },
+    "content": {
+      "readme": "# mercadona\n\nUnofficial, agent-friendly CLI for `tienda.mercadona.es` — search the catalog, read\nprices, build a cart, and check out. Single static Go binary, no runtime\ndeps, structured `--json` output for programmatic/agent use.\n\n> Unofficial. Mercadona has no public API. Bring your own credentials; use at a\n> sane request rate. This talks to the same HTTP endpoints the website does.\n\n## Install\n\n**npm** — downloads the prebuilt binary for your platform on install:\n\n```bash\nnpm install -g @ivorpad/mercadona      # puts `mercadona` on your PATH\nnpx @ivorpad/mercadona search queso    # …or run without installing\n```\n\n**curl** (macOS / Linux):\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/ivorpad/mercadona-cli/main/install.sh | sh\n```\n\nOverride with `MERCADONA_VERSION=v0.1.0` (pin a tag) or `MERCADONA_INSTALL_DIR=/path`\n(install location; defaults to `/usr/local/bin`, else `~/.local/bin`).\n\n**Manual** — download a tarball for your OS/arch from the\n[releases page](https://github.com/ivorpad/mercadona-cli/releases), extract, and put\n`mercadona` on your PATH.\n\n**From source** (Go 1.26+) — clone, then:\n\n```bash\ngo build -o mercadona ./cmd/mercadona\n```\n\n(`go install <module>@latest` isn't wired up yet: the module path is\n`github.com/ivorjpc/mercadona`, which doesn't match the repo URL.)\n\n## Commands\n\n### Read core (anonymous — no login)\n\n```bash\nmercadona search queso                      # full-text product search\nmercadona search --limit 5 --json mayonesa  # structured output for agents\nmercadona batch -f lista.txt                 # many terms in ONE request (≈100 items / call)\nprintf 'queso\\ncarne\\nmayonesa\\n' | mercadona batch -f -\nmercadona product 13406                      # detail, price, nutrition (when available)\nmercadona categories                         # category tree\nmercadona categories --id 112 --json         # one category's products (raw JSON)\n```\n\nCommon flags: `--wh mad1` (warehouse), `--lang es`, `--json` — and they can go anywhere after the (sub)command, not just up front.\nData goes to **stdout**, logs/errors to **stderr**, exit code `1` on error — friendly to scripts and agents.\n\n### Location (warehouse) — set it from your postal code\n\n```bash\nmercadona set-postal 28022   # → resolves to warehouse mad1, saves it as the default\n```\n\nProduct ids **and prices** are per-warehouse, and online checkout needs the cart's warehouse to\nmatch your delivery address — so pin it to the warehouse that serves your postal code (no login\nneeded). Precedence: `--wh` flag > `config.toml [defaults]` > built-in `mad1`. `import-har` also\nauto-detects and saves the warehouse from your session. (Within a city it varies: `28022 → mad1`,\n`28013 → mad3`.)\n\nExample:\n\n```\n$ mercadona batch -f lista.txt\n• queso            → [51110] Queso rallado mozzarella pizza-Roma Hacendado — 1.60€ (8.000€/kg)\n• carne            → [34157] Carne de pimiento choricero Hacendado — 1.55€ (11.072€/kg)\n• mayonesa         → [13406] Mayonesa Hacendado — 1.20€ (2.400€/L)\n```\n\n### Authenticated: `import-har` (preferred) / `import-curl` / `login`, `whoami`, `cart`, `checkout`\n\nThe API authenticates with a **Bearer token** (a SimpleJWT). The first sign-in must happen in a\nbrowser (password login needs a Google reCAPTCHA Enterprise token; Google-account users have no\npassword at all). After that, the **refresh token renews the session headlessly, forever** —\n`POST /api/auth/tokens/ {refresh_token}` needs no captcha and rotates the token. Verified.\n\n**Two login methods, one outcome.** However you sign in, the response carries the same durable\n`refresh_token`, so the CLI automates identically:\n\n| Method | Endpoint | Request body | Response |\n|---|---|---|---|\n| Email + password | `POST /api/auth/tokens/` | `{username, password, recaptcha_token}` | `{access_token, customer_id, refresh_token}` |\n| Google sign-in | `POST /api/auth/social/google/` | `{id_token, postal_code}` | `{access_token, customer_uuid, refresh_token}` |\n\n**✅ Preferred login method — `import-har`.** One browser login (email *or* Google), then\nheadless forever. Export a HAR after signing in and let the CLI pull the refresh token out for you:\n\n```bash\n# DevTools → Network → ⤓ \"Export HAR…\"  (after you've logged in, by either method), then:\nmercadona import-har --file tienda.mercadona.es.har\nmercadona whoami     # confirms it's authenticated\n```\n\n`import-har` seeds `refresh_token` into `~/.mercadona/config.toml` (0600) and caches the current\naccess token + cookie. From then on every `401 token_not_valid` triggers an automatic refresh +\nretry — no browser, no captcha, unattended. (It reads only auth *responses* and Bearer/Cookie\n*headers*; the password in the request body is never touched.)\n\nPrefer to do it by hand? Write the token yourself — `mercadona set-refresh <token>` (or edit\n`~/.mercadona/config.toml`):\n\n```toml\n[auth]\nrefresh_token = \"<your refresh token>\"   # the durable, headless-renewable credential\n[defaults]\nwarehouse = \"mad1\"        # or: `mercadona set-postal ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:00.481896"
+  },
+  {
+    "basic_info": {
+      "name": "fast",
+      "full_name": "maaslalani/fast",
+      "owner": "maaslalani",
+      "description": "Internet speed test in your terminal",
+      "url": "https://github.com/maaslalani/fast",
+      "clone_url": "https://github.com/maaslalani/fast.git",
+      "ssh_url": "git@github.com:maaslalani/fast.git",
+      "homepage": "",
+      "created_at": "2026-06-28T03:07:02Z",
+      "updated_at": "2026-07-06T21:13:12Z",
+      "pushed_at": "2026-07-01T06:17:42Z"
+    },
+    "stats": {
+      "stars": 285,
+      "forks": 17,
+      "watchers": 285,
+      "open_issues": 4,
+      "size": 19
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 7969
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Fast\n\nTest your internet speed from the command-line, powered by [fast.com](https://fast.com).\n\n<img src=\"demo.gif\" width=\"600\" alt=\"fast running a speed test in the terminal\" />\n\n### Usage\n\n```bash\nfast\n```\n\n`fast` measures your download speed against the nearest Netflix Open Connect\nservers and reports it in megabits per second, right inline in your terminal.\n\n### Installation\n\nInstall with Go:\n\n```sh\ngo install github.com/maaslalani/fast@main\n```\n\nOr download a binary from the [releases](https://github.com/maaslalani/fast/releases).\n\n## License\n\n[MIT](https://github.com/maaslalani/fast/blob/master/LICENSE)\n\n## Feedback\n\nI'd love to hear your feedback on improving `fast`.\n\nFeel free to reach out via:\n* [Email](mailto:maas@lalani.dev)\n* [Twitter](https://twitter.com/maaslalani)\n* [GitHub issues](https://github.com/maaslalani/fast/issues/new)\n\n---\n\n<sub><sub>z</sub></sub><sub>z</sub>z\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:01.712583"
+  },
+  {
+    "basic_info": {
+      "name": "WaCalls",
+      "full_name": "JotaDev66/WaCalls",
+      "owner": "JotaDev66",
+      "description": null,
+      "url": "https://github.com/JotaDev66/WaCalls",
+      "clone_url": "https://github.com/JotaDev66/WaCalls.git",
+      "ssh_url": "git@github.com:JotaDev66/WaCalls.git",
+      "homepage": null,
+      "created_at": "2026-06-24T05:33:17Z",
+      "updated_at": "2026-07-07T02:24:00Z",
+      "pushed_at": "2026-07-01T22:40:35Z"
+    },
+    "stats": {
+      "stars": 242,
+      "forks": 98,
+      "watchers": 242,
+      "open_issues": 9,
+      "size": 4460
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 578197,
+        "TypeScript": 72377,
+        "CSS": 2560,
+        "JavaScript": 1401,
+        "HTML": 344
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 📞 WaCalls (Go)\n\n**Native WhatsApp voice calls in pure Go, straight from the browser.**\nBuilt for native VoIP media, multi-account (multi-session) operation, and a modern browser client.\n\n[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev)\n[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)\n[![whatsmeow](https://img.shields.io/badge/whatsmeow-VoIP-25D366?logo=whatsapp&logoColor=white)](https://github.com/tulir/whatsmeow)\n[![pion](https://img.shields.io/badge/pion-WebRTC-FF6B6B)](https://github.com/pion/webrtc)\n[![License](https://img.shields.io/badge/license-MIT-blue.svg)](#license)\n\n[Overview](#overview) · [Architecture](#architecture) · [Quick Start](#quick-start) · [API](#api) · [Security](#security)\n\n</div>\n\n---\n\n## Overview\n\nWaCalls pairs one or more WhatsApp accounts via **QR code** and lets you **place and\nreceive 1:1 voice calls** from any browser on the LAN. The browser microphone is sent\nas **raw 16 kHz PCM over a WebRTC data channel** to the Go server, which encodes it with\nMeta's **MLow** codec and injects the media into WhatsApp's **SRTP relay** mesh — and the\nreverse path brings the peer's audio back to the browser.\n\nThe entire VoIP stack runs **natively in pure Go**: the MLow voice codec, **RTP/SRTP**\npacketization, **STUN**, the **WebRTC/SCTP relay** transport and the `<call>` signaling,\nintegrated with [**whatsmeow**](https://github.com/tulir/whatsmeow) and served to a\n**React 19** client. There is **no cgo and no native DLL** — the MLow codec is a vendored\npure-Go package, so a plain `go build` produces a self-contained binary with live audio.\n\nMultiple WhatsApp accounts can be paired and operated side by side, each with its own\npairing QR, connection status, and history. A single account can also run **several\nconcurrent 1:1 calls** at once — one per browser operator — routed independently by call ID.\n\n> **Status:** stable. Outgoing and incoming 1:1 calls reach `ACTIVE` with bidirectional\n> audio, and a single account can hold several of them concurrently. Sessions persist in\n> `wacalls.db` (pure-Go SQLite).\n\n---\n\n## Architecture\n\n```\n┌──────────────────────────────────────────────────────────────────────────┐\n│                          BROWSER (React client)                            │\n│   mic + speaker  ·  WebRTC data channel (16 kHz PCM)  ·  HTTP + SSE         │\n└───────────────────────────────┬──────────────────────────────────────────┘\n                                 │  POST /api/sessions/{sid}/calls/{id}/webrtc  (SDP)\n                                 │  GET  /api/events                            (SSE)\n                                 ▼\n┌──────────────────────────── GO SERVER (cmd/server) ────────────────────────┐\n│  SessionManager   registry of accounts (client + CallManager + bridge)     │\n│  Broker           SSE hub (sessions, auth, call lifecycle fan-out)          │\n│  Bridge           pion WebRTC bridge (16 kHz PCM data channel ⇄ call core)  │\n│                                                                            │\n│  internal/wa      VoipSocket adapter over whatsmeow                        │\n│  internal/voip    call · signaling · media · transport · core · wanode     │\n└───────────────┬──────────────────────────────────────┬────────────────────┘\n                │ <call> signaling (Signal/USync)       │ SRTP media\n                ▼                                        ▼\n        ┌───────────────┐                    ┌──────────────────────┐\n        │  WhatsApp WS  │                    │   WhatsApp relay      │\n        │  (whatsmeow)  │                    │  (SRTP over SCTP/DC)  │\n        └───────────────┘                    └──────────────────────┘\n```\n\n### Layout\n\n| Path | Responsibility |\n|---|---|\n| `cmd/server` | HTTP/SSE broker, session manager + store, WebRTC bridge, process lifecycle |\n| `internal/wa` | `VoipSocket` — sends/receives `<call>` stanzas via whatsmeow |\n| `internal/voip/core` | Domain types, constants, the `VoipSocket` interface |\n| `internal/voip/wanode` | Shared WhatsApp-node and JID helpers |\n| `internal/voip/media` | MLow codec (vendored pure-Go `mlow/`), RTP, SRTP, SSRC, PCM helpers, key derivation |\n| `internal/voip/transport` | SCTP relay, STUN, subscription encoding |\n| `internal/voip/signaling` | `<call>` stanza build/parse, call-key crypto, relay-ack parsing |\n| `internal/voip/call` | `CallManager` — orchestrates a single call end to end |\n| `client/` | React 19 + Vite + Tailwind v4 + shadcn/ui (dialer, call cards, sessions, history) |\n\n---\n\n## How a call flows\n\nThe core is `internal/voip/call.CallManager`, which drives a call end to end. Outgoing\ncall sequence:\n\n```\n1. POST .../calls            → CallManager.StartCall(peerJid)\n                               generates a callID, builds the <call> offer, sends it\n\n2. Browser opens WebRTC      → POST .../calls/{id}/webrtc (SDP offer)\n                               the bridge answe",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:02.927374"
+  },
+  {
+    "basic_info": {
+      "name": "ainovel-cli",
+      "full_name": "kentjuno/ainovel-cli",
+      "owner": "kentjuno",
+      "description": "CLI sáng tác tiểu thuyết AI đa agent — Bản tiếng Việt của voocel/ainovel-cli",
+      "url": "https://github.com/kentjuno/ainovel-cli",
+      "clone_url": "https://github.com/kentjuno/ainovel-cli.git",
+      "ssh_url": "git@github.com:kentjuno/ainovel-cli.git",
+      "homepage": null,
+      "created_at": "2026-06-25T15:28:12Z",
+      "updated_at": "2026-07-06T06:30:22Z",
+      "pushed_at": "2026-06-25T15:28:26Z"
+    },
+    "stats": {
+      "stars": 233,
+      "forks": 119,
+      "watchers": 233,
+      "open_issues": 1,
+      "size": 6751
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1500679,
+        "Python": 5275,
+        "Shell": 2448,
+        "Dockerfile": 501
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ainovel-cli — Bản tiếng Việt\n\n> **Fork tiếng Việt** của [voocel/ainovel-cli](https://github.com/voocel/ainovel-cli) — toàn bộ giao diện, prompt hệ thống và tài liệu đã được Việt hoá.\n\nCông cụ CLI sáng tác tiểu thuyết dài kỳ hoàn toàn tự động bằng AI. Từ **một câu yêu cầu** đến **tiểu thuyết hoàn chỉnh** — không cần can thiệp thủ công trong quá trình viết.\n\n<p align=\"center\">\n  <img src=\"scripts/sample.gif\" alt=\"ainovel-cli demo\" width=\"800\">\n</p>\n\n---\n\n## Mục lục\n\n1. [Tính năng nổi bật](#tính-năng-nổi-bật)\n2. [Kiến trúc hệ thống](#kiến-trúc-hệ-thống)\n3. [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)\n4. [Cài đặt nhanh](#cài-đặt-nhanh)\n   - [Docker (khuyến nghị)](#docker-khuyến-nghị)\n   - [Build từ source](#build-từ-source)\n5. [Cấu hình](#cấu-hình)\n   - [Ollama (local, miễn phí)](#ollama-local-miễn-phí)\n   - [OpenRouter](#openrouter)\n   - [Anthropic / OpenAI](#anthropic--openai)\n   - [Cấu hình nhiều model theo vai trò](#cấu-hình-nhiều-model-theo-vai-trò)\n6. [Bắt đầu viết](#bắt-đầu-viết)\n7. [Lệnh TUI](#lệnh-tui)\n8. [Can thiệp thời gian thực](#can-thiệp-thời-gian-thực)\n9. [Phong cách và quy tắc tuỳ chỉnh](#phong-cách-và-quy-tắc-tuỳ-chỉnh)\n10. [Khôi phục sau gián đoạn](#khôi-phục-sau-gián-đoạn)\n11. [Cấu trúc thư mục output](#cấu-trúc-thư-mục-output)\n12. [Xuất truyện](#xuất-truyện)\n13. [Troubleshooting](#troubleshooting)\n\n---\n\n## Tính năng nổi bật\n\n| Tính năng | Mô tả |\n|---|---|\n| **Đa agent tự chủ** | Điều phối viên điều phối Kiến trúc sư → Người viết → Biên tập viên trong một vòng lặp LLM duy nhất |\n| **Viết hoàn chỉnh không cần trực** | Nhập một câu, hệ thống tự xây dựng thế giới, lập đề cương, viết và đánh giá toàn bộ |\n| **Hỗ trợ 500+ chương** | Quản lý ngữ cảnh 3 tầng (chương → cung → tập), tự động nén khi đầy |\n| **Kế hoạch cuộn** | Không lập kế hoạch toàn bộ một lần. Cung/tập sau mở rộng dần khi cần, tránh đề cương rỗng tuếch |\n| **Khôi phục cấp step** | Checkpoint sau mỗi lần gọi công cụ thành công — crash/mất mạng/Ctrl+C đều khôi phục chính xác |\n| **Can thiệp thời gian thực** | Nhập ý kiến chỉnh sửa bất cứ lúc nào, không cần dừng, hệ thống tự đánh giá phạm vi ảnh hưởng |\n| **Đánh giá 7 chiều** | Biên tập viên đánh giá: tính nhất quán, nhân vật, nhịp truyện, mạch kể, phục bút, điểm móc, thẩm mỹ |\n| **Chống văn phong AI** | Bộ tiêu chí cơ học + ngữ nghĩa tích hợp sẵn, tự động kiểm tra khi lưu chương |\n| **Nhiều nhà cung cấp LLM** | OpenRouter, Anthropic, Gemini, OpenAI, Deepseek, Ollama (local), và proxy tuỳ chỉnh |\n\n---\n\n## Kiến trúc hệ thống\n\n```\n┌──────────────────────────────────────────────────┐\n│                  Host (vỏ mỏng)                   │\n│   Khởi động / Khôi phục / Quan sát / Can thiệp    │\n└───────────────────────┬──────────────────────────┘\n                        │ Một lần Prompt\n┌───────────────────────▼──────────────────────────┐\n│          Coordinator (vòng lặp dài LLM)           │\n│  Đọc ngữ cảnh → Gọi agent phụ → Đọc kết quả → Tiếp tục │\n└────┬───────────┬──────────┬──────────────────────┘\n     │           │          │\n┌────▼───┐  ┌───▼───┐  ┌───▼────┐\n│Architect│  │Writer │  │ Editor │\n└────┬───┘  └───┬───┘  └───┬────┘\n     └──────────┼───────────┘\n                │ Gọi công cụ (IO + checkpoint)\n┌───────────────▼──────────────────────────────────┐\n│                    Store                          │\n│  Progress / Checkpoint / Outline / Drafts / ...  │\n└──────────────────────────────────────────────────┘\n```\n\n**Nguyên tắc cốt lõi**: LLM quyết định mọi thứ về nội dung và luồng sáng tác. Host chỉ khởi động, quan sát và cung cấp dữ liệu sự thật. Càng ít code, càng ít chỗ hỏng.\n\n---\n\n## Yêu cầu hệ thống\n\n| Phương pháp | Yêu cầu |\n|---|---|\n| **Docker** (khuyến nghị) | Docker Desktop ≥ 24, 4 GB RAM trống |\n| **Build từ source** | Go ≥ 1.21 |\n| **Model AI** | API key từ nhà cung cấp, hoặc Ollama chạy local |\n\n> **Windows**: Khuyến nghị dùng Docker. Không cần cài Go.\n\n---\n\n## Cài đặt nhanh\n\n### Docker (khuyến nghị)\n\n**Bước 1** — Tải source và chuẩn bị thư mục:\n\n```bash\ngit clone https://github.com/<your-username>/ainovel-cli.git\ncd ainovel-cli\nmkdir config workspace\n```\n\n**Bước 2** — Build Docker image:\n\n```bash\ndocker build -t ainovel-cli-vi .\n```\n\n> Lần đầu mất 2–5 phút do tải Go dependencies. Các lần sau dùng cache, rất nhanh.\n\n**Bước 3** — Tạo file cấu hình `config/config.json` (xem [phần Cấu hình bên dưới](#cấu-hình)).\n\n**Bước 4** — Chạy TUI:\n\n```bash\n# Linux / macOS\ndocker run --rm -it \\\n  -v \"$PWD/config:/root/.ainovel\" \\\n  -v \"$PWD/workspace:/workspace\" \\\n  -e TERM=xterm-256color \\\n  ainovel-cli-vi\n\n# Windows (PowerShell)\ndocker run --rm -it `\n  -v \"${PWD}\\config:/root/.ainovel\" `\n  -v \"${PWD}\\workspace:/workspace\" `\n  -e TERM=xterm-256color `\n  ainovel-cli-vi\n\n# Windows (Command Prompt)\ndocker run --rm -it -v \"%CD%\\config:/root/.ainovel\" -v \"%CD%\\workspace:/workspace\" -e TERM=xterm-256color ainovel-cli-vi\n```\n\n> **Windows Terminal**: Mở tab mới tự động —\n> ```powershell\n> Start-Process \"wt.exe\" -ArgumentList \"new-tab\", \"cmd\", \"/k\", 'docker run --rm -it -v \"%CD%\\config:/root/.ainovel\"",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:04.152014"
+  },
+  {
+    "basic_info": {
+      "name": "mcpsnoop",
+      "full_name": "kerlenton/mcpsnoop",
+      "owner": "kerlenton",
+      "description": "Wireshark for MCP. A transparent proxy that shows every real tool call between your AI client and your MCP servers, live in your terminal.",
+      "url": "https://github.com/kerlenton/mcpsnoop",
+      "clone_url": "https://github.com/kerlenton/mcpsnoop.git",
+      "ssh_url": "git@github.com:kerlenton/mcpsnoop.git",
+      "homepage": "",
+      "created_at": "2026-06-27T10:25:09Z",
+      "updated_at": "2026-07-07T04:06:20Z",
+      "pushed_at": "2026-07-06T18:41:06Z"
+    },
+    "stats": {
+      "stars": 212,
+      "forks": 11,
+      "watchers": 212,
+      "open_issues": 6,
+      "size": 4572
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 174465,
+        "Makefile": 992
+      },
+      "license": "MIT License",
+      "topics": [
+        "bubbletea",
+        "claude",
+        "cli",
+        "codex",
+        "cursor",
+        "debugging",
+        "devtools",
+        "golang",
+        "mcp",
+        "model-context-protocol",
+        "proxy",
+        "terminal",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/png/mcpsnoop-lockup.png\" alt=\"mcpsnoop\" width=\"440\">\n</p>\n\n**Wireshark for MCP.** A transparent proxy that shows every real tool call\nbetween your AI client and your MCP servers, live in your terminal.\n\n[![CI](https://github.com/kerlenton/mcpsnoop/actions/workflows/ci.yml/badge.svg)](https://github.com/kerlenton/mcpsnoop/actions/workflows/ci.yml)\n[![Go Reference](https://pkg.go.dev/badge/github.com/kerlenton/mcpsnoop.svg)](https://pkg.go.dev/github.com/kerlenton/mcpsnoop)\n[![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n\n<p align=\"center\">\n  <img src=\"docs/demo.gif\" alt=\"mcpsnoop demo\">\n</p>\n\n## The problem\n\nThe official [MCP Inspector](https://github.com/modelcontextprotocol/inspector)\nconnects as its own client, so it never sees what *your* client (Cursor, Claude\nCode, Codex) actually sends your server. A breakpoint only fires once a request\narrives, so it can't show the call the model never made, or made with the wrong\narguments. When a tool silently isn't called, capabilities don't line up, or a\ncall just hangs, you're left digging through logs and guessing.\n\n**mcpsnoop sits in the real data path instead.** Wrap your server command with\nit and watch every JSON-RPC frame live, as your real client and server talk.\n\n## Quick start\n\nSee it right away, with nothing to set up.\n\n```bash\nmcpsnoop demo\n```\n\nTo use it for real, wrap your server in your client's MCP config.\n\n```json\n{\n  \"mcpServers\": {\n    \"my-server\": {\n      \"command\": \"mcpsnoop\",\n      \"args\": [\"--\", \"node\", \"build/index.js\"]\n    }\n  }\n}\n```\n\nEverything after `--` is the command that normally launches your server. Swap in\nwhatever you already use, like `python server.py`, `npx -y @scope/server`, or a\ncompiled binary. Then use your client as usual and open the UI.\n\n```bash\nmcpsnoop\n```\n\nNo flags, no socket paths, no startup order to remember. The shim and the UI find\neach other on their own, and the UI backfills past sessions from disk.\n\nFor a streamable-HTTP server, run mcpsnoop as a reverse proxy.\n\n```bash\nmcpsnoop http --target http://localhost:3000/mcp --listen :7000\n```\n\nNo server of your own? [Try it for real](docs/TRY_IT.md) against a published\ntest server, driven by your own client. To inspect a session after it happened,\nsee [review past sessions from logs](docs/POST_MORTEM.md).\n\n## How it compares\n\n| | MCP Inspector | mcpsnoop |\n|---|:---:|:---:|\n| Sees your real client and server traffic | no | yes |\n| Flags slow and hung calls | no | yes |\n| Interactive terminal UI | no | yes |\n| Zero-config, no flags or ordering | no | yes |\n| Capability inspector | partial | yes |\n| Replay a captured call | no | yes |\n| Session export (json / html / text) | no | yes |\n| Single binary, no runtime deps | no | yes |\n\n## Install\n\n### Go\n\n```bash\ngo install github.com/kerlenton/mcpsnoop/cmd/mcpsnoop@latest\n```\n\n### Homebrew\n\n```bash\nbrew tap kerlenton/mcpsnoop\nbrew trust kerlenton/mcpsnoop\nbrew install mcpsnoop\n```\n\nPrebuilt binaries for every platform are on the [Releases](https://github.com/kerlenton/mcpsnoop/releases) page.\n\n## How it works\n\n<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"assets/architecture-dark.svg\">\n    <img alt=\"mcpsnoop sits in the pipe between your AI client and your MCP servers, copying every JSON-RPC frame to a live terminal UI\" src=\"assets/architecture-light.svg\" width=\"760\">\n  </picture>\n</p>\n\nmcpsnoop is two roles in one binary. `mcpsnoop -- <server>` is the transparent\nshim your client spawns, forwarding bytes verbatim while shipping a copy of every\nframe to mcpsnoop with no arguments, the hub and TUI. They pair through a\nwell-known socket and on-disk logs, so neither has to start first.\n\nBecause it sits in the actual pipe, not off to the side like the Inspector, it\nsees exactly what your real client and server say to each other, whatever the\nserver is written in.\n\n## Keybindings\n\n| Key | Action | | Key | Action |\n|---|---|---|---|---|\n| `enter` | inspect / drill in | | `/` | filter |\n| `esc` | back | | `:` | command |\n| `j` / `k` | move | | `r` | replay a call |\n| `g` / `G` | top / bottom | | `c` | capabilities |\n| `ctrl-f` / `ctrl-b` | page | | `y` | copy |\n| `shift`+column | sort | | `e` | export |\n| `p` | pause | | `ctrl-d` | delete session |\n| `f` | follow | | `?` | help |\n\nPress `?` in the app for the full list.\n\n## Filtering the stream\n\nPress `/` in a session and combine space-separated tokens, ANDed. Plain text\nmatches the method, tool, id, and payload.\n\n| Token | Filters by | Example |\n|---|---|---|\n| `tool:` | tool name | `tool:search` |\n| `method:` | JSON-RPC method | `method:tools/call` |\n| `id:` | request id | `id:7` |\n| `dir:` | direction (`c2s`, `s2c`) | `dir:s2c` |\n| `kind:` | frame type (`req`, `resp`, `notify`, `stderr`) | `kind:notify` |\n| `status:` | call outcome (`ok`, `error`, `slow`, `pending`) | `status:slow` |\n\nStack tokens to get specific.\n\n```text\ntool:search status:slow           # slow calls to one se",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:05.382959"
+  },
+  {
+    "basic_info": {
+      "name": "singleserver",
+      "full_name": "dvassallo/singleserver",
+      "owner": "dvassallo",
+      "description": "All your projects on a single server",
+      "url": "https://github.com/dvassallo/singleserver",
+      "clone_url": "https://github.com/dvassallo/singleserver.git",
+      "ssh_url": "git@github.com:dvassallo/singleserver.git",
+      "homepage": "https://singleserver.com",
+      "created_at": "2026-06-07T00:29:25Z",
+      "updated_at": "2026-07-05T20:15:30Z",
+      "pushed_at": "2026-06-21T07:28:36Z"
+    },
+    "stats": {
+      "stars": 209,
+      "forks": 11,
+      "watchers": 209,
+      "open_issues": 1,
+      "size": 879
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 394688,
+        "Shell": 71899,
+        "HTML": 71440,
+        "CSS": 14719,
+        "Dockerfile": 4657,
+        "JavaScript": 3427
+      },
+      "license": "MIT License",
+      "topics": [
+        "cloudflare",
+        "deployment",
+        "docker",
+        "kamal",
+        "paas",
+        "self-hosted",
+        "tailscale",
+        "vps"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://singleserver.com\"><img src=\"www/server-single-wordmark.svg\" alt=\"single server\" width=\"484\"></a>\n</p>\n\n<p><strong>Git push to production in &lt;5 seconds.</strong></p>\n\n<p>One Linux box can run every app you've ever shipped. Single Server wires up Cloudflare, Tailscale, Docker, Kamal, and GitHub. From there, every <strong>git push</strong> goes live in under 5 seconds. No build queue, no per-app bills, no pile of YAML.</p>\n\n<p>This README is for working on Single Server itself. For what it does and why, see <a href=\"https://singleserver.com\">singleserver.com</a>. For the full manual, see the <a href=\"https://singleserver.com/docs/\">docs</a>.</p>\n\n## Quickstart\n\nSSH into any fresh Linux box:\n\n```sh\nssh root@<server_ip>\n```\n\nRun the interactive installer:\n\n```sh\ncurl -fsSL https://singleserver.com/install.sh | sh\n```\n\nPoint it at your repos:\n\n```sh\nsingleserver add https://github.com/you/your-app\n```\n\nEvery push to the configured branch deploys from then on. The [docs](https://singleserver.com/docs/) cover everything else.\n\n## Repository layout\n\n- `cmd/singleserverd` — entry point for the one Go binary, which runs as both the deploy daemon and the CLI.\n- `internal/singleserver` — all of the product: config, deploys, provider connections, and commands.\n- `www` — singleserver.com, including the docs page and `install.sh`. The site deploys as a Single Server app, and its `Dockerfile` builds the hosted binaries it serves at `/bin/`.\n- `test/e2e` — the real-dependency end-to-end harness.\n- `config/apps.example.yml` — an example app config.\n\n## Build and test\n\nThe module targets Go 1.26 and has no service dependencies for development:\n\n```sh\ngo build ./...\ngo test ./...\n```\n\nThe unit tests are plain `go test` with no setup, no network, and no build tags. They also run inside the site's Docker build, so a deploy fails before it ships if a test fails.\n\n`go run ./cmd/singleserverd help` prints the CLI. Most commands expect to run on a configured server, so for real behavior use the E2E harness or a throwaway VPS.\n\n## Releases\n\nTo release a new version, push a SemVer tag. That triggers `.github/workflows/release.yml`, which builds the binaries and publishes a GitHub Release with checksums and notes:\n\n```sh\ngit tag -a v0.2.0 -m \"…\"\ngit push origin v0.2.0\n```\n\n`install.sh` and `singleserver upgrade` read two channels:\n\n- **stable** (default) — the latest tagged release, checksum-verified.\n- **edge** — the latest `main` build at `singleserver.com/bin`.\n\nBoth default to stable. To use edge instead, install a fresh box with:\n\n```sh\ncurl -fsSL https://singleserver.com/install.sh | SINGLESERVER_CHANNEL=edge sh\n```\n\nor switch an existing box with:\n\n```sh\nsingleserver upgrade --edge\n```\n\n## End-to-end tests\n\nThe E2E harness spins up disposable Linux hosts in Docker Desktop and runs the real installer against real Tailscale, Cloudflare, and GitHub. It is serial, stateful, and needs Docker plus a local `.env` of test credentials. [test/e2e/README.md](test/e2e/README.md) covers the `.env` and setup, then:\n\n```sh\ntest/e2e/run.sh\n```\n\n---\n\n<p align=\"center\">MIT License · <a href=\"https://singleserver.com\">singleserver.com</a> · <a href=\"https://singleserver.com/docs/\">Docs</a></p>\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:06.668835"
+  },
+  {
+    "basic_info": {
+      "name": "Ferrum",
+      "full_name": "kernelstub/Ferrum",
+      "owner": "kernelstub",
+      "description": "Windows security research toolkit for LPE, persistence, COM hijacking, and attack surface enumeration.",
+      "url": "https://github.com/kernelstub/Ferrum",
+      "clone_url": "https://github.com/kernelstub/Ferrum.git",
+      "ssh_url": "git@github.com:kernelstub/Ferrum.git",
+      "homepage": "https://kernelstub.dev/",
+      "created_at": "2026-06-13T13:44:35Z",
+      "updated_at": "2026-07-05T08:30:10Z",
+      "pushed_at": "2026-06-13T22:12:05Z"
+    },
+    "stats": {
+      "stars": 203,
+      "forks": 28,
+      "watchers": 203,
+      "open_issues": 0,
+      "size": 1109
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 132772,
+        "PowerShell": 273,
+        "Shell": 211
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "enumeration",
+        "lpe",
+        "persistence",
+        "uac-bypass",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "# FERRUM\n\n<img width=\"1920\" height=\"1080\" alt=\"image\" src=\"https://github.com/user-attachments/assets/924c39a5-5f9d-44b1-b9a3-ecd424140408\" />\n\n\nFerrum is a Windows-first vulnerability research and security auditing framework written in Go. It is designed as a single binary, `ferrum.exe`, with modules registered through a small core interface.\n\n## Build\n\n```sh\nGOOS=windows GOARCH=amd64 go build -o ferrum.exe ./cmd\n```\n\nOr use the included script:\n\n```powershell\n.\\scripts\\build-windows.ps1\n```\n\nFrom Linux/macOS:\n\n```sh\n./scripts/build-windows.sh\n```\n\n## Usage\n\n```cmd\nferrum.exe --HELP\n```\n\n## Architecture\n\n- `cmd/` contains the CLI entry point.\n- `core/` contains module registration, context, and banner code.\n- `modules/` contains research modules. New modules implement `core.Module` and call `core.Register`.\n- `windows/` contains build-tagged Windows API wrappers and non-Windows stubs.\n- `output/` contains console logging.\n\n## Output\n\nWrite a single module report:\n\n```cmd\nferrum.exe --CLSID --OUTPUT clsid.txt\n```\n\nRun every module and write one file per module:\n\n```cmd\nferrum.exe --ALL\nferrum.exe --ALL --OUTPUT ferrum-reports\n```\n\nWithout `--OUTPUT`, `--ALL` creates a timestamped folder such as `ferrum-output-20260613-153000`.\n\n## CLSID ProcMon Filter Model\n\n`--CLSID` models this ProcMon workflow for COM hijack/LPE triage:\n\n- `User is NT AUTHORITY\\SYSTEM`\n- `Path contains HKCU\\Software\\Classes`\n- `Path contains InprocServer32`\n- `Path contains LocalServer32`\n- `Result is NAME NOT FOUND`\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:07.931215"
+  },
+  {
+    "basic_info": {
+      "name": "kiac",
+      "full_name": "saiyam1814/kiac",
+      "owner": "saiyam1814",
+      "description": "Local Kubernetes on Apple's container framework - every node is its own lightweight VM. Metrics, storage, and LoadBalancer included.",
+      "url": "https://github.com/saiyam1814/kiac",
+      "clone_url": "https://github.com/saiyam1814/kiac.git",
+      "ssh_url": "git@github.com:saiyam1814/kiac.git",
+      "homepage": "https://saiyam1814.github.io/kiac/",
+      "created_at": "2026-06-10T18:10:36Z",
+      "updated_at": "2026-07-06T23:37:20Z",
+      "pushed_at": "2026-07-06T12:18:46Z"
+    },
+    "stats": {
+      "stars": 200,
+      "forks": 8,
+      "watchers": 200,
+      "open_issues": 0,
+      "size": 8750
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 198198,
+        "HTML": 21170,
+        "Makefile": 354
+      },
+      "license": "MIT License",
+      "topics": [
+        "apple-silicon",
+        "containers",
+        "kubernetes",
+        "macos"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/banner.png\" alt=\"kiac - Kubernetes in Apple Containers\" width=\"100%\">\n</p>\n\n<p align=\"center\">\n  <b>Local Kubernetes clusters where every node is its own lightweight VM.</b><br>\n  Native on Apple silicon, powered by <a href=\"https://github.com/apple/container\">apple/container</a>. No Docker Desktop. No Lima. No QEMU.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/saiyam1814/kiac/releases\"><img src=\"https://img.shields.io/github/v/release/saiyam1814/kiac?color=326CE5&label=release\" alt=\"release\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-326CE5\" alt=\"MIT\"></a>\n  <img src=\"https://img.shields.io/badge/platform-Apple%20silicon-555\" alt=\"Apple silicon\">\n  <img src=\"https://img.shields.io/badge/Kubernetes-1.32–1.36-326CE5\" alt=\"Kubernetes 1.32-1.36\">\n  <a href=\"https://saiyam1814.github.io/kiac/\"><img src=\"https://img.shields.io/badge/website-kiac-326CE5\" alt=\"website\"></a>\n</p>\n\n<p align=\"center\">\n  <img src=\"assets/kiac-demo.gif\" alt=\"kiac creating a 3-node cluster\" width=\"80%\">\n</p>\n\n```bash\nbrew install saiyam1814/tap/kiac\nkiac create cluster --workers 2\n```\n\n---\n\n## Why this matters\n\nRunning a local Kubernetes cluster on a Mac has always meant a quiet compromise. Your \"nodes\" were containers sharing one kernel inside one hidden Linux VM, all pretending to be separate machines. It worked until you tried to test a node failure, or `kubectl top`, or a `type: LoadBalancer` service, and the illusion cracked.\n\nA Kubernetes node wants to *be* a machine: its own kernel, its own kubelet, its own cgroups, its own IP that can come and go on its own. **kiac gives every node exactly that** by booting each one as its own lightweight virtual machine on Apple's native runtime. The result is a local cluster that behaves like a real one, created with a single command in a couple of minutes.\n\n## Why Apple containers\n\nWhen Apple shipped `container` 1.0, most people read it as \"Docker, but from Apple.\" It is something more interesting underneath: **every container is its own lightweight virtual machine.**\n\n<p align=\"center\">\n  <img src=\"assets/apple-container-anatomy.png\" alt=\"How one Apple container works\" width=\"92%\">\n</p>\n\nThe [Containerization](https://github.com/apple/containerization) framework boots a separate, minimal Linux VM for each container on Apple's `Virtualization.framework`:\n\n- **The image becomes a disk.** The OCI image is turned into an EXT4 filesystem and handed to the VM as its root block device. No overlay mount layered on a shared host kernel.\n- **A dedicated kernel boots.** Each container gets its own minimal, optimized Linux kernel. It is not shared with the host or any other container.\n- **`vminitd` is PID 1.** A tiny Swift init system comes up first, then launches and supervises your process. The host drives it through a gRPC API over `vsock`.\n- **virtio devices, direct networking.** No BIOS, no legacy device emulation, so the VM boots in about a second and gets its own IP you can reach from your Mac.\n\nYou get the developer experience of containers with the isolation boundary of a virtual machine. That combination is exactly what a Kubernetes node wants.\n\n## Why Kubernetes on Apple containers: real isolation\n\nWhen local Kubernetes tools run \"nodes\" as Docker containers, those nodes are processes sharing one Linux kernel, separated only by namespaces. Namespaces are a software boundary *inside* a single shared kernel. With kiac, the boundary between nodes is the **hypervisor** itself.\n\n<p align=\"center\">\n  <img src=\"assets/isolation.png\" alt=\"Where the isolation boundary sits\" width=\"100%\">\n</p>\n\nThat difference is not academic. It changes what the cluster can actually do:\n\n- **Blast radius.** A container escape that reaches the shared kernel reaches every node on it. With a VM per node, an escape is contained to one VM.\n- **Failure domains.** A shared kernel is a shared fate: one panic or runaway sysctl takes everything down together. With kiac, a kernel problem stays inside the VM that caused it.\n- **Real node failure.** Stop one node VM and it behaves like an actual node going offline: NotReady detection, eviction, rescheduling. You cannot meaningfully test that when \"stopping a node\" means killing one of several processes that share a kernel.\n- **Per-node kernel reality.** Each node has its own `/proc`, `/sys`, modules, and sysctls. Node-level behavior is real, not simulated.\n\nContainers are great for packaging software, and kiac depends on them. The point is narrower: when the workload you are isolating is itself a machine, a machine-grade boundary is the right tool.\n\n## Features\n\n- 🔒 **Hardware-grade isolation** — each node is one lightweight VM with its own kernel and cgroups, not namespaces sharing a daemon.\n- 📊 **Metrics out of the box** — `kubectl top nodes` works the moment the cluster is up. metrics-server ships preconfigured.\n- 💾 **PVCs that just bind** — a default StorageClass (local-path-provisioner) is instal",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:09.153575"
+  },
+  {
+    "basic_info": {
+      "name": "mediago",
+      "full_name": "Sophomoresty/mediago",
+      "owner": "Sophomoresty",
+      "description": "Download videos from 90+ Chinese educational platforms. Single binary, yt-dlp style.",
+      "url": "https://github.com/Sophomoresty/mediago",
+      "clone_url": "https://github.com/Sophomoresty/mediago.git",
+      "ssh_url": "git@github.com:Sophomoresty/mediago.git",
+      "homepage": null,
+      "created_at": "2026-06-26T05:33:14Z",
+      "updated_at": "2026-07-06T10:40:26Z",
+      "pushed_at": "2026-07-04T16:07:10Z"
+    },
+    "stats": {
+      "stars": 188,
+      "forks": 114,
+      "watchers": 188,
+      "open_issues": 0,
+      "size": 9776
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 4413932,
+        "Python": 50970,
+        "Shell": 9007,
+        "Makefile": 509
+      },
+      "license": "The Unlicense",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/banner.png\" alt=\"MediaGo\" width=\"600\">\n</p>\n\n<p align=\"center\">\n  <strong>Media downloader for Chinese internet. 92 sites, single binary, written in Go.</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"#install\">Install</a> •\n  <a href=\"#usage\">Usage</a> •\n  <a href=\"#supported-platforms\">Platforms</a> •\n  <a href=\"#contributing\">Contributing</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://linux.do\"><img src=\"https://img.shields.io/badge/LINUX%20DO-Community-blue?style=flat-square\" alt=\"LINUX DO Community\"></a>\n  <a href=\"https://github.com/Sophomoresty/mediago/releases\"><img src=\"https://img.shields.io/github/v/release/Sophomoresty/mediago?style=flat-square\" alt=\"Release\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-Unlicense-green?style=flat-square\" alt=\"License\"></a>\n</p>\n\n---\n\n## Install\n\n### Download binary (recommended)\n\nGrab the latest release for your platform:\n\n```bash\n# Linux\ncurl -L https://github.com/Sophomoresty/mediago/releases/latest/download/mediago_linux_amd64.tar.gz | tar xz\nsudo mv mediago_linux_amd64 /usr/local/bin/mediago\n\n# macOS (Apple Silicon)\ncurl -L https://github.com/Sophomoresty/mediago/releases/latest/download/mediago_macos_arm64.tar.gz | tar xz\nsudo mv mediago_macos_arm64 /usr/local/bin/mediago\n\n# Windows — download .zip from releases page\n```\n\n### Build from source\n\n```bash\ngit clone https://github.com/Sophomoresty/mediago.git\ncd mediago && make build\n```\n\n### Optional dependencies\n\n- **ffmpeg** — required for HLS/DASH streams and format merging\n\n## Usage\n\n```bash\n# Download a video\nmediago https://www.bilibili.com/video/BV1GJ411x7h7\n\n# With cookies (for paid/locked content)\nmediago --cookies cookies.txt URL\n\n# Read cookies from browser\nmediago --cookies-from-browser chrome URL\n\n# List available formats\nmediago -F URL\n\n# Dump info as JSON (no download)\nmediago -j URL\n\n# Simulate (show info without downloading)\nmediago --simulate URL\n\n# Download entire course/playlist\nmediago --yes-playlist --cookies cookies.txt URL\n\n# Custom output template\nmediago -o \"%(site)s/%(title)s.%(ext)s\" URL\n\n# With proxy\nmediago --proxy socks5://127.0.0.1:1080 URL\n\n# Concurrent fragment downloads\nmediago -N 20 URL\n```\n\n## Options\n\n```\nGeneral:\n  -h, --help                      show help\n      --version                   show version\n      --list-extractors           list all supported sites\n      --simulate                  show extracted info without downloading\n\nDownload:\n  -f, --format STRING             format selection (best/worst/1080p/720p/480p)\n  -o, --output STRING             output filename template (default \"%(title)s.%(ext)s\")\n  -N, --concurrent-fragments INT  concurrent fragment downloads (default 10)\n      --no-overwrites             skip existing files\n      --yes-playlist              download all items in a playlist/course\n      --merge-output-format STR   output container for merged streams (mp4/mkv/webm)\n      --no-progress               suppress progress bar\n      --proxy STRING              HTTP/SOCKS5 proxy URL\n\nAuthentication:\n      --cookies STRING            Netscape cookie file path\n      --cookies-from-browser STR  read cookies from browser (chrome/edge/firefox)\n\nOutput:\n  -F, --list-formats              list available formats and exit\n  -j, --dump-json                 dump info JSON to stdout\n      --write-info-json           write .info.json file alongside download\n      --write-subs                write subtitle files alongside download\n```\n\n## Output template\n\nThe `-o` flag supports these variables:\n\n| Variable | Description |\n|----------|-------------|\n| `%(title)s` | Video/course title |\n| `%(ext)s` | File extension |\n| `%(site)s` | Site name |\n| `%(artist)s` | Uploader/author |\n| `%(quality)s` | Selected quality |\n\n## Supported platforms\n\n<details>\n<summary><strong>103 extractors across 92 sites</strong> (click to expand)</summary>\n\nBilibili (video/cheese/gongfang/bangumi), Douyin, CCTV, Chaoxing, iCourse163 (mooc/app/youdao/textbook), Xuetang, Zhihuishu (course/live/school/smart), iMOOC, DingTalk, Feishu, Fenbi, Huatu, Gaodun, Jianshe99, Med66, Hqwx, Wangxiao, Wangxiao233, Dongao, Eoffcn, Kaoyanvip, Yikaobang, Xueersi, Yangcong, Yixiaoerguo, Speiyou, Gaotu, Koolearn, Cto51, Huke88, Magedu, Itbaizhan, Luffycity, Tmooc, Mashibing, Xiaoetech, Xiaoeapp, Youzan, Qlchat, Lizhiweike, Renrenjiang, Sanjieke, Duanshu, Lexueyun, Meeting, Classin, CCTalk, Baijiayunxiao, Keqq, Smartedu, Icourses, ICVE (ai/mooc/course/profession/v2/qun/weike/material), Cnmooc, Open163, Unipus, Ahu, Nmkjxy, Aishangke, Caixuetang, Chaoge, Ckjr, Enetedu, Gongxuanwang, Haiyangknow, Haozaixian, Houda, Houdu, Htknow, Jinbangshidai, Jingtongxue, Kaimingzhixue, Kuke, Ledu, Mddclass, Minshi, Orangevip, Plaso, Qihang, Shanxiang, Sier, Wallstreets, Wendao, Wowtiku, Xiwang, Xsteach, Xuelang, Yizhiknow, Youdao, Youyuan, Zhaozhao, Zhengbao, Zlketang\n\n</details>\n\n## Architecture\n\n```\nmediago URL\n  → extractor.Match(url)           # URL pattern → sele",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:10.426366"
+  },
+  {
+    "basic_info": {
+      "name": "google-health-cli",
+      "full_name": "Google-Health-API/google-health-cli",
+      "owner": "Google-Health-API",
+      "description": "Google Health CLI — one command-line tool for the Google Health API. Includes AI agent skills.",
+      "url": "https://github.com/Google-Health-API/google-health-cli",
+      "clone_url": "https://github.com/Google-Health-API/google-health-cli.git",
+      "ssh_url": "git@github.com:Google-Health-API/google-health-cli.git",
+      "homepage": "https://developers.google.com/health",
+      "created_at": "2026-06-24T12:37:34Z",
+      "updated_at": "2026-07-07T02:21:56Z",
+      "pushed_at": "2026-07-02T09:17:12Z"
+    },
+    "stats": {
+      "stars": 165,
+      "forks": 15,
+      "watchers": 165,
+      "open_issues": 4,
+      "size": 132
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 317862
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-skills",
+        "ai-agents",
+        "automation",
+        "cli",
+        "go",
+        "google-health",
+        "google-health-api",
+        "health-data",
+        "health-tech",
+        "oauth2"
+      ]
+    },
+    "content": {
+      "readme": "# ghealth\n\nCLI for the [Google Health API v4](https://developers.google.com/health) — built for AI agents and developers.\n\n- **40 verified data types**: steps, heart rate, exercise, sleep, weight, SpO2, HRV, ECG, blood glucose, nutrition, and more\n- **Agent-first**: simplified JSON output, deterministic exit codes, `--dry-run`, `--raw`\n- **Single binary**: `go build -o ghealth .`\n\n## Quick Start\n\n```bash\nghealth setup                                              # One-time: GCP project + OAuth\nghealth data steps daily-rollup --from 2026-03-22 --to 2026-03-29  # Weekly step totals\nghealth data heart-rate list --from today --limit 10       # Recent heart rate readings\nghealth schema types                                       # See all available data types\n```\n\n## Installation\n\n```bash\ngit clone https://github.com/Google-Health-API/google-health-cli.git\ncd google-health-cli\ngo build -o ghealth .\n```\n\n## Setup\n\n```bash\nghealth setup\n```\n\nWalks you through: GCP project ID, OAuth credentials (download from [Console](https://console.cloud.google.com/apis/credentials) — Desktop application type), Health API enablement, scope selection, and browser-based OAuth login.\n\nFiles written under `~/.config/ghealth/` (override with `GHEALTH_CONFIG_DIR`):\n\n- `client_secret.json` — your OAuth client (mode 0600)\n- `credentials.json` — access + refresh tokens (mode 0600, plaintext JSON)\n- `config.toml` — active profile (project, scopes)\n\nTokens refresh automatically.\n\n### Non-interactive setup (for agents / CI)\n\n```bash\nghealth setup \\\n  --project-id my-project \\\n  --client-secret ~/Downloads/client_secret_123.json \\\n  --scopes-preset readonly \\\n  --skip-enable-api \\\n  --no-prompt\n```\n\nAdd `--non-interactive-auth` to skip the browser step too — complete later with `ghealth auth login --complete <code>` (see below).\n\n## Authentication\n\n| Scenario | Method |\n|----------|--------|\n| Interactive | `ghealth setup` or `ghealth auth login` |\n| Headless / no browser | `ghealth auth login --non-interactive` → click URL on any device → `ghealth auth login --complete <code>` |\n| Move tokens between machines | `ghealth auth export` → `ghealth auth import` |\n| Pre-configured token | `export GHEALTH_ACCESS_TOKEN=ya29...` |\n| Credential file | `export GHEALTH_CREDENTIALS_FILE=/path/to/creds.json` |\n| GCP environment | Application Default Credentials (automatic) |\n\nPrecedence: `GHEALTH_ACCESS_TOKEN` > `GHEALTH_CREDENTIALS_FILE` > stored credentials > ADC.\n\n### Headless OAuth flow\n\n```bash\n# 1. On the host running ghealth:\nghealth auth login --non-interactive --scopes-preset readonly\n# → JSON with auth_url (PKCE S256 challenge + random state baked in)\n#   and a complete_command. pending_auth.json holds the verifier locally.\n\n# 2. Open auth_url in any browser, click \"Allow\".\n#    The browser will redirect to a localhost URL that fails to load — expected.\n#    Copy either the full redirected URL or just the 'code' query parameter.\n\n# 3. Back on the ghealth host (both forms work):\nghealth auth login --complete 'http://localhost/?code=4/0AX4XfWh...&state=cQq...'\nghealth auth login --complete 4/0AX4XfWh...\n# → state validated, PKCE verifier sent on exchange, tokens persisted.\n```\n\nState mismatch (URL paste with the wrong `state` parameter) clears the pending flow and returns exit 2. The bare-code form skips state validation but still consumes the pending file, so a stale flow can't be replayed.\n\n### Move tokens between machines\n\n```bash\n# source (already authenticated):\nghealth auth export > /tmp/ghealth-creds.json\nscp /tmp/ghealth-creds.json target:\n\n# target (also needs client_secret.json — either run 'ghealth setup --non-interactive-auth' or copy it):\nghealth auth import --file /tmp/ghealth-creds.json\n```\n\n### Bootstrap from a fresh machine (no client_secret yet)\n\nWhen no OAuth `client_secret.json` is configured, every auth command returns a\nstructured error with a `next_steps` array — the same six steps every time —\nso an agent can relay it to a user verbatim without scraping prose:\n\n```bash\nghealth auth login\n# → exit 5, JSON on stderr:\n# {\n#   \"error\": {\n#     \"type\": \"config\", \"code\": 5,\n#     \"message\": \"No OAuth client_secret.json configured\",\n#     \"hint\":    \"Run 'ghealth setup' to create or import OAuth credentials\",\n#     \"next_steps\": [\n#       \"Open https://console.cloud.google.com/apis/credentials\",\n#       \"Create or select a Google Cloud project\",\n#       \"Enable the Google Health API (...)\",\n#       \"Create OAuth client ID with Application type: Desktop app\",\n#       \"Download the client_secret JSON\",\n#       \"Run: ghealth setup --client-secret /path/to/client_secret.json\"\n#     ]\n#   }\n# }\n```\n\nSame `next_steps` are emitted by:\n\n- `ghealth auth login` (interactive / `--non-interactive` / `--complete`)\n- `ghealth auth status` when neither stored creds nor env creds are present\n- `ghealth auth refresh`, `ghealth auth export` (when nothing to refresh/export)\n- `ghealth setup --no-prompt` when `--client-secret` is missing\n\nTo fetch t",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:11.638419"
+  },
+  {
+    "basic_info": {
+      "name": "meowcaller",
+      "full_name": "purpshell/meowcaller",
+      "owner": "purpshell",
+      "description": "WhatsApp VoIP Go library for whatsmeow",
+      "url": "https://github.com/purpshell/meowcaller",
+      "clone_url": "https://github.com/purpshell/meowcaller.git",
+      "ssh_url": "git@github.com:purpshell/meowcaller.git",
+      "homepage": "",
+      "created_at": "2026-06-19T03:30:55Z",
+      "updated_at": "2026-07-06T02:01:30Z",
+      "pushed_at": "2026-07-01T13:47:36Z"
+    },
+    "stats": {
+      "stars": 159,
+      "forks": 80,
+      "watchers": 159,
+      "open_issues": 5,
+      "size": 24246
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 699031,
+        "Shell": 1943
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# meowcaller\n[![Go Reference](https://pkg.go.dev/badge/github.com/purpshell/meowcaller.svg)](https://pkg.go.dev/github.com/purpshell/meowcaller)\n\nmeowcaller is a Go library for the WhatsApp Web VoIP stack. It is 100% pure GO without CGO and it has minimal dependencies. It includes the novel proprietary audio codec MLOW written and validated completely in GO. In turn, meowcaller does not rely on any native bindings and can run everywhere that GO can.\n\n## Discussion\nMatrix room: [#meowcaller:matrix.org](https://matrix.to/#/#meowcaller:matrix.org).\n\nDiscord channel: #meowcaller in the [WhiskeySockets Discord server](https://whiskey.so/discord).\n\nYou can find the underlying spec in the [WhatsApp Calls Research Group](https://wacrg.org). We are under process of standardizing the spec and moving away from whatsapp-rust source of truth comments.\n\n## Usage\nThe [godoc](https://pkg.go.dev/github.com/purpshell/meowcaller) includes docs for all methods.\n\nThere's a range of examples in the [examples](/examples/) directory.\n\nThe API is easy to approach and implement: attach a **`Source`** to send media, a **`Sink`** to receive it, and register callbacks for call events.\n\nA 12-line example to show the power and simplicity of the library:\n```go\n// wa is a whatsmeow.Client\nclient := meowcaller.NewClient(wa)\n\nclient.OnIncomingCall(func(call *meowcaller.Call) {\n    call.Answer()\n\n    if mp3, err := meowcaller.MP3File(\"hello.mp3\"); err == nil {\n        call.Play(mp3)               // stream audio to the caller\n    }\n    if wav, err := meowcaller.WAVRecorder(\"caller.wav\"); err == nil {\n        call.Receive(wav)            // record their voice\n    }\n    if h264, err := meowcaller.AnnexBRecorder(\"caller.h264\"); err == nil {\n        call.ReceiveVideo(h264)      // record their video\n    }\n})\n\n// Placing a call is just as short:\ncall, _ := client.Call(ctx, \"+15551234567\")\ncall.Receive(meowcaller.SinkFunc(func(pcm []float32) { /* the peer's audio */ }))\n```\n\n## Features\n\nCore VoIP features are present:\n\n- Outbound calls\n- Inbound calls\n- Audio calls (the pure-Go MLow codec)\n- Video calls (ported from WaCalls; see Credits)\n\nThings that are not yet implemented:\n\n- Opus codec fallback for clients not using MLOW (in progress; testing edge cases)\n- Mid-call audio→video upgrade (from-start video calls work; the upgrade handshake is WIP)\n- Group calls (WIP)\n- Call signalling features (raise hand, lobby, reactions)\n\n## Credits\n\nmeowcaller relies heavily on primitives that are implemented in the [WhatsApp Calls Research Group](https://wacrg.org). I thank all the developers who have contributed to it.\n\nmeowcaller's video call implementation is built on the design of [WaCalls](https://github.com/JotaDev66/WaCalls) by [jotadev66](https://github.com/JotaDev66). WaCalls in turn vendors meowcaller's MLow impl.\n\n## Sponsoring and contribution\nYou may contribute to the maintenance of this library by sponsoring its maintainers on [GitHub](https://purpshell.dev/sponsor).\n\nYou may also submit pull requests and issues where relevant, given you follow the contributor [Code of Conduct](CODE_OF_CONDUCT.md).\n\n## License\n\nThis repository follows the MIT license, as stated in the [LICENSE](/LICENSE) file\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:12.884961"
+  },
+  {
+    "basic_info": {
+      "name": "ascii-gif",
+      "full_name": "tamnd/ascii-gif",
+      "owner": "tamnd",
+      "description": "Turn a terminal session into a good-looking animated GIF. A vhs wrapper with an attractive default look.",
+      "url": "https://github.com/tamnd/ascii-gif",
+      "clone_url": "https://github.com/tamnd/ascii-gif.git",
+      "ssh_url": "git@github.com:tamnd/ascii-gif.git",
+      "homepage": null,
+      "created_at": "2026-06-14T13:19:11Z",
+      "updated_at": "2026-07-03T14:08:22Z",
+      "pushed_at": "2026-06-29T12:33:56Z"
+    },
+    "stats": {
+      "stars": 155,
+      "forks": 3,
+      "watchers": 155,
+      "open_issues": 0,
+      "size": 16
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 7536,
+        "Makefile": 190
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ascii-gif\n\n[![CI](https://github.com/tamnd/ascii-gif/actions/workflows/ci.yml/badge.svg)](https://github.com/tamnd/ascii-gif/actions/workflows/ci.yml)\n[![Release](https://img.shields.io/github/v/release/tamnd/ascii-gif)](https://github.com/tamnd/ascii-gif/releases/latest)\n[![Go Reference](https://pkg.go.dev/badge/github.com/tamnd/ascii-gif.svg)](https://pkg.go.dev/github.com/tamnd/ascii-gif)\n[![License](https://img.shields.io/github/license/tamnd/ascii-gif)](./LICENSE)\n\nTurn a terminal session into a good-looking animated GIF. You write the action,\n`ascii-gif` supplies the window chrome, theme, and framing.\n\nIt wraps [vhs](https://github.com/tamnd/vhs) as a Go library and prepends an\nattractive default look, so a tape only carries the part you care about: the\ncommands, the typing, the pauses.\n\n[Install](#install) • [Quickstart](#quickstart) • [Tapes](#tapes) • [Library](#library)\n\n## Install\n\n```bash\ngo install github.com/tamnd/ascii-gif/cmd/ascii-gif@latest\n```\n\n`ascii-gif` drives two runtime tools the way vhs does: `ttyd` runs your commands\nin a real terminal and `ffmpeg` encodes the frames. Install both, then check:\n\n```bash\n# macOS\nbrew install ttyd ffmpeg\n\nascii-gif doctor\n```\n\n## Quickstart\n\n```bash\nascii-gif init demo          # write demo.tape you can edit\nascii-gif render demo.tape   # render demo.gif\n```\n\nA tape is a small script of terminal actions. The starter looks like this:\n\n```tape\n# A tape is a script. ascii-gif prepends the look, you write the action.\nType \"echo hello from ascii-gif\"\nEnter\nSleep 2s\n```\n\nRender it to a GIF, choosing the output path:\n\n```bash\nascii-gif render demo.tape -o out/hello.gif\n```\n\n## Tapes\n\nA tape uses the vhs tape language: `Type`, `Enter`, `Sleep`, `Hide`/`Show`, and\nmore. See the [vhs command reference](https://github.com/tamnd/vhs#vhs) for the\nfull set. `ascii-gif` adds the look for you, so you do not write the `Set`\nheader. The default look is a colored margin, a window bar, a rounded border,\nand a readable theme and font.\n\nTwo flags change how the look is applied:\n\n```\n-o, --output     GIF path to write (default: the tape name with .gif)\n    --no-preset  do not prepend the look; the tape stands on its own\n-q, --quiet      suppress vhs progress output\n```\n\nPass `--no-preset` when a tape carries its own `Set` header and you want full\ncontrol.\n\nRead a tape from stdin with `-`:\n\n```bash\necho 'Type \"date\"; Enter; Sleep 1s' | ascii-gif render -\n```\n\n## Library\n\nThe renderer is a small package you can call from Go. Give it a tape body and it\ncomposes the look, runs vhs, and writes the GIF:\n\n```go\nimport \"github.com/tamnd/ascii-gif/asciigif\"\n\nerr := asciigif.Render(ctx, `Type \"echo hi\"\nEnter\nSleep 1s\n`, asciigif.Options{Output: \"hi.gif\"})\n```\n\n`asciigif.CheckDeps` reports whether `ttyd` and `ffmpeg` are on PATH, which is\nwhat `ascii-gif doctor` calls.\n\n## Credit\n\nThe heavy lifting is [vhs](https://github.com/charmbracelet/vhs) by Charm.\n`ascii-gif` is a thin wrapper over a [library-ized fork](https://github.com/tamnd/vhs)\nof it that adds a default look and a smaller surface.\n\n## License\n\nMIT. See [LICENSE](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:14.179960"
+  },
+  {
+    "basic_info": {
+      "name": "lazyskills",
+      "full_name": "alvinunreal/lazyskills",
+      "owner": "alvinunreal",
+      "description": "mission control for agent skills",
+      "url": "https://github.com/alvinunreal/lazyskills",
+      "clone_url": "https://github.com/alvinunreal/lazyskills.git",
+      "ssh_url": "git@github.com:alvinunreal/lazyskills.git",
+      "homepage": "https://lazyskills.sh",
+      "created_at": "2026-06-19T06:20:40Z",
+      "updated_at": "2026-07-06T23:32:17Z",
+      "pushed_at": "2026-07-06T22:12:40Z"
+    },
+    "stats": {
+      "stars": 155,
+      "forks": 6,
+      "watchers": 155,
+      "open_issues": 17,
+      "size": 10909
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 482906,
+        "Shell": 3116,
+        "PowerShell": 2723
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "agent-tools",
+        "ai-agents",
+        "ai-tools",
+        "ai-workflow",
+        "claude-code",
+        "cli",
+        "coding-agents",
+        "command-line-tool",
+        "developer-tools",
+        "go",
+        "opencode",
+        "productivity-tools",
+        "skill-discovery",
+        "skill-management",
+        "skills",
+        "terminal-app",
+        "terminal-ui",
+        "tui",
+        "workflow-automation"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/lazyskills-wide.svg\" alt=\"Lazy Skills\" width=\"640\">\n\n# Lazy Skills\n\n**Blazing-fast mission control for agent skills.**\n\n[![CI](https://img.shields.io/github/actions/workflow/status/alvinunreal/lazyskills/ci.yml?branch=main&style=flat-square&label=CI&labelColor=0f172a&color=3dbbff)](https://github.com/alvinunreal/lazyskills/actions/workflows/ci.yml)\n[![Go Report Card](https://goreportcard.com/badge/github.com/alvinunreal/lazyskills?style=flat-square)](https://goreportcard.com/report/github.com/alvinunreal/lazyskills)\n[![Release](https://img.shields.io/github/v/release/alvinunreal/lazyskills?style=flat-square&labelColor=0f172a&color=ff79f2)](https://github.com/alvinunreal/lazyskills/releases/latest)\n[![Go](https://img.shields.io/github/go-mod/go-version/alvinunreal/lazyskills?style=flat-square&logo=go&logoColor=white&label=Go&labelColor=0f172a&color=3dbbff)](go.mod)\n[![License](https://img.shields.io/badge/license-MIT-b253f5?style=flat-square&labelColor=0f172a)](LICENSE)\n[![Stars](https://img.shields.io/github/stars/alvinunreal/lazyskills?style=flat-square&labelColor=0f172a&color=556bf4)](https://github.com/alvinunreal/lazyskills/stargazers)\n\n<img src=\"assets/banner.webp\" alt=\"Lazy Skills - mission control for agent skills. Stay lazy.\" width=\"100%\">\n\n_\"I don't debug broken skills by hand - I have a TUI to be disappointed for me.\"_\n\n</div>\n\n## 🌴 Overview\n\nLazySkills is a blazing-fast terminal UI for managing agent skills. It gives you one place to see what is installed, which agents can use each skill, why visibility may be broken, and what actions are safe to run next.\n\n<div align=\"center\">\n\n<img src=\"assets/demo.gif\" alt=\"Lazy Skills terminal UI demo\" width=\"100%\">\n\n</div>\n\n## ✨ Features\n\n- **See every skill in one place** - project, global, universal, and agent-specific skills in a single TUI.\n- **Check agent visibility** - switch agents and see which skills are actually usable by Claude Code, OpenCode, Codex, Cursor, Gemini CLI, and many more.\n- **Spot broken installs fast** - highlights missing `SKILL.md`, invalid frontmatter, broken symlinks, missing lock entries, and ghost agent skills.\n- **Preview before you act** - inspect metadata, rendered skill content, and the exact command LazySkills is about to run.\n- **Safe skill actions** - open, reinstall/update, remove, prune orphaned locks, or run bulk updates/removals with confirmation prompts.\n- **Discover more from a source** - scan local checkouts or GitHub skill sources to find skills you have not installed yet.\n\n## 🛠️ Install\n\nRecommended for macOS and Linux:\n\n```bash\ncurl -fsSL https://lazyskills.sh/install | sh\n```\n\nOr use Homebrew:\n\n```bash\nbrew install --cask alvinunreal/tap/lazyskills\n```\n\nWindows:\n\n```powershell\nirm https://lazyskills.sh/install.ps1 | iex\n```\n\nGo users:\n\n```bash\ngo install github.com/alvinunreal/lazyskills/cmd/lazyskills@latest\n```\n\nThen launch it:\n\n```bash\nlazyskills\n```\n\n## 🚀 Getting started\n\nRun LazySkills from a project:\n\n```bash\nlazyskills\n```\n\nStart with the left pane. It groups skills by source, so you can quickly see what came from the same repo, local folder, or custom install.\n\nUseful keys:\n\n| Key | What it does |\n| --- | --- |\n| `/` | Search skills |\n| `a` | Cycle through agent visibility filters |\n| `f` | Toggle project/global/all scopes |\n| `enter` | Open details for a skill or source |\n| `c` | Show available actions |\n| `space` | Select a skill for bulk actions |\n| `u` | Reinstall/update selected skill |\n| `x` | Remove selected skill |\n| `?` | Show the full keymap |\n\nLazySkills previews actions before running them, and destructive actions require confirmation.\n\n## 🔄 Updates\n\nKeep LazySkills up to date using the built-in update command or the TUI interface.\n\n### CLI Update\n\nRun the update command directly from your terminal:\n\n```bash\nlazyskills update\n```\n\nOptions:\n* `--check`: Query if a newer version is available without downloading or printing commands. Exits 0.\n* `--print-command`: Print the command required to upgrade on your channel (e.g. `brew upgrade`) and exit.\n* `--yes`: Automatically perform the update if supported by the installation channel (direct Unix manual binary installations only).\n\n### TUI Update\n\nWhen a newer version of LazySkills is available, an update notification will automatically appear in the TUI footer:\n`· U update (vX.Y.Z available)`\n\nPress **`U`** (capital U) from the inventory view to open the update flow:\n* For **manual binary installs** on macOS/Linux, you can perform the update directly inside the TUI.\n* For **managed package installs** (like Homebrew, Scoop, WinGet, deb, or rpm packages), the TUI will display the specific terminal command you need to run to upgrade.\n\n## ⭐ Star for a chance to win stickers\n\n<div align=\"center\">\n\n<img src=\"assets/stickers.webp\" alt=\"Lazy Skills stickers\" width=\"100%\">\n\n</div>\n\nThere are Lazy Skills stickers. Star the repo and you're entered into a draw to win some, shipped worldwide at no cost to you.\n\nWinners ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:15.449112"
+  },
+  {
+    "basic_info": {
+      "name": "boring-computers",
+      "full_name": "michaelshimeles/boring-computers",
+      "owner": "michaelshimeles",
+      "description": "On-demand Linux computers you can hand to an AI — real Firecracker microVMs with a browser, terminal, coding agents, and an AI that drives them.",
+      "url": "https://github.com/michaelshimeles/boring-computers",
+      "clone_url": "https://github.com/michaelshimeles/boring-computers.git",
+      "ssh_url": "git@github.com:michaelshimeles/boring-computers.git",
+      "homepage": "https://boringcomputers.com",
+      "created_at": "2026-06-30T04:25:16Z",
+      "updated_at": "2026-07-07T04:38:20Z",
+      "pushed_at": "2026-07-07T04:38:16Z"
+    },
+    "stats": {
+      "stars": 154,
+      "forks": 15,
+      "watchers": 154,
+      "open_issues": 0,
+      "size": 617
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 159611,
+        "Svelte": 76999,
+        "Shell": 66794,
+        "TypeScript": 46392,
+        "JavaScript": 15309,
+        "CSS": 1488,
+        "HTML": 671
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-agents",
+        "computer-use",
+        "firecracker",
+        "golang",
+        "mcp",
+        "microvm",
+        "sandbox",
+        "svelte"
+      ]
+    },
+    "content": {
+      "readme": "# boring computers\n\n[![CI](https://github.com/michaelshimeles/boring-computers/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelshimeles/boring-computers/actions/workflows/ci.yml)\n\n**On-demand Linux computers you can hand to an AI.**\n\nEach one is a real [Firecracker](https://firecracker-microvm.github.io/) microVM —\na full machine with its own kernel — that boots in milliseconds, does its thing,\nand self-destructs when it's done (or stays up as long as you want).\n**Open source (Apache-2.0), self-hosted with your own keys.**\n[boringcomputers.com](https://boringcomputers.com) is a showcase; you run the real\nthing yourself.\n\n![A boring computer: a live desktop with a browser and calculator, a terminal with claude/codex/cursor/pi preinstalled, and an AI build box](docs/hero.png)\n\n> One machine, everything on it — a live desktop with a real browser, a terminal\n> with coding agents preinstalled, and an AI you can hand the whole thing to.\n> Type _\"build a snake game\"_ and it writes it, runs it, and gives you a link to play.\n\n## What you get\n\n- **A computer** — a full Linux desktop (browser, terminal, apps) over VNC, or a\n  fast headless shell.\n- **Coding agents preinstalled** — `claude`, `codex`, `cursor`, `pi`, plus node,\n  python, git and internet.\n- **An AI that drives it** — say what you want. It either uses the screen\n  (clicks, browses) or writes + runs code and hands you a **live URL**.\n- **Files & ports** — drag files in and out; open any port through the daemon.\n- **Fork** — clone a running computer, exact live state and all, in ~35 ms.\n- **Storage** — persistent volumes (S3-backed) that outlive a machine.\n- **Ephemeral or not** — machines self-destruct on a TTL by default; flip\n  _keep alive_ and one runs until you stop it.\n\n## Run your own\n\nYou need a machine that can run Firecracker — a Linux box with `/dev/kvm`, **or\njust your Mac**:\n\n**On a Linux box** — Ubuntu 24.04, **x86_64 or arm64**, with `/dev/kvm`\n(bare-metal, or a VM with nested virtualization) that you can root-SSH into. One\ncommand turns it into a running boringd:\n\n```sh\ngit clone https://github.com/michaelshimeles/boring-computers\ncd boring-computers && npm install\n\n# set it up on your box (installs Firecracker, builds the images, runs boringd)\nBORING_ANTHROPIC_KEY=sk-ant-...  ./infra/setup.sh root@YOUR_BOX_IP\n```\n\nDon't have a box? If you use [Latitude.sh](https://latitude.sh),\n[`infra/latitude/provision.sh`](infra/latitude/provision.sh) creates one for you\nfirst. Any other provider works too — just point `setup.sh` at it.\n\n**On an Apple Silicon Mac** (M3 or later) — no server needed. One command builds\nthe whole arm64 stack in a nested-virt [Lima](https://lima-vm.io) VM; real\nmicroVMs boot on your laptop (a shell restores from snapshot in ~5 ms):\n\n```sh\nbrew install lima\nBORING_ANTHROPIC_KEY=sk-ant-...  ./infra/local/setup-local.sh\n# boringd is now at http://localhost:8088 — details in infra/local/README.md\n```\n\n(Windows 11 via WSL2 is designed but not yet wired up — see\n[`infra/local/README.md`](infra/local/README.md).)\n\nThen run the site against it:\n\n```sh\n# apps/web/.env\nPUBLIC_BORING_URL=http://YOUR_BOX_IP:8080   # or a tunnel — see apps/web/.env.example\nnpm run dev -w web\n```\n\n`setup.sh` options (env): `BORING_TOKEN` (require auth), `BORING_S3_*`\n(persistent volumes), `BIND_LOCALHOST=1` (reach it only via SSH tunnel — most\nprivate), `SKIP_DESKTOP=1` (skip the ~8-min desktop image). Full REST + WebSocket\nAPI in the [docs](https://boringcomputers.com/docs).\n\n**From any AI** — an MCP server\n([`boring-computers-mcp`](packages/mcp)) lets Claude Desktop, Cursor, and other\nagents spin up and drive your computers as a tool:\n\n```json\n{\n\t\"mcpServers\": {\n\t\t\"boring-computers\": {\n\t\t\t\"command\": \"npx\",\n\t\t\t\"args\": [\"-y\", \"boring-computers-mcp\"],\n\t\t\t\"env\": { \"BORING_URL\": \"http://localhost:8080\" }\n\t\t}\n\t}\n}\n```\n\nThere's also an Effect-native TypeScript client,\n[`boring-computers-sdk`](packages/sdk) (`npm install boring-computers-sdk`).\n\n## How it works\n\nReal hardware-virtualized isolation — a kernel per machine, not a shared\ncontainer. Each VM is jailed and resource-capped, restored from a memory\nsnapshot in ~3 ms, and self-destructs on a TTL (or runs until you stop it, when\nthe server enables `BORING_ALLOW_PERSISTENT`). Guests are network-isolated\nbehind an egress firewall. The control plane is [`boringd/`](boringd) (Go); host\nsetup is one command ([`infra/setup.sh`](infra/setup.sh)).\n\n## Repo\n\nA [Turborepo](https://turbo.build/repo) monorepo (npm workspaces):\n\n```\napps/web/          the site — SvelteKit\nboringd/           the control plane — Go, runs the microVMs\npackages/sdk/      boring-computers-sdk — Effect-native TypeScript client\npackages/mcp/      boring-computers-mcp — MCP server\ninfra/setup.sh     one-command host setup (any Ubuntu + KVM box)\ninfra/latitude/    rootfs/kernel/image builds, networking, Caddy, Latitude helpers\n```\n\n```sh\nnpm install      # all workspaces\nnpm run dev      # the site\nnpm run build    # production ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-07T04:43:16.672781"
+  },
+  {
+    "basic_info": {
+      "name": "px0",
+      "full_name": "px0-ai/px0",
+      "owner": "px0-ai",
+      "description": "px0 is an open-source prompt infrastructure toolkit that lets you version, update, and govern prompts in production without changing application code.",
+      "url": "https://github.com/px0-ai/px0",
+      "clone_url": "https://github.com/px0-ai/px0.git",
+      "ssh_url": "git@github.com:px0-ai/px0.git",
+      "homepage": "https://px0.ai/",
+      "created_at": "2026-06-24T13:03:11Z",
+      "updated_at": "2026-07-07T03:33:52Z",
+      "pushed_at": "2026-07-07T03:33:48Z"
+    },
+    "stats": {
+      "stars": 132,
+      "forks": 10,
+      "watchers": 132,
+      "open_issues": 3,
+      "size": 269
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 359435,
+        "Makefile": 1327,
+        "Dockerfile": 327
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"left\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://px0.ai/logo/px0-logo-dark.png\">\n    <img src=\"https://px0.ai/logo/px0-logo-light.png\" alt=\"Project Logo\" width=\"150\">\n  </picture>\n</p>\n\npx0 is an open-source prompt infrastructure toolkit that lets you version, update, and govern prompts in production, eliminating the need to hardcode prompts or redeploy your application for prompt changes.\n\n## Benefits\n\n- Decouple prompt strings from codebase definitions to manage templates in a single control plane.\n- Promote new prompt versions instantly with zero CI/CD overhead or application redeployments.\n- Share standardized prompt templates across teams to align engineering practices.\n- Govern production environments by restricting version promotion to authorized administrators.\n\n## Getting Started\n\nFollow these steps to spin up the local services and send your first request. Refer to the [Getting Started Guide](get-started/get-started.md) for detailed verification and user registration instructions. For telemetry setup, metrics observation, and benchmarking details, refer to the [Telemetry and Benchmarking Guide](get-started/get-started-telemetry.md).\n\n### 1. Start the Orchestration Services\n\nClone the repository, configure the environment, and boot the background containers in detached mode.\n\n```bash\ncp .env.example .env\ndocker compose up -d\n```\n\nThis starts the Go API server, PostgreSQL, Redis, and the OpenTelemetry observability stack.\n\n### 2. Verify Server Health\n\nSend a health check request to confirm the API server is active and listening on port 8000.\n\n```bash\ncurl -i http://localhost:8000/v1/health\n```\n\n### 3. Access Web Interfaces\n\nOpen the pre-configured observability dashboards in your browser.\n\n- Grafana Dashboards: http://localhost:3000\n- Prometheus Expression Browser: http://localhost:9090\n\n## Performance Benchmarks\n\npx0 includes a built-in concurrent load testing utility located at `cmd/loadtest/main.go`. This script automatically handles transaction-safe database setup, concurrent execution, and lock-free metric collection.\n\nRefer to the [Benchmarking and Performance Guide](get-started/get-started-benchmarking.md) for execution flags, metric details, and latency percentiles.\n\n## Examples and SDKs\n\nYou can find examples in the [px0 examples repository](https://github.com/px0-ai/examples). Get started with our SDK-based hello worlds:\n\n- [Python SDK Hello World](https://docs.px0.ai/sdk/python)\n- [TypeScript SDK Hello World](https://docs.px0.ai/sdk/typescript)\n- [Go SDK Hello World](https://docs.px0.ai/sdk/go)\n\n## License\n\nThis project is licensed under the [MIT License](LICENSE).\n\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-07T04:43:17.913900"
+  }
+]

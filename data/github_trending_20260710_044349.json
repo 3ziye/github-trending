@@ -1,0 +1,916 @@
+[
+  {
+    "basic_info": {
+      "name": "riddle",
+      "full_name": "MaximeRivest/riddle",
+      "owner": "MaximeRivest",
+      "description": "The diary of Tom Riddle for the reMarkable Paper Pro — write with your pen, the page drinks your ink and answers in a flowing hand",
+      "url": "https://github.com/MaximeRivest/riddle",
+      "clone_url": "https://github.com/MaximeRivest/riddle.git",
+      "ssh_url": "git@github.com:MaximeRivest/riddle.git",
+      "homepage": null,
+      "created_at": "2026-07-05T15:48:08Z",
+      "updated_at": "2026-07-10T04:29:15Z",
+      "pushed_at": "2026-07-07T17:43:20Z"
+    },
+    "stats": {
+      "stars": 1289,
+      "forks": 102,
+      "watchers": 1289,
+      "open_issues": 17,
+      "size": 7120
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 156613,
+        "C++": 50443,
+        "C": 25793,
+        "Shell": 14532
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# riddle — the diary of Tom Riddle, for the reMarkable Paper Pro\n\nWrite on the page with your pen. After a pause, the diary **drinks your ink** —\nyour words fade into the paper — the page thinks for a moment, and an answer\nwrites itself back in a flowing hand, stroke by stroke, then fades away.\n\nNo screen glow, no keyboard, no chat UI. Just ink appearing on paper.\n\n_This is the diary from [the demo](https://x.com/MaximeRivest)._\n\n### 🪄 New to this? Start here\n\nYou need a **reMarkable Paper Pro** in developer mode with a launcher installed.\nIf that sounds like a lot, it isn't — **[remagic](https://github.com/maximerivest/remagic)**\nwalks you through turning on developer mode and sets up everything with one\ncommand. Come back here, drop riddle in, and start writing to Tom.\n\nAlready have xovi + AppLoad? Install from the [remagic](https://github.com/maximerivest/remagic)\ncatalog, [grab the prebuilt bundle](#install-the-prebuilt-bundle), or\n[build from source](#building).\n\n### Install with remagic (easiest)\n\n```sh\nremagic install riddle     # checksum-verified download → AppLoad\nremagic config riddle      # settings form in your browser (+ QR for phone)\n```\n\nThen in **AppLoad**: tap **Reload**, then **The Diary**. Write, and rest your\npen. (Or install it from the **Store** app right on the tablet.)\n\n### Install the prebuilt bundle\n\n1. Grab `riddle-<version>.zip` from the [latest release](https://github.com/MaximeRivest/riddle/releases/latest)\n   and unzip it into a folder: `unzip riddle-*.zip -d riddle`\n2. Copy the folder to your tablet:\n   `scp -O -r riddle root@10.11.99.1:/home/root/xovi/exthome/appload/`\n3. Add an API key: `cp oracle.env.example oracle.env` in that folder and put your `RIDDLE_OPENAI_KEY` in it (any OpenAI-compatible key). Or skip it to use [pi](#option-b--pi-the-power-path).\n4. In **AppLoad**: tap **Reload**, then **The Diary**. Write, and rest your pen.\n\n> ⚠️ **This modifies your device.** The prebuilt bundle and the catalog build\n> run in **takeover mode**: tapping The Diary stops the whole reMarkable UI\n> and takes the screen. Leave with a **5-finger tap** — xochitl restarts\n> automatically. It runs as root and drives the e-ink engine directly. It has\n> only been tested on a **reMarkable Paper Pro** (ferrari, aarch64,\n> OS 3.26–3.27). It may not work on other models or OS versions, and you use\n> it entirely at your own risk. Not affiliated with reMarkable AS. Keep SSH\n> access working before you install anything — if anything ever wedges:\n> `ssh root@10.11.99.1 'systemctl start xochitl'`.\n\n## How it works\n\n```\n pen (raw evdev, full 4096-level pressure, hardware event rate)\n   │ strokes\n   ▼\n riddle ── idle 2.8s → commit page → PNG ──► oracle (resident LLM process,\n   │                                          streams reply sentence-by-sentence)\n   ▼ strokes (Dancing Script → skeletonized to single-pixel pen paths)\n display backend\n   ├── qtfb        — windowed, inside xochitl (build-from-source flavour)\n   └── quill       — full takeover: xochitl stopped, vendor e-ink engine\n                     driven directly for instant ink (lowest latency there\n                     is; what the prebuilt bundle runs)\n```\n\n- **`riddle/`** — the app (Rust). Pen input, ink surface, handwriting\n  synthesis (rasterize → Zhang-Suen thinning → stroke tracing → animated\n  replay), the oracle process manager, and both display backends.\n- **`quill/`** — the takeover display host (C/C++). An\n  [epfb-re](https://github.com/asivery/epfb-re)-style QImage-constructor\n  interposition shim over the vendor `libqsgepaper.so` waveform engine,\n  exposed as a small C ABI (`quill_init` / `quill_buffer` / `quill_swap`)\n  that riddle links against with `--features takeover`. Also carries a small\n  family of demos (`scribble`, a pen-to-glass latency test, plus map, image,\n  and GIF renderers).\n\n## Gestures\n\n| Do this | And |\n|---------|-----|\n| Write, then rest the pen | The diary drinks your ink and Tom replies |\n| Write *\"show me what I wrote about…\"* | The remembered page **rises through the paper**: the date, your own handwriting rewriting itself stroke by stroke, Tom's old reply — all in faded ink. Touch the pen anywhere and today's page returns |\n| Write *\"what do you remember?\"* | Tom answers with a handwritten list of remembered moments |\n| Flip the marker | Erase |\n| Draw a large **?** | Summon the built-in guide |\n| Tap five fingers at once | Leave the diary *(takeover mode)* |\n| Power button | The page turns to *\"The diary sleeps.\"*, then the tablet suspends; press again to wake exactly where you were *(takeover mode)* |\n\nIn the windowed (qtfb) flavour, xochitl keeps the touchscreen and the power\nbutton: close the diary from AppLoad instead.\n\n## The diary remembers\n\nEvery finished page is kept — your actual pen strokes, a transcription, and\nTom's reply — so the diary can do three things:\n\n- **Follow the conversation.** Recent pages ride along with each request, so\n  Tom remembers what you wrote yesterday (both backend",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:43:50.970960"
+  },
+  {
+    "basic_info": {
+      "name": "skillspec",
+      "full_name": "modiqo/skillspec",
+      "owner": "modiqo",
+      "description": "SkillSpec makes agent skills followable, testable, and provable with Doctor risk reports, guided imports, structured contracts, and alignment proof.",
+      "url": "https://github.com/modiqo/skillspec",
+      "clone_url": "https://github.com/modiqo/skillspec.git",
+      "ssh_url": "git@github.com:modiqo/skillspec.git",
+      "homepage": "https://skillspec.sh",
+      "created_at": "2026-06-19T23:42:55Z",
+      "updated_at": "2026-07-09T23:49:16Z",
+      "pushed_at": "2026-07-05T17:01:38Z"
+    },
+    "stats": {
+      "stars": 914,
+      "forks": 57,
+      "watchers": 914,
+      "open_issues": 7,
+      "size": 2561
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2415527,
+        "Shell": 4763,
+        "Just": 4456
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "ai-evals",
+        "ai-tool"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://github.com/modiqo/skillspec/raw/main/assets/skillspec-wordmark.svg\" alt=\"SkillSpec\" width=\"520\">\n</p>\n\n# Skills that agents can actually follow\n\n[![CI](https://github.com/modiqo/skillspec/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/modiqo/skillspec/actions/workflows/ci.yml)\n\nYou wrote a good `SKILL.md`. But did the agent actually follow it, or skip the\nlate safety rule, grab an undeclared tool, and report \"done\" with no proof?\n\n**SkillSpec tells you.** Run one command and get a risk report. Then turn any\nskill into a contract the agent has to follow, with a record you can inspect at\nthe end.\n\nNo new agent runtime. No orchestration platform. Just a CLI and a small\n`skill.spec.yml` that lives next to your `SKILL.md`.\n\n<p align=\"center\">\n  <a href=\"https://github.com/modiqo/skillspec/blob/main/assets/skillspec-layer-stack.svg\">\n    <img src=\"https://raw.githubusercontent.com/modiqo/skillspec/main/assets/skillspec-layer-stack.svg\" alt=\"SkillSpec sits inside the skills layer\" width=\"1100\">\n  </a>\n</p>\n\n## Star History\n\n<a href=\"https://www.star-history.com/?repos=modiqo%2Fskillspec&type=date&legend=top-left\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/chart?repos=modiqo/skillspec&type=date&theme=dark&legend=top-left\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/chart?repos=modiqo/skillspec&type=date&legend=top-left\" />\n   <img alt=\"Star History Chart\" src=\"https://api.star-history.com/chart?repos=modiqo/skillspec&type=date&legend=top-left\" />\n </picture>\n</a>\n\n## See It In 30 Seconds\n\nPoint Doctor at any skill, a local folder or a public GitHub URL:\n\n```bash\nskillspec doctor ./my-skill\n```\n\n```text\nSkillSpec Doctor\n================\nTarget: ./my-skill        Shape: simple_skill\n\nAgent follow-through risk: HIGH (74/100)\n\nFindings\n- description is short and generic -> automatic discovery may be unreliable\n- active skill load is 8,482 tokens -> above the balanced target\n- 14 must/never obligations appear after 60% of the body -> easy to miss\n- tools and commands are used, but dependencies are never declared\n- no tests and no progress/trace surface -> \"done\" can't be checked\n\nLikely consequence\nAn agent may follow the broad task but skip a late safety gate, use an\nundeclared tool, or claim completion without evidence.\n\nNext step\nAsk your agent: /skillspec import ./my-skill, compile it, test it, install it,\nand print the alignment summary.\n```\n\nNo install required to try it. Paste a public skill URL into the hosted page:\n\n**<https://skillspec.sh/>**\n\n## Why This Exists\n\nA `SKILL.md` is just text. The harness loads it and hopes the model reads the\nright part. For a throwaway skill, that can be fine. For a skill you rely on,\n\"hope\" is not a plan:\n\n- **Buried rules get skipped.** The important \"never do X\" sits at line 400,\n  and models are most reliable at the start and end of context, not the middle.\n- **Every miss grows the prose.** Each failure becomes another paragraph, which\n  makes the next miss more likely.\n- **You only see the final answer.** There is no durable record of which route\n  ran, which steps happened, or what was skipped.\n\nSkillSpec moves the load-bearing parts out of prose and into a small structured\ncontract:\n\n- when to use the skill\n- which route to take\n- what is forbidden\n- what dependencies must exist\n- what checks must pass\n- what proof should exist at the end\n\n## Install\n\nInstall the CLI:\n\n```bash\ncurl -fsSL https://skillspec.sh/install.sh | sh\nskillspec --version\n```\n\nOr with Cargo:\n\n```bash\ncargo install skillspec\nskillspec --version\n```\n\nThen add the plugin to your harness.\n\nClaude Code:\n\n```bash\nclaude plugin marketplace add modiqo/skillspec --sparse .claude-plugin plugins/skillspec\nclaude plugin install skillspec@skillspec\nclaude plugin list\n```\n\nCodex:\n\n```bash\ncodex plugin marketplace add modiqo/skillspec --ref main --sparse .agents --sparse plugins/skillspec\ncodex plugin add skillspec@skillspec\n```\n\n<details>\n<summary>Other platforms, pinned releases, direct downloads, and local development</summary>\n\nPrebuilt binaries are available on the\n[releases page](https://github.com/modiqo/skillspec/releases):\n\n- `skillspec-macos.tar.gz`\n- `skillspec-linux-x86_64.tar.gz`\n- `skillspec-windows-x86_64.zip`\n\nRelease artifacts include `.sha256` checksums. The installer verifies the\nchecksum and writes to `~/.local/bin` by default.\n\nPin a version or choose an install directory:\n\n```bash\ncurl -fsSL https://skillspec.sh/install.sh \\\n  | SKILLSPEC_VERSION=v0.1.0 SKILLSPEC_INSTALL_DIR=\"$HOME/.local/bin\" sh\n```\n\nInstall unreleased `main`:\n\n```bash\ncargo install --git https://github.com/modiqo/skillspec --package skillspec --force\nskillspec --version\n```\n\nInstall from a local checkout:\n\n```bash\ncargo install --path crates/skillspec-cli --force\nskillspec --version\n```\n\nLocal development can also install the skill folder directly:\n\n```bash\n# Codex\nski",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:43:52.229528"
+  },
+  {
+    "basic_info": {
+      "name": "dnsglobe",
+      "full_name": "514-labs/dnsglobe",
+      "owner": "514-labs",
+      "description": "Global DNS propagation checker TUI — watch a DNS record propagate across 34 public resolvers worldwide, on a world map in your terminal",
+      "url": "https://github.com/514-labs/dnsglobe",
+      "clone_url": "https://github.com/514-labs/dnsglobe.git",
+      "ssh_url": "git@github.com:514-labs/dnsglobe.git",
+      "homepage": null,
+      "created_at": "2026-07-05T01:03:37Z",
+      "updated_at": "2026-07-10T00:32:03Z",
+      "pushed_at": "2026-07-07T04:12:18Z"
+    },
+    "stats": {
+      "stars": 774,
+      "forks": 20,
+      "watchers": 774,
+      "open_issues": 2,
+      "size": 1289
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 116488,
+        "Nix": 1612
+      },
+      "license": "MIT License",
+      "topics": [
+        "cli",
+        "dns",
+        "dns-checker",
+        "dns-propagation",
+        "ratatui",
+        "rust",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# dnsglobe\n\n[![crates.io](https://img.shields.io/crates/v/dnsglobe)](https://crates.io/crates/dnsglobe)\n[![dnsglobe](https://img.shields.io/aur/version/dnsglobe?label=aur%20dnsglobe)](https://aur.archlinux.org/packages/dnsglobe/)\n[![dnsglobe-bin](https://img.shields.io/aur/version/dnsglobe-bin?label=aur%20dnsglobe-bin)](https://aur.archlinux.org/packages/dnsglobe-bin/)\n[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n\n**A global DNS propagation checker for your terminal** — a Rust TUI that\nqueries 34 public DNS resolvers around the world in parallel, compares their\nanswers, and shows the propagation of your record on a world map.\n\n![dnsglobe demo — checking A and NS records for a domain across 34 resolvers worldwide](demo/demo.gif)\n\nThink dnschecker.org / whatsmydns.net, but in your terminal, with watch mode:\nstart a check and it re-polls until the record has propagated everywhere.\n\nResolvers span the global anycast networks (Google, Cloudflare, Quad9),\nNorth America, Europe, Russia, the Middle East, East Asia, and the southern\nhemisphere (Telstra AU, SafeSurfer NZ, UOL BR) — each queried directly, so\nyou see every server's own current view of the record.\n\nEach resolver is queried directly (no cache, EDNS0, TCP fallback for\ntruncated answers), so what you see is each server's own current view of the\nrecord. Answers sharing any record are grouped together — so round-robin DNS\n(each resolver caching a different subset of an IP pool) counts as one\nconsistent answer, not twenty conflicting ones. The propagation gauge shows\nhow many resolvers are in the majority group; outliers are flagged\n`≠ DIFFERS` once all results are in.\n\nOn terminals ≥150 columns wide, a world map appears on the right with one\ndot per resolver, colored by status (green agrees, magenta differs, red\nerror, yellow in flight).\n\nAnycast networks are asked which of their sites is answering you: Quad9\n(`TXT id.server.on.quad9.net`), Cloudflare (`CH TXT id.server`), Google\n(egress subnet via `TXT o-o.myaddr.l.google.com` matched against\n`TXT locations.publicdns.goog`), OpenDNS (`TXT debug.opendns.com`),\nCleanBrowsing, and Neustar UltraDNS. The discovered site shows in the Loc\ncolumn as `→YUL`-style codes, and the resolver's map dot moves to the POP\nactually serving your queries.\n\n## Usage\n\nInstall:\n\n```sh\nbrew install 514-labs/tap/dnsglobe   # Homebrew (macOS/Linux)\ncargo install dnsglobe               # from crates.io\nyay -S dnsglobe                      # from archlinux aur (compile from source)\nyay -S dnsglobe-bin                  # from archlinux aur (install prebuilt binary)\nnix run github:514-labs/dnsglobe     # Nix flakes (builds from source)\n# or grab a prebuilt binary from the GitHub Releases page\n```\n\nRun:\n\n```sh\ndnsglobe                            # start empty, type a domain\ndnsglobe example.com                # query immediately and watch\ndnsglobe example.com TXT            # same, starting on TXT records\ndnsglobe --once example.com TXT     # no TUI: print results, exit (for scripts)\n```\n\n### Keys\n\n| Key            | Action                          |\n| -------------- | ------------------------------- |\n| type / ⌫ / Del | edit domain                     |\n| ←/→ / Home/End | move cursor in the domain field |\n| Enter          | start the check and watch: re-polls every 30 s until propagation reaches 100% |\n| Ctrl+R         | stop or resume watching         |\n| Tab / Shift-Tab | select record type (A, AAAA, CNAME, MX, NS, TXT, SOA) |\n| ↑/↓ / PgUp/PgDn | scroll the resolver table |\n| Ctrl+S         | cycle table sort: resolver / location / time / status / answer |\n| Ctrl+U         | clear domain                    |\n| Esc / Ctrl+C   | quit                            |\n\n## Configuration\n\nOptionally, add your own resolvers — or replace the built-in list entirely —\nwith a TOML config file at `~/.config/dnsglobe/config.toml`\n(`$XDG_CONFIG_HOME/dnsglobe/config.toml` if set). Set `DNSGLOBE_CONFIG` to\nuse a different path.\n\n```toml\n# Set to true to replace the built-in list instead of extending it —\n# e.g. to watch propagation across your own nameservers only.\nreplace = false\n\n[[resolvers]]\nname = \"Corp DNS\"        # required — shown in the Resolver column\nip = \"10.0.0.53\"         # required — IPv4 or IPv6, queried on port 53\nlocation = \"HQ\"          # optional — Loc column / location sort\nlat = 40.7               # optional — position on the world map;\nlon = -74.0              #            omit both to leave it off the map\n\n[[resolvers]]\nname = \"NS1 (public)\"\nip = \"198.51.100.53\"\n```\n\nInvalid config (bad IP, unknown key, `lat` without `lon`, `replace = true`\nwith no resolvers) is reported at startup with the offending entry named.\n\n## Notes\n\n- Several resolvers are anycast networks, so the responding node is the one\n  nearest to you. Networks with an identification query report the actual\n  answering site (`→YUL`); for the rest the location column is the\n  operator's home region.\n- The built-in resolver list lives in `src/res",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:43:53.466471"
+  },
+  {
+    "basic_info": {
+      "name": "cliare",
+      "full_name": "modiqo/cliare",
+      "owner": "modiqo",
+      "description": "CLI agent-readiness measurement, command-shape inference, and CI scorecards",
+      "url": "https://github.com/modiqo/cliare",
+      "clone_url": "https://github.com/modiqo/cliare.git",
+      "ssh_url": "git@github.com:modiqo/cliare.git",
+      "homepage": "https://cliare.sh",
+      "created_at": "2026-06-13T00:38:35Z",
+      "updated_at": "2026-07-09T10:43:11Z",
+      "pushed_at": "2026-07-05T00:30:50Z"
+    },
+    "stats": {
+      "stars": 711,
+      "forks": 42,
+      "watchers": 711,
+      "open_issues": 2,
+      "size": 19921
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1326356,
+        "Just": 12836,
+        "Shell": 4697,
+        "Ruby": 591
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "cli"
+      ]
+    },
+    "content": {
+      "readme": "# CLIARE\n\n**CLIARE audits command-line interfaces for agent readiness.**\n\n> It is like OpenAPI/Swagger for CLIs, but generated from runtime evidence rather than hand-written docs.\n\nAgents increasingly use terminals as their operating surface, but most CLIs were designed for humans reading help text. An agent harness needs a different contract before it spends tokens trying commands:\n\n- Which commands actually exist?\n- Which flags and positionals are safe to use?\n- Which commands have parseable JSON/YAML output?\n- Which paths require auth, a project directory, fixtures, network access, or a local daemon?\n- Which \"safe\" discovery commands quietly write files?\n\nCLIARE answers those questions by measuring the released CLI binary as a black box. It probes runtime behavior under bounded controls, records evidence, infers the command surface, detects side effects, and emits command indexes, issue ledgers, scorecards, one-command summaries, persona reports, CI artifacts, and agent skills.\n\nCLIARE stands for **CLI Agent Readiness Evaluation**.\n\n## Star History\n\n<a href=\"https://www.star-history.com/?repos=modiqo%2Fcliare&type=date&legend=top-left\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/chart?repos=modiqo/cliare&type=date&theme=dark&legend=top-left\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/chart?repos=modiqo/cliare&type=date&legend=top-left\" />\n   <img alt=\"Star History Chart\" src=\"https://api.star-history.com/chart?repos=modiqo/cliare&type=date&legend=top-left\" />\n </picture>\n</a>\n\n## From CLI Drift to Agent-Ready Command Surfaces\n\nCLIARE is pronounced like \"Claire\": she cares about whether your CLI can be used reliably by agents, maintainers, and security reviewers.\n\n### 1. CLIs are becoming agent hands\n\n![CLIs are agent hands](docs/assets/storybook/01-agent-hands.png)\n\nAgents increasingly use CLIs as their hands: the practical surface for reaching code hosts, cloud systems, payment services, internal platforms, and local developer workflows.\n\n```sh\ncargo install cliare\ncliare metadata --format json\n```\n\n### 2. CLI surfaces drift as they grow\n\n![Docs, help, and runtime drift](docs/assets/storybook/02-cli-drift.png)\n\nWhen a CLI evolves quickly, the docs, `--help`, and the released binary can start telling different stories. Humans can work around that drift. Agents tend to discover it the expensive way.\n\n```sh\ncliare measure mycli --out .cliare/mycli --profile standard --refresh\n```\n\n### 3. Drift becomes token burn\n\n![Agents burn tokens rediscovering CLI shape](docs/assets/storybook/03-token-burn.png)\n\nWithout an evidence-backed command index, an agent harness has to rediscover the surface repeatedly: run help, try a flag, hit a missing operand, back up, and try again. That loop costs tokens, latency, and reliability.\n\n```sh\ncliare summary --out .cliare/mycli\n```\n\n### 4. CLIARE probes the CLI like an agent would\n\n![CLIARE probes a released CLI in a chosen context](docs/assets/storybook/04-cliare-probes.png)\n\nCLIARE exercises the released binary as a black box. You choose the context: clean, repository, authenticated, host, fixture-backed, or CI. CLIARE records evidence instead of relying on stale assumptions.\n\n```sh\ncliare measure mycli \\\n  --out .cliare/mycli \\\n  --context authenticated \\\n  --auth-state present \\\n  --execution-mode host \\\n  --profile deep \\\n  --refresh\n```\n\n### 5. Maintainers get a release-time fix queue\n\n![Maintainers use CLIARE in CI to keep CLI releases aligned](docs/assets/storybook/05-maintainer-ci.png)\n\nFor maintainers, CLIARE turns agent-readiness gaps into a concrete queue: missing help, confusing diagnostics, parseable-output gaps, unsafe discovery side effects, precondition blockers, and command-shape drift.\n\n```sh\ncliare summary --out .cliare/mycli\ncliare report maintainer --out .cliare/mycli --format markdown\ncliare issues list --out .cliare/mycli --format markdown\ncliare playbook maintainer --target mycli\n```\n\n### 6. Harnesses get a command index\n\n![Agent harnesses use a command index instead of guessing](docs/assets/storybook/06-agent-index.png)\n\nFor agent harnesses, CLIARE builds the map: an evidence-backed command index that describes command paths, flags, operands, preconditions, output contracts, confidence, suitability, and evidence references.\n\n```sh\ncliare describe .cliare/mycli --write\ncliare summary --out .cliare/mycli --format json\ncliare report harness --out .cliare/mycli --write\ncliare playbook harness --target mycli\n```\n\nThe harness can then load:\n\n```text\n.cliare/mycli/command-index.json\n.cliare/mycli/AGENT_SKILL.md\n.cliare/mycli/persona-harness.json\n```\n\n### 7. Skills teach; indexes map\n\n![Skills teach intent, command indexes map the real surface](docs/assets/storybook/07-skills-and-indexes.png)\n\nSkills are useful, but they are not command indexes. A skill can teach intent, workflow, and policy. A command index tells the harness what the CLI actually supports right ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:43:54.818119"
+  },
+  {
+    "basic_info": {
+      "name": "Codex-X",
+      "full_name": "yynxxxxx/Codex-X",
+      "owner": "yynxxxxx",
+      "description": "Codex Switch & Instruct desktop manager",
+      "url": "https://github.com/yynxxxxx/Codex-X",
+      "clone_url": "https://github.com/yynxxxxx/Codex-X.git",
+      "ssh_url": "git@github.com:yynxxxxx/Codex-X.git",
+      "homepage": "https://github.com/yynxxxxx/Codex-X",
+      "created_at": "2026-07-04T03:28:35Z",
+      "updated_at": "2026-07-10T04:19:15Z",
+      "pushed_at": "2026-07-09T14:49:08Z"
+    },
+    "stats": {
+      "stars": 708,
+      "forks": 115,
+      "watchers": 708,
+      "open_issues": 3,
+      "size": 5894
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 175677,
+        "TypeScript": 126963,
+        "CSS": 67983,
+        "Python": 21409,
+        "Shell": 2390,
+        "HTML": 785
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"README.md\"><img src=\"https://img.shields.io/badge/中文-当前-blue\" alt=\"中文\" /></a>\n  <a href=\"README.en.md\"><img src=\"https://img.shields.io/badge/English-Switch-lightgrey\" alt=\"English\" /></a>\n</p>\n\n<div align=\"center\">\n  <img src=\"apps/desktop/src-tauri/icons/icon.png\" alt=\"Codex-X Logo\" width=\"150\" />\n\n  # Codex-X\n\n  **Codex 提示词注入 · Provider 切换 · TOML / Auth 可视化管理器**\n\n  一款面向 **OpenAI Codex 桌面端 / Codex CLI** 的跨平台桌面工具，内置 `gpt5.5-unrestricted.md` 与 `gpt5.4-unrestricted.md`，支持一键写入 / 禁用指令提示词、第三方 Provider 切换、官方 Auth 管理、TOML 可视化编辑与本地会话 Provider Sync。\n\n  <p>\n    <img src=\"https://img.shields.io/github/v/release/yynxxxxx/Codex-X?label=version&color=blue\" alt=\"version\" />\n    <img src=\"https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555\" alt=\"platform\" />\n    <img src=\"https://img.shields.io/badge/built%20with-Tauri%202-24C8DB\" alt=\"tauri\" />\n    <img src=\"https://img.shields.io/badge/license-MIT-green\" alt=\"license\" />\n  </p>\n\n  <p>\n    <img src=\"https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/SQLite-Ready-003B57?logo=sqlite&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/Vite-Ready-646CFF?logo=vite&logoColor=white\" />\n  </p>\n</div>\n\n---\n\n## Codex-X 是什么？\n\nCodex-X 不是普通的配置文件编辑器，而是一个面向 Codex CLI 的 **可视化增强管理器**。\n\n它把几个高频操作做成了桌面软件：\n\n- 给 Codex 写入 / 禁用指令提示词模板\n- 切换官方 OpenAI 与第三方 Codex API Provider\n- 查看 / 编辑 `~/.codex/config.toml`\n- 查看 / 编辑官方 `~/.codex/auth.json`\n- 检查并修复本地历史会话的 Provider 元数据\n\n## 软件预览\n\n<details open>\n<summary><b>应用界面预览</b>：主界面 / Provider / TOML / Auth</summary>\n\n<p align=\"center\">\n  <img src=\"docs/screenshots/app/preview.png\" alt=\"Codex-X 应用界面预览：主界面、Provider、TOML、Auth\" width=\"920\" />\n</p>\n\n</details>\n\n<details>\n<summary><b>提示词注入效果：安全测试场景</b></summary>\n\n<div align=\"center\">\n<table>\n  <tr>\n    <td align=\"center\" width=\"50%\">\n      <b>SQL 注入测试</b><br />\n      <sub>部署后测试：如何对目标进行 SQL 注入测试？</sub><br />\n      <img src=\"docs/screenshots/prompt-effects/security/sql-injection.png\" alt=\"SQL 注入测试效果图\" width=\"420\" />\n    </td>\n    <td align=\"center\" width=\"50%\">\n      <b>NSFW 响应测试</b><br />\n      <sub>用于观察提示词注入后的边界响应变化</sub><br />\n      <img src=\"docs/screenshots/prompt-effects/security/nsfw.png\" alt=\"NSFW 响应测试效果图\" width=\"420\" />\n    </td>\n  </tr>\n</table>\n</div>\n\n</details>\n\n<details>\n<summary><b>提示词注入效果：逆向工程场景</b></summary>\n\n<div align=\"center\">\n<table>\n  <tr>\n    <td align=\"center\" width=\"50%\">\n      <b>APK 逆向分析</b><br />\n      <sub>Android APK 静态 / 动态分析思路</sub><br />\n      <img src=\"docs/screenshots/prompt-effects/reverse/apk-reverse-1.png\" alt=\"APK 逆向分析效果图\" width=\"420\" />\n    </td>\n    <td align=\"center\" width=\"50%\">\n      <b>APK 逆向分析 2</b><br />\n      <sub>补充 APK 逆向流程与定位方式</sub><br />\n      <img src=\"docs/screenshots/prompt-effects/reverse/apk-reverse-2.png\" alt=\"APK 逆向分析效果图 2\" width=\"420\" />\n    </td>\n  </tr>\n  <tr>\n    <td align=\"center\" colspan=\"2\">\n      <b>EXE 逆向分析</b><br />\n      <sub>Windows 可执行文件分析与调试方向</sub><br />\n      <img src=\"docs/screenshots/prompt-effects/reverse/exe-reverse.png\" alt=\"EXE 逆向分析效果图\" width=\"620\" />\n    </td>\n  </tr>\n</table>\n</div>\n\n</details>\n\n## 功能特性\n\n<div align=\"center\">\n<table>\n  <tr>\n    <th align=\"center\" width=\"180\">功能</th>\n    <th align=\"center\">说明</th>\n  </tr>\n  <tr>\n    <td align=\"center\">⚡ 供应商 API</td>\n    <td>可视化管理官方 OpenAI / 第三方 Codex Provider，支持 Base URL、API Key、Model、Wire API 与一键切换。</td>\n  </tr>\n  <tr>\n    <td align=\"center\">🧩 <b>提示词注入</b></td>\n    <td><b>特色功能</b>：内置 <code>gpt5.4-unrestricted.md</code> / <code>gpt5.5-unrestricted.md</code>，一键写入 Codex 配置；启用后可达到上方效果图中的 SQL 注入测试、APK / EXE 逆向等响应效果。</td>\n  </tr>\n  <tr>\n    <td align=\"center\">💬 会话管理</td>\n    <td>读取 Codex 本地 SQLite 与 rollout JSONL，会话列表可视化展示，并支持 Provider Sync / 修复历史 thread 元数据。</td>\n  </tr>\n  <tr>\n    <td align=\"center\">📝 TOML 配置</td>\n    <td>查看当前 <code>~/.codex/config.toml</code>，并在 Provider 编辑页直接编辑完整 TOML，保存后同步到 Codex 配置目录。</td>\n  </tr>\n  <tr>\n    <td align=\"center\">🧠 Skills / MCP</td>\n    <td>新增技能和 MCP 管理页：读取 Codex 当前可用的 Skills / MCP，支持导入已有、从 ZIP 安装 Skill、启用 / 禁用单个 Skill 或 MCP，并可检查 Skill 更新状态。</td>\n  </tr>\n  <tr>\n    <td align=\"center\">🔐 Auth 管理</td>\n    <td>读取 / 编辑官方 <code>~/.codex/auth.json</code>，区分 ChatGPT 登录态 Auth 与第三方 API Key。</td>\n  </tr>\n  <tr>\n    <td align=\"center\">📦 跨平台发布</td>\n    <td>提供 macOS Apple Silicon / Intel <code>.dmg</code>、Windows <code>.msi</code> / portable <code>.zip</code>、Linux <code>.deb</code> / <code>.rpm</code>，支持应用内检测更新。</td>\n  </tr>\n</table>\n</div>\n\n## 核心亮点\n\n### 1. 内置双指令提示词模板\n\nCodex-X 当前内置两套提示词模板：\n\n- `examples/gpt5.5-unrestricted.md`\n- `examples/gpt5.4-unrestricted.md`\n\n你可以在【指令提示词】页面直接点击启用 / 禁用。启用后，Codex-X 会把对应 `.md` 写入 Codex 配置目录，并更新 `config.toml` 中的 `model_instructions_file`。\n\n<div align=\"center\">\n<table>\n  <tr>\n    <th align=\"center\">对比项</th>\n    <th alig",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:43:56.046135"
+  },
+  {
+    "basic_info": {
+      "name": "pon",
+      "full_name": "can1357/pon",
+      "owner": "can1357",
+      "description": "Python 3.14, compiled to metal — JIT & AoT native compiler and runtime in Rust. Cranelift backend, ruff parser, Green Tea GC, byte-exact differential testing against CPython.",
+      "url": "https://github.com/can1357/pon",
+      "clone_url": "https://github.com/can1357/pon.git",
+      "ssh_url": "git@github.com:can1357/pon.git",
+      "homepage": null,
+      "created_at": "2026-07-02T16:44:07Z",
+      "updated_at": "2026-07-10T04:29:45Z",
+      "pushed_at": "2026-07-07T08:12:09Z"
+    },
+    "stats": {
+      "stars": 424,
+      "forks": 15,
+      "watchers": 424,
+      "open_issues": 1,
+      "size": 27599
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 14639330,
+        "Python": 898042,
+        "C": 218415,
+        "Shell": 1434
+      },
+      "license": null,
+      "topics": [
+        "aot",
+        "compiler",
+        "cranelift",
+        "garbage-collector",
+        "jit",
+        "python",
+        "python3",
+        "runtime",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/hero.png\" alt=\"pon — Python, compiled to metal — no interpreter\" width=\"100%\" />\n</p>\n\n# pon\n\n`pon` is a JIT & AoT native compiler and runtime for Python 3.14, written in Rust. There is no interpreter and no bytecode: every module is parsed with the ruff parser, lowered to one shared IR, and compiled to machine code through Cranelift — either just-in-time inside the process (`pon run`) or ahead-of-time into a standalone native executable (`pon build`). Memory is managed by a Green Tea garbage collector instead of reference counting, and correctness is enforced by a byte-exact differential harness against CPython v3.14.0.\n\nThe end goal is the bun/v8 of Python: a runtime that passes the CPython test suite, runs a multi-tier JIT well past CPython, ships single-binary executables, and includes batteries (package manager, tooling) out of the box. The project is under heavy active development — see [Status](#status) for what is true today versus where it is going.\n\n## Quickstart\n\n```sh\n# JIT: parse → IR → Cranelift → run, in-process\nprintf 'def add(a, b):\\n    return a + b\\n\\nprint(\"hello, world\")\\nprint(add(2, 3))\\n' > hello.py\ncargo run -p pon -- run hello.py\n\n# AoT: same IR through cranelift-object, linked into a native executable\ncargo run -p pon -- build hello.py -o hello\n./hello\n```\n\nBoth paths print the same bytes CPython would. That property is not aspirational — it is the exit gate of the conformance suite (see [Conformance](#conformance--testing)).\n\n```\npon run <file> [args]\npon build <file> -o <out> [--allow-dynamic] [--opt] [--target <triple>]\npon repl\npon -c 'print(40 + 2)'\npon - < script.py\n```\n\n## Architecture\n\n<p align=\"center\">\n  <img src=\"assets/architecture.png\" alt=\"pon workspace architecture\" width=\"100%\" />\n</p>\n\nOne IR, two backends, one runtime ABI. Every tier — baseline JIT, optimizing JIT, and AoT — lowers the same IR and calls the same `pon_*` helper functions:\n\n```\nsource.py\n   │ ruff parser (pinned 0.14.0, PythonVersion::PY314)\nAST ──> PON IR (pon-ir, one IR for every tier)\n   │\n   ├── pon run:   pon-codegen ──> cranelift-jit ──> native code in process\n   │                 tier-0 baseline (all boxed)\n   │                 tier-1 typed: inline caches, OSR, background compile\n   │\n   └── pon build: pon-codegen ──> cranelift-object ──> object file ──> linked executable\n   │\npon-runtime  (object model, builtins, NULL-sentinel pon_* ABI)\npon-gc       (Green Tea garbage collector)\n```\n\n**Object model:** CPython's heap object layout minus the refcount header. Errors cross the ABI as NULL sentinels, not unwinding. Integers are arbitrary-precision (`num-bigint` behind `PyLong`); a tagged small-int fast path is landing in the typed tier.\n\n**Tiering:** tier-0 compiles everything boxed with no type feedback and is the correctness baseline (`PON_TIER0_ONLY=1` forces it). Runtime helpers feed `FeedbackCell` type profiles from the first execution; hot functions recompile on a background thread and running loops enter the optimized code via on-stack replacement.\n\n**GC:** the Green Tea collector owns all Python objects. Tier-0 uses conservative stack scanning with a register-flush trampoline at safepoints; the typed tier upgrades to precise Cranelift user stack maps.\n\n## Workspace\n\n| Crate | Role |\n| --- | --- |\n| `pon-ir` | ruff-based frontend: parse Python 3.14, lower to the shared PON IR |\n| `pon-codegen` | IR → Cranelift CLIF, shared by every backend and tier |\n| `pon-jit` | in-process compilation, tiering, inline caches, OSR, background compile |\n| `pon-aot` | `cranelift-object` backend: object files and linked native executables |\n| `pon-runtime` | object model, builtins, stdlib native modules, the `pon_*` helper ABI |\n| `pon-gc` | Green Tea garbage collector |\n| `pon-abi` | ABI types shared between codegen and runtime |\n| `pon` | the `pon` binary: `run`/`build`/`repl` entry points + package manager (index client, resolver, wheel/sdist install) |\n| `pon-conformance` | differential conformance suites, fuzzing, benchmarks, floor ratchets |\n\nAll dependencies are declared once in the root `Cargo.toml` under `[workspace.dependencies]`; member crates only inherit (see [`AGENTS.md`](AGENTS.md)).\n\n## Conformance & testing\n\nThe correctness contract is differential: a corpus module passes only if `pon` produces **byte-identical output** to CPython v3.14.0 (`TZ=UTC`, `PYTHONHASHSEED=0`). Passing sets are ratcheted into committed floor files, and CI fails on any regression below the floor.\n\n| Suite | What it measures | Committed floor |\n| --- | --- | --- |\n| `cpython` | corpus modules, JIT, byte-exact vs CPython 3.14 | 244 modules ([`conformance-floor.json`](conformance-floor.json)) |\n| `cpython-aot-subset` | same corpus compiled AoT and executed as native binaries | 206 modules ([`aot-parity-floor.json`](aot-parity-floor.json)) |\n| `cpython-full` | CPython's own test suite (`Lib/test`), run under pon | being brought up ([`conformance-full-floor.json`](conformance-full-f",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:43:57.273585"
+  },
+  {
+    "basic_info": {
+      "name": "autoshorts",
+      "full_name": "JayWebtech/autoshorts",
+      "owner": "JayWebtech",
+      "description": "AutoShorts is a local-first desktop application for turning long-form video or audio recordings into high-impact, vertical short-form clip candidates (9:16 portrait) with AI-powered viral moment ranking.",
+      "url": "https://github.com/JayWebtech/autoshorts",
+      "clone_url": "https://github.com/JayWebtech/autoshorts.git",
+      "ssh_url": "git@github.com:JayWebtech/autoshorts.git",
+      "homepage": "",
+      "created_at": "2026-06-22T13:08:10Z",
+      "updated_at": "2026-07-10T02:59:01Z",
+      "pushed_at": "2026-07-01T17:05:23Z"
+    },
+    "stats": {
+      "stars": 409,
+      "forks": 98,
+      "watchers": 409,
+      "open_issues": 11,
+      "size": 1868
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 95294,
+        "TypeScript": 62183,
+        "CSS": 32444,
+        "HTML": 297
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "⭐ [Support AutoShorts](#support)\n\n# AutoShorts\n\nAutoShorts is a local-first desktop application for turning long-form video or audio recordings into high-impact, vertical short-form clip candidates (9:16 portrait) with AI-powered viral moment ranking.\n\nThis repository implements the desktop app foundation using **Tauri 2 + React + TSX + Rust + SQLite**.\n\n<img width=\"1397\" height=\"918\" alt=\"Screenshot 2026-06-22 at 4 10 13 PM\" src=\"https://github.com/user-attachments/assets/3a58ff60-6d9b-46fc-81e8-2778c96aba62\" />\n\n---\n\n## Key Features\n\n- **Dynamic Multi-LLM Support**: Supports both **DeepSeek** (default) and **Claude** (anthropic) for viral moment detection and hooks analysis.\n- **Automated Pipeline**: Imports media, extracts audio, transcribes using Deepgram, and automatically analyzes and ranks moments in a single automated chain.\n- **Local SQLite Storage**: Saves transcripts, candidates, custom names, and rendering data locally.\n- **Native Project Manager**: Create, open, rename, and delete projects from the dashboard.\n- **Portrait Auto-Cropping**: Automatically center-crops landscape videos to vertical H.264 portrait clips using native `ffmpeg` integration.\n- **Key Warnings**: Built-in visual warnings that identify missing environment variables and prompt you directly in the UI.\n\n---\n\n## Prerequisites\n\nTo run the application, **FFmpeg & FFprobe** must be installed and available on your system `PATH` to handle cropping, audio extraction, and dynamic captions:\n\n* **macOS**: Install using Homebrew:\n  ```bash\n  brew install ffmpeg\n  ```\n  *Note: To ensure full captions rendering support, if standard Homebrew FFmpeg lacks drawtext/subtitles filters, tap and install the `homebrew-ffmpeg` formula:*\n  ```bash\n  brew tap homebrew-ffmpeg/ffmpeg\n  brew install homebrew-ffmpeg/ffmpeg/ffmpeg\n  ```\n* **Windows**: Install using Winget (in PowerShell):\n  ```powershell\n  winget install Gyan.FFmpeg\n  ```\n  *(Or download the release build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and add it to your system PATH environment variables).*\n* **Linux**: Install via your native package manager:\n  ```bash\n  sudo apt install ffmpeg      # Debian/Ubuntu\n  sudo pacman -S ffmpeg        # Arch Linux\n  sudo dnf install ffmpeg      # Fedora\n  ```\n\n---\n\n## Installation Guide (For Users)\n\nDownload the correct package matching your system from the latest [GitHub Releases](https://github.com/JayWebtech/autoshorts/releases/tag/autoshorts).\n\n### 🖥️ macOS Installation\n1. **Download**:\n   * **Apple Silicon (M1/M2/M3)**: Select the `aarch64.dmg` package.\n   * **Intel Mac**: Select the `x64.dmg` package.\n2. **Install**: Double-click the `.dmg` file and drag **AutoShorts** to your **Applications** folder.\n3. **Bypass Gatekeeper** (For unsigned local builds):\n   * Right-click `AutoShorts.app` in Finder, select **Open**, and click **Open** in the warning dialog.\n   * *Alternatively*, run this command in Terminal:\n     ```bash\n     xattr -cr /Applications/AutoShorts.app\n     ```\n\n### 🪟 Windows Installation\n1. **Download**: Select the `.msi` (installer) or `.exe` (portable executable) package.\n2. **Install**: Double-click the `.msi` file to run the setup wizard.\n3. **SmartScreen Bypass**: Since the package is self-signed, Windows SmartScreen may show a warning. Click **\"More Info\"** in the window and choose **\"Run anyway\"**.\n\n### 🐧 Linux Installation\n1. **Download**: Select the `.deb` (Debian/Ubuntu) or `.AppImage` (universal portable binary).\n2. **Install `.deb`**:\n   ```bash\n   sudo dpkg -i autoshorts_*.deb\n   ```\n3. **Run `.AppImage`**:\n   Make it executable and launch it:\n   ```bash\n   chmod +x autoshorts_*.AppImage\n   ./autoshorts_*.AppImage\n   ```\n\n### 🚀 First-Launch Onboarding & AI Configuration\n\nWhen you first launch the application, you will be greeted by an **Onboarding Wizard** that lets you choose your preferred workflow:\n\n#### Option A: Fully Offline (Ollama + Whisper)\n1. **Ollama Setup**: Select a local model card (`llama3.2 3B`, `qwen2.5 3B`, or `qwen2.5 7B`). The application will check if Ollama is running and automatically pull the model weights, showing a downloader progress bar.\n2. **Local Whisper**: Follow the prompt instructions to verify Python is installed and run `pip3 install openai-whisper` to enable fully offline transcription.\n\n#### Option B: Cloud API Keys\n1. Enter your API credentials for:\n   * **Deepgram**: For fast, accurate cloud transcription.\n   * **DeepSeek**: (Highly Recommended) For cheap, high-quality cloud moment detection.\n   * **Claude**: For premium copywriting, hooks, and moment detection.\n2. Click **Save & Start** to immediately load the dashboard.\n\n---\n\n### ⚙️ Modifying Settings & Resetting Onboarding\n\n* **Update Credentials**: Click the **API Settings** gear icon in the top right of your app dashboard to switch engines, select different local models, or update API keys.\n* **Reset Onboarding**: If you want to switch from Cloud to Offline (or vice-versa) and start setup from scratch, click the **",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:43:58.528130"
+  },
+  {
+    "basic_info": {
+      "name": "open_oura",
+      "full_name": "Th0rgal/open_oura",
+      "owner": "Th0rgal",
+      "description": "A Rust toolkit for the Oura Ring (Gen 3/4/5): reverse-engineered BLE protocol, event decoders, and reimplemented data-processing algorithms. Sync, store, and analyze your data locally.",
+      "url": "https://github.com/Th0rgal/open_oura",
+      "clone_url": "https://github.com/Th0rgal/open_oura.git",
+      "ssh_url": "git@github.com:Th0rgal/open_oura.git",
+      "homepage": "",
+      "created_at": "2026-06-21T10:43:18Z",
+      "updated_at": "2026-07-09T18:25:58Z",
+      "pushed_at": "2026-07-09T19:48:39Z"
+    },
+    "stats": {
+      "stars": 402,
+      "forks": 60,
+      "watchers": 402,
+      "open_issues": 3,
+      "size": 3354
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 229553,
+        "Python": 88649
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# open_oura\n\nReverse-engineering the Oura ring BLE protocol, plus an independent, **cloud-free**\nclient that reads your data straight from the ring.\n\nTested live against a Ring 3 Horizon and a Ring 5 (pairing, auth, and event sync\nconfirmed on both). Designed for Ring 3/4/5, which share the same GATT layout,\npacket framing, and authentication flow.\n\n## What you can recover\n\nStraight from the ring, with no Oura account: device info, battery, live heart rate\n(IBI to BPM), latest HR / SpO2, and the full history-event stream. That stream\ncarries raw PPG/IBI/temperature/motion/SpO2 samples plus the ring's **on-device**\nsleep stages, activity MET levels, and HRV.\n\nThe ring itself does **not** emit the 0-100 Readiness / Sleep / Activity / Stress\nscores. But those are **not** computed in\nOura's cloud either: they're computed **on the phone** by the native `ecore`\nengine and a set of on-device PyTorch models (the same `.pt` we run here), then\nuploaded; the cloud only stores and syncs them back. So they're reproducible\noffline. The one genuine cloud-only step is **workout auto-classification**\n(`POST /api/activity-tagging/v2`). See\n[`docs/data-recovery-map.md`](docs/data-recovery-map.md),\n[`docs/algorithms/README.md`](docs/algorithms/README.md), and\n[`docs/model-runners.md`](docs/model-runners.md) for what runs.\n\n> **Those PyTorch models are Oura's proprietary IP and are NOT included in this\n> repo** (gitignored under `notes/models/`). The runners reference them by path; you\n> decrypt and supply your own locally. Nothing model-related is committed or pushed.\n\n## Repository map\n\n- **`crates/`**: the Rust client, split by concern (`oura-protocol` decode,\n  `oura-link` fetch, `oura-analysis` metrics, `oura-store` SQLite, `oura-cli`).\n  Start here: [`crates/README.md`](crates/README.md) and\n  [`docs/architecture.md`](docs/architecture.md).\n- **`tools/`**: Python research bench for protocol exploration. `oura_protocol.py`\n  (full command matrix, auth, danger-gated ops, JSONL capture) and\n  `oura_realtime_listener.py`.\n- **`docs/`**: protocol and reverse-engineering reference (index below).\n- **`reverse/`, `captures/`**: local-only, gitignored. The decompiled app and raw\n  captures (which may contain serials, MACs, and auth keys).\n\n## Quick start (Rust client)\n\n```bash\ncargo build --release\n./target/release/oura scan\n./target/release/oura --key-file key.hex info\n```\n\nSee [`crates/README.md`](crates/README.md) for all commands (`scan`, `pair`,\n`info`, `sync`, `latest`, `live-hr`, `accel`, `viz`, `game`, `features`, `rdata`,\n`events`, `redecode`, `sleep-analyze`, `sessions`) and the auth-key details. `oura viz` opens a\nreal-time 3D motion visualizer in the browser; `oura game` is a tilt-controlled\nasteroid game driven by the ring.\n\n## Research bench (Python)\n\n```bash\npython3 -m venv .venv && .venv/bin/pip install -r requirements.txt\n.venv/bin/python tools/oura_protocol.py --list\n```\n\nState-changing and destructive commands are hidden behind `--include-state` and\n`--include-danger`. On macOS, grant Bluetooth permission to the terminal.\n\n## Documentation\n\n- [`docs/horizon-ring3-protocol-cheatsheet.md`](docs/horizon-ring3-protocol-cheatsheet.md):\n  the protocol command reference (requests, responses, auth, features), Ring 3.\n- [`docs/android-app-reversing.md`](docs/android-app-reversing.md): app internals,\n  BLE constants, the auth operations, key generation, and nonce encryption.\n- [`docs/data-recovery-map.md`](docs/data-recovery-map.md): what the ring emits vs\n  what only the cloud computes.\n- [`docs/sync-orchestration.md`](docs/sync-orchestration.md): when and how the app\n  pulls each data channel, and the minimal client sync recipe.\n- [`docs/ring-5-observations.md`](docs/ring-5-observations.md): Ring 5 BLE surface\n  and first-contact findings.\n- [`docs/ring-features.md`](docs/ring-features.md): the feature capabilities, runtime\n  modes, what's on by default, and which event each enabled feature produces (incl.\n  what `experimental` does — and doesn't).\n- [`docs/model-runners.md`](docs/model-runners.md): running Oura's decrypted on-device\n  models on your synced data — what runs (activity, sleep, CVA, SpO2) vs what's blocked.\n- [`docs/cva-cardiovascular-age.md`](docs/cva-cardiovascular-age.md): decoding the raw\n  PPG (`cva_raw_ppg_data` 0x81) and running the cardiovascular-age model.\n- [`docs/spo2-calibration.md`](docs/spo2-calibration.md): turning the SpO2 R-ratio into\n  a percentage with Oura's own calibration.\n- [`docs/firmware-update.md`](docs/firmware-update.md): the DFU/OTA opcodes, the\n  working cloud download pipeline + codename map, per-device encryption status, and\n  why the firmware key is unreachable (device-resident; not brute-forceable).\n- [`docs/security-observations.md`](docs/security-observations.md): findings-only\n  notes on the model/firmware encryption (the \"what\", not the \"how\" — no keys,\n  endpoints, or procedures).\n- [`docs/architecture.md`](docs/architecture.md): the fetch/interpret/apply crate\n  laye",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:43:59.743936"
+  },
+  {
+    "basic_info": {
+      "name": "rayfish",
+      "full_name": "rayfish/rayfish",
+      "owner": "rayfish",
+      "description": "P2P mesh VPN powered by iroh",
+      "url": "https://github.com/rayfish/rayfish",
+      "clone_url": "https://github.com/rayfish/rayfish.git",
+      "ssh_url": "git@github.com:rayfish/rayfish.git",
+      "homepage": "https://rayfish.xyz",
+      "created_at": "2026-06-22T15:28:45Z",
+      "updated_at": "2026-07-10T04:23:36Z",
+      "pushed_at": "2026-07-08T22:51:48Z"
+    },
+    "stats": {
+      "stars": 340,
+      "forks": 10,
+      "watchers": 340,
+      "open_issues": 64,
+      "size": 18611
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1563082,
+        "Kotlin": 243535,
+        "Shell": 123805,
+        "HTML": 37739,
+        "Just": 2564,
+        "Gnuplot": 624
+      },
+      "license": "Mozilla Public License 2.0",
+      "topics": [
+        "iroh",
+        "quic",
+        "rust",
+        "trustless",
+        "vpn"
+      ]
+    },
+    "content": {
+      "readme": "# Rayfish\n\n**Your machines, on one private network, anywhere.** Rayfish is a peer-to-peer\nmesh VPN that lets your laptop, phone, server, and your friends' machines talk\nto each other as if they were all plugged into the same router, even when\nthey're scattered across the world behind different NATs.\n\nThere's nothing to host and nothing to sign up for. You don't rent a server,\nopen a port, or hand out IP addresses. One person runs a command, shares a code,\nand the network exists.\n\n```bash\nray create                 # you now have a private network of your own\nray invite gaming          # mint a one-time code to hand out\nray join <invite-code>     # a friend joins with the code\nping alice.gaming.ray      # you reach each other by name\n```\n\nThat's the whole idea. The rest of this README is the details.\n\n[![License: MPL 2.0](https://img.shields.io/badge/license-MPL%202.0-brightgreen.svg)](LICENSE)\n![Status: experimental](https://img.shields.io/badge/status-experimental-orange.svg)\n\n**Jump to:** [Why](#why-rayfish) · [How it works](#how-it-works) · [Features](#features) · [Quick start](#quick-start) · [Managing your network](#managing-your-network) · [Who can join](#who-can-join) · [Firewall](#firewall) · [Provisioning](#declarative-provisioning) · [Permissions](#permissions) · [Custom relay & DNS](#custom-relay--dns) · [Troubleshooting](#troubleshooting) · [How it compares](#how-it-compares) · [FAQ](#faq)\n\n---\n\n## Why Rayfish\n\n- **No infrastructure.** There's no control server to host or trust. Peers find each other through a DHT and connect directly. The only \"server\" is whoever ran `ray create`, and they can be offline once everyone's admitted.\n- **Identity, not IP.** Every machine has a cryptographic identity, and its addresses are derived from that identity: stable, collision-free, and assigned without any coordinator handing them out.\n- **Private by default.** Networks are closed unless you say otherwise. The code you share to discover a network isn't enough to join it.\n- **Works over NAT.** Hole-punching and end-to-end encryption come from [iroh](https://iroh.computer), including automatic port mapping (UPnP/NAT-PMP/PCP). When a direct path isn't possible (roughly 10% of the time), traffic falls back to encrypted relays. For routers that block automatic port mapping, the daemon listens on a fixed UDP port (41383) you can manually forward to guarantee a direct path. A manual forward maps the port to one machine, so only one node per LAN benefits; the others still use automatic traversal and relay fallback.\n- **Reach peers by name.** Magic DNS gives you `name.network.ray` so you never memorize a virtual IP.\n\n## How it works\n\nEach machine runs a small daemon (comparable to Tailscale's `tailscaled`) that creates a TUN device, captures IP packets, and tunnels them over iroh's QUIC connections. Everything else (`create`, `join`, `status`, file sharing) is an unprivileged command that talks to the daemon over a local socket.\n\n1. **Create.** One peer starts a network and becomes its coordinator. The network's public key is its **room id**: it lets others discover the network but, on a closed network, is not enough to get in.\n2. **Join.** On a closed network a peer gets in with a one-time invite code (`ray invite`) or by requesting approval (`ray requests` / `ray accept`). The coordinator is the gatekeeper.\n3. **Mesh.** Every peer derives its own stable virtual IPv4 (`100.64.0.0/10`) and IPv6 (`200::/7`) from its identity, then connects directly to every other peer.\n4. **Use it.** Any TCP/UDP app works, addressed by IP or by `name.network.ray`.\n\n## Features\n\nEach of these has a fuller treatment further down; this is the one-line tour.\n\n- 🔒 **Closed-by-default networks.** One-time invites, reusable fleet keys, or live approval, with `--open` for public ones. See [Who can join](#who-can-join).\n- 🤝 **Direct 2-peer links.** `ray connect <contact-id>` ties you to one person with no room id or invite, approved like a friend request. See [Direct 2-peer connections](#direct-2-peer-connections).\n- 🌐 **Magic DNS.** Reach peers at `name.network.ray`, updated live as they join, leave, or rename.\n- 🧱 **Per-device firewall.** A userspace firewall for mesh traffic, secure by default, layered on top of your host firewall. See [Firewall](#firewall).\n- 🔑 **Mesh SSH, no keys.** Log in over the mesh with a stock `ssh` client; peers authenticate by identity. See [SSH, no keys](#ssh-no-keys).\n- 📜 **Declarative provisioning.** `ray apply deploy.yaml` stands up networks and firewall rules from a YAML spec, with reusable `aliases:` and `groups:` instead of repeated hostnames.\n- 👥 **Multi-device identity.** Pair your laptop and phone under one identity, with encrypted key backup (optionally to 1Password). See [Pairing your own devices](#pairing-your-own-devices).\n- 📁 **File sharing.** `ray send file.zip bob`, with optional auto-accept for transfers from your own paired devices.\n- 📡 **mDNS** local discovery, and optional **Tor** transport.\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-10T04:44:00.981242"
+  },
+  {
+    "basic_info": {
+      "name": "CSSwitch",
+      "full_name": "SuperJJ007/CSSwitch",
+      "owner": "SuperJJ007",
+      "description": "帮你的 Claude Science 一键接入你自己的 API：DeepSeek / 通义千问 / 智谱 GLM / Kimi / MiniMax / 小米 MiMo / 硅基流动 / OpenRouter / 任意 OpenAI·Anthropic 兼容端点",
+      "url": "https://github.com/SuperJJ007/CSSwitch",
+      "clone_url": "https://github.com/SuperJJ007/CSSwitch.git",
+      "ssh_url": "git@github.com:SuperJJ007/CSSwitch.git",
+      "homepage": null,
+      "created_at": "2026-07-02T16:46:56Z",
+      "updated_at": "2026-07-10T04:09:47Z",
+      "pushed_at": "2026-07-09T15:17:21Z"
+    },
+    "stats": {
+      "stars": 325,
+      "forks": 37,
+      "watchers": 325,
+      "open_issues": 21,
+      "size": 3168
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 411292,
+        "Python": 280638,
+        "JavaScript": 71725,
+        "Shell": 54136,
+        "CSS": 9009,
+        "HTML": 7483
+      },
+      "license": "MIT License",
+      "topics": [
+        "anthropic",
+        "claude",
+        "claude-science",
+        "dashscope",
+        "deepseek",
+        "llm",
+        "macos",
+        "mcp",
+        "menubar",
+        "openai-compatible",
+        "proxy",
+        "qwen",
+        "tauri"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/assets/social-preview.png\" alt=\"CSSwitch\" width=\"760\">\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/license-MIT-blue.svg\" alt=\"MIT License\">\n  <img src=\"https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-1d1d1f.svg\" alt=\"macOS Apple Silicon\">\n  <img src=\"https://img.shields.io/badge/built%20with-Tauri%202-C25A34.svg\" alt=\"Tauri 2\">\n</p>\n\n<p align=\"center\">\n  <a href=\"./README.md\">简体中文</a> ·\n  <a href=\"./README.en.md\">English</a>\n</p>\n\n# CSSwitch\n\nCSSwitch 是一个给 Claude Science 使用的本地模型切换器。它把 Science 的推理请求接到你自己的第三方模型 API 上，让没有 Claude 订阅的用户也能在 Science 里使用 DeepSeek、通义千问、Kimi、MiniMax、GLM、OpenRouter、中转站或自定义兼容端点。\n\n它面向的不只是开发者：你只需要准备 Claude Science、一个第三方 API Key，然后在桌面面板里新建配置、设为当前、点击「一键开始」。\n\n> 当前版本主要支持 macOS Apple Silicon。首次打开未公证的 `.dmg` 应用时，macOS 可能需要你右键选择「打开」。\n\n[下载最新版](../../releases/latest) · [更新日志](./CHANGELOG.md) · [报告问题](https://github.com/SuperJJ007/CSSwitch/issues/new?template=bug_report.yml) · [功能建议](https://github.com/SuperJJ007/CSSwitch/issues/new?template=feature_request.yml)\n\n## 目录\n\n- [为什么需要 CSSwitch](#为什么需要-csswitch)\n- [可以做什么](#可以做什么)\n- [快速开始](#快速开始)\n- [支持的模型来源](#支持的模型来源)\n- [状态诊断与能力 catalog](#状态诊断与能力-catalog)\n- [它如何保护你的真实账号](#它如何保护你的真实账号)\n- [哪些能力暂时用不了](#哪些能力暂时用不了)\n- [多语言](#多语言)\n- [开发与构建](#开发与构建)\n- [风险与免责声明](#风险与免责声明)\n\n## 为什么需要 CSSwitch\n\nClaude Science 是 Anthropic 面向科研与分析场景的 AI Agent 应用，可以做文献分析、数据处理、代码执行、图表生成和论文写作等工作。但 Science 默认依赖 Claude 登录和 Anthropic 推理服务。\n\nCSSwitch 做的是本地运行控制：\n\n- 在隔离环境里启动 Claude Science。\n- 为 Science 准备一份本地生成的启动门票，不复制你的真实 Claude 登录信息。\n- 把 Science 的模型请求转发到你选择的第三方 provider。\n- 在需要时把 Anthropic Messages API 和 OpenAI 兼容接口互相转换。\n- 保留「官方 Claude」模式，让有订阅的用户可以随时回到真实 Science。\n\n简单理解：CSSwitch 之于 Claude Science，类似 CC Switch 之于 Claude Code，但 Science 多了登录门票和沙箱隔离这层复杂度。\n\n```text\nClaude Science sandbox\n  -> CSSwitch local proxy\n  -> DeepSeek / Qwen / Kimi / MiniMax / GLM / OpenRouter / custom endpoint\n```\n\n## 可以做什么\n\n**给普通用户**\n\n- 用桌面面板管理多套模型配置，不需要手改环境变量。\n- 同一家 provider 可以保存多套配置，例如不同 Key、不同模型、不同中转地址。\n- 点击「设为当前」前会先验证 Key；失败不会悄悄切换到坏配置。\n- 点击「一键开始」会自动启动代理、准备隔离环境、打开 Science。\n- Science 顶部模型选择器会显示你选择的真实模型名，而不是笼统的 `claude` 或 `opus`。\n- 可以一键切回「官方 Claude」模式，不干扰你的真实 Claude 登录。\n\n**给进阶用户**\n\n- 支持原生 Anthropic 兼容端点、OpenAI Chat Completions 兼容端点、OpenAI Responses 兼容端点。\n- 支持自定义 `base_url`、模型名和中转站。\n- DeepSeek、Kimi、MiniMax 等原生 Anthropic 端点优先透传，尽量保留工具调用、thinking 和流式响应。\n- Qwen 与自定义 OpenAI 端点通过本地代理做协议转换。\n- 配置和日志都保存在本机，便于自查和反馈。\n\n## 快速开始\n\n开始之前，请确认你已经安装：\n\n- [Claude Science](https://claude.com)\n- macOS Apple Silicon 设备\n- 一个可用的第三方模型 API Key\n- `python3`（当前代理仍需要；后续计划移入 Rust，减少运行时依赖）\n\n1. 从 [GitHub Releases](../../releases/latest) 下载最新的 `CSSwitch_*.dmg`。\n2. 将 CSSwitch 拖入「应用程序」。\n3. 第一次打开如果被 Gatekeeper 拦截，请右键应用并选择「打开」。\n4. 保持顶部模式为「第三方模型」。\n5. 点击「+ 新建」，选择 provider，填写 API Key、模型和必要的 `base_url`。\n6. 点击「创建」，再在配置列表中点击「设为当前」。\n7. 验证通过后点击「一键开始」。\n8. CSSwitch 会启动隔离 Science，并在浏览器中打开入口。\n\n如果你有 Claude 订阅，只想正常使用官方 Claude Science，切到「官方 Claude」模式即可。CSSwitch 会停止第三方代理链路，再打开真实 Science。\n\n## 支持的模型来源\n\n| 来源 | 接入方式 | 说明 |\n|---|---|---|\n| DeepSeek | 原生 Anthropic 端点 | 默认来源，尽量保留 thinking、工具调用和流式能力 |\n| 通义千问 Qwen | OpenAI Chat Completions 兼容端点 | 由 CSSwitch 代理转换为 Science 需要的 Anthropic 格式 |\n| 智谱 GLM | Anthropic 兼容端点 | 可编辑官方默认地址，可选择或自填模型 |\n| 小米 MiMo | Anthropic 兼容端点 | 支持改到套餐或区域端点 |\n| 硅基流动 | Anthropic 兼容端点 | 可选择或自填模型 |\n| Kimi / Moonshot | Anthropic 兼容端点 | 可编辑官方默认地址，支持 Kimi 系列模型 |\n| MiniMax | Anthropic 兼容端点 | 可编辑官方默认地址，支持 MiniMax 系列模型 |\n| OpenRouter | Anthropic 兼容聚合入口 | 可选择或自填模型 |\n| 自定义 Anthropic | 自填兼容端点 | 适合私有网关、Claude 兼容中转站、本地适配器 |\n| 自定义 OpenAI | 自填 OpenAI Chat Completions base root | 代理自动补 `/chat/completions` 与 `/models` |\n| 自定义 OpenAI Responses | 自填 OpenAI Responses base root | 代理自动补 `/responses` 与 `/models` |\n\n> 如果你的地址是 `/anthropic` 端点，请选择「自定义 Anthropic」。如果选择「自定义 OpenAI」，请填写 OpenAI 兼容的 base root，例如 `https://example.com/v1`，不要填 Anthropic 端点。\n\n## 状态诊断与能力 catalog\n\nCSSwitch 内置了只读的 capability catalog，用来把 provider、工具调用、MCP/skill、Science 版本和 transport 的已知兼容性边界显式化。运行时 `status` 诊断会返回当前 profile 命中的 catalog 规则和固定边界规则，便于定位「当前配置为什么这样处理」以及「哪些能力只能诊断或降级」。\n\n这个 catalog 是诊断与可观测性入口，不是 live provider、真实 Claude 账号态、Science GUI E2E、DMG 签名/公证或官方托管能力的验证结果。看到 catalog rule id 只表示 CSSwitch 记录了对应规则或边界；不表示外部 provider、Anthropic-hosted MCP、Directory connectors、remote skills 已被完整验证或修通。\n\n状态灯也只表示当前可观测的本地状态：例如沙箱灯是本地 HTTP health，不等于已证明该端口一定属于本沙箱 Science。`自检` 默认不会读取真实 `~/.claude-science`；只有显式设置 `CSSWITCH_DOCTOR_CHECK_REAL_HOME=1` 才会做真实 HOME 存在性检查。\n\n## 它如何保护你的真实账号\n\nCSSwitch 的核心边界是：第三方模型模式只把凭证、数据目录和网络代理放在隔离环境里，不接管你的真实 Claude 账号。\n\n- 不复制、读取或修改真实 Claude 登录凭证、OAuth token、账号状态或用户数据。\n- 首次初始化沙箱时，可能会从真实 `~/.claude-science` 只读克隆 Science 运行时资源（如 `bin`、`conda`、`runtime`、`seed-assets`）；这些不是账号凭证或对话数据。\n- 隔离 Science 使用独立 HOME、独立端口和独立数据目录。\n- 第三方 API Key 保存在 `~/.csswitch/config.json`，文件权限为 `0600`。\n- Key 通过环境变量传给本地代理，不写入命令行参数或日志。\n- 代理只监听 `127.0.0.1`，并使用路径 secret 验证请求。\n- 代理收到请求后会移除 Science 自带的 `Authorization` / `x-api-key`，再注入你配置的第三方 Key。\n- 官方 Claude 模式会拆掉第三方代理链路，再把你交回真实 Science。\n\n## 哪些能力暂时用不了\n\nCSSwitch 不是 Claude 官方服务，也不会让本地生成的启动门票获得 Anthropic 账号权限。以下限制是当前架构边界：\n\n- Anthro",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:02.254739"
+  },
+  {
+    "basic_info": {
+      "name": "BrowserSkill",
+      "full_name": "Tencent/BrowserSkill",
+      "owner": "Tencent",
+      "description": "Let AI agents use your real, logged-in browser without interrupting your work. CLI + extension for browser automation across any shell-capable AI agent.",
+      "url": "https://github.com/Tencent/BrowserSkill",
+      "clone_url": "https://github.com/Tencent/BrowserSkill.git",
+      "ssh_url": "git@github.com:Tencent/BrowserSkill.git",
+      "homepage": "",
+      "created_at": "2026-06-22T07:24:40Z",
+      "updated_at": "2026-07-10T04:31:09Z",
+      "pushed_at": "2026-07-09T16:30:40Z"
+    },
+    "stats": {
+      "stars": 302,
+      "forks": 16,
+      "watchers": 302,
+      "open_issues": 2,
+      "size": 2378
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 899702,
+        "TypeScript": 652100,
+        "PowerShell": 6632,
+        "JavaScript": 4591,
+        "Shell": 3898,
+        "CSS": 2833,
+        "HTML": 297
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "browser-use"
+      ]
+    },
+    "content": {
+      "readme": "# BrowserSkill\n\n<p align=\"center\">\n  <img src=\"docs/assets/browserskill-readme-banner.png\" alt=\"BrowserSkill banner\" />\n</p>\n\n<p align=\"center\">\n  <strong>Let AI agents use your browser without interrupting your work.</strong>\n</p>\n\n<p align=\"center\">\n  English · <a href=\"README.zh-CN.md\">中文</a>\n</p>\n\n**BrowserSkill** connects Cursor, Claude Code, Codex, OpenClaw, CodeBuddy,\nWorkBuddy, Pi, Hermes Agent, and other shell-capable AI agents to your already logged-in\nbrowser.\n\nNeed the agent to touch a tab you already have open? It must borrow that tab\nexplicitly, return it when the task is done, and leave the rest of your browser\nalone.\n\nhttps://github.com/user-attachments/assets/db782c92-b1d4-4aae-a255-039675937a90\n\n## BrowserSkill Advantages\n\n- **Reuse real login state**: Agents can work with sites you are already signed\n  into, without separate test accounts.\n- **Keep working uninterrupted**: browser tasks run in a separate, visible\n  Agent Window, so you can keep using your own browser.\n- **Support any Agent**: any Agent that can call a shell can use BrowserSkill\n  through the `bsk` CLI, with no lock-in to a specific model, Agent framework, or\n  harness.\n- **Built-in human-in-loop**: when a task hits captcha, login, confirmation\n  dialogs, or other human-only steps, the Agent can ask you to take over and\n  then continue afterwards.\n\n## Runtime Environment\n\nBrowserSkill has two local runtime pieces: the `bsk` CLI/daemon and the browser\nextension.\n\n| Runtime | Support |\n| --- | --- |\n| Operating systems | macOS (Apple Silicon and Intel), Linux (x64 and ARM64), Windows x64 |\n| Browsers | Chrome and Microsoft Edge are supported; other Chromium-based browsers are expected to work when they support unpacked Chromium extensions; Firefox is planned |\n\n## Quick Start\n\n<details open>\n<summary><b>Install with your Agent (recommended)</b></summary>\n\n<br>\n\nAlready using Cursor, Claude Code, Codex, or another shell-capable agent? Just\ncopy this one line and send it to your agent — it will install the CLI and skill\nfor you, then walk you through loading the extension:\n\n```text\nSet up browser-skill on this machine by following https://raw.githubusercontent.com/Tencent/BrowserSkill/main/AGENT_INSTALL.md\n```\n\n</details>\n\n<details>\n<summary><b>Manual install</b></summary>\n\n<br>\n\nInstall the CLI, then install the extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi).\n\n#### 1. Install the `bsk` CLI\n\n**macOS / Linux** (recommended — installs to `~/.local/bin`):\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/Tencent/BrowserSkill/main/install.sh | sh\n```\n\n**Windows** (PowerShell — installs to `~/.local/bin`):\n\n```powershell\nirm https://raw.githubusercontent.com/Tencent/BrowserSkill/main/install.ps1 | iex\n```\n\nVerify the binary:\n\n```bash\nbsk --version\n```\n\n#### 2. Install the browser extension\n\nInstall BrowserSkill from the [Chrome Web Store](https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi).\n\n#### 3. Install the skill\n\nBrowserSkill ships a skill that teaches your agent harness how to use `bsk`. For\nthese harnesses, install it in one step:\n\n<p align=\"center\">\n<table>\n  <tr>\n    <td align=\"center\" width=\"108\"><a href=\"https://cursor.com\" title=\"Cursor\"><img src=\"docs/assets/harnesses/cursor.svg\" height=\"36\" alt=\"Cursor\" /></a><br /><sub><b>Cursor</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://docs.anthropic.com/en/docs/claude-code\" title=\"Claude Code\"><img src=\"docs/assets/harnesses/claude.svg\" height=\"36\" alt=\"Claude Code\" /></a><br /><sub><b>Claude Code</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://developers.openai.com/codex\" title=\"Codex\"><img src=\"docs/assets/harnesses/codex.svg\" height=\"36\" alt=\"Codex\" /></a><br /><sub><b>Codex</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://openclaw.ai\" title=\"OpenClaw\"><img src=\"docs/assets/harnesses/openclaw.svg\" height=\"36\" alt=\"OpenClaw\" /></a><br /><sub><b>OpenClaw</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://www.codebuddy.ai\" title=\"CodeBuddy\"><img src=\"docs/assets/harnesses/codebuddy.svg\" height=\"36\" alt=\"CodeBuddy\" /></a><br /><sub><b>CodeBuddy</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://www.workbuddy.ai\" title=\"WorkBuddy\"><img src=\"docs/assets/harnesses/workbuddy.svg\" height=\"36\" alt=\"WorkBuddy\" /></a><br /><sub><b>WorkBuddy</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://github.com/badlogic/pi-mono\" title=\"Pi\"><img src=\"docs/assets/harnesses/pi.svg\" height=\"36\" alt=\"Pi\" /></a><br /><sub><b>Pi</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://github.com/NousResearch/hermes-agent\" title=\"Hermes Agent\"><img src=\"docs/assets/harnesses/hermes.png\" height=\"36\" alt=\"Hermes Agent\" /></a><br /><sub><b>Hermes Agent</b></sub></td>\n  </tr>\n</table>\n</p>\n\n```bash\nbsk install-skill\n```\n\nUse <kbd>Space</kbd> to select the Agent harness you want to install into, then\npre",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:03.478981"
+  },
+  {
+    "basic_info": {
+      "name": "Godcoder",
+      "full_name": "eli-labz/Godcoder",
+      "owner": "eli-labz",
+      "description": "A local-first, open-source coding agent for your desktop. Bring your own LLM key; your code stays on your machine and only ever leaves to the model provider. The AI Agent builds its own Harnes.",
+      "url": "https://github.com/eli-labz/Godcoder",
+      "clone_url": "https://github.com/eli-labz/Godcoder.git",
+      "ssh_url": "git@github.com:eli-labz/Godcoder.git",
+      "homepage": "",
+      "created_at": "2026-06-27T00:56:36Z",
+      "updated_at": "2026-07-09T21:10:14Z",
+      "pushed_at": "2026-07-04T20:02:41Z"
+    },
+    "stats": {
+      "stars": 284,
+      "forks": 5,
+      "watchers": 284,
+      "open_issues": 0,
+      "size": 16097
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1272974,
+        "Go": 1111525,
+        "TypeScript": 713443,
+        "CSS": 88227,
+        "Starlark": 22055,
+        "Python": 19876,
+        "Dockerfile": 12275,
+        "Batchfile": 9079,
+        "PowerShell": 7899,
+        "Shell": 5106,
+        "JavaScript": 2233,
+        "HTML": 1505
+      },
+      "license": "Other",
+      "topics": [
+        "ai",
+        "coding-agent",
+        "desktop-app",
+        "llm",
+        "local-first",
+        "mcp",
+        "open-source",
+        "openai",
+        "rust",
+        "tauri"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# ⚡ Godcoder\n\n### A local-first, open-source AI coding agent for your desktop.\n\n**Bring your own LLM key. Your code never leaves your machine.**\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n[![Built with Rust](https://img.shields.io/badge/Built%20with-Rust-orange?logo=rust)](https://www.rust-lang.org/)\n[![Tauri 2](https://img.shields.io/badge/Tauri-2.0-blue?logo=tauri)](https://tauri.app/)\n[![Stars](https://img.shields.io/github/stars/eli-labz/Godcoder?style=social)](https://github.com/eli-labz/Godcoder/stargazers)\n[![Forks](https://img.shields.io/github/forks/eli-labz/Godcoder?style=social)](https://github.com/eli-labz/Godcoder/network/members)\n\n[**Download**](#getting-started) · [**Features**](#what-godcoder-can-do) · [**Architecture**](ARCHITECTURE.md) · [**Contribute**](CONTRIBUTING.md)\n\n</div>\n\n---\n\n## 🚀 What is Godcoder?\n\nGodcoder is a **local-first, fully open-source AI coding agent** that runs as a native desktop app. Unlike cloud-based tools, your source code never transits a vendor backend — API requests go straight from your machine to whichever model provider you configure.\n\nIt goes beyond editing code: Godcoder can **build and continuously improve its own agent harness** (Harness mode) and **self-train to drive the Open Cowork desktop app**, even **executing human-action tasks** — clicking, typing, opening apps, sending email, e-signing — through GUI/OS automation (CoWork mode). Both modes run a self-optimizing loop that compounds lessons over time, so the agent gets measurably better with use.\n\n```\nYour Machine ──► Model Provider (OpenAI / Anthropic / Any OpenAI-compatible API)\n     ▲\n     │  (no middleman, no cloud backend, no data lock-in)\n     │\n  Your Code\n```\n\n> Reimagined from the ground up. The original 2024 autonomous-dev pipeline is frozen under `v1/` — preserved, not maintained.\n\n---\n\n## 🧬 The Agent Builds Its Own Harness — Live\n\n> **Godcoder doesn't just use a harness. It writes one, improves it, and optimizes it — autonomously, in real time.**\n\nThis is the defining capability that sets Godcoder apart. Activate **Harness mode** and the agent takes over its own agent loop: it scaffolds a live sandbox, engineers its own tools and workflows, runs improvement cycles, measures what works, and compounds that knowledge — all without you writing a single prompt.\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│              HARNESS MODE  —  Real-Time Self-Build          │\n│                                                             │\n│  START                                                      │\n│    │                                                        │\n│    ▼                                                        │\n│  🏗️  Scaffold  →  creates harness-build/ sandbox            │\n│    │                                                        │\n│    ▼                                                        │\n│  🗺️  Route     →  selects the highest-value next change     │\n│    │                                                        │\n│    ▼                                                        │\n│  📋  Plan      →  designs the improvement                   │\n│    │                                                        │\n│    ▼                                                        │\n│  ⚙️  Execute   →  writes, edits, runs code                  │\n│    │                                                        │\n│    ▼                                                        │\n│  ✅  Evaluate  →  verifies with the project's own checks    │\n│    │                                                        │\n│    ▼                                                        │\n│  📝  Log       →  records outcome in persistent memory      │\n│    │                                                        │\n│    ▼                                                        │\n│  🔁  Optimize  →  biases future iterations toward success   │\n│    │                                                        │\n│    └──────────────────────────────► repeat                  │\n└─────────────────────────────────────────────────────────────┘\n```\n\n**How it works:**\n- Pick **Harness** in the new-session composer and press start — no prompt to type, no folder to choose.\n- The agent instantly creates a dedicated `harness-build/` workspace, opens it in your file explorer, and confines all new work there — reading the rest of the repo for reference but never rewriting it.\n- Each iteration makes **one decisive, verifiable change**: keep it if it's an improvement, discard it otherwise.\n- Results are stored in a **persistent memory store** (via the ResearchSwarm bridge) so lessons from past runs rank and steer future iterations — the harness compounds knowledge over time.\n- Like Freestyle mode, every tool call is auto-approved after the first confirmation.\n\nThe loop is powered by the [`self-optimizing-harness`](./crates/agent/default-sk",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:04.684270"
+  },
+  {
+    "basic_info": {
+      "name": "spacewasm",
+      "full_name": "nasa/spacewasm",
+      "owner": "nasa",
+      "description": "A flight-compliant WebAssembly interpreter",
+      "url": "https://github.com/nasa/spacewasm",
+      "clone_url": "https://github.com/nasa/spacewasm.git",
+      "ssh_url": "git@github.com:nasa/spacewasm.git",
+      "homepage": "",
+      "created_at": "2026-06-24T15:11:27Z",
+      "updated_at": "2026-07-10T04:38:38Z",
+      "pushed_at": "2026-07-10T02:21:22Z"
+    },
+    "stats": {
+      "stars": 277,
+      "forks": 9,
+      "watchers": 277,
+      "open_issues": 6,
+      "size": 847
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 614936,
+        "Makefile": 3466
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# SpaceWasm\n\n[![CI](https://github.com/nasa/spacewasm/actions/workflows/ci.yml/badge.svg)](https://github.com/nasa/spacewasm/actions/workflows/ci.yml)\n[![codecov](https://codecov.io/gh/nasa/spacewasm/branch/main/graph/badge.svg)](https://codecov.io/gh/nasa/spacewasm)\n\nSpaceWasm is an implementation of the [Wasm 1.0](https://webassembly.github.io/spec/versions/core/WebAssembly-1.0.pdf)\nspecification meant to interpret Wasm binary on-board spacecraft. This software comes with two major components:\n\n1. Decoder/Validator:\n\n   Reads the Wasm binary in [chunks](#streaming) and decodes it to an executable form. The decoder will use a fixed\n   amount of memory and can be measured per-Wasm binary using the `spacewasm-check` executable on the ground.\n\n   WebAssembly is validated during the decoding process and does not require another pass of the bytecode.\n\n2. Interpreter:\n\n   A Wasm interpreter that can operate on linear memory and interface with\n   hooks from the [embedding](#embedding).\n\nSpaceWasm does not execute direct WebAssembly bytecode. Wasm bytecode is meant to be small and structured in a way to\nvalidate easily. These properties however make it slow to execute in-place. During the decoding process of Wasm\ninstructions, SpaceWasm converts bytecode into another intermediate representation (IR) which includes properties better\nsuited for interpretation. Read more about the IR in the [specification](src/SPEC.md).\n\n## Embedding\n\nEmbedding the interpreter refers to instantiating it and providing implementations for the functions that are imported\ninto the module. Typically, the set of functions imported by the module are fixed and should be specified at compile\ntime both for the Wasm module and the embedder.\n\n## Dynamic Allocation\n\nSpaceWasm has a unique dynamic memory allocation model. All of its design choices stem requirements levied by common\nflight-software standards. Dynamic allocation follows the following rules:\n\n1. All allocations occur over a discrete number of fixed size blocks called _pages_.\n2. Deallocation cannot precede allocation.\n3. Sub-regions inside pages cannot grow or shrink, sizes should be fixed ahead of time.\n4. Memory usage must be deterministic.\n5. Any allocation failures must _not_ result in panic.\n\nThe standard Rust [allocation](https://doc.rust-lang.org/alloc/) does not meet these constraints even with custom\nallocators. To that end, SpaceWasm provides its own data structures that guarantee these properties. You will find these\ndata-structures contain the only usage of `unsafe` Rust semantics.\n\n## Streaming\n\n_Peak_ memory usage is often an important constraint on small systems found on spacecraft. Many Wasm interpreters\nrequire the Wasm binary to be given in one linear blob to the interpreter. This is typically fine for systems where the\nsame regions of memory may be reused for different purposes. Flight software on spacecraft generally assign fixed\nportions of memory for certain purposes. Therefore, requiring the entire Wasm binary to fit into a single chunk of\nmemory is not feasible.\n\nSpaceWasm is highly optimized to reduce peak memory usage and not require deallocation after allocation required for\nstreaming. To this end there are certain [constraints](#interpreter-limitations) imposed on the WebAssembly\nspecification.\n\nSpaceWasm supports decoding and compiling Wasm binary in a single pass via a streaming mechanism. Chunks of the Wasm\nbinary may be provided to the interpreter as they are read/requested from the filesystem. The stream must provide chunks\nsynchronously.\n\n## Interpreter Limitations\n\nThis Wasm interpreter imposes additional constraints beyond the WebAssembly 1.0 specification to support\nresource-constrained spacecraft environments:\n\n### Module & Store Limits\n\n- **Modules in store**: Maximum 256 modules\n- **Host modules**: Maximum 256 host modules\n- **Function parameters**: Maximum 255 32-bit words\n- **Local variables**: Maximum 65,535 32-bit words total per function\n\n### IR Code Pages\n\n- **Code pages**: Configurable via generic parameter `MAX_PAGES`, typically set at module instantiation\n- **Page size**: 256 16-bit words (512 bytes)\n- **Maximum page address**: 24-bit (16,777,216 pages)\n- **Word offset in page**: 8-bit (0-255)\n\n### Control Flow\n\n- **Nesting depth**: Configurable via generic parameter `MAX_CONTROL_FRAMES` (blocks/loops/if-else)\n- **Value stack**: Configurable via generic parameter `MAX_STACK_DEPTH`, values per function\n- **Label jumps**: 22-bit signed offset (±2,097,151 instructions)\n- **Stack truncation depth**: Maximum 255 32-bit words per label jump\n\n### Instruction Encoding\n\n- **8-bit or 16-bit indexes**: 0-65,535\n- **8-bit or 32-bit immediate**: 0-254 inline, 255+ extended\n- **8-bit or 64-bit immediate**: 0-254 inline, 255+ extended\n\nThese constraints enable deterministic memory usage and efficient execution in resource-constrained environments while\nmaintaining compatibility with most standard WebAssembly modules.\n\n## Benchmarking\n\nSpaceWasm is te",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:05.910855"
+  },
+  {
+    "basic_info": {
+      "name": "bw24",
+      "full_name": "avifenesh/bw24",
+      "owner": "avifenesh",
+      "description": "From-scratch Rust+CUDA inference engine, bit-exact by construction — NVFP4, MoE, MTP speculative decoding, tuned against measured limits of one RTX 5090 Laptop (sm_120a).",
+      "url": "https://github.com/avifenesh/bw24",
+      "clone_url": "https://github.com/avifenesh/bw24.git",
+      "ssh_url": "git@github.com:avifenesh/bw24.git",
+      "homepage": "https://huggingface.co/Avifenesh/bw24-bench",
+      "created_at": "2026-07-05T20:45:33Z",
+      "updated_at": "2026-07-10T03:39:35Z",
+      "pushed_at": "2026-07-10T03:39:31Z"
+    },
+    "stats": {
+      "stars": 258,
+      "forks": 31,
+      "watchers": 258,
+      "open_issues": 0,
+      "size": 4610
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1667991,
+        "Cuda": 1080983,
+        "Python": 137940,
+        "Shell": 69762,
+        "C++": 8619
+      },
+      "license": "MIT License",
+      "topics": [
+        "blackwell",
+        "cuda",
+        "gguf",
+        "gpu-kernels",
+        "llama-cpp",
+        "llm-inference",
+        "moe",
+        "nvfp4",
+        "rust",
+        "speculative-decoding"
+      ]
+    },
+    "content": {
+      "readme": "# bw24\n\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n![Rust](https://img.shields.io/badge/rust-edition%202024-orange.svg)\n![CUDA](https://img.shields.io/badge/CUDA-12.8%20%2F%2013.1-76B900.svg)\n![arch](https://img.shields.io/badge/arch-sm__120a%20(Blackwell)-black.svg)\n\n![bw24 vs llama.cpp perf board](docs/perf-card.svg)\n\nFrom-scratch LLM inference engine in Rust + CUDA, built for one machine: an RTX 5090 Laptop (Blackwell sm_120a, 24 GB, 175 W with dynamic boost). No frameworks, no ggml — every kernel written and tuned against measured hardware limits, with llama.cpp as the benchmark to beat on the same rig.\n\nThe [Performance](#performance) section and card above show same-session measurements against llama.cpp's best config. Primary format: **GGUF NVFP4** (chosen 2026-07-10 on long-context serving reliability). HF safetensors checkpoints also load directly — supported best-effort, see the note under Performance.\n\n## Why this project\n\n- Real, running inference on sm_120a (consumer Blackwell), with every shipped optimization backed by its measured win/loss record.\n- Gated on bit-exactness — argmax match and speculative self-consistency, verified on every kernel change.\n- Runs Qwen3.5/3.6 dense and MoE checkpoints on 24 GB — GGUF first-class, HF safetensors supported — including models far larger than VRAM+RAM.\n\n## Requirements\n\n- NVIDIA Blackwell consumer GPU (sm_120a). Primary target: RTX 5090 Laptop.\n- CUDA toolkit 13.1 (the build default — `crates/bw24-engine/build.rs` uses `/usr/local/cuda-13.1/bin/nvcc`; override with `BW24_NVCC=/path/to/nvcc`).\n- Rust (edition 2024), [cudarc](https://github.com/coreylowman/cudarc) 0.19 with dynamic loading.\n- A model — GGUF or an HF safetensors directory (pass either path). Tested: Qwen3.5-9B, Qwen3.6-27B, Qwen3.6-35B-A3B MoE (common quants), nvidia/Qwen3.6-27B-NVFP4, MiniMax-M3 REAP50, Hy3-REAP50.\n\n## Quick start\n\n```bash\n# build\ncargo build --release\n\n# verify all kernels against the CPU reference\n./target/release/kernel-check\n\n# generate text (the fast path is the default — no flags needed)\nBW24_CHAT=1 ./target/release/run-gen /path/to/model.gguf --prompt \"Explain KV caches in one paragraph.\"\n\n# speculative decoding with the embedded MTP draft head (Qwen3.6)\nBW24_SPEC_K=3 ./target/release/run-spec /path/to/qwen36-27b.gguf\n\n# OpenAI-compatible server\n./target/release/bw24-server\n```\n\nEvery tuned kernel path is the default; environment flags exist only for runtime parameters (prompt, draft depth, trims), machine-specific configuration, and rollback seams (`BW24_FAST=0` drops to the f32 oracle path). The catalog lives in `docs/FLAGS.md`.\n\n`run-gen` prints a prefill/decode correctness gate (prefill argmax must match decode argmax) before timing anything — if that line says MISMATCH, the numbers after it don't count.\n\n## Workspace layout\n\n| Crate | What it does |\n|---|---|\n| `bw24-engine` | Core: CUDA kernels (`cu/`), forward passes, speculative decoding, MoE cache, CUDA-graph decode |\n| `bw24-gguf` | GGUF parser + tensor loading (memory-mapped) |\n| `bw24-tokenizer` | BPE tokenizer + chat templates from GGUF metadata |\n| `bw24-runtime` | CUDA device/stream/memory primitives over cudarc |\n| `bw24-server` | HTTP server (axum), OpenAI-compatible `/v1` endpoints |\n| `bw24-probe` | Standalone hardware microbenches (`probe/*.cu`: bandwidth, tensor-core peaks, layout experiments) |\n\n## What's inside\n\n- **NVFP4 (W4) decode path** — block-scaled FP4 matvec with split-plane repack, warp-level dp4a, and an int8 W4A8 tensor-core GEMM for prefill. Auto-dispatches per matrix shape.\n- **MTP speculative decoding** — draft with the model's embedded multi-token-prediction head, verify K+1 tokens in one batched target forward. The whole draft chain runs inside a captured CUDA graph; exactness is enforced by a K=1..8 self-consistency gate (all K must emit identical tokens).\n- **MoE on 24 GB** — expert-major CSR batching, decode-once dequant kernels, int8 tensor-core expert GEMM, and an SLRU expert-residency cache with VRAM → host → disk spill.\n- **FlashAttention-style kernels** — fused prefill and decode attention with quantized KV (q8_0 K / q5_1 V default; FP8 and q4_0 arms exist behind flags — q4_0 V measured quality-taxed and stays off), register-resident dequant, split-K for long context.\n- **CUDA-graph decode** — the full per-token decode is one graph replay; per-step host round-trip is 4 bytes.\n- **Hybrid architectures** — full-attention + gated-delta-net (SSM) layer mixes, as in Qwen3.6.\n- **Safetensors loader** — HF checkpoints load directly (no GGUF conversion): modelopt NVFP4 repacks byte-exact into the GGUF block layout, FP8-E4M3 and large-BF16 tensors re-encode to Q8_0/NVFP4 at load, V-head permutations apply on packed bytes, MoE experts stream through a disk-tier repack cache for models far bigger than VRAM+RAM.\n- **Sigmoid-router MoE** (MiniMax/DeepSeek-style) — e_score_correction_bias selection, swigluoai activation, gate-optional attention; ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:07.219564"
+  },
+  {
+    "basic_info": {
+      "name": "umadev",
+      "full_name": "umacloud/umadev",
+      "owner": "umacloud",
+      "description": "UmaDev: A coding agent that works like a real dev team, commanding the Claude Code / Codex / OpenCode you already use.",
+      "url": "https://github.com/umacloud/umadev",
+      "clone_url": "https://github.com/umacloud/umadev.git",
+      "ssh_url": "git@github.com:umacloud/umadev.git",
+      "homepage": "https://umadev.goder.ai",
+      "created_at": "2026-06-19T16:43:11Z",
+      "updated_at": "2026-07-09T13:37:28Z",
+      "pushed_at": "2026-07-09T08:06:34Z"
+    },
+    "stats": {
+      "stars": 232,
+      "forks": 60,
+      "watchers": 232,
+      "open_issues": 3,
+      "size": 126597
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 8807520,
+        "TypeScript": 290029,
+        "CSS": 142516,
+        "Shell": 32104,
+        "JavaScript": 22676,
+        "Python": 8328
+      },
+      "license": "MIT License",
+      "topics": [
+        "agents",
+        "ai",
+        "ai-agents",
+        "ai-coding",
+        "claude-code",
+        "codex-cli",
+        "coding",
+        "coding-agent",
+        "coding-agents",
+        "open-code",
+        "rag",
+        "rust",
+        "rust-agent",
+        "rust-lang",
+        "tui",
+        "vibe-coding"
+      ]
+    },
+    "content": {
+      "readme": "# umadev\n\n<div align=\"center\">\n\n<img src=\"docs/assets/umadev-logo-en.png\" alt=\"umadev\" width=\"760\">\n\n### UmaDev: A coding agent that works like a real dev team, commanding the Claude Code / Codex / OpenCode you already use.\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Rust](https://img.shields.io/badge/Rust-1.87%2B-orange)](https://www.rust-lang.org/)\n[![Spec](https://img.shields.io/badge/Spec-UMADEV__HOST__SPEC__V1-blue)](spec/UMADEV_HOST_SPEC_V1.md)\n[![Version](https://img.shields.io/badge/Version-1.0.x-success)](CHANGELOG.md)\n\nEnglish | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)\n\n</div>\n\n---\n\numadev is **a coding agent that works like a real dev team**. It drives an AI coding CLI you already have — Claude Code, Codex, or OpenCode — as one continuous session, and owns no model of its own: the model your base is connected to is the brain.\n\nWhat you get is **a whole AI development team**. Eight specialists — product manager, architect, UI/UX designer, frontend engineer, backend engineer, QA, security, and DevOps — plan, build, review, and sign off the way a real team does, borrowing your already-logged-in base as their shared brain. You describe what you want in plain language, and the team turns it into runnable, shippable, auditable software: it researches, writes the PRD, architecture, and UI/UX, builds the frontend and backend, runs the quality and governance checks, and hands back the code plus a delivery proof. It sizes itself to the task — a small edit stays a small edit; a full project convenes the full roster.\n\nA ninth seat, the **coordinator** (the team's technical lead), routes the request, owns a visible plan, schedules the team, enforces the gates, and leaves the audit trail. It doesn't write code; the base — the AI coding CLI — is the engineer that does that. The roles coordinate through shared artifact files and structured verdicts, never by chatting to each other.\n\nIt's a single Rust binary. npm is just the delivery shell.\n\n---\n\n## Table of Contents\n\n- [Install](#install)\n- [Quickstart](#quickstart)\n- [Project Origin](#project-origin)\n- [What Problem It Solves](#what-problem-it-solves)\n- [Features](#features)\n- [How It Works](#how-it-works)\n- [The Team](#the-team)\n- [Why You Can Trust the Output](#why-you-can-trust-the-output)\n- [Runtime Modes](#runtime-modes)\n- [The Full Delivery Flow](#the-full-delivery-flow)\n- [Quality Gate](#quality-gate)\n- [Governance](#governance)\n- [Knowledge Base](#knowledge-base)\n- [Deliverables](#deliverables)\n- [Commands](#commands)\n- [Configuration](#configuration)\n- [Rust Architecture](#rust-architecture)\n- [Development](#development)\n- [License](#license)\n\n---\n\n## Install\n\n```bash\nnpm install -g umadev\n```\n\nThe npm package is a distribution shim. The actual program is a Rust binary. Prebuilt binaries ship for macOS (Apple Silicon and Intel), Linux (x86_64 and ARM64), and Windows (x86_64).\n\nThe binary and the curated knowledge corpus install from npm and work fully offline. The optional local embedding model (`multilingual-e5-small`, f16, ~224 MB) is **not** bundled in the npm package — it is fetched on first run to `~/.umadev/embed-model` (a one-time download), then powers offline vector search locally with no API key and no runtime network. If that first-run download is unavailable (offline install, restricted network), umadev still works: retrieval falls back to BM25-only until the model is present, and it self-heals — a later run re-downloads it (a corrupt cache is re-fetched, not trusted).\n\nBuild from source:\n\n```bash\ngit clone https://github.com/umacloud/umadev.git\ncd umadev && cargo build --release --features vector-local\n./target/release/umadev --version\n```\n\n> **Building from source? The embedding model is not in the repo (it's too large for git, ~224 MB).** A plain `cargo build --release` gives a **BM25-only** binary; the local vector channel needs the `--features vector-local` flag **and** the model on disk. The prebuilt binaries and `npm i` bundle both automatically — for a source build, download `multilingual-e5-small` into `~/.umadev/embed-model/` once:\n>\n> ```bash\n> mkdir -p ~/.umadev/embed-model && cd ~/.umadev/embed-model\n> for f in config.json tokenizer.json model.safetensors; do\n>   curl -fsSL \"https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/$f\" -o \"$f\"\n> done\n> ```\n>\n> umadev auto-discovers it there (or point `UMADEV_EMBED_MODEL_DIR` at any directory with those three files). Without the model, umadev still works — retrieval just falls back to BM25-only.\n\nYou also need one AI coding CLI installed and logged in — that's the brain umadev drives:\n\n| Base | Install | Log in |\n|---|---|---|\n| Claude Code | `npm i -g @anthropic-ai/claude-code` | `claude auth login` |\n| Codex | `npm i -g @openai/codex` | `codex login` |\n| OpenCode | see opencode.ai | `opencode auth login` |\n\numadev injects nothing into the base. Whatever your base is configured with — an official login or your own third",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:08.508814"
+  },
+  {
+    "basic_info": {
+      "name": "SuperNovaAgent",
+      "full_name": "Ray-Code-Svg/SuperNovaAgent",
+      "owner": "Ray-Code-Svg",
+      "description": "SuperNova is a Windows-first desktop AI Workbench that turns chat into traceable tasks. It combines a Tauri + React Workbench, Rust Product Runtime, typed protocol, and Process Kernel so actions can produce visible artifacts, runtime receipts, replayable evidence, and controlled workspace execution.",
+      "url": "https://github.com/Ray-Code-Svg/SuperNovaAgent",
+      "clone_url": "https://github.com/Ray-Code-Svg/SuperNovaAgent.git",
+      "ssh_url": "git@github.com:Ray-Code-Svg/SuperNovaAgent.git",
+      "homepage": "",
+      "created_at": "2026-06-27T11:58:48Z",
+      "updated_at": "2026-07-07T03:42:25Z",
+      "pushed_at": "2026-07-02T05:50:33Z"
+    },
+    "stats": {
+      "stars": 212,
+      "forks": 107,
+      "watchers": 212,
+      "open_issues": 0,
+      "size": 14283
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2618064,
+        "TypeScript": 303690,
+        "CSS": 175713,
+        "C#": 30387,
+        "HTML": 977
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-framework",
+        "agent-orchestration",
+        "desktop-application",
+        "harness-engineering",
+        "harness-framework",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "# SuperNova\n\n<p align=\"center\">\n  <img src=\"desktop_shell/ui/public/supernova-icon.png\" alt=\"SuperNova icon\" width=\"112\" />\n</p>\n\n<p align=\"center\">\n  <strong>A Windows-first desktop AI Workbench for truth-backed agent execution.</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"README.zh-CN.md\">中文</a> · English\n</p>\n\n<p align=\"center\">\n  RC0 stabilization · Windows desktop candidate · Rust Process Kernel · Local Runtime Protocol · Not final release\n</p>\n\n\n## Desktop Preview\n\n<p align=\"center\">\n  <img src=\"docs/assets/User%20Guide.png\" alt=\"SuperNova Workbench guide and desktop workspace\" width=\"920\" />\n</p>\n\n<p align=\"center\"><sub>Screenshot source: current desktop Workbench UI, 2026-06-27.</sub></p>\n\n| Command flow | Source selection |\n| --- | --- |\n| <img src=\"docs/assets/Slash%20Command.png\" alt=\"Slash command flyout for Chat, TASK, Model, and Context\" width=\"420\" /> | <img src=\"docs/assets/Source%20Config.png\" alt=\"Source picker for workspace files, folders, Chat, and TASK history\" width=\"420\" /> |\n\n| Model route | Context pack |\n| --- | --- |\n| <img src=\"docs/assets/Model%20Config.png\" alt=\"Model configuration flyout with provider, model, thinking, reasoning effort, and output budget\" width=\"420\" /> | <img src=\"docs/assets/Context%20Config.png\" alt=\"Context configuration flyout for recent Chat turns, TASK runs, summaries, and explicit context items\" width=\"420\" /> |\n\n<p align=\"center\"><sub>Screenshots are UI examples, not validation evidence for a release claim. See <a href=\"docs/validation.md\">Validation</a> for current-state claims.</sub></p>\n\n## What SuperNovaAgent Does\n\nSuperNova is an AI Agent workbench for a local workspace. It brings project files, Chat, TASK execution, context, and output destinations into one surface so questions can become inspectable work results.\n\nUse Chat to quickly understand project files, documents, and code.\nUse TASK for longer work: read material, edit code, organize files, run time-limited commands, and generate reports or datasets.\nUse containers to keep a work stream's context, history, sources, and output destination together.\n\n### For everyday users\n\nSuperNovaAgent has two user-visible modes. Chat is for reading, explaining, clarifying, and deciding whether a request needs a task. TASK is for controlled local execution with runtime state, receipts, artifacts, and completion evidence.\n\n| What you want to do | What Chat can do first | What TASK can do next |\n| --- | --- | --- |\n| Understand a project or folder | Read files, directory trees, workspace inventory, hashes, diffs, datasets, Office text, PDF text, and sanitized local environment facts. | Run batch workspace analysis such as SourceSets, duplicate checks, recent-change scans, tree indexes, and performance inventories. |\n| Work on code | Read source files, explain module relationships, inspect diffs, and identify likely issue areas. | Apply workspace-scoped file changes, create focused source outputs, copy/move/rename/delete/unzip files, and record what actually changed. |\n| Run commands or dev services | Explain the command intent and when terminal execution is needed; Chat itself does not mutate or run task work. | Run bounded foreground commands, start/stop/check long-running services, and attach terminal results to the task timeline. |\n| Work with documents and tables | Read DOCX text, workbook cells/text, PDF text, DOCX metadata, validation results, and document diff summaries. | Create DOCX files, rewrite DOCX copies, rewrite DOCX in place when requested, and validate the produced document. |\n| Analyze datasets | Read CSV datasets, inspect paged dataset refs, and check coverage. | Export CSV or Markdown results, create temporary datasets, and preserve row counts, schema, and derivation facts in receipts. |\n| Produce deliverables | Decide which visible files should be produced and inspect existing artifacts. | Write text artifacts such as Markdown, CSV, JSON, and TXT; copy selected source sets; verify typed artifacts; run coverage and quality checks. |\n| Package outputs | Inspect the candidate file set and package shape. | Build zip packages with supporting manifest/checksum files and verify the package artifact. |\n| Track what happened | Return an answer, ask for missing facts, or suggest switching to TASK. | Show the active run, task stream, status, artifact cards, completion statement, and evidence in the Workbench. |\n\n### For developers\n\n| Extension path | What you can build on |\n| --- | --- |\n| Agent workflows | Add TASK flows that observe context, call capabilities, and close with evidence. |\n| Local tools | Add or adapt file, terminal, document, package, artifact, or environment capabilities. |\n| Product surfaces | Build new Workbench views over the same Product Runtime streams and read models. |\n| Runtime contracts | Extend typed protocol DTOs while keeping UI, Product Runtime, and Kernel boundaries explicit. |\n| Verification loops | Add validation around the exact layer you changed instead of rely",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:09.793702"
+  },
+  {
+    "basic_info": {
+      "name": "nourish",
+      "full_name": "y5-snowies/nourish",
+      "owner": "y5-snowies",
+      "description": "Nourish OS. The modern way of using a computer.",
+      "url": "https://github.com/y5-snowies/nourish",
+      "clone_url": "https://github.com/y5-snowies/nourish.git",
+      "ssh_url": "git@github.com:y5-snowies/nourish.git",
+      "homepage": "http://nourish.snowies.com/",
+      "created_at": "2026-06-20T10:14:04Z",
+      "updated_at": "2026-07-09T18:08:25Z",
+      "pushed_at": "2026-07-09T16:59:09Z"
+    },
+    "stats": {
+      "stars": 211,
+      "forks": 5,
+      "watchers": 211,
+      "open_issues": 3,
+      "size": 210022
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4721602,
+        "WGSL": 291772,
+        "GLSL": 237003,
+        "Shell": 137802,
+        "JavaScript": 36966,
+        "Dockerfile": 34075,
+        "TypeScript": 32181,
+        "HTML": 26312,
+        "CSS": 16334,
+        "Nix": 9795,
+        "Roff": 4240,
+        "C": 390
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "compositor",
+        "linux",
+        "operating-system",
+        "wayland"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"compositor.website/assets/favicon.svg\" alt=\"Nourish\" width=\"84\" height=\"84\">\n\n# Nourish\n\n<img src=\"compositor.website/assets/hero-sphere.png\" alt=\"The Nourish world — one endless canvas\" width=\"300\">\n\n<br><br>\n\n\n[![CI](https://github.com/y5-snowies/nourish/actions/workflows/ci.yml/badge.svg)](https://github.com/y5-snowies/nourish/actions/workflows/ci.yml)\n[![Release](https://img.shields.io/github/v/release/y5-snowies/nourish?sort=semver)](https://github.com/y5-snowies/nourish/releases)\n[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)\n\n### Simple, next generation operating system\n\nhttps://github.com/user-attachments/assets/03d78832-c451-451f-a701-713710a20051\n\n**[nourish.snowies.com](https://nourish.snowies.com)**  ·  [Guide](https://nourish.snowies.com/guide)  ·  [Discord](https://discord.gg/kasec5bYb)\n\n</div>\n\n---\nNourish is a Linux desktop that doesn't limit you to your screen size.\n \nIt's free and open source, and stable enough to be a daily driver. It collects\nno data whatsoever — no telemetry, no analytics, not even crash reports. Nothing\never leaves your machine.\n \nIt's performant, and renders using Vulkan. Optionally, you can set an automatic\nfallback or explicitly select GLES on systems where Vulkan is not supported.\n \nIt fully supports NVIDIA and cards that use Mesa drivers such as Intel and AMD.\n\n## Features\n \n- A viewport you can zoom and pan, giving you an effectively infinite amount of\n  space to work on.\n- Built on the Wayland protocol with fractional-scale support, so compliant\n  windows stay sharp at any zoom level instead of turning blurry.\n- Non-intrusive multitasking aids that make it easy to work ergonomically across\n  many contexts at once.\n- Carefully designed for stability, with attention to avoiding faults and\n  performance issues.\nVisit **[nourish.snowies.com](https://nourish.snowies.com)** to see what it looks\nlike and the full list of features.\n\n## Install\n\nOn Fedora 44, it's one command. You get a prebuilt build, so there's no toolchain to set up:\n\n> **Note for AMD users:** some have reported that Vulkan does not work on AMD. If\n> you're on an AMD card, set `renderer` to `gles` when the installer prompts for it.\n\n```bash\ncurl -fsSL https://nourish.snowies.com/release/latest/fedora44/package.tar.gz | tar -xz && y5-install/install.sh\n```\n\nThe installer is interactive and safe to re-run. For the full walkthrough see\n[`https://nourish.snowies.com/guide.html`](https://nourish.snowies.com/guide.html).\n\nPrefer a pinned build? Every release is also published immutably under its version —\n`https://nourish.snowies.com/release/v1.0.0/fedora44/package.tar.gz` — while `latest`\nalways points at the newest. Browse them on the\n[releases page](https://github.com/y5-snowies/nourish/releases).\n\nFor any other distribution, please see [`https://nourish.snowies.com/guide.html`](https://nourish.snowies.com/guide.html) I currently do not publish individual binaries for different distributions and generally recommend using Fedora.\nIf you are using a different distribution, it is easy to build from source which will link against your distribution system libraries versions automatically. \n\n## Source\n \nUnder the hood the engine is called **`y5`** — a Wayland compositor written in\nRust, standing on patched forks of\n[smithay](https://github.com/Smithay/smithay) (Wayland),\n[bevy](https://bevyengine.org) + [wgpu](https://wgpu.rs) (rendering), and\n[iced](https://iced.rs) (interface), all kept in-tree under `vendor/`.\n \nA thorough guide is available [here](https://nourish.snowies.com/guide.html).\n \n> **Note:** y5 was architected and hand-written, and only later enhanced with AI.\n> It contains a lot of generated code, all of which was pre-directed and reviewed\n> carefully.\n \n```bash\n# Build & run nested in your current Wayland session\nenvironment/run-host.sh winit release\n \n# Build the binary for use\nenvironment/build-release.sh system\n```\n \nIf you get errors about missing libraries, these are system libraries that the\nproject links against. On Fedora you can install them with\n`environment/install-deps.sh`. On another distribution, feed that script to your\nAI agent and ask which equivalent packages it needs.\n\n## Contributing\n \nContributions are welcome! If you hit a bug or have an idea, please\n[open an issue](https://github.com/y5-snowies/nourish/issues) — bug reports and\nfeature requests are genuinely appreciated. Pull requests are welcome too.\n\n## License\n\nLicensed under either of [Apache License 2.0](LICENSE-APACHE) or\n[MIT license](LICENSE-MIT) at your option.\n",
+      "default_branch": "upstream-integration"
+    },
+    "fetched_at": "2026-07-10T04:44:11.167806"
+  },
+  {
+    "basic_info": {
+      "name": "franken_ocr",
+      "full_name": "Dicklesworthstone/franken_ocr",
+      "owner": "Dicklesworthstone",
+      "description": "Pure-Rust, CPU-only OCR engine for Baidu Unlimited-OCR (a DeepSeek-OCR-derived 3B MoE VLM). One fixed model, custom int4/int8 kernels, no ML framework, no GPU. Pre-Phase-0 scaffold.",
+      "url": "https://github.com/Dicklesworthstone/franken_ocr",
+      "clone_url": "https://github.com/Dicklesworthstone/franken_ocr.git",
+      "ssh_url": "git@github.com:Dicklesworthstone/franken_ocr.git",
+      "homepage": null,
+      "created_at": "2026-06-25T01:38:58Z",
+      "updated_at": "2026-07-09T20:37:01Z",
+      "pushed_at": "2026-07-09T20:36:55Z"
+    },
+    "stats": {
+      "stars": 208,
+      "forks": 16,
+      "watchers": 208,
+      "open_issues": 1,
+      "size": 21643
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3711135,
+        "Python": 674391,
+        "Shell": 165879,
+        "PowerShell": 25881
+      },
+      "license": "Other",
+      "topics": [
+        "avx512",
+        "cpu-inference",
+        "deepseek-ocr",
+        "int4",
+        "int8",
+        "moe",
+        "neon",
+        "ocr",
+        "quantization",
+        "rust",
+        "simd",
+        "vision-language-model"
+      ]
+    },
+    "content": {
+      "readme": "# franken_ocr\n\n<div align=\"center\">\n  <img src=\"franken_ocr_illustration.webp\" alt=\"franken_ocr - Pure-Rust CPU-only OCR for Baidu Unlimited-OCR\">\n</div>\n\n<div align=\"center\">\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)\n[![source tag: v0.6.0](https://img.shields.io/badge/source_tag-v0.6.0-blue.svg)](https://github.com/Dicklesworthstone/franken_ocr/tree/v0.6.0)\n[![binary release: v0.6.0](https://img.shields.io/badge/binary_release-v0.6.0-blue.svg)](https://github.com/Dicklesworthstone/franken_ocr/releases/tag/v0.6.0)\n[![status: working](https://img.shields.io/badge/status-working-success.svg)](#quick-example)\n[![Rust Edition](https://img.shields.io/badge/Rust-2024_Edition-orange.svg)](https://doc.rust-lang.org/edition-guide/rust-2024/)\n[![toolchain: nightly](https://img.shields.io/badge/toolchain-nightly-purple.svg)](./rust-toolchain.toml)\n[![unsafe: forbidden*](https://img.shields.io/badge/unsafe-forbidden*-success.svg)](https://github.com/rust-secure-code/safety-dance/)\n[![default model: Baidu Unlimited-OCR](https://img.shields.io/badge/default_model-Baidu_Unlimited--OCR-teal.svg)](https://huggingface.co/baidu/Unlimited-OCR)\n[![release readiness: 13/13 green](https://img.shields.io/badge/release_readiness-13%2F13_green-success.svg)](#conformance-and-release-evidence)\n\n</div>\n\n**A pure-Rust, memory-safe, CPU-only OCR engine for a small family of hand-ported vision-language models.** Baidu Unlimited-OCR is the fast default for document OCR, GOT-OCR2 handles specialized structured formats, SmolVLM2 handles image description and VQA, OneChart extracts chart data, and Polyphonic-TrOMR turns full scanned sheet-music pages or staff crops into MusicXML through `--task music`. All five ready models are available through `focr pull`; TrOMR now publishes both the 61 MB int8 default artifact and an 86 MB f32 reference artifact. They run through model-specific Rust kernels and need no general ML framework, Python, CUDA, FFI at inference, or GPU. The single portable binary parses document images and PDFs into Markdown, MusicXML, structured JSON, or versioned NDJSON; the current release assets are about 13 to 17 MB depending on platform.\n\n<div align=\"center\">\n<h3>Quick Install</h3>\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/franken_ocr/main/install.sh | bash\n```\n\n</div>\n\nThe installer detects your platform, resolves the latest published GitHub binary release (currently `v0.6.0`), verifies the downloaded asset by SHA256, and puts `focr` on your PATH. Then `focr pull` fetches the weights once and every later inference run is offline.\n\n### Current Release\n\n`v0.6.0` is the first release cut after the full gauntlet closed: the source tag and binary assets were published together on 2026-07-08, the release-readiness gate is 13/13 green, and the Unlimited-OCR performance ledger contains paired end-to-end rows where the native int8 path beats the pinned Hugging Face/PyTorch bf16 CPU reference at matched thread counts. The release ships raw executables for macOS Apple Silicon, macOS Intel, Linux x86-64, Linux ARM64, and Windows x86-64, each with a SHA256 sidecar.\n\n---\n\n## TL;DR\n\n**The problem.** Baidu Unlimited-OCR is a strong document-parsing model: Markdown, tables, LaTeX, reading order, many pages in one pass. The official stack is Python plus CUDA. Most machines that need OCR (laptops, CI runners, agent hosts, edge boxes) have no usable GPU, and a Python plus CUDA dependency is heavy to ship and awkward to embed.\n\n**The solution.** `franken_ocr` is a library plus a single-binary CLI (`focr`) that runs the ready model set on CPU with nothing but a Rust binary. It transforms bf16 checkpoints into custom `.focrq` int8 artifacts and runs them through kernels written for each model's exact shapes. On a real Unlimited-OCR page measured against the Baidu reference, the end-to-end character-error-rate is **0.0094**; the decode matched the reference to within a single token, and on one token it beat the reference. That is a measured result on the 6.67 GB model, not a target.\n\n### Why `focr`?\n\n| Feature | What it does |\n|---|---|\n| **One portable binary** | No Python, no CUDA, no FFI at inference, no GPU. Current release assets are about 13 to 17 MB; portable to hosts where `ort`/CUDA cannot build. |\n| **Works offline** | `focr pull` fetches and verifies the weights once into `~/.cache/franken_ocr/models`; inference never touches the network. The default loader memory-maps `.focrq` and safetensors artifacts, so multi-GB weights page in lazily and share the OS page cache across runs. |\n| **Embeddable Rust API** | `OcrEngine` exposes synchronous, blocking calls for Markdown, structured layout, figure extraction, in-memory images, and load-once batches. |\n| **Native PDFs and figures** | Scanned PDFs are rasterized in process with pure Rust; page `/Rotate` and image-placement rotations are honored, `--pages` selects exact PDF pages, `--split-spreads` can split two-page book ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:12.431499"
+  },
+  {
+    "basic_info": {
+      "name": "lumen",
+      "full_name": "lucid-softworks/lumen",
+      "owner": "lucid-softworks",
+      "description": "A from-scratch JavaScript engine in Rust — std only, zero deps, three tiers incl. an ARM64 JIT, 100% test262 (53,400/53,400)",
+      "url": "https://github.com/lucid-softworks/lumen",
+      "clone_url": "https://github.com/lucid-softworks/lumen.git",
+      "ssh_url": "git@github.com:lucid-softworks/lumen.git",
+      "homepage": null,
+      "created_at": "2026-07-05T10:24:00Z",
+      "updated_at": "2026-07-10T04:01:51Z",
+      "pushed_at": "2026-07-09T22:51:59Z"
+    },
+    "stats": {
+      "stars": 207,
+      "forks": 3,
+      "watchers": 207,
+      "open_issues": 3,
+      "size": 7230
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 7464916,
+        "JavaScript": 227975,
+        "Shell": 61907,
+        "HTML": 12409,
+        "Python": 4771
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# lumen\n\nA from-scratch JavaScript **engine** in Rust — std only, zero dependencies — and a\n**runtime** being built on top of it, the way Node/Deno/Bun wrap a JS engine with an event\nloop and host APIs. Every crate in the workspace is std-only: no `tokio`, `mio`, `libc`,\n`rustyline`, `serde`, or any other third-party dependency, anywhere.\n\n## The engine (`crates/lumen`)\n\nA lexer, parser, and **three execution tiers**:\n\n- a **tree-walking interpreter** — the reference oracle: the spec semantics live here, and\n  every other tier must match it observably (a differential fuzzer, `lumen-difftest`, holds\n  them to that);\n- an opt-in **bytecode VM** — functions compile whole (or not at all — no deoptimization) to\n  a stack machine with slot-homed locals, per-site inline caches for property and free-name\n  access backed by object shapes (hidden classes), and dense-array element fast paths;\n- an **ARM64 template JIT** (macOS/Apple Silicon) — bytecode lowers to real machine code:\n  per-op templates with the interpreter as the shared slow path, inline-cache reads baked\n  into the instruction stream, fused compare-and-branch, exact-`ToInt32` bitops, and numeric\n  *register chains* that keep runs of arithmetic entirely in FP registers. On other\n  platforms the JIT tier degrades to the bytecode VM.\n\nTier selection: `--tier=interp|bytecode|jit` (interp is the default). Functions tier up\nafter a call-count threshold — immediately if the body contains a loop.\n\nThe language surface: generators and `async`/`await` running on stackful coroutines (async\nbodies suspend on the bytecode VM itself), full `RegExp` (including `\\p{…}` and inline\nmodifiers), typed arrays, `Proxy`/`Reflect`, ES modules (top-level await, `import defer`,\nsource phase), `Intl`, and `Temporal`.\n\n`Intl` (ECMA-402) and its CLDR data tables are behind the default-on `intl` cargo feature —\nthe largest single contributor to binary size (~3 MB of the release binary). Build with\n`--no-default-features` for a small engine: the `Intl` global is absent and the `toLocale*`\nmethods degrade to their locale-independent forms, the way engines built without i18n do.\n\nOn dependencies and `unsafe`: the workspace stays std-only — the JIT maps executable memory\nthrough raw `extern \"C\"` declarations of `mmap`/`pthread_jit_write_protect_np` rather than\nlibc. The interpreter and bytecode VM are safe Rust; `unsafe` is concentrated where machine\ncode meets the object graph (the JIT's executable pages and its templates' raw reads — every\nbaked offset is *measured at runtime* against the live types and fails closed to the checked\nhelper if anything doesn't hold) and in the N-API addon loader's `dlopen` bridge.\n\n**Passes 100% of [tc39/test262](https://github.com/tc39/test262): 53,400/53,400** (including\nannexB, intl402, and staging) — on the default tier and under `LUMEN_TIER=jit`.\n\nExtracted from — and used by — the [lucid-softworks/browser](https://github.com/lucid-softworks/browser)\nengine as its JS backend (`backend-lumen`), with full git history.\n\n## The runtime\n\nA curated `embed` API on the engine exposes just enough — native-function registration, a\ntyped host-state slot, and event-loop hooks — for a runtime layer to be assembled from\nindependent op crates, without leaking the interpreter's internals into the published API.\nOn top of that:\n\n- **Event loop** (`lumen-runtime`) — a single loop thread owns the (`!Send`) engine; blocking\n  work runs on a std thread pool and completes back over `mpsc`. No epoll/kqueue reactor\n  (that would need raw syscalls); the thread-pool-plus-completion model is libuv's own fs\n  strategy. Each turn drains microtasks, queued callbacks, due timers, and I/O completions,\n  then blocks until the next event.\n- **Timers** (`lumen-timers`) — `setTimeout`/`setInterval`/`clearTimeout`/`clearInterval`/\n  `setImmediate`, plus `queueMicrotask`.\n- **`console` and `process`** — streaming `console.*`; `process.argv`/`env`/`platform`/\n  `cwd()`/`exit()`/`nextTick()`.\n- **Filesystem** (`lumen-fs`) — synchronous ops (`readFileSync`, `writeFileSync`,\n  `existsSync`, `mkdirSync`, `readdirSync`, …), file handles via a resource table\n  (`openSync`/`readSync`/`writeSync`/`closeSync`), and async `fs.promises.readFile`/\n  `writeFile` on the thread pool.\n- **Web platform** (`lumen-web`) — a growing slice of the WinterTC Minimum Common API:\n  `Event`/`EventTarget`/`CustomEvent`/`AbortController`/`AbortSignal`/`DOMException`,\n  `TextEncoder`/`TextDecoder`, `atob`/`btoa`, `structuredClone`, `URL`/`URLSearchParams`,\n  `performance.now()`, `crypto.getRandomValues`/`randomUUID`/`subtle.digest` (SHA-256), and\n  `fetch`/`Headers`/`Request`/`Response`. See the checklist at the top of\n  `crates/lumen-web/src/lib.rs` for what's implemented vs. deferred (streams, `Blob`/\n  `FormData`, `URLPattern`, …).\n\n  `fetch` speaks HTTP/1.1 over `std::net`. **`https:` is not supported**: TLS cannot be\n  implemented on std alone and no third-party crate is permitted, so `https` URLs reject with\n  ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:13.685772"
+  },
+  {
+    "basic_info": {
+      "name": "Livediff",
+      "full_name": "SoCkEt7/Livediff",
+      "owner": "SoCkEt7",
+      "description": "⚡ Livediff: Watch file diffs live in your terminal. Minimalist Rust TUI for instant feedback loops.",
+      "url": "https://github.com/SoCkEt7/Livediff",
+      "clone_url": "https://github.com/SoCkEt7/Livediff.git",
+      "ssh_url": "git@github.com:SoCkEt7/Livediff.git",
+      "homepage": "https://socket7.github.io/Livediff/",
+      "created_at": "2026-06-14T14:25:35Z",
+      "updated_at": "2026-07-10T00:56:27Z",
+      "pushed_at": "2026-07-07T02:42:11Z"
+    },
+    "stats": {
+      "stars": 199,
+      "forks": 5,
+      "watchers": 199,
+      "open_issues": 0,
+      "size": 6834
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 177926
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "cli",
+        "code-review",
+        "command-line",
+        "developer-tools",
+        "diff",
+        "dx",
+        "file-watcher",
+        "git",
+        "minimalist",
+        "monitoring",
+        "nyxia",
+        "productivity",
+        "ratatui",
+        "rust",
+        "rust-cli",
+        "terminal",
+        "terminal-ui",
+        "tui",
+        "watcher"
+      ]
+    },
+    "content": {
+      "readme": "# Livediff 👁️\n\n**Live terminal diffs while files change.** Livediff is a lightweight Rust TUI companion to `git diff` for generators, refactors, migrations, formatters, and config edits.\n\n<p align=\"center\">\n<img src=\"demo.gif\" alt=\"Livediff showing real-time file diffs in the terminal\" width=\"800\">\n</p>\n\n[![CI](https://github.com/SoCkEt7/Livediff/actions/workflows/ci.yml/badge.svg)](https://github.com/SoCkEt7/Livediff/actions)\n[![Crates.io](https://img.shields.io/crates/v/livediff.svg)](https://crates.io/crates/livediff)\n[![License](https://img.shields.io/crates/l/livediff.svg)](https://github.com/SoCkEt7/Livediff/blob/main/LICENSE-MIT)\n\n## Why Livediff?\n\n`git diff` is great after the fact. Livediff shows what changes **while another tool is still editing files**.\n\nUse it when you want immediate feedback during:\n\n- code generators and template systems;\n- formatters, migrations, and codemods;\n- refactors that touch many files;\n- documentation or config generation;\n- terminal-first workflows where a GUI diff app is too heavy.\n\nLivediff does not replace Git. It complements `git diff` by turning file changes into a live terminal view.\n\n## Quick start\n\n```bash\ncargo install livediff\nlivediff .\n```\n\nMonitor a specific path or ignore noisy files:\n\n```bash\nlivediff ./src\nlivediff . --ignore \"target/\" --ignore \"*.tmp\"\n```\n\n## Interactive web showcase\n\nTry the zero-install browser demo: **[socket7.github.io/Livediff](https://socket7.github.io/Livediff/)**\n\nIt simulates the TUI, file changes, and real-time diff animations before you install anything.\n\n## Features\n\n- **Real-time monitoring** — native OS filesystem events via `notify`.\n- **Interactive TUI** — terminal interface built with `ratatui` and `crossterm`.\n- **Character-level diffs** — precise added/removed highlights using `similar`.\n- **Low idle footprint** — event-driven redraws; no Electron or Node runtime.\n- **Smart filtering** — respects `.gitignore` and accepts custom glob ignores.\n- **Zero-install preview** — hosted interactive demo for quick evaluation.\n\n## How is it different?\n\n| Tool | Best for | Livediff difference |\n| --- | --- | --- |\n| `git diff` | Reviewing changes after edits | Watches changes live as they happen |\n| `watch` + `diff` | Simple repeated shell checks | Gives an interactive TUI and file list |\n| GUI diff tools | Manual visual review | Stays lightweight and terminal-native |\n| file watcher logs | Knowing something changed | Shows exactly what changed |\n\n## Example workflows\n\nSee [docs/use-cases.md](docs/use-cases.md) for practical workflows:\n\n- watching generated files;\n- inspecting migration output;\n- monitoring formatter/codemod changes;\n- reviewing docs/config generation.\n\n## Installation\n\n### Via Cargo\n\n```bash\ncargo install livediff\n```\n\n### Homebrew (planned)\n\nHomebrew is not a live install channel yet: no verified tap or formula is currently published for Livediff. Use Cargo (above) or a pre-built release archive until this section lists verified `brew` commands.\n\nSee [#5](https://github.com/SoCkEt7/Livediff/issues/5) for the original packaging discussion.\n\n### Pre-built binaries\n\nTagged releases provide Linux, macOS, and Windows archives when available:\n\n[github.com/SoCkEt7/Livediff/releases](https://github.com/SoCkEt7/Livediff/releases)\n\n## CLI options\n\n```text\nUsage: livediff [OPTIONS] [PATH]\n\nArguments:\n  [PATH]  The path to monitor [default: .]\n\nOptions:\n  -i, --ignore <IGNORE>  Ignore files matching this glob pattern (can be used multiple times)\n      --show-hidden      Show hidden files\n      --no-ignore        Do not respect ignore files (.gitignore, .ignore, etc.)\n      --no-ignore-parent Do not respect ignore files in parent directories\n      --no-ignore-vcs    Do not respect git/VCS ignore files (.gitignore, etc.)\n  -h, --help             Print help\n  -V, --version          Print version\n```\n\n## Roadmap\n\n- More packaged install options, including Homebrew.\n- Short terminal recording with asciinema.\n- More workflow recipes for generators, migrations, and monorepos.\n- Community-requested filters and export options.\n\n## Contributing\n\nContributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), or open an issue with the workflow you want Livediff to support better.\n\n## License\n\nLicensed under either [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-10T04:44:14.950847"
+  }
+]

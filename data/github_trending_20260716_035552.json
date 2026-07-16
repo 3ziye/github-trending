@@ -1,0 +1,807 @@
+[
+  {
+    "basic_info": {
+      "name": "wloc",
+      "full_name": "Yu9191/wloc",
+      "owner": "Yu9191",
+      "description": "修改 Apple 网络定位（gs-loc）返回坐标 · 支持 Surge / Quantumult X / Loon / Stash · 快捷指令一键设置/恢复定位",
+      "url": "https://github.com/Yu9191/wloc",
+      "clone_url": "https://github.com/Yu9191/wloc.git",
+      "ssh_url": "git@github.com:Yu9191/wloc.git",
+      "homepage": "https://wloc-pages.pages.dev/",
+      "created_at": "2026-06-24T06:15:30Z",
+      "updated_at": "2026-07-16T03:48:17Z",
+      "pushed_at": "2026-06-27T23:50:57Z"
+    },
+    "stats": {
+      "stars": 4965,
+      "forks": 941,
+      "watchers": 4965,
+      "open_issues": 36,
+      "size": 77
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 46291
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"wloc.jpg\" width=\"144\" />\n</p>\n\n# Apple WLOC 定位修改\n\n修改 Apple 网络定位服务 (WiFi/基站) 返回的坐标，实现 iOS 网络定位虚拟定位。打开在线选点页面选位置即可生效，无需手动填经纬度。\n\n---\n\n## 订阅地址\n\n**Surge:**\nhttps://raw.githubusercontent.com/Yu9191/wloc/refs/heads/main/modules/wloc.sgmodule\n\n**Quantumult X:**\nhttps://raw.githubusercontent.com/Yu9191/wloc/refs/heads/main/modules/wloc.conf\n\n**Loon:**\nhttps://raw.githubusercontent.com/Yu9191/wloc/refs/heads/main/modules/wloc.lpx\n\n**Stash:**\nhttps://raw.githubusercontent.com/Yu9191/wloc/refs/heads/main/modules/wloc.stoverride\n\n**Shadowrocket(小火箭):**\nhttps://raw.githubusercontent.com/Yu9191/wloc/refs/heads/main/modules/wloc.module\n\n> Egern 可直接使用 Surge 模块\n> Stash 请直接订阅上面的 `.stoverride`，无需用 Script Hub 转换\n\n---\n\n## 快捷指令（推荐，最方便）\n\n直接用快捷指令切换 / 清除定位，无需打开选点页面：\n\n- **wloc 设置地理位置**：https://www.icloud.com/shortcuts/a82717d8fdad4e6280866fcf911173f7\n- **wloc 清理恢复位置**：https://www.icloud.com/shortcuts/f42632d406504f24a2cd163af4fe012f\n\n**用法**\n\n- **设置位置：** 在地图 App 里选好位置（长按地图选点）→ 共享 → 选「wloc 设置地理位置」即可切换。\n  - 苹果地图：选点 → 共享 → 「wloc 设置地理位置」\n  - 高德地图：选点 → 分享 → **更多** → 「wloc 设置地理位置」\n- **清理位置：** 点「wloc 清理恢复位置」即可恢复真实定位。\n\n支持苹果地图、高德（含短链，自动跟跳转 + GCJ-02→WGS84 坐标换算）。\n\n> 前提：代理已开 + 模块已启用 + 信任 `gs-loc.apple.com`。选点页面（Worker / Pages）方案仍保留，见下方。\n\n---\n\n### 关于地图链接解析（worker）\n\n为了让苹果地图和高德走同一条流程，链接统一发给 `wloc-spoofer.wloc.workers.dev/api/parse` 解析：\n\n- **高德**：分享出来是短链，真实坐标只藏在 302 跳转的 `Location` 头里，且是 GCJ-02 偏移坐标。快捷指令既读不到跳转头、也难做坐标换算，所以由 worker 跟跳转 → 抠坐标 → GCJ-02→WGS84 → 返回经纬度。\n- **苹果地图**：链接里直接带 `coordinate=纬度,经度`，但在**中国大陆同样是 GCJ-02 偏移坐标**，所以和高德一样由 worker 做 GCJ-02→WGS84 换算后返回；境外坐标会自动跳过换算（`out_of_china` 判断）原样返回。除了统一坐标系，走同一接口也方便统一处理短链、文本夹链接、名称解码等。\n\n**隐私：** `/api/parse` 是纯转发解析——收到链接 → 跟跳转 → 解析坐标 → 返回 JSON，全程不写任何存储、不记日志、不缓存，处理完即丢。\n\n**不放心可自行部署：** worker 源码完全开源，可自己部署一份替换上面的地址：\n\n- 解析逻辑：[`worker/src/parse.js`](worker/src/parse.js)，路由：[`worker/src/index.js`](worker/src/index.js)\n- 部署后把快捷指令里的 `wloc-spoofer.wloc.workers.dev` 换成你自己的 worker 域名即可。\n\n---\n\n<details>\n<summary><b>使用方法</b></summary>\n\n1. 订阅模块并启用 MITM\n2. 打开在线选点页面（公共 Worker，建议添加到主屏幕）\n3. 地图选位置 / 搜索地名 / 粘贴地图链接\n4. 点击「储存到设备」\n5. 下次 Apple 定位触发时自动生效\n\n支持 Apple Maps / Google Maps / 高德 / 百度 / 坐标文本 链接解析。\n\n> **iOS 26/27 及更高版本注意：** Apple 从 iOS 26 开始大幅强化了 `locationd` 的定位缓存机制，系统会将之前获取的真实定位结果缓存在内存中并长时间复用。这意味着安装模块或切换目标坐标后，即使脚本已成功修改了 WLOC 响应（日志显示\"已修改\"），系统仍可能继续使用缓存中的旧坐标，导致定位看起来没有变化。\n>\n> **解决方法：重启设备。** 重启会清空 `locationd` 的内存缓存，系统重新发起 WLOC 请求时会拿到修改后的坐标。飞行模式开关、关闭定位服务等方式在 iOS 26+ 上**无法**清除此缓存，必须重启。iOS 15~18 通常不需要重启即可生效。\n\n**高版本系统推荐操作流程（成功率最高）：**\n\n方法一：\n1. 先在选点页面选好需要修改的定位并储存到设备\n2. 开飞行模式 → 关闭定位服务 → 重启设备\n3. 关闭飞行模式（WiFi 也要关）→ 连接代理工具（确认 VPN 图标出现）→ 打开定位服务\n4. 打开地图验证\n\n方法二：\n1. 关闭定位服务\n2. 在选点页面选好位置并储存到设备\n3. 打开定位服务 → 弹出「允许访问位置信息」时选择**「下次询问或在我共享时」**\n4. 打开地图验证\n\n</details>\n\n<details>\n<summary><b>工作原理</b></summary>\n\n```\n选点页面 → fetch gs-loc.apple.com/wloc-settings/save?lon=x&lat=y\n         → 代理模块拦截 → wloc-settings.js 写入 $persistentStore\n         → 下次 WLOC 触发 → wloc.js 读取坐标 → patch protobuf 响应\n```\n\n模块包含两条规则：\n- `wloc.js` — 拦截 `/clls/wloc` 响应，解析 protobuf 并替换坐标\n- `wloc-settings.js` — 拦截 `/wloc-settings/save` 请求，写入持久化存储\n\n</details>\n\n<details>\n<summary><b>参数配置</b></summary>\n\n| 参数 | 说明 | 默认值 |\n|------|------|--------|\n| longitude | 目标经度(在线选点优先) | null (透传) |\n| latitude | 目标纬度(在线选点优先) | null (透传) |\n| accuracy | 精度(米) | 25 |\n| logLevel | 日志级别 | info |\n\n优先级: 在线选点储存 > 模块参数 > 默认值\n\n</details>\n\n<details>\n<summary><b>取消虚拟定位 / 恢复真实定位</b></summary>\n\n**方法一：关闭或删除模块**（推荐）\n\n关闭模块后脚本不再拦截 WLOC 请求，系统自动恢复真实定位。iOS 26+ 需要重启设备清除定位缓存。\n\n**方法二：清除持久化数据（透传模式）**\n\n清除已保存的坐标后，脚本进入**透传模式**——不修改 WLOC 响应，直接放行原始数据，系统自动恢复真实 GPS 定位。\n\n**透传模式触发条件：** 持久化数据为空（null）且模块参数为默认值（113.94114, 22.544577）时，脚本判定用户未自定义坐标，自动跳过修改。模块默认参数无需更改，仅清除持久化数据即可触发透传。\n\n在代理工具中删除持久化数据，字段名为 `wloc_settings`：\n\n- **Surge** — 脚本编辑器运行: `$persistentStore.write(null, \"wloc_settings\")`\n- **Quantumult X** — 运行: `$prefs.removeValueForKey(\"wloc_settings\")`\n- **Loon** — 运行: `$persistentStore.write(null, \"wloc_settings\")`\n\n清除后重启设备即可恢复真实定位。无需关闭模块，脚本会自动检测到无自定义坐标并跳过修改。\n\n> **注意：** 如果用户在模块参数中手动修改了经纬度（非默认 113.94114, 22.544577），即使清除持久化数据，脚本仍会使用模块参数中的坐标进行修改。只有保持默认参数不变时，清除持久化数据才会进入透传模式。\n\n</details>\n\n<details>\n<summary><b>收藏位置功能</b></summary>\n\n在线选点页面支持收藏多个位置，方便来回切换：\n\n- **添加收藏**：选好位置后点击「收藏位置」→ 输入备注名称（支持中文/英文/数字，最多 30 字）→ 保存\n- **快速切换**：点击收藏列表中的位置 → 地图自动跳转 → 点「储存到设备」即可切换\n- **当前生效标记**：与设备已保存坐标一致的收藏会显示「✓ 当前生效」\n- **删除管理**：单个删除（×按钮）或清空全部\n- **当前生效坐标**：页面显示设备端持久化数据（wloc_settings），支持刷新查询和清除\n\n**数据存储说明：**\n- **收藏列表** → 保存在浏览器 `localStorage`（仅用于选点页面的 UI 便捷操作）\n- **生效坐标** → 保存在代理工具持久化存储 `$persistentStore`（脚本运行时实际读取的数据）\n\n两者独立存储。收藏列表是浏览器端的辅助数据，清除浏览器缓存或换浏览器后需重新收藏，但不影响已储存到设备的生效坐标。\n\n</details>\n\n<details>\n<summary><b>自部署 Worker（推荐）</b></summary>\n\n公共选点页面有请求上限，建议部署自己的实例：\n\n- **Workers**: `https://wloc-spoofer.wloc.workers.dev/`\n- **Pages**: `https://wloc-pages.pages.dev/`\n\n**一键部署（Workers）：**\n\n[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Yu9191/wloc/tree/main/worker)\n\n> 一键部署仅支持 Workers 模式，点击按钮后按提示授权即可完成部署。\n\n**手动部署（Workers）：**\n\n```bash\n# 1. 克隆仓库\ngit clone https://",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:55:53.563594"
+  },
+  {
+    "basic_info": {
+      "name": "Cowart",
+      "full_name": "zhongerxin/Cowart",
+      "owner": "zhongerxin",
+      "description": null,
+      "url": "https://github.com/zhongerxin/Cowart",
+      "clone_url": "https://github.com/zhongerxin/Cowart.git",
+      "ssh_url": "git@github.com:zhongerxin/Cowart.git",
+      "homepage": null,
+      "created_at": "2026-06-18T16:08:30Z",
+      "updated_at": "2026-07-16T03:35:30Z",
+      "pushed_at": "2026-07-13T05:06:38Z"
+    },
+    "stats": {
+      "stars": 4660,
+      "forks": 354,
+      "watchers": 4660,
+      "open_issues": 11,
+      "size": 12616
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 346145,
+        "CSS": 22663,
+        "Shell": 1161,
+        "HTML": 300
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Cowart\n\nCowart 是一个面向 Codex 的原生无限画布 widget 插件。它基于 tldraw 提供可视化画布，用于构思、标注、生成图片和根据标注图迭代图片。画布由 MCP widget 直接打开，数据默认保存到当前用户项目的 `canvas/` 目录，而不是保存到插件仓库里。\n\nEnglish README: [README.en.md](README.en.md)\n\n## 功能\n\n- 在 Codex 中打开一个原生 tldraw 无限画布 widget；正常使用不再通过网页浏览器或 in-app browser 打开本地页面。\n- 在当前项目目录中持久化画布页面和图片资源。\n- 在画布中创建 AI 图片框，直接输入 prompt、选择参考图，并让 Codex 按选中框的位置和比例生成图片后替换它。\n- 创建 16:9 的 `AI HTML` 框，通过 prompt 和参考图生成可运行的单文件 HTML，并直接嵌入画布继续编辑或迭代。\n- 创建 `AI Slides`，将图片和 HTML 组织成演示文稿，或让 Codex 按指定页数生成一组 16:9 HTML 页面；支持缩略图预览和全屏播放。\n- 标注好图片后，可从画布里直接提交标注截图，让 Codex 根据标注生成干净的新图并放到原图旁边。\n- 通过 Cowart MCP 工具读取选择状态、保存画布、插入图片或 HTML，并保存到页面本地资源目录。\n\n## 安装\n\n### 让 Codex 自动安装\n\n把下面这段发给 Codex：\n\n```text\n请从 https://github.com/zhongerxin/cowart.git 安装 Cowart Codex 插件。\n请 clone 仓库到 ~/plugins/cowart，确认 .codex-plugin/plugin.json 存在，\n把插件加入 personal marketplace，先运行 codex plugin marketplace add ~，\n再运行 codex plugin add cowart@personal。\n安装后请校验插件，并告诉我是否需要开启一个新对话来加载新技能和 MCP 工具。\n```\n\n### 手动安装\n\n推荐把插件 clone 到 Codex personal marketplace 默认会引用的位置：\n\n```bash\nmkdir -p ~/plugins\ngit clone https://github.com/zhongerxin/cowart.git ~/plugins/cowart\ncd ~/plugins/cowart\nnpm install\nnpm run build\n```\n\n确保 `~/.agents/plugins/marketplace.json` 中有 Cowart 条目：\n\n```json\n{\n  \"name\": \"personal\",\n  \"interface\": {\n    \"displayName\": \"Personal\"\n  },\n  \"plugins\": [\n    {\n      \"name\": \"cowart\",\n      \"source\": {\n        \"source\": \"local\",\n        \"path\": \"./plugins/cowart\"\n      },\n      \"policy\": {\n        \"installation\": \"AVAILABLE\",\n        \"authentication\": \"ON_INSTALL\"\n      },\n      \"category\": \"Productivity\"\n    }\n  ]\n}\n```\n\n然后先注册 personal marketplace，再安装插件：\n\n```bash\ncodex plugin marketplace add ~\ncodex plugin add cowart@personal\n```\n\n安装后建议开启一个新的 Codex 对话，让新的 skill 和 MCP 工具完整加载。\n\n## 使用\n\n### 打开画布\n\n在 Codex 中说：\n\n```text\nOpen the Cowart canvas for this project.\n```\n\nCowart 会通过 `render_cowart_canvas_widget` 打开 Codex 原生 widget，不需要再启动本地网页服务或手动打开 in-app browser。`scripts/start-canvas.sh` 只保留为本地开发 fallback。\n\n画布数据会保存在当前项目目录下：\n\n```text\ncanvas/pages/<page-id>/cowart-canvas.json\ncanvas/pages/<page-id>/assets/\n```\n\n![在 Codex 中打开 Cowart 画布](assets/open-canvas.png)\n\n### 生成新图\n\n1. 打开 Cowart 画布。\n2. 在画布里创建并选中一个 `AI 图片` 框。\n3. 在弹出的生成面板里输入 prompt，也可以选择一张或多张参考图，然后点击发送。\n\nCowart 会把 prompt、参考图和选中 `AI 图片` 框的尺寸信息发送给 Codex。Codex 会按这个框的位置和比例生成图片，然后把 `AI 图片` 框替换成普通图片形状。\n\n![使用 Cowart 生成并插入新图](assets/generate-image.png)\n\n### 根据标注图生成新图\n\n1. 在 Cowart 画布中对图片做标注。\n2. 选中被标注的图片，点击 `按标注修改`。\n3. Cowart 会导出包含原图、箭头和标注文字的截图，并通过 widget bridge 发送给 Codex。\n\nCodex 会读取截图里的标注和箭头，生成去掉标注痕迹的新图，并把结果放在原图旁边。原图和标注不会被删除或移动。你也可以手动把 Cowart 标注截图发给 Codex，走同样的修订流程。\n\n![根据 Cowart 标注截图生成修订图](assets/annotation-edit.png)\n\n### 生成 AI HTML\n\n1. 在工具栏中创建并选中一个 `AI HTML` 框；新建框默认是 `1024 × 576`（16:9）。\n2. 在框下方的生成面板中输入 prompt，也可以选择或粘贴一张或多张参考图。\n3. 点击发送后，Codex 会生成完整可运行的单文件 HTML，并把它嵌入选中的 `AI HTML` 框。\n\n生成后的 HTML 会作为画布中的嵌入页面保存在当前 page 的 `assets/` 目录。选中它后可以下载渲染图、直接编辑文本，也可以结合画布标注继续修改 HTML，或根据 HTML 和标注生成图片。\n\n![编辑 Cowart AI HTML](assets/edit-html.png)\n\n### 创建和演示 AI Slides\n\n1. 在工具栏中创建一个 `AI Slides`。默认外框是 `1048 × 600`，对应一页 `1024 × 576`（16:9）内容和四周各 `12px` 的留白。\n2. 可以把画布中的图片或 HTML 拖入 Slides，也可以复制图片后选中 Slides，再粘贴进去；内容会自动按顺序横向排列。\n3. 空 Slides 被选中时会显示生成面板。输入整套演示的描述、按需添加参考图，并选择 3、5、10 页或自定义页数；默认是 5 页。\n4. 发送后，Codex 会生成指定数量、视觉与叙事连贯的独立 16:9 HTML 页面，并依次加入当前 Slides。Slides 已有内容时不再显示生成面板。\n5. 选中 Slides 后点击 `演示 Slides`，可以通过左侧缩略图预览和切换页面，也可以进入全屏播放。全屏时支持方向键、空格键和点击静态画面翻页；HTML 自身的按钮、链接和表单交互会保留，播放控制栏固定在顶部。\n\n![演示和切换 Cowart AI Slides](assets/view-slides.png)\n\n## 技能\n\n- `cowart:cowart-open-canvas`：打开 Cowart 原生画布 widget。\n- `cowart:cowart-image-gen`：接收画布内 prompt 和参考图，用生成图片替换选中的 `AI 图片` 框；没有选中框时也可以把生成图插入当前页面。\n- `cowart:cowart-image-edit`：根据画布提交或用户提供的 Cowart 标注截图生成修订图。\n\n## 本地开发\n\n```bash\nnpm install\nnpm run dev\nnpm run build\n```\n\n本地开发时仍可以直接启动 Vite 画布服务，并指定用户项目目录：\n\n```bash\n./scripts/start-canvas.sh /path/to/user/project\n```\n\n常用环境变量：\n\n- `COWART_PORT`：本地服务端口，默认 `43217`。\n- `COWART_PROJECT_DIR`：画布数据所属的用户项目目录。\n- `COWART_CANVAS_DIR`：画布数据目录，默认是 `$COWART_PROJECT_DIR/canvas`。\n\n## 开发者\n\nZHONG XIN  \nzhongxin123456@gmail.com  \nhttps://www.jiqiren.ai\n\n## 致谢\n\nCowart 的画布能力基于 [tldraw/tldraw](https://github.com/tldraw/tldraw) 实现。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:55:54.789230"
+  },
+  {
+    "basic_info": {
+      "name": "os-taxonomy",
+      "full_name": "withmarbleapp/os-taxonomy",
+      "owner": "withmarbleapp",
+      "description": null,
+      "url": "https://github.com/withmarbleapp/os-taxonomy",
+      "clone_url": "https://github.com/withmarbleapp/os-taxonomy.git",
+      "ssh_url": "git@github.com:withmarbleapp/os-taxonomy.git",
+      "homepage": null,
+      "created_at": "2026-07-08T09:27:48Z",
+      "updated_at": "2026-07-16T03:38:42Z",
+      "pushed_at": "2026-07-08T14:18:23Z"
+    },
+    "stats": {
+      "stars": 3142,
+      "forks": 543,
+      "watchers": 3142,
+      "open_issues": 13,
+      "size": 5629
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 4798
+      },
+      "license": "Open Data Commons Open Database License v1.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Marble Skill Taxonomy\n\nAn open, structured taxonomy of **what children learn** across the primary/elementary years — decomposed into fine-grained \"micro-topics\", wired into a prerequisite graph, and aligned to national curriculum standards. Produced by [Marble](https://withmarble.com).\n\n> **Version:** `v1` · **Topics:** 1,590 · **Prerequisite edges:** 3,221 · **Subjects:** 8\n\n## See it\n\n![The taxonomy as a rotating 3D graph: every dot a micro-topic, colored by subject, wired by prerequisites](media/curriculum-viz.gif)\n\nEvery dot is a micro-topic, colored by subject; height is age; each thread is a prerequisite ([full-quality video](media/curriculum-viz.mp4)). Explore it interactively at [withmarble.com/curriculum](https://withmarble.com/curriculum) — tap any concept to trace everything a learner must master before it.\n\n\n## What this is\n\nMost curriculum data is either a flat list of standards or locked inside a product. This dataset is a **connected graph of learning**:\n\n- **1,590 micro-topics** — a single, teachable idea (e.g. *\"Building sentences\"*, *\"Apparent brightness of stars\"*), each with a plain-language description, mastery **evidence** criteria, a type (conceptual / procedural / representational / language / meta), a subject + domain, and an approximate age range.\n- **3,221 prerequisite dependencies** — a directed acyclic graph: *\"topic X depends on prerequisite Y\"*, each edge tagged `hard`/`soft` and carrying a one-line **reason**.\n- **Curriculum alignment** — each micro-topic links to the standards it was distilled from (NGSS, Common Core, the UK National Curriculum, and more).\n- **Domain clusters** — 183 parent-friendly one-paragraph summaries per (subject, domain, age band).\n\n### Subjects\n\n| Subject | Topics |\n|---|---:|\n| Science | 547 |\n| Mathematics | 503 |\n| English | 286 |\n| History | 90 |\n| Personal & Social Development | 88 |\n| Life Skills | 37 |\n| Computing | 21 |\n| Learning to Learn | 18 |\n\n## Files\n\nAll data lives in [`data/`](data/) as UTF-8 JSON. See [`schema/`](schema/) for JSON Schemas and [`manifest.json`](data/manifest.json) for counts + SHA-256 checksums.\n\n| File | What it holds |\n|---|---|\n| [`data/topics.json`](data/topics.json) | The micro-topics (graph **nodes**). |\n| [`data/dependencies.json`](data/dependencies.json) | Prerequisite **edges** (`topicId` depends on `prerequisiteId`). |\n| [`data/curriculum-standards.json`](data/curriculum-standards.json) | The source curriculum standards, grouped by curriculum. |\n| [`data/clusters.json`](data/clusters.json) | Parent-friendly domain summaries. |\n| [`data/manifest.json`](data/manifest.json) | Counts, per-subject breakdown, per-file checksums. |\n\n### A topic\n\n```json\n{\n  \"id\": \"mt_N8CpN1EJrP\",\n  \"type\": \"CONCEPTUAL\",\n  \"subject\": \"English\",\n  \"domain\": \"Grammar & Punctuation\",\n  \"name\": \"Building sentences\",\n  \"description\": \"Understand that words combine to make sentences — a sentence expresses a complete thought…\",\n  \"ageRangeStart\": 4,\n  \"ageRangeEnd\": 6,\n  \"centrality\": 0.257,\n  \"evidence\": [\n    \"Distinguish between complete sentences and fragments\",\n    \"Compose a complete sentence with a subject and verb\"\n  ],\n  \"assessmentPrompt\": \"If {{name}} says something like \\\"The dog\\\", can they tell you that's not a complete sentence…?\",\n  \"standards\": [\"ccss-ela:L.K.1f\", \"uk-nc-2013:Eng.App2.Y1.Sent.1\"]\n}\n```\n\n- `id` — stable identifier (`mt_…`), referenced by dependencies and by neighbours.\n- `standards` — keys into `curriculum-standards.json` (`\"<curriculum-slug>:<code>\"`).\n- `assessmentPrompt` — a natural-language check for the idea. Contains a `{{name}}` placeholder (the child's name); substitute or strip before display.\n\n### A dependency\n\n```json\n{ \"topicId\": \"mt__00ZSLnB7p\", \"prerequisiteId\": \"mt_VBl1T1sFCM\", \"strength\": \"hard\",\n  \"reason\": \"Must understand vibrations make sound before finding volume patterns\" }\n```\n\n`topicId` **depends on** `prerequisiteId`. Reverse the edge to get \"unlocks\".\n\n## Using it\n\nPure data — no runtime, no dependencies. Load the JSON and go.\n\n```js\nimport topics from './data/topics.json' with { type: 'json' };\nimport deps from './data/dependencies.json' with { type: 'json' };\n\nconst byId = new Map(topics.topics.map(t => [t.id, t]));\nconst prereqs = deps.dependencies\n  .filter(d => d.topicId === 'mt_N8CpN1EJrP')\n  .map(d => byId.get(d.prerequisiteId).name);\n```\n\nValidate structure + referential integrity:\n\n```bash\nnode scripts/validate.mjs\n```\n\n## License\n\nThis dataset is **multi-licensed** — read this before you use or redistribute it.\n\n| Layer | License |\n|---|---|\n| **The database** — the collection, structure, IDs, topic↔topic and topic↔standard relationships | [**ODbL 1.0**](LICENSE) — free for research **and** commercial use, **attribution** required, **share-alike** (derivative *databases* must stay open under ODbL). |\n| **The textual content Marble authored** — topic `description`/`name`/`evidence`/`assessmentPrompt`, dependency `reason`s, cluster `summary`s | [**CC BY-SA 4.0**](LICENSE-",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:55:56.020479"
+  },
+  {
+    "basic_info": {
+      "name": "scroll-world",
+      "full_name": "oso95/scroll-world",
+      "owner": "oso95",
+      "description": "A skill that turn any brand into a scrollable 3D world",
+      "url": "https://github.com/oso95/scroll-world",
+      "clone_url": "https://github.com/oso95/scroll-world.git",
+      "ssh_url": "git@github.com:oso95/scroll-world.git",
+      "homepage": "",
+      "created_at": "2026-07-06T21:28:58Z",
+      "updated_at": "2026-07-16T03:53:31Z",
+      "pushed_at": "2026-07-16T01:23:39Z"
+    },
+    "stats": {
+      "stars": 2583,
+      "forks": 315,
+      "watchers": 2583,
+      "open_issues": 2,
+      "size": 103
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 28697,
+        "Python": 2855,
+        "HTML": 2713
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# scroll-world\n\n\nhttps://github.com/user-attachments/assets/b08e641e-985b-4bd4-83ff-6750272d0c37\n\n\nAn agent skill — for Claude Code, Codex, and any `SKILL.md`-compatible agent — that\nbuilds an immersive, **scroll-scrubbed \"fly through the world\" landing page** for any industry or brand — the kind where, as you scroll, a camera flies\nfrom *outside* each scene *into* its interior, then flows on to the next scene with **no\ncuts**. One continuous connected flight through a little generated world (think the Emons\nlogistics site, applied to whatever you want).\n\n## Install\n\n### Claude Code — as a plugin (recommended)\n\n```\n/plugin marketplace add oso95/scroll-world\n/plugin install scroll-world@scroll-world\n```\n\nThen just ask for a scroll-through world landing page, or invoke `/scroll-world`.\n\n### Codex & other agents — via the skills CLI\n\nUsing [Vercel's skills CLI](https://github.com/vercel-labs/skills), which installs into\nCodex, Claude Code, Cursor, and 20+ other agents:\n\n```bash\nnpx skills add oso95/scroll-world            # pick your agent(s) when prompted\nnpx skills add oso95/scroll-world -a codex   # or target Codex directly\n```\n\nIn Codex, invoke it with `$scroll-world` (or `/skills` to browse), or just ask for a\nscroll-through world landing page.\n\n### Manually (drop-in skill)\n\nCopy the skill folder into your agent's skills directory:\n\n```bash\ngit clone https://github.com/oso95/scroll-world\ncp -R scroll-world/skills/scroll-world ~/.claude/skills/   # Claude Code\ncp -R scroll-world/skills/scroll-world ~/.codex/skills/    # Codex\n```\n\n## Requirements\n\n- The [Higgsfield CLI](https://higgsfield.ai), authenticated (`higgsfield auth login`),\n  with credits.\n- `ffmpeg` / `ffprobe` for frame extraction and encoding.\n- Python 3 with Pillow (for the mobile portrait canvases; also the optional\n  transparent-scene knockout).\n- The [Codex CLI](https://github.com/openai/codex) (optional) — if present, the scene\n  stills can be generated through Codex's built-in `image_gen` (the same GPT Image\n  model), billed to a ChatGPT subscription instead of Higgsfield credits.\n\n## What it does\n\nIt leans on [Higgsfield](https://higgsfield.ai) for the art: cohesive isometric diorama\nscenes (GPT Image 2 — via Higgsfield, or the Codex CLI on a ChatGPT subscription) and the\ncamera flights themselves (Seedance or Kling image-to-video — only models that can\nframe-lock a seam), scrubbed\nby scroll position — the same technique behind Apple's scroll-through product pages. The\ncamera genuinely moves; scroll only drives time. It's **framework-agnostic**: you get the\nHiggsfield pipeline, the prompt templates, and a portable vanilla-JS scrub engine that\ndrops into plain HTML, Next.js, Vue, or a Python-served page — nothing assumes a stack.\n\nWhen invoked, the skill:\n\n1. **Interviews you** — the subject/industry + pitch, a brand kit (import from a URL, hand\n   it over, or have it proposed), art direction, the ordered scenes the camera visits,\n   whether you want the **mobile version** (a second chain rendered natively in 9:16\n   portrait — composed for phones, not a crop of the landscape film), and the **budget** —\n   render tiers and stills source shown with estimated credit costs, approved before\n   anything generates.\n2. **Generates the assets** — one still per scene, one \"dive-in\" camera\n   clip per scene, and the **connector** clips that join consecutive scenes, generated\n   from the actual rendered frames of their neighbours so every seam is frame-identical.\n   Mobile opt-in renders a parallel portrait chain the same way, frame-locked against its\n   own 9:16 renders.\n3. **Wires it up** — a config-driven scroll engine that plays the whole chain as one\n   flight, serving the portrait clips and posters automatically on phones.\n\n## What's in the skill\n\n```\nskills/scroll-world/\n├── SKILL.md                    the procedure + the seam rule + gotchas\n└── references/\n    ├── prompts.md              intake checklist + every Higgsfield prompt template\n    ├── pipeline.md             copy-paste batch scripts (generate → frames → connectors → encode)\n    ├── scrub-engine.js         portable, config-driven scrub engine (blob-seek, lazy load, seam crossfade)\n    ├── index-template.html     a minimal standalone page that mounts the engine\n    └── knockout.py             background knockout for floating scenes\n```\n\n## Notes\n\n- Asset generation costs Higgsfield credits (~N image gens + ~2N-1 video gens for N\n  scenes; the mobile chain doubles the video gens) and takes a while — the skill runs\n  generations in the background and polls. Per-generation pricing isn't exposed by the\n  CLI, so the skill calibrates against your live balance and states the estimated total\n  before spending.\n- The generated `.mp4`/`.webp` assets are produced per project; they're not shipped here.\n\n## Star History\n\n<a href=\"https://www.star-history.com/?type=date&repos=oso95%2Fscroll-world\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:55:57.209760"
+  },
+  {
+    "basic_info": {
+      "name": "security-audit-skill",
+      "full_name": "cloudflare/security-audit-skill",
+      "owner": "cloudflare",
+      "description": "A coding-agent skill for multi-phase security audits with independently verified, machine-readable findings",
+      "url": "https://github.com/cloudflare/security-audit-skill",
+      "clone_url": "https://github.com/cloudflare/security-audit-skill.git",
+      "ssh_url": "git@github.com:cloudflare/security-audit-skill.git",
+      "homepage": "",
+      "created_at": "2026-06-18T14:08:44Z",
+      "updated_at": "2026-07-16T01:37:05Z",
+      "pushed_at": "2026-07-06T13:36:03Z"
+    },
+    "stats": {
+      "stars": 2529,
+      "forks": 187,
+      "watchers": 2529,
+      "open_issues": 2,
+      "size": 56
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 6783
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# security-audit\n\nA coding-agent skill that turns your agent into a security auditor. It orchestrates multiple parallel agents through a six-phase pipeline -- recon, hunting, validation, reporting, structured output, and independent verification -- to find exploitable vulnerabilities with real impact.\n\nThis is the skill that seeded Cloudflare's vulnerability discovery harness, described in [Build your own vulnerability harness](https://blog.cloudflare.com/build-your-own-vulnerability-harness). The harness grew into a multi-stage, fleet-wide system; this skill is the single-repo starting point it evolved from.\n\n## What it does\n\nThe skill runs a structured audit in six phases:\n\n1. **Recon** -- parallel research agents map the application's architecture, trust boundaries, and input surfaces. Produces `architecture.md`.\n2. **Hunt** -- parallel general agents attack the codebase from different angles (injection, access control, business logic, cryptography, feature abuse, chained attacks, and a wildcard). Each agent can spawn sub-agents to dig deeper.\n3. **Validate** -- separate agents try to *disprove* each finding. Adversarial review kills false positives.\n4. **Report** -- produces `REPORT.md` (human-readable) and `FINDINGS-DETAIL.md` (detailed traces for MEDIUM+ findings).\n5. **Structured output** -- writes `findings.json` conforming to `report-schema.json`, validated by `validate-findings.cjs`.\n6. **Independent verification** -- fresh agents verify every factual claim in the structured output against the actual source code.\n\nMultiple runs against the same repo are additive. Each run explores different code paths; the skill reads prior `findings.json` files to skip known issues and target gaps.\n\n## Files\n\n| File | Purpose |\n|------|---------|\n| `SKILL.md` | Setup, core principles, platform terminology, workflow overview, and audit anti-patterns |\n| `RECONNAISSANCE.md` | Phase 1 reconnaissance prompts and synthesis instructions |\n| `HUNTING.md` | Phase 2 orchestration, hunting methodology, and validation rules |\n| `ATTACK-CLASSES.md` | Core, wildcard, and obvious-things attack prompts |\n| `MEMORY-SAFETY-AND-BINARY.md` | Memory-safety, binary, and kernel hunting classes for native targets |\n| `AI-AND-LLM.md` | Prompt-injection, agent/tool, and output-handling hunting classes for LLM-backed targets |\n| `WEB-PROTOCOL-AND-AUTH.md` | HTTP request-framing, cache, and authentication-protocol hunting classes for HTTP-protocol and auth targets |\n| `CLIENT-SIDE.md` | DOM-injection, messaging-trust, UI-redress, and prototype-pollution hunting classes for client-side/browser targets |\n| `VALIDATION-AND-REPORTING.md` | Phases 3–6 validation, reporting, and verification |\n| `report-schema.json` | JSON schema for `findings.json` (confirmed and rejected finding structures) |\n| `validate-findings.cjs` | Zero-dependency Node.js validator that checks `findings.json` against the schema |\n\n## Installation\n\nInstall the skill with the [Skills CLI](https://skills.sh):\n\n```bash\nnpx skills add https://github.com/cloudflare/security-audit-skill \\\n  --skill security-audit\n```\n\nUse `--global` for a user-level installation:\n\n```bash\nnpx skills add https://github.com/cloudflare/security-audit-skill \\\n  --skill security-audit \\\n  --global\n```\n\nRun `npx skills --help` for agent-selection and non-interactive options.\n\n## Usage\n\nStart your coding agent in (or pointed at) the codebase you want to audit, then ask it to do a security audit:\n\n```\nsecurity audit this codebase\n```\n\n```\nfind security vulnerabilities in ./src\n```\n\n```\ndo a security review, output to ~/audits/my-project\n```\n\nThe skill activates automatically when the request matches its trigger (security audit, find vulnerabilities, pen-test the code, etc.). It will ask for an output directory if you don't specify one, defaulting to `~/security-audit-skill/<repo-name>/run-<N>`.\n\n## Requirements\n\n- A coding agent with a model that supports tool use and parallel sub-agents\n- Node.js (for `validate-findings.cjs` schema validation in Phase 5)\n\n## Design principles\n\n- **Only report what you can exploit.** Every finding needs a concrete attack scenario, not \"an attacker could theoretically...\"\n- **Adversarial validation.** The agent that checks a finding is never the agent that found it.\n- **Severity requires impact.** Likelihood x impact, not deviation from a checklist.\n- **Defense-in-depth gaps are not vulnerabilities.** If Layer A prevents the attack, the absence of Layer B is a hardening note.\n- **Multiple runs improve coverage.** Testing shows a single run finds roughly half the total vulnerabilities across multiple runs.\n\n## Contact\n\nQuestions, feedback, or comparing notes on AI-driven security tooling: security-ai-research@cloudflare.com\n\n## License\n\nMIT -- see [LICENSE](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:55:58.406114"
+  },
+  {
+    "basic_info": {
+      "name": "ios-location-spoofer",
+      "full_name": "mekos2772/ios-location-spoofer",
+      "owner": "mekos2772",
+      "description": "Standalone iOS app to spoof GPS location without jailbreak. Includes Shadowrocket/Surge/Loon/QX/Stash module.",
+      "url": "https://github.com/mekos2772/ios-location-spoofer",
+      "clone_url": "https://github.com/mekos2772/ios-location-spoofer.git",
+      "ssh_url": "git@github.com:mekos2772/ios-location-spoofer.git",
+      "homepage": null,
+      "created_at": "2026-06-30T11:20:30Z",
+      "updated_at": "2026-07-16T03:34:14Z",
+      "pushed_at": "2026-07-10T06:28:32Z"
+    },
+    "stats": {
+      "stars": 2105,
+      "forks": 323,
+      "watchers": 2105,
+      "open_issues": 10,
+      "size": 6791
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 133884,
+        "Vim Snippet": 551
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# iOS Location Spoofer\n\n[English](README.en.md) · **中文**\n\n用代理软件的 HTTPS 解密功能，把 Apple 地图定位骗到世界任何角落。\n\n> 📖 **新手直接看这篇** → [**小白保姆级图文教程**](使用教程.md)（一步步教你安装、配置、生效，含常见问题排查）\n\n## 参考项目\n\n本项目基于 [acheong08/ios-location-spoofer](https://github.com/acheong08/ios-location-spoofer) 的核心研究。原始项目是用 Go 写的独立 iOS App，通过自建 VPN + MITM 代理实现定位欺骗。\n\n本仓库将其核心逻辑移植为 JavaScript，适配到 Shadowrocket / Surge / Loon / Quantumult X / Stash 五个代理平台，免编译、免开发者账号，即导即用。\n\n### 相比原版新增的功能\n\n- **多平台支持** — 从单一 iOS App 扩展到五个代理软件，覆盖更多用户\n- **蜂窝基站坐标修改** — 原版 Go 只改了 WiFi 热点坐标，JS 版额外处理了 CellTower（字段 22/24）的坐标替换\n- **多响应格式兼容** — 自动检测 Apple 回应的封装格式（ARPC / synthetic / marker / bare），确保改后还能被 iOS 正确识别\n- **运动状态伪造** — 一并改写 motionActivityType 和 motionActivityConfidence，减少被系统识破的可能\n\n## 怎么回事\n\niPhone 看 Wi-Fi 信号和基站信号，拿着 BSSID 列表去问 Apple 这些设备在什么位置。Apple 回一份坐标清单，iOS 根据这些坐标算出自己在哪里。\n\n这套配置做的事情很简单：**在 Apple 发回坐标的路上拦截下来，全部改成你想要的数字**。iPhone 拿到改造过的坐标，算出来就是你指定的地方。\n\n## 支持哪些软件\n\n| 软件 | 文件 | 导入方法 | 状态 |\n|------|------|---------|------|\n| Shadowrocket（小火箭） | `ios-location-spoofer.sgmodule` | 配置 → 右上角 + | ✅ 实测通过 |\n| Surge | `ios-location-spoofer-surge.sgmodule` | 首页 → 模块 → 安装新模块 | ✅ 实测通过 |\n| Loon | `ios-location-spoofer.lnplugin` | 设置 → 插件 → 添加插件 | ✅ 实测通过 |\n| Quantumult X | `ios-location-spoofer.snippet` | 设置 → 重写 → 添加 | 🟡 待测试 |\n| Stash | `ios-location-spoofer.stoverride` | 覆写 → 安装覆写 | ✅ 实测通过 |\n\n> 欢迎测过的佬友在 Issue 区报实测结果；不通的地方欢迎直接提 PR 改 —— 至少写明**哪个软件、哪个版本、什么系统、报错的日志原文**。\n\n## 怎么用\n\n1. 软件里打开 HTTPS 解密 / MITM 开关\n2. 安装并信任 CA 证书（设置 → 通用 → VPN 与设备管理 → 安装 → 证书信任设置 → 启用）\n3. 导入模块文件，勾上启用\n4. 断开重连 VPN，开关定位服务\n5. 打开地图 App 验证\n\n### Loon 额外说明\n\n1. 导入 `ios-location-spoofer.lnplugin` 后，在 **设置 → 插件** 里打开插件配置页\n2. 可直接填 **纬度 / 经度**；**地址搜索** 由每 15 分钟的定时任务联网解析并缓存（首次请直接填经纬度，或保存地址后等一轮 cron）\n3. 必须开启 Loon 的 **MITM** 并信任证书，且插件内 `[mitm]` 四个域名生效\n4. 插件含 **Prepare** 请求脚本（设置 `Accept-Encoding: identity`，避免 gzip 引发 `zip decompress error` / 脚本超时）\n5. 改坐标后关开定位；调试打开 **调试日志**，在 Loon 日志搜 `Location spoofer`\n\n> 日志若出现 `Evaluate script timeout` 或 `zip decompress error:-3`：更新插件并重载 Loon，确认三条脚本（Prepare / Response / Geocode cron）均已启用。\n\n## 改坐标\n\n默认 Apple Park（37.3349, -122.00902）。在模块参数里改：\n\n```\nlatitude=39.9042&longitude=116.4074\n```\n\n参数：\n\n| 名字 | 默认值 | 说明 |\n|------|--------|------|\n| `latitude` | 37.3349 | 目标纬度 |\n| `longitude` | -122.00902 | 目标经度 |\n| `address` | （空） | 地址搜索（Loon 插件 UI 填写，联网解析为经纬度，优先于手动经纬度） |\n| `horizontalAccuracy` | 39 | 水平精度 |\n| `verticalAccuracy` | 1000 | 垂直精度 |\n| `altitude` | 530 | 海拔 |\n| `failOpen` | true | 出错放行原数据 |\n| `debug` | false | 调试日志 |\n\n## 文件清单\n\n```\nios-location-spoofer.sgmodule       # Shadowrocket\nios-location-spoofer-surge.sgmodule # Surge\nios-location-spoofer.lnplugin       # Loon\nios-location-spoofer.snippet        # Quantumult X\nios-location-spoofer.stoverride     # Stash\nlocation-spoofer.js                 # 核心脚本（四平台共用）\nlocation-spoofer-qx.js              # QX 专用\nlocation-spoofer-config.json        # 配置样板\n使用教程.md                         # 小白保姆级图文教程\nlocation-picker/                    # 进阶（可选）：网页地图选点（Node 或 Cloudflare Worker）\nlocation-picker/worker/             # Cloudflare Worker 版（免 VPS，支持 Loon configUrl）\n```\n\n## 进阶：网页地图选点工具\n\n经常换定位、懒得手动查坐标改参数？项目自带 [`location-picker/`](location-picker/) 地图选点工具：点地图即定位、海拔自动、精度可调，Loon / Shadowrocket 通过 `configUrl` 读取。\n\n**三种部署方式：**\n\n| 方式 | 目录 | 适合 |\n|------|------|------|\n| **Cloudflare Worker — Wrangler CLI**（推荐） | [`location-picker/worker/`](location-picker/worker/) | 免 VPS、自带 HTTPS；熟悉命令行 |\n| **Cloudflare Worker — 网页后台** | [`location-picker/cloudflare-webui/`](location-picker/cloudflare-webui/) | 免 VPS、自带 HTTPS；不想装 npm / Wrangler，复制单文件即可 |\n| Node 自托管 | [`location-picker/server.js`](location-picker/server.js) | 有自己的 VPS / NAS |\n\nLoon 插件 **远程配置 URL** 示例：\n\n```\nhttps://你的worker.workers.dev/loc.json?token=你的TOKEN\n```\n\n## 友情链接\n\n本项目接受 LINUX DO 社区佬友监督与反馈：[LINUX DO](https://linux.do)\n\n## location-picker 服务端配置\n\n`location-picker/server.js` 通过环境变量控制，**`TOKEN` 不设进程会直接退出，不会用弱口令兜底**。\n\n| 变量 | 是否必设 | 默认值 | 说明 |\n|------|---------|--------|------|\n| `TOKEN` | **必设** | 无 | 访问口令和 Shadowrocket 模块 `argument=` 末尾的 `configUrl` 里的 `token=` 必须一致。建议 `openssl rand -hex 24` 生成 |\n| `PORT` | 否 | `8080` | 监听端口；1024 以下需 root |\n| `CERT` | 否 | 空 | HTTPS 证书 fullchain 路径；与 `KEY` 同时设置才走 https |\n| `KEY` | 否 | 空 | HTTPS 私钥路径；与 `CERT` 同时设置才走 https |\n\n启动示例：\n\n```bash\n# http（最简，先跑通流程再用 https）\nTOKEN=$(openssl rand -hex 24) PORT=8080 node server.js\n\n# https（复用 acme.sh 证书；续期无需重启，进程每 12 小时自动热加载）\nTOKEN=$(openssl rand -hex 24) PORT=8443 \\\nCERT=/root/cert/example.com/fullchain.pem \\\nKEY=/root/cert/example.com/privkey.pem \\\nnode server.js\n```\n\n数据文件 `loc.json` 自动落在 `server.js` 同目录，记录当前坐标 / 海拔 / 精度；已在 `.gitignore` 中忽略，不会被误提交进仓库。\n\n> ⚠️ **不要把 `TOKEN` 写在命令行历史里**——推荐用 systemd 的 `Environment=` 或 `.env` + `direnv`，避免 `history` / `ps aux` 泄露。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:55:59.599660"
+  },
+  {
+    "basic_info": {
+      "name": "knockoff",
+      "full_name": "Shpigford/knockoff",
+      "owner": "Shpigford",
+      "description": "Chrome extension that filters pseudo-brand junk out of Amazon. Buy from real, established brands.",
+      "url": "https://github.com/Shpigford/knockoff",
+      "clone_url": "https://github.com/Shpigford/knockoff.git",
+      "ssh_url": "git@github.com:Shpigford/knockoff.git",
+      "homepage": "https://knockoff.co",
+      "created_at": "2026-07-06T15:06:06Z",
+      "updated_at": "2026-07-16T01:00:41Z",
+      "pushed_at": "2026-07-13T20:14:22Z"
+    },
+    "stats": {
+      "stars": 1916,
+      "forks": 67,
+      "watchers": 1916,
+      "open_issues": 14,
+      "size": 3232
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 393325,
+        "CSS": 75140,
+        "HTML": 43071,
+        "Shell": 16477,
+        "Ruby": 13232,
+        "Swift": 6031
+      },
+      "license": "Other",
+      "topics": [
+        "amazon",
+        "browser-extension",
+        "chrome-extension",
+        "firefox-addon",
+        "ios-extension",
+        "safari-extension"
+      ]
+    },
+    "content": {
+      "readme": "![Knockoff: Amazon, without the knockoffs](store-assets/promo-og.png)\n\n# Knockoff\n\n**A browser extension that filters pseudo-brand junk out of Amazon.** Buy from\nreal, established brands, even when that means paying more.\n\nAmazon is flooded with trademark-squat \"brands\" (SZHLUX, HORUSDY, LATTOOK,\nDOZAWA...): random strings registered at the USPTO purely to unlock Amazon\nBrand Registry, selling commodity goods with no company, no warranty, and no\nreputation behind them. Knockoff detects those listings and hides, dims, or\nlabels them, right in the search results.\n\n## Install\n\n**[Add to Chrome](https://chromewebstore.google.com/detail/pjgickchbiikhdfpmecaabkphmofpdce)** from the Chrome Web Store, or\n**[Add to Firefox](https://addons.mozilla.org/en-US/firefox/addon/knockoff-amazon-brand-filter/)** from Firefox Add-ons.\n\nOr load it unpacked for development:\n\n1. Clone this repo\n2. Open `chrome://extensions`\n3. Turn on **Developer mode** (top right)\n4. Click **Load unpacked** and select the repo folder\n\nWorks on every Amazon marketplace.\n\n### Safari\n\nSafari requires the extension to be wrapped in a native app. Open\n[`safari/Knockoff/Knockoff.xcodeproj`](safari/Knockoff) in Xcode, run the\n**Knockoff** scheme, then enable Knockoff in Safari → Settings →\nExtensions. For unsigned local builds, first check \"Allow unsigned\nextensions\" in Safari's Develop menu.\n\nThe Xcode project carries its own copy of the extension files; after\nediting the extension, run [`scripts/sync-safari.sh`](scripts/sync-safari.sh)\nto update it before rebuilding.\n\n## Press\n\nSome of the coverage since launch:\n\n- [Fast Company](https://www.fastcompany.com/91570721/amazon-shopping-slop-viral-new-tool-filters-out-knockoff-brands)\n- [Gizmodo](https://gizmodo.com/new-browser-extension-helps-you-dodge-amazons-sea-of-knock-off-products-2000783054)\n- [404 Media](https://www.404media.co/knockoff-browser-extension-hides-sketchy-brands-on-amazon/)\n- [PC Gamer](https://www.pcgamer.com/hardware/this-chrome-extension-hides-knockoff-brands-on-amazon-sorry-to-brands-like-wnpethome-eheyciga-yxy/)\n- [Yahoo](https://tech.yahoo.com/apps/articles/chrome-extension-removes-unknown-brands-162002361.html)\n- [Lifehacker](https://lifehacker.com/tech/knockoff-browser-extension-hides-shady-items-on-amazon)\n\n## How it works\n\nEverything runs locally in a content script. No accounts, no tracking, no\nserver round-trips on the shopping path. Each product tile's brand is\nresolved through this pipeline (first match wins):\n\n| # | Check | Verdict |\n|---|-------|---------|\n| 1 | Your allowlist | `allowed`, never filtered |\n| 2 | Your blocklist | `blocked`, always filtered |\n| 3 | Seed list of notorious pseudo-brands ([`data/flagged-brands.js`](data/flagged-brands.js)) | `flagged` |\n| 4 | Established Chinese-owned brands ([`data/chinese-major.js`](data/chinese-major.js)) | `known`, or `flagged` if you enable that setting |\n| 5 | ~5,000 established brands ([`data/known-brands.js`](data/known-brands.js) + the community allowlist in [`data/community-brands.js`](data/community-brands.js), refreshed daily from `api.knockoff.co/brands`) | `known` |\n| 6 | Name heuristics (see below) | `flagged` / `suspect` / `unknown` |\n| - | No brand at the front of the title at all | `unbranded` |\n\n### Name heuristics\n\nUnknown brands are scored on the linguistic signature of trademark-squat\nnames: ALL-CAPS 5–9 character strings, vanishing vowel ratios,\nunpronounceable consonant runs, un-English letter pairs, non-Latin\ncharacters, random iNternal caPitalization. High scores are `flagged`,\nmid scores `suspect`. The known-brands list always vetoes the heuristics:\nplenty of real brands (ASICS, RYOBI, HOKA) would otherwise look suspicious.\nScoring lives in [`src/detector.js`](src/detector.js) and is deliberately\nreadable, and tuning it is a great first contribution.\n\n### Filter levels\n\n| Level | Filters |\n|-------|---------|\n| **Relaxed** | Known pseudo-brands + your blocklist |\n| **Standard** (default) | + suspect-looking names + unbranded listings |\n| **Strict** | + anything not on a known-brands list (allowlist-only) |\n\n### Actions\n\nFiltered items can be **hidden** (with a floating pill showing the count and\na one-click reveal), **dimmed** (fade + desaturate, restore on hover), or\njust **labeled**. Every badge is clickable: trust the brand, block it, show\nthe item once, or report a misclassification.\n\nProduct detail pages get a verdict chip next to the brand byline. The page\nis never hidden out from under you.\n\n## Reporting misclassifications\n\nThe badge menu has one-click reporting (\"this is junk\" / \"this is a real\nbrand\"). Reports go to a small API (a Cloudflare Worker backed by D1) and are\nreviewed by hand to improve the bundled lists. No PII: the payload is brand,\nverdict, ASIN, marketplace, and extension version; reporter IPs are stored\nonly as salted hashes for rate limiting. If no endpoint is configured the\nextension falls back to opening a prefilled GitHub issue.\n\n## Contributing\n\nThe easiest, highest-v",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:00.832671"
+  },
+  {
+    "basic_info": {
+      "name": "zeus",
+      "full_name": "IR-NETLIFY/zeus",
+      "owner": "IR-NETLIFY",
+      "description": "⚡️ پنل کلودفلر زئوس (Zeus Panel) ",
+      "url": "https://github.com/IR-NETLIFY/zeus",
+      "clone_url": "https://github.com/IR-NETLIFY/zeus.git",
+      "ssh_url": "git@github.com:IR-NETLIFY/zeus.git",
+      "homepage": "https://t.me/ZEUS_PANEL_BOT",
+      "created_at": "2026-06-21T05:35:21Z",
+      "updated_at": "2026-07-16T03:50:55Z",
+      "pushed_at": "2026-07-16T01:30:54Z"
+    },
+    "stats": {
+      "stars": 1388,
+      "forks": 215,
+      "watchers": 1388,
+      "open_issues": 0,
+      "size": 35769
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 395362
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 🟢 مشکل بن شدن پنل ها رفع شد 🟢\n\n## 🔶 یک اکانت فرعی کلودفلر بسازید (جیمیل فیک نزنید)\n## 🔷 با ربات تلگرام یک پنل جدید بسازید (آموزش پایین هست)\n\n</div>\n\n<img  src=\"https://raw.githubusercontent.com/IR-NETLIFY/zeus/refs/heads/main/photos/dark2.png\"  width=\"100%\"  alt=\"Zeus Panel Dark Mode\"  style=\"border-radius: 12px; margin-bottom: 15px;\">\n\n  \n<img  src=\"https://raw.githubusercontent.com/IR-NETLIFY/zeus/refs/heads/main/photos/add.png\"  width=\"100%\"  alt=\"Zeus Panel Dark Mode\"  style=\"border-radius: 12px; margin-bottom: 15px;\">\n\n  \n\n<table  width=\"100%\">\n\n<tr>\n\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n\n<img  src=\"https://raw.githubusercontent.com/IR-NETLIFY/zeus/refs/heads/main/photos/updater.png\"  width=\"100%\"  alt=\"Zeus Panel Status\"  style=\"border-radius: 12px;\">\n\n</td>\n\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n\n<img  src=\"https://raw.githubusercontent.com/IR-NETLIFY/zeus/refs/heads/main/photos/deployer.png\"  width=\"100%\"  alt=\"Zeus Panel Interface\"  style=\"border-radius: 12px;\">\n\n</td>\n\n</tr>\n\n<tr>\n\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n\n<img  src=\"https://raw.githubusercontent.com/IR-NETLIFY/zeus/refs/heads/main/photos/bot.jpg\"  width=\"100%\"  alt=\"Zeus Panel Status\"  style=\"border-radius: 12px;\">\n\n</td>\n\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n\n<img  src=\"https://raw.githubusercontent.com/IR-NETLIFY/zeus/refs/heads/main/photos/status.png\"  width=\"100%\"  alt=\"Zeus Panel Dark Mode\"  style=\"border-radius: 12px;\">\n\n</td>\n\n</tr>\n\n</table>\n\n  \n\n<div  align=\"center\">\n\n<h1>⚡ پنل زئوس کلودفلر (Zeus Panel)</h1>\n\n<p>\n\n<a href=\"https://github.com/IR-NETLIFY/zeus\">\n\n<img  src=\"https://img.shields.io/badge/Version-1.8.13-0052CC?style=for-the-badge&logo=semver&logoColor=white\"  alt=\"Version\">\n\n</a>\n\n<a href=\"https://cloudflare.com\">\n\n<img  src=\"https://img.shields.io/badge/Platform-Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white\"  alt=\"Platform\">\n\n</a>\n\n<a href=\"https://t.me/PANEL_ZEUS\">\n\n<img  src=\"https://img.shields.io/badge/Developer-PANEL_ZEUS-00792D?style=for-the-badge&logo=telegram&logoColor=white\"  alt=\"Developer\">\n\n</a>\n\n</p>\n\n</div>\n\n  \n\n---\n\n  \n\n# ⚡️ قابلیت های پنل\n\n  \n  \n\n🌐 آیپی و لوکیشن ثابت برای هر کاربر.\n\n👥 مدیریت کاربران بر اساس حجم، زمان، ریکوئست و دستگاه‌های همزمان.\n\n♻️ ریست خودکار حجم و ریکوئست بر اساس زمان \n\n🛠 عملیات گروهی برای ویرایش، حذف و ریست کاربران.\n\n🛡 پشتیبانی از Fragment و شبیه‌ساز Fingerprint برای عبور از فیلترینگ.\n\n📱 رابط کاربری مدرن (Tailwind CSS) با پشتیبانی از دارک‌مود و موبایل.\n\n🛑 مسدودساز هوشمند سایت‌های پورنوگرافی و تبلیغات از طریق DNS.\n\n📡 دریافت خودکار آی‌پی تمیز و امکان تنظیم پروکسی سفارشی .\n\n🌐 تغییر خودکار آیپی های تمیز در زمان دلخواه\n\n📊 مانیتورینگ زنده ریکوئست‌های کلودفلر برای جلوگیری از مسدودی.\n\n🔗 تولید لینک ساب و QR کد و صفحه وضعیت اختصاصی هر کاربر.\n\n🔄 آپدیت خودکارهسته پنل بدون از دست رفتن اطلاعات دیتابیس.\n\n🗄 امکان بک‌آپ‌گیری کامل (Export/Import) اطلاعات در قالب JSON.\n\n🚀 ساخت کامل پنل، ساب‌دامین و دیتابیس تنها با یک کلیک از ربات تلگرام.\n\n🤖 مدیریت همزمان چندین اکانت کلودفلر، آپدیت پنل و بازیابی رمز عبور از طریق ربات تلگرام.\n\n  \n\n---\n\n  \n\n# 🚀 راهنمای نصب و استقرار سریع\n\n\n\n<div  align=\"center\">\n\n<a  href=\"https://dash.cloudflare.com/\"  target=\"_blank\">\n\n<img src=\"https://img.shields.io/badge/Cloudflare_Dashboard-Login-f38020?style=for-the-badge&logo=cloudflare&logoColor=white\" alt=\"Cloudflare Dashboard\" height=\"40\">\n\n</a>\n<div align=\"center\">\nابتدا وارد داشبورد کلودفلر شوید، با جیمیل خود وارد حساب کاربری شده و ایمیلتان را تایید کنید و سپس از یکی از روش‌های زیر ادامه دهید.\n</div>\n\n---\n\n<a  href=\"https://t.me/ZEUS_PANEL_BOT\"  target=\"_blank\">\n\n<img src=\"https://img.shields.io/badge/Zeus_Telegram_Bot-Start_Bot-0088cc?style=for-the-badge&logo=telegram&logoColor=white\" alt=\"Zeus Telegram Bot\" height=\"40\">\n\n</a>\n\n</div>\n\n<br>\n\n  \n\n### 🤖 روش اول: نصب از طریق ربات تلگرام (پیشنهادی)\n\n1. 🌐 وارد **[ربات تلگرام زئوس](https://t.me/ZEUS_PANEL_BOT)** شوید و آن را `Start` کنید.\n\n2. 👤 در منوی اصلی روی گزینه **«➕ ثبت اکانت کلودفلر»** کلیک کنید.\n\n3. 🔗 دکمه شیشه‌ای **«🔑 دریافت توکن کلودفلر»** را بزنید تا وارد حساب کلودفلر خود شوید.\n\n4. 🟦 در انتهای صفحه باز شده در کلودفلر، روی دکمه آبی‌رنگ `Continue to summary` و سپس `Create Token` کلیک کنید.\n\n5. 🔑 توکن ساخته‌شده را کپی کرده و **در چت ربات ارسال کنید**.\n\n6. ⚡️ پس از تایید توکن، به منوی اصلی برگردید، روی **«🚀 ساخت پنل جدید»** کلیک کرده و اکانت خود را انتخاب کنید تا دیتابیس D1 و پنل شما به‌طور خودکار مستقر شوند.\n\n  \n\n---\n\n  <div  align=\"center\">\n\n<a  href=\"https://zeus-panel.ir-netlify.workers.dev/\"  target=\"_blank\">\n\n<img src=\"https://img.shields.io/badge/Launch_Zeus_Panel-Deployer_Site-F38020?style=for-the-badge&logo=cloudflare&logoColor=white\" alt=\"Deploy Zeus\" height=\"40\">\n\n</a>\n\n</div>\n\n### 🌐 روش دوم: نصب از طریق سایت Deployer\n\n1. 🌐 وارد **[سایت نصب‌کننده](https://zeus-panel.ir-netlify.workers.dev/)** شوید.\n\n2. 🟧 بر روی دکمه نارنجی‌رنگ **«دریافت توکن»** کلیک کنید تا به حساب کلودفلر خود هدایت شوید.\n\n3. 🟦 مشابه روش قبل، به انتهای صفحه اسکرول کرده و روی دکمه آبی‌رنگ `Co",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:02.073633"
+  },
+  {
+    "basic_info": {
+      "name": "codexpro",
+      "full_name": "rebel0789/codexpro",
+      "owner": "rebel0789",
+      "description": "Use ChatGPT Developer Mode as a local coding agent for your repo through MCP.",
+      "url": "https://github.com/rebel0789/codexpro",
+      "clone_url": "https://github.com/rebel0789/codexpro.git",
+      "ssh_url": "git@github.com:rebel0789/codexpro.git",
+      "homepage": "https://rebel0789.github.io/codexpro/",
+      "created_at": "2026-06-16T21:22:43Z",
+      "updated_at": "2026-07-16T01:20:12Z",
+      "pushed_at": "2026-07-13T16:44:45Z"
+    },
+    "stats": {
+      "stars": 1307,
+      "forks": 123,
+      "watchers": 1307,
+      "open_issues": 9,
+      "size": 2541
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 518548,
+        "TypeScript": 294291
+      },
+      "license": "MIT License",
+      "topics": [
+        "apps-sdk",
+        "chatgpt",
+        "cloudflare-tunnel",
+        "codex",
+        "local-development",
+        "mcp",
+        "ngrok"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/favicon.svg\" width=\"72\" height=\"72\" alt=\"CodexPro logo\">\n</p>\n\n<h1 align=\"center\">CodexPro</h1>\n\n<p align=\"center\">\n  Local coding tools for ChatGPT, scoped to one repo.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://www.npmjs.com/package/codexpro\"><img alt=\"npm\" src=\"https://img.shields.io/npm/v/codexpro?style=flat-square\"></a>\n  <a href=\"https://github.com/rebel0789/codexpro/actions\"><img alt=\"CI\" src=\"https://img.shields.io/github/actions/workflow/status/rebel0789/codexpro/ci.yml?branch=main&style=flat-square\"></a>\n  <a href=\"https://github.com/rebel0789/codexpro/blob/main/LICENSE\"><img alt=\"License\" src=\"https://img.shields.io/github/license/rebel0789/codexpro?style=flat-square\"></a>\n  <a href=\"https://rebel0789.github.io/codexpro/\"><img alt=\"Website\" src=\"https://img.shields.io/badge/site-GitHub%20Pages-67e8f9?style=flat-square\"></a>\n</p>\n\n## Install\n\nRequirements:\n\n- Node.js 20+\n- A ChatGPT account with Apps / Developer Mode access\n- One HTTPS route to your local machine when connecting ChatGPT from the web\n\nInstall the CLI:\n\n```bash\nnpm install -g codexpro\n```\n\nRun setup inside the repo you want ChatGPT to work on:\n\n```bash\ncd /path/to/your/repo\ncodexpro setup\n```\n\nCodexPro prints and copies the Server URL. In ChatGPT, open:\n\n```text\nSettings -> Security and login -> Developer mode: on\nSettings -> Plugins -> Plugins tab -> + (beside Search plugins)\n```\n\nThis opens **New Plugin**. Give it a name such as `CodexPro`, paste the Server URL in the **Server URL** connection option, then choose `Authentication: No Authentication / None`. The form may initially show OAuth; change it before creating the plugin. CodexPro uses its own URL token.\n\n### Current Plugins UI\n\n| Open Plugins and click `+` | Complete the New Plugin form |\n| --- | --- |\n| ![Open Plugins and click the plus button](docs/images/chatgpt-plugins-add.png) | ![Complete the New Plugin form](docs/images/chatgpt-plugin-details.png) |\n\nDaily use from the same repo:\n\n```bash\ncodexpro start\n```\n\n## What It Does\n\nCodexPro starts a local MCP server for the current workspace. ChatGPT can then:\n\n- read files and inspect the repo\n- search code\n- make scoped edits with `write`, `edit`, or guarded `apply_patch`\n- run safe verification commands through `bash`\n- review changed files with `show_changes`\n- write handoff plans under `.ai-bridge`\n- export a selected context bundle for model surfaces that cannot call tools\n\nCodexPro is not a hosted service, model proxy, quota bypass, account pool, or OS sandbox.\nIt connects your own ChatGPT session to your own local repo through the official Developer Mode / MCP app path.\n\n## Repository Analysis\n\nCodexPro builds a bounded repository map from local manifests, source declarations, imports, tests, and Git state. It provides:\n\n- `inspect_workspace` for languages, project types, entrypoints, areas, symbols, and relationships\n- optional structured `search` intents: `text`, `symbol`, `references`, and `impact`\n- affected-area, risk, related-test, and focused-command recommendations in `show_changes`\n- matching read-only terminal views:\n\n```bash\ncodexpro inspect --root /path/to/repo\ncodexpro review --root /path/to/repo\ncodexpro inspect --root /path/to/repo --json\n```\n\nThe analysis is deterministic and local. It uses confidence labels instead of claiming compiler precision, stays within configured file/byte/symbol limits, and falls back to normal lexical search and Git review when analysis is incomplete.\n\nSet `CODEXPRO_ANALYSIS=0` to disable repository analysis without changing the rest of the connector.\n\n## Normal Commands\n\n```bash\ncodexpro setup\ncodexpro start\ncodexpro start --root /path/to/repo\ncodexpro doctor\ncodexpro connection-test --root /path/to/repo\ncodexpro settings\ncodexpro inspect\ncodexpro review\n```\n\nUseful modes:\n\n```bash\ncodexpro start --no-bash\ncodexpro start --tool-mode minimal\ncodexpro start --tool-mode full\ncodexpro start --mode handoff\ncodexpro start --mode pro\n```\n\nIf ChatGPT cannot create the plugin, run `codexpro connection-test`. It keeps\nthe normal read, tree, search, and skill tools, disables writes, bash, and tool\ncards, and logs whether a request reached the local MCP endpoint.\n\nTool cards are opt in:\n\n```bash\nCODEXPRO_TOOL_CARDS=1 codexpro start\n```\n\nThe v10 cards cover selected workspace, analysis, change, Git, handoff, and\nterminal results. Reads and searches stay in normal chat output. After updating\nthe connector, refresh its ChatGPT plugin connection once so it loads the new\nwidget resource.\n\n## Public URL Options\n\nChatGPT web needs a public HTTPS Server URL. CodexPro supports:\n\n- Fast demo URL: `codexpro start --tunnel cloudflare`\n- Stable ngrok domain: `codexpro ngrok --hostname your-domain.ngrok-free.dev`\n- Stable Cloudflare route: `codexpro stable --hostname codexpro.example.com --tunnel-name codexpro`\n- Tailscale Funnel: `codexpro tailscale --hostname your-device.your-tailnet.ts.net`\n- Local only: `codexpro start --tunnel none`\n\nCloudflare quick tunnel",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:03.313140"
+  },
+  {
+    "basic_info": {
+      "name": "hermes-browser-extension",
+      "full_name": "abundantbeing/hermes-browser-extension",
+      "owner": "abundantbeing",
+      "description": "Browser-native side panel for Hermes Agent — connect web context to your local Hermes runtime.",
+      "url": "https://github.com/abundantbeing/hermes-browser-extension",
+      "clone_url": "https://github.com/abundantbeing/hermes-browser-extension.git",
+      "ssh_url": "git@github.com:abundantbeing/hermes-browser-extension.git",
+      "homepage": null,
+      "created_at": "2026-06-24T02:20:56Z",
+      "updated_at": "2026-07-16T03:49:44Z",
+      "pushed_at": "2026-07-15T17:26:05Z"
+    },
+    "stats": {
+      "stars": 1015,
+      "forks": 101,
+      "watchers": 1015,
+      "open_issues": 2,
+      "size": 32549
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 1199209,
+        "CSS": 198526,
+        "HTML": 62414,
+        "Python": 32129,
+        "Batchfile": 1231
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agent",
+        "browser-extension",
+        "chrome-extension",
+        "edge-extension",
+        "hermes-agent",
+        "local-first",
+        "nous-research",
+        "sidepanel"
+      ]
+    },
+    "content": {
+      "readme": "# Hermes Browser Extension\n\nBrowser-native side panel for [Hermes Agent](https://hermes-agent.nousresearch.com/docs) — connect active web context through a local gateway, Hermes Cloud, or a self-hosted remote gateway.\n\n> Created by **Jon Komet** (`@abundantbeing`). Community extension for Hermes Agent by Nous Research.\n\n<p align=\"center\">\n  <img src=\"./assets/readme/hermes-browser-demo.gif\" alt=\"Hermes Browser Extension demo showing the side panel reading browser context and composing a Hermes prompt\" width=\"100%\" />\n</p>\n\n<p align=\"center\">\n  <strong>Public alpha v0.1.11 · Load unpacked · Local / Hermes Cloud / Remote · Full Hermes runtime tools</strong><br />\n  Not on the Chrome Web Store yet.\n</p>\n\n## What it is\n\nHermes Browser Extension is not a browser chatbot. It is a Chrome/Edge/Chromium side panel for the real Hermes Agent runtime. Choose a local gateway, attach to a signed-in Hermes Cloud agent tab, or connect to a self-hosted remote API/dashboard. Local and remote API connections can use the models, tools, skills, sessions, memory, and MCP servers already configured in Hermes; Cloud and dashboard-ticket connections are intentionally Chat-only.\n\nThis repo is specifically for the **Hermes Browser Extension**: the Chrome/Edge/Chromium side-panel integration for Hermes Agent.\n\n## Visual tour\n\n| Side panel | Theme settings | Local agents |\n| --- | --- | --- |\n| <img src=\"./assets/readme/hermes-browser-sidepanel.png\" alt=\"Hermes Browser Extension side panel in Mono theme\" width=\"300\" /> | <img src=\"./assets/readme/hermes-browser-theme-picker-v017.png\" alt=\"Hermes Browser Extension appearance settings with color mode and theme picker\" width=\"300\" /> | <img src=\"./assets/readme/hermes-browser-local-agents-v017.png\" alt=\"Hermes Browser Extension settings with connected local agent picker\" width=\"300\" /> |\n| Browser behavior | Page-only context | Hermes compatibility |\n| <img src=\"./assets/readme/hermes-browser-browser-behavior.png\" alt=\"Hermes Browser Extension browser behavior settings for auto naming, prompt context, and tab-attached panels\" width=\"300\" /> | <img src=\"./assets/readme/hermes-browser-context-scope.png\" alt=\"Hermes Browser Extension context scope menu with Chat only, Follow active tab, and Page only controls\" width=\"300\" /> | <img src=\"./assets/readme/hermes-browser-compatibility.png\" alt=\"Hermes Browser Extension compatibility panel showing fallback modes and connection security\" width=\"300\" /> |\n\n### Hermes Web\n\nOpen the extension's full view for canonical Hermes sessions, model/runtime control, rich messages, generated media, and accurate session context telemetry in a browser-native workspace.\n\nHermes Web Alpha currently uses token-backed **Local or Remote API** connections. Hermes Cloud Preview and ticketed remote-dashboard transports remain Chat-only in the side panel; live full-view dashboard handoff is not shipped yet.\n\n<p align=\"center\">\n  <img src=\"./assets/readme/hermes-web-new-session.png\" alt=\"Hermes Web in Nous Light mode showing a connected new-session workspace with session rail, composer, and context inspector\" width=\"100%\" />\n</p>\n\n<p align=\"center\"><strong>Start a fresh canonical Hermes Web session</strong></p>\n\n<p align=\"center\">\n  <img src=\"./assets/readme/hermes-web-settings-nine-themes.png\" alt=\"Hermes Web settings in Nous Light mode showing all nine appearance themes\" width=\"100%\" />\n</p>\n\n<p align=\"center\"><strong>Choose from nine themes with Light and Dark modes</strong></p>\n\n<p align=\"center\">\n  <img src=\"./assets/readme/hermes-web-rich-chat.png\" alt=\"Hermes Web in Nous Light mode showing user messages on the right, Hermes messages on the left, rich Markdown, a table, session rail, composer, and context meter\" width=\"100%\" />\n</p>\n\n<p align=\"center\"><strong>Read rich Hermes responses while canonical history stays attached</strong></p>\n\n## Highlights\n\n- Adds **Hermes Web Alpha**, a full-page browser workspace for canonical Hermes sessions with a session rail, user-right/Hermes-left messages, safe rich Markdown, model/runtime controls, tools, skills, attachments, voice, active-run steering, generated media, and a context/activity/diagnostics inspector.\n- Chrome/Edge/Chromium MV3 side panel powered by the Side Panel API.\n- Matches Hermes Desktop's three connection choices: **Local gateway**, **Hermes Cloud**, and **Remote gateway**.\n- Connects to a configurable local or self-hosted remote Hermes API server. Default: `http://127.0.0.1:8642`.\n- Uses **Trusted Dashboard Attach** for Hermes Cloud: an explicitly selected, signed-in HTTPS agent tab mints a short-lived, single-use WebSocket ticket. Tickets stay memory-only and Cloud remains Chat-only.\n- Supports the same ticketed WebSocket path for a self-hosted remote dashboard when Remote gateway is selected with no API key.\n- Auto-syncs connected Hermes providers/models, profiles, skills, sessions, and capabilities.\n- Keeps runtime plugins available in the same Hermes session. For example, a connected social or messaging",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:04.559903"
+  },
+  {
+    "basic_info": {
+      "name": "cdk-redeem-only-extension",
+      "full_name": "kui123456789/cdk-redeem-only-extension",
+      "owner": "kui123456789",
+      "description": "UPI redeem only extension",
+      "url": "https://github.com/kui123456789/cdk-redeem-only-extension",
+      "clone_url": "https://github.com/kui123456789/cdk-redeem-only-extension.git",
+      "ssh_url": "git@github.com:kui123456789/cdk-redeem-only-extension.git",
+      "homepage": null,
+      "created_at": "2026-06-27T15:00:12Z",
+      "updated_at": "2026-07-13T21:37:28Z",
+      "pushed_at": "2026-07-12T21:34:43Z"
+    },
+    "stats": {
+      "stars": 1010,
+      "forks": 204,
+      "watchers": 1010,
+      "open_issues": 1,
+      "size": 7573
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 4884171,
+        "HTML": 88615,
+        "CSS": 87904,
+        "Python": 38730,
+        "Batchfile": 5107,
+        "Shell": 385
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# CDK Redeem Only\n\n这是 CDK 兑换专用版 Chrome 扩展。当前版本保留邮箱注册、邮箱验证码、设置 GPT 密码、第 7 步开通 2FA、读取 AT、试用资格检测、Free 共用分组、UPI/IDEAL 双 CDK 池、UPI Plus/IDEAL Plus 分组、CDK 兑换、Plus 识别/验证、导入导出。\n\n## 教程文档\n\n- GitHub 首页可直接打开：[教程.docx](教程.docx)\n- Release 下载页也提供同一份教程：[tutorial.docx](https://github.com/kui123456789/cdk-redeem-only-extension/releases/latest/download/tutorial.docx)\n\n完整配置说明见 [docs/CONFIG-USAGE.md](docs/CONFIG-USAGE.md)。\n\n## 保留能力\n\n- 自动注册邮箱账号并读取邮箱验证码。\n- 设置 GPT 登录密码。\n- 第 7 步开通 TOTP 2FA、读取 access token、检测是否有试用资格。\n- 资格通过后保存到 Free 组；有可用 CDK 时主流程可自动提交兑换。\n- Free 组导入、导出、补充 AT、一键识别 Plus、一键兑换 UPI、一键兑换 IDEAL、一键兑换全部。\n- UPI 和 IDEAL CDK 池分开导入、删除、启用、刷新状态。\n- 远端兑换成功并确认会员后，按兑换渠道移动到 UPI Plus 或 IDEAL Plus。\n- Plus 组验证、导出、删除。\n- 单账号登录、手动移动 Free/Plus 分组。\n\n## 已移除\n\n- 旧支付流程 流程。\n- 旧外部钱包支付流程。\n- 旧网络切换配置和切换模块。\n- 旧手机验证模块。\n- 本地支付 helper、支付转换网络切换和相关隐藏 UI。\n\n邮箱验证码能力保留，因为注册和设置 GPT 密码仍需要邮箱取码。\n\n## 安装\n\n1. 打开 Chrome：`chrome://extensions/`。\n2. 开启右上角“开发者模式”。\n3. 点击“加载已解压的扩展程序”。\n4. 选择本项目目录，或选择脱敏发布包解压后的目录。\n5. 修改代码或更新包后，回到扩展管理页点击“重新加载”。\n\n## 必填配置\n\n侧栏中需要填写：\n\n- `UPI Key`：后端提供的 `X-External-Api-Key`，不要加 `Bearer`。\n- `UPI Client ID`：可留空，扩展会自动生成并保存到本地。\n- `UPI 卡密池` / `IDEAL 卡密池`：一行一个 CDK；两个池互不影响，导入后会按对应渠道续兑符合条件的 Free 候选。\n- `兑换轮数`：首轮结束后，失败账号继续进行的轮数；`0` 表示只跑首轮，同一轮每个账号只尝试一张 CDK。\n\n默认远端：\n\n- 兑换接口：`https://chong.nerver.cc/api/external/cdkey-redeems`\n- 资格/会员查询：`https://cha.nerver.cc`\n\n## 主流程\n\n当前自动注册主流程只有 7 步：\n\n1. 导入或获取注册邮箱。\n2. 打开 ChatGPT 官网并提交邮箱。\n3. 设置注册密码。\n4. 读取并提交邮箱验证码。\n5. 填写资料。\n6. 等待注册完成。\n7. 开通 2FA、读取 AT、检测 UPI 试用资格。\n\n第 7 步必须确认有试用资格后才进入 Free 组。进入 Free 后，如果对应渠道有可用 CDK，主流程会自动提交兑换；远端等待中的 CDK 状态按 5 秒节奏刷新，只同步状态和失败次数。\n\n## Free / Plus\n\nFree 导出格式：\n\n```text\n邮箱---密码---2fa---at---时间戳\n```\n\nPlus 导出格式：\n\n```text\n邮箱----密码---2fa---时间戳\n```\n\nFree 组保存已确认有试用资格、但尚未确认 Plus 的账号。`一键兑换 UPI` 使用 UPI 卡密池处理 UPI 候选；`一键兑换 IDEAL` 使用 IDEAL 卡密池处理 IDEAL 候选；`一键兑换全部` 先 UPI 后 IDEAL，不并发抢同一个 Free 账号。\n\n远端兑换成功并确认会员后，对应 AT 的邮箱按兑换渠道进入 UPI Plus 或 IDEAL Plus。失败、取消、等待中的账号会保留在 Free，并记录原因和时间戳。\n\n## 脱敏发布\n\n对外发布时应使用脱敏包，排除本地密钥和运行数据：\n\n- `manifest.json` 中的 `key`\n- `config.json`\n- `.git`\n- `.codegraph`\n- `_metadata`\n- `release-artifacts`\n- 本地日志、缓存和运行历史\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:05.776982"
+  },
+  {
+    "basic_info": {
+      "name": "cfnew-deployer",
+      "full_name": "byJoey/cfnew-deployer",
+      "owner": "byJoey",
+      "description": null,
+      "url": "https://github.com/byJoey/cfnew-deployer",
+      "clone_url": "https://github.com/byJoey/cfnew-deployer.git",
+      "ssh_url": "git@github.com:byJoey/cfnew-deployer.git",
+      "homepage": null,
+      "created_at": "2026-06-22T11:13:55Z",
+      "updated_at": "2026-07-16T00:52:42Z",
+      "pushed_at": "2026-06-24T08:05:31Z"
+    },
+    "stats": {
+      "stars": 577,
+      "forks": 270,
+      "watchers": 577,
+      "open_issues": 5,
+      "size": 257
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 65674,
+        "HTML": 6282,
+        "CSS": 6234
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Deploy Panel\n\n可直接部署到 Cloudflare Pages 的部署器，支持自动创建或更新 Cloudflare Worker / Pages。\n\n## 部署部署器\n\n```bash\nnpm install\nnpm run deploy\n```\n\n也可以把本仓库接到 Cloudflare Pages，构建输出目录填 `public`，无需构建命令。\n\n## Cloudflare 本地上传\n\n不要直接上传 GitHub 自动生成的源码 zip，也不要只上传 `public/` 目录；那样 `/api/*` 会 404。\n\n本地生成可上传资产包：\n\n```bash\nnpm install\nnpm run pack:upload\n```\n\n然后在 Cloudflare Pages 控制台上传 `deploy-panel-upload.zip`。这个 zip 根目录包含 `index.html`、`app.js`、`styles.css` 和 `_worker.js`，适配控制台本地上传。\n\nGitHub 自动部署需要在仓库 Secrets 配置：\n\n- `CLOUDFLARE_API_TOKEN`\n- `CLOUDFLARE_ACCOUNT_ID`\n\n本地调试仍可使用：\n\n```bash\nnpm start\n```\n\n## 支持能力\n\n- 用户填写 Cloudflare 邮箱和 Global API Key\n- 自动读取账户和可绑定域名\n- 默认随机生成项目名称、KV 名称和可选子域名，不使用固定业务前缀\n- 自动生成 UUID\n- 自动创建或复用 KV，并绑定为 `C`\n- 支持读取现有 Worker / Pages / KV 后更新部署\n- 更新部署只同步代码，不修改 UUID、KV、域名或项目配置\n- Worker 部署\n- Pages 部署\n- 部署时实时从 `byJoey/cfnew` 的 `main` 分支拉取明文源或混淆源\n- Worker 自定义域名或 Route 绑定\n- Pages 自定义域名绑定\n\n密钥不会写入文件或浏览器 localStorage；托管部署时只在当前请求内转发给 Cloudflare API。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:07.014548"
+  },
+  {
+    "basic_info": {
+      "name": "skills",
+      "full_name": "dzhng/skills",
+      "owner": "dzhng",
+      "description": null,
+      "url": "https://github.com/dzhng/skills",
+      "clone_url": "https://github.com/dzhng/skills.git",
+      "ssh_url": "git@github.com:dzhng/skills.git",
+      "homepage": null,
+      "created_at": "2026-07-02T10:24:16Z",
+      "updated_at": "2026-07-15T16:29:59Z",
+      "pushed_at": "2026-07-08T13:59:29Z"
+    },
+    "stats": {
+      "stars": 570,
+      "forks": 42,
+      "watchers": 570,
+      "open_issues": 2,
+      "size": 4871
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 18422
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Skills\n\n[![skills.sh](https://skills.sh/b/dzhng/skills)](https://skills.sh/dzhng/skills)\n\n![AI skills for building software factories](assets/hero.jpg)\n\n**AI skills for building software factories.** My personal library of\ndomain-agnostic agent skills, reused across every project. Small, composable,\nand hackable — works with any harness that supports skills: Claude Code, Codex,\nopencode, Cursor, [duet](https://duet.so), and\n[70+ others](https://github.com/vercel-labs/skills).\n\n```bash\nnpx skills add dzhng/skills\n```\n\nAdd `--list` to pick individual skills, or copy any `skills/<category>/<name>/`\nfolder into your harness's skills directory (e.g. `.claude/skills/`).\n\n## Why\n\nSoftware is moving from tasks to **factories**: agents that pursue a goal\nautonomously until the output can be trusted. The hard part isn't breaking the\ngoal into tasks — it's breaking it into **independently verifiable pieces**, and\nknowing where the pieces even are.\n\nThese skills run that loop. Treat the unknown as **fog of war**: map the\nterrain, carve it into territories that build and verify in isolation, and\nrecursively re-slice whatever hides more map. And re-planning doesn't stop when\nplanning ends — the spec is a living document, updated and re-sliced\nmid-implementation whenever the work teaches the agent that the plan is stale.\nEvery piece must prove itself — architecture review, code review, and visual\nreview against a baseline — before the loop moves on. Each iteration gets *less\nwrong*, until the goal is done.\n\n![A single autonomous run — 1 day, 16 hours pursuing one goal](assets/autonomous-run.png)\n\n> Proof: one unattended Codex run pursuing a single goal for **1d 16h** on top\n> of these skills, slicing and iterating until done.\n\n## How to use\n\n1. **Plan.** Ask your agent to `/write-spec` the goal. It interviews you,\n   researches the unknowns, and materializes a spec under `specs/<feature>/` —\n   a slice graph where every slice is independently verifiable.\n\n2. **Build.** Kick off the loop:\n\n   ```\n   /goal /implement-spec specs/<feature>\n   ```\n\n   Add whatever framing fits: `on the xyz branch`, or `using /codex as the\n   implementer while you stay the parent orchestrator and reviewer`.\n\n3. **The rest fires on its own.** The spec tells the loop when to call the\n   other skills — a `/review` pass at the end of every slice,\n   `/screenshot-critique` and `/compare-screenshots` on anything\n   visual, `/close-spec` when the last slice lands — and to update and\n   re-slice the plan whenever implementation proves it stale. Every skill is\n   also independently useful: invoke any of them manually whenever you want.\n\n## Skills\n\n### Engineering — slice, build, verify, repeat\n\n| Skill | What it does |\n|---|---|\n| [explore-unknowns](skills/engineering/explore-unknowns/SKILL.md) | Walk the user through mapping a task's unknowns quadrant by quadrant — known knowns first, then interviews, reactable artifacts, and blindspot passes — ending with a complete four-quadrant map. |\n| [write-spec](skills/engineering/write-spec/SKILL.md) | Break a large feature into independently verifiable, human-reviewable slices with API seams and playable checkpoints. |\n| [implement-spec](skills/engineering/implement-spec/SKILL.md) | Build an existing spec to completion, one reviewable pass at a time, delegating independent slices in parallel. |\n| [implement-spec-with-codex](skills/engineering/implement-spec-with-codex/SKILL.md) | Run implement-spec with Codex writing the code — you orchestrate, integrate, and review every pass. |\n| [close-spec](skills/engineering/close-spec/SKILL.md) | Archive a shipped spec and rewrite it from a build plan into a durable rationale record that points back at the code. |\n| [refactor-clean](skills/engineering/refactor-clean/SKILL.md) | Refactor by moving ownership to one clean concept instead of layering compatibility sediment beside the problem. |\n| [write-tests](skills/engineering/write-tests/SKILL.md) | Write tests one tracer bullet at a time that pin real behavior — not implementation details, config values, or lucky samples. |\n| [write-docs](skills/engineering/write-docs/SKILL.md) | Write docs as a glossary of principles and pointers, never a mirror of the code that will rot. |\n| [code-review](skills/engineering/code-review/SKILL.md) | Audit a diff for stale names, dead references, needless complexity, and comments that narrate instead of explain — ending on a clean/not-clean verdict. |\n| [review](skills/engineering/review/SKILL.md) | Closeout a finished change as one pass — refactor-clean, then code-review, then write-docs — sequenced into a single verdict. |\n| [codex](skills/engineering/codex/SKILL.md) | Use the local Codex CLI as an independent second agent for review and (on explicit ask) delegated implementation. |\n| [claude](skills/engineering/claude/SKILL.md) | Use Claude Code (`claude -p`) as an independent second agent for consultation and (on explicit ask) delegated implementation. |\n\n### Visual review — never a",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:08.212749"
+  },
+  {
+    "basic_info": {
+      "name": "drawio-ai-kit",
+      "full_name": "sparklabx/drawio-ai-kit",
+      "owner": "sparklabx",
+      "description": "Teach your AI to draw correct, beautiful draw.io diagrams — declarative layout engine, ground-truth stencils, structural validator, vision self-check. AWS · Azure · GCP · Databricks · BPMN. Zero dependencies.",
+      "url": "https://github.com/sparklabx/drawio-ai-kit",
+      "clone_url": "https://github.com/sparklabx/drawio-ai-kit.git",
+      "ssh_url": "git@github.com:sparklabx/drawio-ai-kit.git",
+      "homepage": null,
+      "created_at": "2026-06-17T16:51:20Z",
+      "updated_at": "2026-07-16T03:52:53Z",
+      "pushed_at": "2026-07-15T14:23:02Z"
+    },
+    "stats": {
+      "stars": 565,
+      "forks": 97,
+      "watchers": 565,
+      "open_issues": 1,
+      "size": 19410
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 176917,
+        "Python": 19905
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "ai-agents",
+        "architecture-diagrams",
+        "aws",
+        "azure",
+        "bpmn",
+        "claude-code",
+        "cli",
+        "databricks",
+        "diagrams",
+        "drawio",
+        "gcp"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/logo.png\" width=\"150\" alt=\"drawio-ai-kit logo\" valign=\"middle\">\n  &nbsp;&nbsp;\n  <img src=\"docs/wordmark.svg\" width=\"360\" alt=\"drawio-ai-kit — the AI draws, the kit makes it right\" valign=\"middle\">\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/version-1.0.0-22D3EE?style=flat-square\" alt=\"Version 1.0.0\">\n  <img src=\"https://img.shields.io/badge/dependencies-0-2BB3A3?style=flat-square\" alt=\"Dependencies: 0\">\n  <img src=\"https://img.shields.io/badge/skills-5-5AA9FF?style=flat-square\" alt=\"5 domain skills\">\n  <img src=\"https://img.shields.io/badge/node-%E2%89%A518-B98CF0?style=flat-square\" alt=\"Node ≥18\">\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square\" alt=\"License: MIT\"></a>\n  <a href=\"CONTRIBUTING.md\"><img src=\"https://img.shields.io/badge/PRs-welcome-ff69b4?style=flat-square\" alt=\"PRs welcome\"></a>\n</p>\n\nAn orchestration and validation framework enabling AI agents to generate **structurally precise and aesthetically standardized** draw.io diagrams, optimized for AWS, Azure & GCP architectures.\n\nIt mitigates common AI agent hallucinations (such as generating non-existent stencil IDs that result in empty shapes) using three key components:\n\n1. **Declarative Catalog** — A single source of truth mapping draw.io stencil IDs (`mxgraph.aws4.*`) to their respective taxonomies and canonical color palettes.\n2. **Design Principles** — Codified architectural and layout rules (`rules/principles.md`).\n3. **Structural Validator** — A static analysis engine that audits diagram XML to guarantee stencil references are valid and design principles are satisfied prior to serialization.\n\nExposed to the AI via the **zero-dependency `drawio-ai` CLI**.\n\n## Showcase\n\nOne diagram per platform — all generated end-to-end by the kit: no hand-placed coordinates, real stencils, validated, vision-checked. Full set in [`examples/`](examples/).\n\n<p align=\"center\"><img src=\"docs/gallery.png\" width=\"900\" alt=\"Gallery — AWS Multi-AZ · Databricks Data Intelligence Platform · Azure hub-spoke landing zone · GCP Shared VPC landing zone\"></p>\n\n## Quick start\n\nFull install — the CLI plus all 5 Domain Skills (AWS, Azure, GCP, Databricks, BPMN) — in one line:\n\n```bash\nnpm i -g github:sparklabx/drawio-ai-kit && npx skills add sparklabx/drawio-ai-kit\n```\n\nRestart your agent, then try: *\"draw an AWS 3-tier web app\"*.\n\nThe first command puts the `drawio-ai` binary on PATH (installs straight from\nGitHub — not yet on the npm registry; see [INSTALL.md](INSTALL.md) to pin a version\nor install from a clone). The second registers the Domain Skills with your agent\n(the `skills` CLI auto-detects Claude Code, Codex, Gemini CLI, …) — without it the\nagent never picks the kit up on its own.\n\n- Just one domain instead: `npx skills add sparklabx/drawio-ai-kit --skill drawio-aws` (`--list` previews all 5)\n- Optional, for the full experience: the **draw.io desktop app** enables `drawio-ai render` (the vision self-check); **Graphviz** enables `vendor/autolayout.py` for large graphs. Details in [INSTALL.md](INSTALL.md).\n\n## Is it safe to install?\n\nShort answer: yes — and you don't have to take my word for it.\n\n- **No hidden code.** No `postinstall` (or any lifecycle) hooks — nothing runs on `npm install`. Zero runtime dependencies. **No `sudo`, no `curl | bash`, no remote code.**\n- **Zero runtime dependencies.** The single dependency (`@modelcontextprotocol/sdk`) was removed at 1.0.0. The package is now fully self-contained.\n- **Runs locally, no telemetry.** The CLI only reads/writes local files. The single optional outbound call is icon-logo fetching from public CDNs (lobe-icons), and it's opt-in.\n- **Easy to undo:**\n\n```bash\nnpm uninstall -g drawio-ai-kit              # remove the CLI\nnpx skills remove drawio-aws              # remove a domain skill (repeat for each)\n```\n\n- **Updating** — two independent channels:\n\n```bash\nnpm i -g github:sparklabx/drawio-ai-kit   # CLI/engine (icon search, workflow, validator, rules)\nnpx skills update                         # the Domain Skills (SKILL.md) — always pulls latest\n```\n\nThe skills are thin frontends that call `drawio-ai` at runtime, so engine fixes reach you the\nmoment you update the CLI — no skill re-install needed. `npx skills update` only refreshes the\nSKILL.md text. Pin a specific release with `github:sparklabx/drawio-ai-kit#v1.0.1`.\n\nTo report a security issue, see [`SECURITY.md`](SECURITY.md).\n\n## Build a diagram — declarative, no hardcoded coordinates\n\nDefine a diagram **topology** (`pipeline`/`hierarchy`/`network`/`hubspoke`/`hybrid`/`mesh`/`sequence`), declare the **nested structure**, and the layout engine programmatically computes spatial coordinates (x/y/w/h) — frames auto-size to fit their children, while rows and columns auto-space. You define the logical topology, not raw pixels.\n\n```js\nimport { Diagram } from \"./src/builder.mjs\";\nimport { group, icon, box, renderTree } from \"./src/layout-engine.mjs\";\n\nconst ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:09.468947"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-images",
+      "full_name": "flatkey-ai/awesome-images",
+      "owner": "flatkey-ai",
+      "description": "Try flatkey.ai for 40% saving! Generate practical images ready for all your work needs!!!",
+      "url": "https://github.com/flatkey-ai/awesome-images",
+      "clone_url": "https://github.com/flatkey-ai/awesome-images.git",
+      "ssh_url": "git@github.com:flatkey-ai/awesome-images.git",
+      "homepage": "https://flatkey.ai/use-case/image-buddy?utm_source=github&utm_medium=awesome_images",
+      "created_at": "2026-06-18T13:17:13Z",
+      "updated_at": "2026-07-16T03:17:05Z",
+      "pushed_at": "2026-06-19T08:52:08Z"
+    },
+    "stats": {
+      "stars": 557,
+      "forks": 0,
+      "watchers": 557,
+      "open_issues": 1,
+      "size": 14442
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 62738,
+        "CSS": 10117,
+        "HTML": 5197
+      },
+      "license": null,
+      "topics": [
+        "affordable-ai",
+        "affordable-ai-platform",
+        "ai-api",
+        "gpt-image-2",
+        "gpt-image-2-api",
+        "gpt-image-2-prompts",
+        "nano-banana",
+        "nano-banana-pro",
+        "nano-banana-prompts"
+      ]
+    },
+    "content": {
+      "readme": "# Flatkey Image Prompt Library\n\n[English](README.md) | [中文](README_zh.md) | [日本語](README_ja.md) | [Español](README_es.md) | [Português](README_pt.md) | [Tiếng Việt](README_vi.md)\n\nImage Buddy is a commercial prompt library and CLI for generating useful marketing images with [Flatkey.ai](https://flatkey.ai?utm_source=skill). Flatkey can be about 40% cheaper than common direct image API routes, and this repo makes it easier to turn that lower cost into usable product images, ads, avatars, app visuals, and ecommerce creatives.\n\nGet API key: <https://flatkey.ai?utm_source=skill>\n\n## What You Get\n\n- **Lower generation cost**: use Flatkey.ai for image generation, often around 40% cheaper than common direct API routes.\n- **Commercial prompts that work**: templates are written for product, ecommerce, social ads, UI screenshots, avatars, posters, game assets, and edits.\n- **Fast generation demo**: use `image-buddy web` to open a local demo gallery and generate images with a Flatkey key.\n- **CLI-first workflow**: onboard once, then generate from a short sentence or a template hint.\n\n## Includes\n\n**Skill**: a copy-paste prompt for your AI agent. The agent installs and uses Image Buddy for you, backed by the CLI.\n\nPaste this into your AI assistant:\n\n```text\nInstall and use the Flatkey Image Buddy skill from https://github.com/flatkey-ai/awesome-images.\nWhen I ask for an image, use image-buddy CLI with Flatkey. First run image-buddy onboard if needed, then generate the image from my short prompt or from a template hint. Do not stop at suggesting prompts.\n```\n\n**CLI**: one command-line tool for onboarding and generation.\n\n- `image-buddy onboard`: save your Flatkey API key locally.\n- `image-buddy generate --prompt \"...\"`: generate from a plain sentence.\n- `image-buddy generate avatar-pack \"地雷妹\"`: generate from a template plus hint.\n- `image-buddy web`: open the optional demo gallery.\n\n## Quickstart\n\nGenerate an image with no local install:\n\n```bash\nnpx @flatkey-ai/image-buddy onboard\nnpx @flatkey-ai/image-buddy generate --prompt \"premium product hero image for an AI image API CLI\"\n```\n\nUse a template with a short hint:\n\n```bash\nnpx @flatkey-ai/image-buddy generate avatar-pack \"地雷妹\"\n```\n\nOpen the optional web gallery:\n\n```bash\nnpx @flatkey-ai/image-buddy web\n```\n\nNo API key yet? Create one at <https://console.flatkey.ai/keys>. The CLI reads the saved key, `FLATKEY_IMAGE_API_KEY`, or `FLATKEY_API_KEY`.\n\n## Why This Exists\n\n- **Lower activation friction**: users start from proven templates instead of a blank prompt box.\n- **Increase API conversion**: every template card sends users to Flatkey API key registration.\n- **Cover common commercial use cases**: product marketing, ecommerce images, social ads, infographics, avatars, app screenshots, game assets, and image edits.\n- **Support batch workflows**: templates use `{{variable}}` placeholders, so apps can replace values before sending final prompts to an API.\n- **Work as marketing content**: useful as a prompt gallery, tutorial page, landing page, or onboarding resource.\n\n## Included Templates\n\nThis library currently includes 12 high-frequency image prompt templates:\n\n- Premium product hero visual\n- White-background ecommerce main image\n- UGC ad cover frame\n- Liquid glass Bento infographic\n- Founder quote card\n- Consistent avatar pack\n- App Store screenshot poster\n- YouTube thumbnail\n- Event poster key visual\n- Game prop concept sheet\n- Subject-preserving background replacement\n- Fashion lookbook collage\n\nEach template includes:\n\n- Title and use case\n- Category and recommended model\n- Replaceable variables\n- Full prompt text\n- API use-case note\n- Copy prompt button\n- Flatkey API key registration link\n\n## Demo Gallery\n\nThe web gallery ships with 20 generated demo images. These are included in the npm package and shown by `image-buddy web`.\n\n| Product | Ecommerce | Social Ad | App |\n|---|---|---|---|\n| ![SaaS Hero Phone](assets/saas-hero-phone.png)<br>**SaaS Hero Phone** | ![Skincare Product](assets/ecommerce-skincare.png)<br>**Skincare Product** | ![UGC Coffee Ad](assets/ugc-coffee-ad.png)<br>**UGC Coffee Ad** | ![Fitness App](assets/fitness-app.png)<br>**Fitness App** |\n\n| Poster | Infographic | Fashion | Game Asset |\n|---|---|---|---|\n| ![AI Agent Poster](assets/ai-agent-poster.png)<br>**AI Agent Poster** | ![Liquid Bento](assets/liquid-bento.png)<br>**Liquid Bento** | ![Streetwear Lookbook](assets/streetwear-lookbook.png)<br>**Streetwear Lookbook** | ![Crystal Game Prop](assets/game-prop-crystal.png)<br>**Crystal Game Prop** |\n\n| Food | Travel | Portrait | Real Estate |\n|---|---|---|---|\n| ![Dessert Hero](assets/food-dessert.png)<br>**Dessert Hero** | ![Travel Map](assets/travel-map.png)<br>**Travel Map** | ![Cyber Portrait](assets/cyber-portrait.png)<br>**Cyber Portrait** | ![Interior Render](assets/real-estate-interior.png)<br>**Interior Render** |\n\n| Entertainment | Education | Finance | Beauty |\n|---|---|---|---|\n| ![Music Cover](assets/music-cover.png)<br>**Music Cove",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:10.693473"
+  },
+  {
+    "basic_info": {
+      "name": "age-verification-bypass",
+      "full_name": "helloyanis/age-verification-bypass",
+      "owner": "helloyanis",
+      "description": "Extension to bypass age verification on some websites",
+      "url": "https://github.com/helloyanis/age-verification-bypass",
+      "clone_url": "https://github.com/helloyanis/age-verification-bypass.git",
+      "ssh_url": "git@github.com:helloyanis/age-verification-bypass.git",
+      "homepage": "https://addons.mozilla.org/addon/age-verification-bypass?utm_source=github_about_link",
+      "created_at": "2026-06-23T12:57:58Z",
+      "updated_at": "2026-07-16T01:31:37Z",
+      "pushed_at": "2026-07-15T11:01:47Z"
+    },
+    "stats": {
+      "stars": 552,
+      "forks": 24,
+      "watchers": 552,
+      "open_issues": 16,
+      "size": 49
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 29895
+      },
+      "license": "MIT License",
+      "topics": [
+        "age-verification",
+        "ageverif",
+        "bypasser",
+        "firefox-addon",
+        "webextension"
+      ]
+    },
+    "content": {
+      "readme": "# How to use\n\n- [Download the extension on Firefox](https://addons.mozilla.org/addon/age-verification-bypass?utm_source=github_readme), or the [releases page](https://github.com/helloyanis/agechecker.net-bypass/releases/latest). It will only work on Firefox and Firefox-based browsers, like Tor or Librewolf. It will NOT work on Chrome, even if you sideload it.\n\n<a href=\"https://addons.mozilla.org/addon/age-verification-bypass?utm_source=github_readme\"><img src=\"https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg\" alt=\"drawing\" width=\"200\"/></a>\n\n- Make sure it is allowed to run on all websites (or at least on the website you are trying to use it on), and in private browsing mode if you use it, from the extension settings.\n- Try to access a page gated by age verification, you will be directly let through. You can try on [ageChecker's demo page](https://agechecker.net/demo)\n\n# Supported services\n\n- **[AgeChecker.net](https://agechecker.net/demo)**\n- **[AgeVerif.com](https://demo.ageverif.com/)** (**NOT** for the oAuth2 flow)\n- **[AliExpress](https://aliexpress.com/)** for viewing items categorized as \"For adults\". The posts are visible, and the medias are revealed by clicking on \"Show\" in the Sensitive Media banner\n- **[Bluesky](https://bluesky.app)** for viewing sensitive posts without logging in\n- **[Reddit](https://reddit.com)** for viewing NSFW communities. *(It's a clunky solution, I recommend you use [redlib](https://redlib.catsarch.com/) for a fully private Reddit front-end where you can view NSFW posts!)*\n\n<a href=\"https://discord.gg/zUq5de7bTU\">\n<img alt=\"Discord Invite Badge\" width=\"200\" src=\"https://img.shields.io/badge/Discord-Join%20to%20get%20help-blue?style=social&logo=discord&link=https%3A%2F%2Fdiscord.gg%2FRdUJe4wJnP\">\n</a>\n\n# Why do you do this?\n\nIt's a proof of concept to show that age verification online is not a good idea. Whenever you send your ID online, it has the potential of getting leaked, and in the worst case scenarios, someone can act as yourself, or blackmail you into revealing where you have been online (with irrefutable proof since they have your ID). No matter what the privacy policy says, or how secure the site is, hackers can always find a way to get the data. See [the amount of breached websites](https://haveibeenpwned.com/PwnedWebsites).\n\nBy using this extension, you are saving yourself from being in one of these breaches.\n\nAlso, it is technically almost never doable. This add-on is super lightweight and can still bypass the verification process. It can be unsafe, but it's not the role of the laws or dedicated platforms to know if someone's above legal age or not. People who want to bypass it for privacy reasons (or because they are children), will either go on less secure and less moderated websites and get exposed to potentially illegal content, or find a way to get around the verification wall, by using a tool like this one or a friend / parent's ID.\n\n\n# How it works?\n\n## For AgeChecker and AgeVerif\n\nThis extension will, on any website (hence why the \"All URLs\" permission is needed) look for calls that will create the age verification popup, and instead of letting the request through, will rewrite its own popup code which will automatically send the callback to the website that the verification has been succesful.\n\n## For Aliexpress and Reddit\n\nThe extension will inject a script into the page that will remove the elements like popups and image blurs that are added if a page is set to NSFW\n\n**No data is ever being collected**. I (and age verification platforms) can't check if you have been on a certain website\n\n<a href=\"https://trendshift.io/repositories/71700?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-71700\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/71700/daily?language=JavaScript\" alt=\"helloyanis%2Fage-verification-bypass | Trendshift\" width=\"250\" height=\"55\"/></a>\n\n<a href=\"https://www.star-history.com/?repos=helloyanis%2Fage-verification-bypass&type=date&legend=top-left\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/chart?repos=helloyanis/age-verification-bypass&type=date&theme=dark&legend=top-left\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/chart?repos=helloyanis/age-verification-bypass&type=date&legend=top-left\" />\n   <img alt=\"Star History Chart\" src=\"https://api.star-history.com/chart?repos=helloyanis/age-verification-bypass&type=date&legend=top-left\" />\n </picture>\n</a>",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:11.904162"
+  },
+  {
+    "basic_info": {
+      "name": "intruth-factcheck",
+      "full_name": "rpanigrahi222/intruth-factcheck",
+      "owner": "rpanigrahi222",
+      "description": null,
+      "url": "https://github.com/rpanigrahi222/intruth-factcheck",
+      "clone_url": "https://github.com/rpanigrahi222/intruth-factcheck.git",
+      "ssh_url": "git@github.com:rpanigrahi222/intruth-factcheck.git",
+      "homepage": null,
+      "created_at": "2026-06-17T06:53:59Z",
+      "updated_at": "2026-07-16T03:06:09Z",
+      "pushed_at": "2026-07-06T16:42:44Z"
+    },
+    "stats": {
+      "stars": 532,
+      "forks": 90,
+      "watchers": 532,
+      "open_issues": 3,
+      "size": 33
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 88514,
+        "CSS": 13477,
+        "HTML": 1856
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# intruth\n\n-- beta open! no API key needed, find it @ https://intruth-beta.vercel.app/ :-3\n\nhi everyone!\n\nhttps://chromewebstore.google.com/detail/InTruth/ikmpglbpcdoapfelcbfpoaddmhmaaocg?hl=en&authuser=0\n\nbuilt a real-time factchecker called intruth for live debates, speeches, interviews, press conferences, and political events!\nmultilang support was just added, it now works on debates in any of the selectable languages!!\n\n<img width=\"400\" height=\"225\" alt=\"image\" src=\"https://github.com/user-attachments/assets/a0a8fba9-c28f-473c-866d-84951a9b548e\" />\n\nit listens to audio from the active browser tab, identifies factual claims as they are made, and provides instant evidence-based verdicts using AI analysis and web research; most fact-checking docs come out days after debates, but now users can evaluate claims as they're made.\n\nthis is part of a bigger research project assessing how deception in political speech is prosodically / linguistically different than deception in other contexts (rehearsed / read speech), so more to come!\n\n## features\n\n- live claim detection: continuously monitors speech from the active tab and identifies check-worthy factual claims in real time\n\n- live claim evaluation: analyzes claim veracity using large language models and external sources to determine whether a statement is:\n\n* TRUE\n* SUBSTANTIALLY TRUE\n* FALSE\n* MISLEADING\n* UNVERIFIABLE\n\n- speaker attribution: tracks speakers throughout a discussion and attributes claims to the correct participant whenever possible\n\n- context analysis: uses surrounding conversation and event context to improve claim identification and reduce false positives\n\n- real-time verdicts: veracity checks and sources appear while the debate or interview is still in progress\n\n- bring-your-own-key: users provide their own anthropic API key\n\n## how to use intruth:\n\n1. open a video, livestream, debate, interview, or speech.\n2. start the extension, and assign speakers w/ the press of a button\n3. audio from the active tab is captured\n4. speech transcribed \n5. check-worthy, factual claims are extracted\n6. claims evaluated against authoritative sources\n7. verdicts, explanations are displayed to the user!!!\n\n## what's check-worthy?? \n\ncheck-worthy claims in this context are:\n\n* specific factual statements\n* statistics and numerical claims\n* historical events\n* government actions and policies\n* scientific and medical claims\n* public records and documented events\n\ni.e. \n* \"inflation peaked at 9.1% in 2022.\"\n* \"the bill passed the Senate in 2021.\"\n* \"the unemployment rate is currently below 5%.\"\n\nNOT:\n* opinions\n* predictions / future promises\n* rhetorical questions\n* value judgments\n* subjective descriptions\n\ni.e.\n* \"This policy will destroy the economy.\"\n* \"I have the best plan.\"\n* \"If my opponent wins, disaster will follow.\"\n\n## privacy details\n\nusers provide their own API credentials, i have no access to that\n\ntranscript data may be sent directly to the AI service configured by the user in order to generate fact-check results\n\nsee privacy policy on web store for complete details!\n\n## permissions\n\ntabcapture: extracts audio from the active browser tab after the user explicitly starts a fact-checking session.\n\nactivetab: allows the extension to interact with the currently selected tab\n\nscripting: injects the fact-checking interface into supported pages.\n\nstorage: stores user preferences and API configuration LOCALLY\n\noffscreen: supports background audio processing and transcription workflows.\n\n## limitations and warnings\n\nfact-checking is inherently imperfect! generated verdicts may occasionally be incorrect, incomplete, or based on outdated information. if you're unsure about something, independently evaluate it and consult original sources when making decisions!\n\nthis extension is as an informational tool and NOT a definitive authority !\n\n### requirements\n\n* Chrome Manifest V3\n* User-provided AI API key\n* Modern Chromium-based browser\n\n## contributing\n\nwould love advice, any features you'd like, and any edge cases you've found! \n## license\n\nview license tab\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-16T03:56:13.104463"
+  },
+  {
+    "basic_info": {
+      "name": "spec-superflow",
+      "full_name": "MageByte-Zero/spec-superflow",
+      "owner": "MageByte-Zero",
+      "description": "源码级融合 OpenSpec 规划引擎 + Superpowers 执行纪律的 AI 编程工作流插件。17 平台支持，9 skills，Spec-first，契约驱动。",
+      "url": "https://github.com/MageByte-Zero/spec-superflow",
+      "clone_url": "https://github.com/MageByte-Zero/spec-superflow.git",
+      "ssh_url": "git@github.com:MageByte-Zero/spec-superflow.git",
+      "homepage": "https://www.npmjs.com/package/spec-superflow",
+      "created_at": "2026-06-26T05:13:03Z",
+      "updated_at": "2026-07-16T03:55:30Z",
+      "pushed_at": "2026-07-15T10:24:48Z"
+    },
+    "stats": {
+      "stars": 517,
+      "forks": 53,
+      "watchers": 517,
+      "open_issues": 3,
+      "size": 1140
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 542384,
+        "TypeScript": 40746,
+        "Shell": 4384
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-coding",
+        "amazon-q",
+        "claude-code",
+        "cline",
+        "codex",
+        "copilot-cli",
+        "cursor",
+        "gemini-cli",
+        "opencode",
+        "opensource",
+        "openspec",
+        "skills",
+        "spec-driven-development",
+        "spec-first",
+        "superpowers",
+        "tdd",
+        "trae",
+        "windsurf",
+        "workflow"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">spec-superflow</h1>\n\n<p align=\"center\">\n  <strong>源码级融合 OpenSpec 规划引擎 + Superpowers 执行纪律的 AI 编程工作流插件</strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-MIT-blue.svg\" alt=\"MIT License\"></a>\n  <a href=\"https://github.com/MageByte-Zero/spec-superflow/stargazers\"><img src=\"https://img.shields.io/github/stars/MageByte-Zero/spec-superflow\" alt=\"GitHub Stars\"></a>\n  <a href=\"https://www.npmjs.com/package/spec-superflow\"><img src=\"https://img.shields.io/npm/v/spec-superflow\" alt=\"npm version\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"#快速开始\">快速开始</a> |\n  <a href=\"#安装\">安装</a> |\n  <a href=\"#为什么需要它\">为什么</a> |\n  <a href=\"#核心-skills\">Skills</a> |\n  <a href=\"#工作流\">工作流</a> |\n  <a href=\"docs/README_en.md\">English</a> |\n  <a href=\"docs/showcase.html\">Showcase</a> |\n  <a href=\"#常见问题\">FAQ</a>\n</p>\n\n---\n\n## 快速开始\n\n安装后，告诉 Agent 一句话即可启动：\n\n```\n用 workflow-start 开始\n```\n\nAgent 会自动检查当前工件目录，**内容级判断**（不看文件时间戳，而是比较 proposal 范围 vs 契约意图锁）你处于哪个阶段，然后路由到正确的下一个 skill。\n\n- 启动新的变更 → `用 workflow-start 开始`\n- 恢复旧的变更 → `继续上次的工作流`\n- 不确定当前状态 → `帮我看看现在该干什么`\n\n## 安装\n\n### Claude Code（Marketplace）\n\nClaude Code 的主流方式是插件 marketplace：\n\n```bash\n/plugin marketplace add MageByte-Zero/spec-superflow\n/plugin install spec-superflow@spec-superflow\n/plugin update spec-superflow@spec-superflow\n```\n\nMarketplace 安装自动加载 hooks，每次新会话自动注入上下文。\n\n### Cursor（Skills 目录 / GitHub 导入）\n\n```bash\n# 方式一：通过 ssf CLI\nnpx spec-superflow@latest install-cursor\n\n# 方式二：直接运行脚本\ncurl -fsSL https://raw.githubusercontent.com/MageByte-Zero/spec-superflow/main/scripts/install-cursor.mjs | node -\n```\n\n> Cursor 原生发现 `.cursor/skills/`、`.agents/skills/`、`~/.cursor/skills/` 等目录，也可以在 Customize → Rules → Remote Rule (Github) 导入。脚本会自动部署 skills、scripts、docs 等运行时依赖。\n\n### OpenAI Codex CLI / App\n\nCodex 的主流方式是 Plugin Directory / marketplace。本仓库已提供 `.codex-plugin/plugin.json` 和 `.agents/plugins/marketplace.json`。\n\n```bash\n# 在 Codex CLI 中打开插件目录\ncodex\n/plugins\n\n# 或添加社区 marketplace 后安装\ncodex plugin marketplace add hashgraph-online/awesome-codex-plugins\ncodex plugin add spec-superflow@awesome-codex-plugins\n\n# 直接从指定 release tag 安装（不等待社区镜像同步）\ncodex plugin marketplace add MageByte-Zero/spec-superflow --ref v0.9.0\ncodex plugin add spec-superflow@spec-superflow\n\n# 升级并验证社区 marketplace 安装\ncodex plugin marketplace upgrade awesome-codex-plugins\ncodex plugin add spec-superflow@awesome-codex-plugins\ncodex plugin list | rg spec-superflow\n```\n\nCodex App 打开 **Plugins** 面板，安装或启用 `spec-superflow`。通过 CLI 安装或升级后，重启 Codex App 并新开会话；旧会话不会热加载 skills。\n\n### GitHub Copilot CLI\n\n```bash\ncopilot plugin marketplace add MageByte-Zero/spec-superflow\ncopilot plugin install spec-superflow@spec-superflow\n```\n\n### Gemini CLI\n\n```bash\ngemini extensions install https://github.com/MageByte-Zero/spec-superflow\ngemini extensions update spec-superflow   # 升级\n```\n\n### 更多平台（Cline / Kiro / Windsurf / Qwen / Amazon Q / Roo Code / Continue / Pi / OpenCode / WorkBuddy / Trae）\n\n| 平台 | 安装方式 | 状态 |\n|------|---------|------|\n| **Cline** | `npx spec-superflow@latest install-cline` | 已提供安装器 |\n| **Kiro** | `npx spec-superflow@latest install-kiro` | 已提供安装器 |\n| **Windsurf** | `npx spec-superflow@latest install-windsurf` | 已提供安装器 |\n| **Qwen Code** | `npx spec-superflow@latest install-qwen` | 已提供安装器 |\n| **Amazon Q Developer** | `npx spec-superflow@latest install-amazon-q` | 已提供安装器 |\n| **Roo Code** | `npx spec-superflow@latest install-roocode` | 已提供安装器 |\n| **Continue** | `npx spec-superflow@latest install-continue` | 已提供安装器 |\n| **Pi** | `npx spec-superflow@latest install-pi` | 已提供安装器 |\n| **OpenCode** | `.opencode/plugins/spec-superflow.js` 或 `.agents/skills -> skills/` | 已提供入口 |\n| **WorkBuddy** | `npx spec-superflow@latest install-workbuddy` | 已提供安装器 |\n| **Trae IDE / TRAE Work** | `.trae/skills/`、`~/.trae/skills/` 或上传 zip/.skill | 手动/导入 |\n\n> 共支持 17 个平台，完整安装说明见 [INSTALL.md](INSTALL.md)，支持矩阵见 [docs/platform-matrix.md](docs/platform-matrix.md)。\n\n### CLI 工具链\n\n```bash\nnpm install -g spec-superflow    # 全局安装\nnpx spec-superflow list          # 或通过 npx 使用\n```\n\n| 命令 | 功能 |\n|------|------|\n| `ssf list` | 列出所有 changes 及状态 |\n| `ssf validate <dir>` | 验证工件完整性 |\n| `ssf doctor` | 健康检查（版本、hooks、skills、文档一致性） |\n| `ssf version <semver>` | 一键同步版本号到所有 manifest |\n| `ssf state <sub> <dir>` | 管理 `.spec-superflow.yaml` 状态文件 |\n| `ssf inject <dir>` | 生成 phase-guard 产物；仅在检测到单一平台标记时可省略 `--platforms` |\n| `ssf audit <dir>` | 生成决策点审计报告 |\n| `ssf checkpoint save <dir> --task <id> --next <text>` | 保存任务级会话恢复点 |\n| `ssf checkpoint list <dir>` | 列出 checkpoint 及 stale 状态 |\n| `ssf checkpoint show <dir> <id>` | 查看单个恢复点 |\n| `ssf handoff create <dir> --type <type> ...` | 创建 prototype/research/experiment handoff |\n| `ssf handoff list <dir>` | 列出 handoff 生命周期状态 |\n| `ssf handoff finish <dir> <id>` | 校验 handoff 结果 |\n| `ssf handoff resolve <dir> <id> --decision <decision>` | 记录显式 handoff 决策 |\n| `ssf execution recommend <dir> ...` | 基于任务量、wave 和工作流列出可用执行方式并给出推荐 |\n| `ssf execution plan <dir> ...` | 在用户确认选择后，为 full/hotfix 保存受 guard 保护的执行计划 |\n| `ssf execution s",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:14.330211"
+  },
+  {
+    "basic_info": {
+      "name": "agent-plugin",
+      "full_name": "ChatCut-Inc/agent-plugin",
+      "owner": "ChatCut-Inc",
+      "description": "Plugin for agents to interact with Chatcut",
+      "url": "https://github.com/ChatCut-Inc/agent-plugin",
+      "clone_url": "https://github.com/ChatCut-Inc/agent-plugin.git",
+      "ssh_url": "git@github.com:ChatCut-Inc/agent-plugin.git",
+      "homepage": null,
+      "created_at": "2026-06-25T09:45:29Z",
+      "updated_at": "2026-07-16T02:31:26Z",
+      "pushed_at": "2026-07-15T12:59:21Z"
+    },
+    "stats": {
+      "stars": 512,
+      "forks": 43,
+      "watchers": 512,
+      "open_issues": 0,
+      "size": 115941
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 68356
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# ChatCut Agent Plugin\n\nThe ChatCut Agent Plugin connects Codex to ChatCut so you can edit ChatCut video projects with AI assistance.\n\nUse it to import media, change a project timeline, create motion graphics, generate assets, transcribe audio, add captions, export videos, and verify that edits are visible in the editor.\n\n## What Is Included\n\n- `chatcut/` - the ChatCut Codex plugin package.\n- `chatcut/.codex-plugin/plugin.json` - plugin metadata used by Codex.\n- `chatcut/.mcp.json` - MCP server configuration for ChatCut.\n- `chatcut/skills/` - workflow skills for common ChatCut editing tasks.\n- `chatcut/assets/` - plugin icons and brand assets.\n\n## Requirements\n\n- A ChatCut account.\n- Codex with plugin support.\n- Access to a ChatCut project you want to edit.\n\n## Authentication\n\nThe plugin connects to ChatCut through the hosted ChatCut MCP endpoint:\n\n```text\nhttps://api.chatcut.io/api/external-mcp/mcp\n```\n\nCodex handles authentication when the plugin is installed or first used. Follow the sign-in flow shown by Codex to connect your ChatCut account.\n\n## Example Prompts\n\nAfter installing and authenticating the plugin, try prompts like:\n\n- `Import this video into my ChatCut project.`\n- `Add a simple motion graphic overlay.`\n- `Generate a voiceover and background music.`\n- `Transcribe this clip and add captions.`\n- `Export the current project.`\n\n## Repository\n\nThe public plugin repository is:\n\n```text\nhttps://github.com/ChatCut-Inc/agent-plugin.git\n```\n\n## Support\n\nFor product information, visit [chatcut.io](https://chatcut.io).\n",
+      "default_branch": "beta"
+    },
+    "fetched_at": "2026-07-16T03:56:15.536998"
+  },
+  {
+    "basic_info": {
+      "name": "birds.cafe",
+      "full_name": "kanavtwtgg/birds.cafe",
+      "owner": "kanavtwtgg",
+      "description": null,
+      "url": "https://github.com/kanavtwtgg/birds.cafe",
+      "clone_url": "https://github.com/kanavtwtgg/birds.cafe.git",
+      "ssh_url": "git@github.com:kanavtwtgg/birds.cafe.git",
+      "homepage": null,
+      "created_at": "2026-06-21T13:57:28Z",
+      "updated_at": "2026-07-15T11:27:53Z",
+      "pushed_at": "2026-06-23T09:55:45Z"
+    },
+    "stats": {
+      "stars": 511,
+      "forks": 2,
+      "watchers": 511,
+      "open_issues": 0,
+      "size": 81
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 88279,
+        "HTML": 4032,
+        "CSS": 3768
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# birds.cafe ☕️🦜\n\n# CA: GRSJMXpozCLtnCXzVzdoXGF8qEcUWE3WndNMUi4ypump\n\n**Imagine if you could just fly like a bird.**\n\nNo missions. No scores. No stress.\n\nA relaxing, browser-based bird sim where you steer a flock of seagulls in V-formation over the ocean — through day, night, storms, rain, and lightning.\n\n**Live:** [birds.cafe](http://birds.cafe)\n\nIt's not really a \"game.\" It's a quiet, soothing experience.\n\n## Features\n\n- Runs fully in the browser (WebGL / Three.js)\n- Physics-based flight with flock V-formation\n- Dynamic weather: day, night, storm, rain, lightning\n- Ambient music\n- Smooth on mobile with touch controls\n\n## Controls\n\n| Input | Action |\n|-------|--------|\n| Arrow keys | Steer |\n| `+` / `-` | Speed up / slow down |\n| Space | Toggle V-formation |\n| Weather buttons | Day / Night / Storm |\n\nOn mobile, use the on-screen buttons.\n\n## Run locally\n\nServe the folder with any static file server:\n\n```bash\npython -m http.server 8000\n```\n\nThen open [http://localhost:8000](http://localhost:8000).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-16T03:56:16.784030"
+  }
+]

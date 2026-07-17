@@ -1,0 +1,912 @@
+[
+  {
+    "basic_info": {
+      "name": "grok-build",
+      "full_name": "xai-org/grok-build",
+      "owner": "xai-org",
+      "description": "SpaceXAI's coding agent harness and TUI. Fullscreen, mouse interactive, extensible.",
+      "url": "https://github.com/xai-org/grok-build",
+      "clone_url": "https://github.com/xai-org/grok-build.git",
+      "ssh_url": "git@github.com:xai-org/grok-build.git",
+      "homepage": null,
+      "created_at": "2026-07-14T20:04:23Z",
+      "updated_at": "2026-07-17T03:55:09Z",
+      "pushed_at": "2026-07-16T19:46:53Z"
+    },
+    "stats": {
+      "stars": 12982,
+      "forks": 2314,
+      "watchers": 12982,
+      "open_issues": 0,
+      "size": 4485
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 51701726,
+        "Python": 110069,
+        "JavaScript": 61570,
+        "Shell": 38501,
+        "PowerShell": 24822
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<h1>\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://media.x.ai/v1/website/spacexai-symbol-white-transparent-0c31957f.png\">\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png\">\n    <img alt=\"SpaceXAI logo\" src=\"https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png\" width=\"96\">\n  </picture>\n  <br>\n  Grok Build (<code>grok</code>)\n</h1>\n\n**Grok Build** is SpaceXAI's terminal-based AI coding agent. It runs as a\nfull-screen TUI that understands your codebase, edits files, executes shell\ncommands, searches the web, and manages long-running tasks — interactively,\nheadlessly for scripting/CI, or embedded in editors via the Agent Client\nProtocol (ACP).\n\n[Installing the released binary](#installing-the-released-binary) ·\n[Building from source](#building-from-source) ·\n[Documentation](#documentation) ·\n[Repository layout](#repository-layout) ·\n[Development](#development) ·\n[Contributing](#contributing) ·\n[License](#license)\n\n![Grok Build TUI](https://media.x.ai/v1/website/universe-tui-screenshot-6f7a0837.png)\n\n**Learn more about Grok Build at [x.ai/cli](https://x.ai/cli)**\n\nThis repository contains the Rust source for the `grok` CLI/TUI and its agent\nruntime. It is synced periodically from the SpaceXAI monorepo.\n\nA small `SOURCE_REV` file at the root records the full monorepo commit SHA\nfor the version of the code present in this tree.\n\n</div>\n\n---\n\n## Installing the released binary\n\nPrebuilt binaries are published for macOS, Linux, and Windows:\n\n```sh\ncurl -fsSL https://x.ai/cli/install.sh | bash   # macOS / Linux / Git Bash\nirm https://x.ai/cli/install.ps1 | iex          # Windows PowerShell\ngrok --version\n```\n\nSee the [changelog](https://x.ai/build/changelog) for the latest fixes,\nfeatures, and improvements in each release.\n\n## Building from source\n\nRequirements:\n\n- **Rust** — the toolchain is pinned by [`rust-toolchain.toml`](rust-toolchain.toml);\n  `rustup` installs it automatically on first build.\n- **[DotSlash](https://dotslash-cli.com)** — required so hermetic tools under\n  [`bin/`](bin/) (notably [`bin/protoc`](bin/protoc)) can download and run.\n  Install it and ensure `dotslash` is on your `PATH` **before** building:\n\n  ```sh\n  cargo install dotslash\n  # or: prebuilt packages — https://dotslash-cli.com/docs/installation/\n  /usr/bin/env dotslash --help   # sanity check\n  ```\n\n- **protoc** — proto codegen resolves [`bin/protoc`](bin/protoc) via DotSlash,\n  or falls back to a `protoc` on `PATH` / `$PROTOC`.\n- macOS and Linux are supported build hosts; Windows builds are best-effort\n  and not currently tested from this tree.\n\n```sh\ncargo run -p xai-grok-pager-bin              # build + launch the TUI\ncargo build -p xai-grok-pager-bin --release  # release binary: target/release/xai-grok-pager\ncargo check -p xai-grok-pager-bin            # fast validation\n```\n\nThe binary artifact is named `xai-grok-pager`; official installs ship it as\n`grok`. On first launch it opens your browser to authenticate — see the\n[authentication guide](crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md).\n\n## Documentation\n\nFull online documentation is available at\n[docs.x.ai/build/overview](https://docs.x.ai/build/overview).\n\nThe user guide ships with the pager crate:\n[`crates/codegen/xai-grok-pager/docs/user-guide/`](crates/codegen/xai-grok-pager/docs/user-guide/)\n— getting started, keyboard shortcuts, slash commands, configuration, theming,\nMCP servers, skills, plugins, hooks, headless mode, sandboxing, and more.\n\n## Repository layout\n\n| Path | Contents |\n|------|----------|\n| `crates/codegen/xai-grok-pager-bin` | Composition-root package; builds the `xai-grok-pager` binary |\n| `crates/codegen/xai-grok-pager` | The TUI: scrollback, prompt, modals, rendering |\n| `crates/codegen/xai-grok-shell` | Agent runtime + leader/stdio/headless entry points |\n| `crates/codegen/xai-grok-tools` | Tool implementations (terminal, file edit, search, ...) |\n| `crates/codegen/xai-grok-workspace` | Host filesystem, VCS, execution, checkpoints |\n| `crates/codegen/...` | The rest of the CLI crate closure (config, MCP, markdown, sandbox, ...) |\n| `crates/common/`, `crates/build/`, `prod/mc/` | Small shared leaf crates pulled in by the closure |\n| `third_party/` | Vendored upstream source (Mermaid diagram stack) — see below |\n\n> [!IMPORTANT]\n> The root `Cargo.toml` (workspace members, dependency versions, lints,\n> profiles) is **generated** — treat it as read-only. Prefer editing per-crate\n> `Cargo.toml` files.\n\n## Development\n\n```sh\ncargo check -p <crate>        # always target specific crates; full-workspace builds are slow\ncargo test -p xai-grok-config # per-crate tests\ncargo clippy -p <crate>       # lint config: clippy.toml at the repo root\ncargo fmt --all               # rustfmt.toml at the repo root\n```\n\n## Contributing\n\n> [!NOTE]\n> External contributions are not accepted. See [`CON",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:11.306071"
+  },
+  {
+    "basic_info": {
+      "name": "riddle",
+      "full_name": "MaximeRivest/riddle",
+      "owner": "MaximeRivest",
+      "description": "The diary of Tom Riddle for the reMarkable Paper Pro — write with your pen, the page drinks your ink and answers in a flowing hand",
+      "url": "https://github.com/MaximeRivest/riddle",
+      "clone_url": "https://github.com/MaximeRivest/riddle.git",
+      "ssh_url": "git@github.com:MaximeRivest/riddle.git",
+      "homepage": null,
+      "created_at": "2026-07-05T15:48:08Z",
+      "updated_at": "2026-07-17T02:08:58Z",
+      "pushed_at": "2026-07-12T23:53:42Z"
+    },
+    "stats": {
+      "stars": 1638,
+      "forks": 145,
+      "watchers": 1638,
+      "open_issues": 17,
+      "size": 7518
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 161790,
+        "Shell": 5288
+      },
+      "license": "MIT License",
+      "topics": [
+        "appload",
+        "eink",
+        "quill",
+        "remagic-app",
+        "remarkable-customization",
+        "remarkable-paper-pro"
+      ]
+    },
+    "content": {
+      "readme": "# riddle — the diary of Tom Riddle, for the reMarkable Paper Pro\n\nWrite on the page with your pen. After a pause, the diary **drinks your ink** —\nyour words fade into the paper — the page thinks for a moment, and an answer\nwrites itself back in a flowing hand, stroke by stroke, then fades away.\n\nNo screen glow, no keyboard, no chat UI. Just ink appearing on paper.\n\n_This is the diary from [the demo](https://x.com/MaximeRivest)._\n\n### 🪄 New to this? Start here\n\nYou need a **reMarkable Paper Pro** in developer mode with a launcher installed.\nIf that sounds like a lot, it isn't — **[remagic](https://github.com/maximerivest/remagic)**\nwalks you through turning on developer mode and sets up everything with one\ncommand. Come back here, drop riddle in, and start writing to Tom.\n\nAlready have xovi + AppLoad? Install from the [remagic](https://github.com/maximerivest/remagic)\ncatalog, [grab the prebuilt bundle](#install-the-prebuilt-bundle), or\n[build from source](#building).\n\n### Install with remagic (easiest)\n\n```sh\nremagic install riddle     # checksum-verified download → AppLoad\nremagic config riddle      # settings form in your browser (+ QR for phone)\n```\n\nThen in **AppLoad**: tap **Reload**, then **The Diary**. Write, and rest your\npen. (Or install it from the **Store** app right on the tablet.)\n\n### Install the prebuilt bundle\n\n1. Grab `riddle-<version>.zip` from the [latest release](https://github.com/MaximeRivest/riddle/releases/latest)\n   and unzip it into a folder: `unzip riddle-*.zip -d riddle`\n2. Copy the folder to your tablet:\n   `scp -O -r riddle root@10.11.99.1:/home/root/xovi/exthome/appload/`\n3. Add an API key: `cp oracle.env.example oracle.env` in that folder and put your `RIDDLE_OPENAI_KEY` in it (any OpenAI-compatible key). Or skip it to use [pi](#option-b--pi-the-power-path).\n4. In **AppLoad**: tap **Reload**, then **The Diary**. Write, and rest your pen.\n\n> ⚠️ **This modifies your device.** The prebuilt bundle and the catalog build\n> run in **takeover mode**: tapping The Diary stops the whole reMarkable UI\n> and takes the screen. Leave with a **5-finger tap** — xochitl restarts\n> automatically. It runs as root and drives the e-ink engine directly. It has\n> only been tested on a **reMarkable Paper Pro** (ferrari, aarch64,\n> OS 3.26–3.27). It may not work on other models or OS versions, and you use\n> it entirely at your own risk. Not affiliated with reMarkable AS. Keep SSH\n> access working before you install anything — if anything ever wedges:\n> `ssh root@10.11.99.1 'systemctl start xochitl'`.\n\n## How it works\n\n```\n pen (raw evdev, full 4096-level pressure, hardware event rate)\n   │ strokes\n   ▼\n riddle ── idle 2.8s → commit page → PNG ──► oracle (resident LLM process,\n   │                                          streams reply sentence-by-sentence)\n   ▼ strokes (Dancing Script → skeletonized to single-pixel pen paths)\n display backend\n   ├── qtfb        — windowed, inside xochitl (build-from-source flavour)\n   └── quill       — full takeover: xochitl stopped, vendor e-ink engine\n                     driven directly for instant ink (lowest latency there\n                     is; what the prebuilt bundle runs)\n```\n\n- **This repository** — the app (Rust). Pen input, ink surface, handwriting\n  synthesis (rasterize → Zhang-Suen thinning → stroke tracing → animated\n  replay), the oracle process manager, and both display backends.\n- **[Quill](https://github.com/MaximeRivest/quill)** — the sibling takeover display host (C/C++). A\n  clean-room, MIT-licensed adapter over the vendor `libqsgepaper.so` waveform\n  engine, exposed as a small C ABI (`quill_init` / `quill_buffer` / `quill_swap`)\n  that riddle links against with `--features takeover`. Also carries a small\n  family of demos (`scribble`, a pen-to-glass latency test, plus map, image,\n  and GIF renderers).\n\n## Gestures\n\n| Do this | And |\n|---------|-----|\n| Write, then rest the pen | The diary drinks your ink and Tom replies |\n| Write *\"show me what I wrote about…\"* | The remembered page **rises through the paper**: the date, your own handwriting rewriting itself stroke by stroke, Tom's old reply — all in faded ink. Touch the pen anywhere and today's page returns |\n| Write *\"what do you remember?\"* | Tom answers with a handwritten list of remembered moments |\n| Flip the marker | Erase |\n| Draw a large **?** | Summon the built-in guide |\n| Tap five fingers at once | Leave the diary *(takeover mode)* |\n| Power button | The page turns to *\"The diary sleeps.\"*, then the tablet suspends; press again to wake exactly where you were *(takeover mode)* |\n\nIn the windowed (qtfb) flavour, xochitl keeps the touchscreen and the power\nbutton: close the diary from AppLoad instead.\n\n## The diary remembers\n\nEvery finished page is kept — your actual pen strokes, a transcription, and\nTom's reply — so the diary can do three things:\n\n- **Follow the conversation.** Recent pages ride along with each request, so\n  Tom remembers what you wrote yesterday (both backends, same ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:12.639236"
+  },
+  {
+    "basic_info": {
+      "name": "spacewasm",
+      "full_name": "nasa/spacewasm",
+      "owner": "nasa",
+      "description": "A flight-compliant WebAssembly interpreter.",
+      "url": "https://github.com/nasa/spacewasm",
+      "clone_url": "https://github.com/nasa/spacewasm.git",
+      "ssh_url": "git@github.com:nasa/spacewasm.git",
+      "homepage": "",
+      "created_at": "2026-06-24T15:11:27Z",
+      "updated_at": "2026-07-17T02:44:41Z",
+      "pushed_at": "2026-07-16T21:49:46Z"
+    },
+    "stats": {
+      "stars": 1290,
+      "forks": 37,
+      "watchers": 1290,
+      "open_issues": 11,
+      "size": 1037
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 647289,
+        "Makefile": 3612
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "embedded-systems",
+        "flight-software",
+        "webassembly"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">SpaceWasm</h2>\n<p align=\"center\">\n  <a href=\"https://github.com/nasa/spacewasm/actions/workflows/ci.yml\"><img src=\"https://github.com/nasa/spacewasm/actions/workflows/ci.yml/badge.svg\" /></a>\n  <a href=\"https://codecov.io/gh/nasa/spacewasm\"><img src=\"https://codecov.io/gh/nasa/spacewasm/branch/main/graph/badge.svg\" /></a>\n  <a href=\"#license\"><img src=\"https://img.shields.io/badge/license-Apache%202.0-blue\" alt=\"license\" /></a>\n</p>\n\nSpaceWasm is an implementation of the [Wasm 1.0](https://webassembly.github.io/spec/versions/core/WebAssembly-1.0.pdf)\nspecification meant to interpret Wasm binary on-board spacecraft. It is developed at [NASA JPL](https://www.jpl.nasa.gov).\n\n## Rationale\n\n1. **Sequencing**: High-level spacecraft activities are typically encoded outside of the embedded flight-software in a command sequence.\nThese activities can include anything from driving the Mars rover and operating its arm, to checking temperature ranges are nominal.\nHistorically, the form and capability of sequences has varied from mission to mission, resulting in assorted/fragmented implementations.\nSpaceWasm implements an industry standard, providing consolidation.\n\n2. **Sandboxing**: The cost and time of flight-software development is high due to its constrained requirements and scope. Validating a new flight-software capability\noften involves validating interactions with the entire system. This extends the V&V timeline and increases competition for testbed resources, which makes it hard to\nget new autonomy software into flight. WebAssembly gives the opportunity for untrusted or low-trust executables to make their way on-board in a\nway that flight-software can restrict access and compute time as well as monitor health and safety.\n\n3. **Portability**: WebAssembly provides well-defined interfaces and sandboxing that make transferring to another platform trivial.\n\n4. **Tooling**: Standardizing to WebAssembly opens doors into a wide community of rich tooling and research!\n\n## Overview\n\nThis software comes with two major components:\n\n1. Decoder/Validator:\n\n   Reads the Wasm binary in [chunks](#streaming) and decodes it to an executable form. The decoder will use a fixed\n   amount of memory and can be measured per-Wasm binary using the `spacewasm-check` executable on the ground.\n\n   WebAssembly is validated during the decoding process and does not require another pass of the bytecode.\n\n2. Interpreter:\n\n   A Wasm interpreter that can operate on linear memory and interface with\n   hooks from the [embedding](#embedding).\n\nSpaceWasm does not execute direct WebAssembly bytecode. Wasm bytecode is meant to be small and structured in a way to\nvalidate easily. These properties however make it slow to execute in-place. During the decoding process of Wasm\ninstructions, SpaceWasm converts bytecode into another intermediate representation (IR) which includes properties better\nsuited for interpretation. Read more about the IR in the [specification](src/SPEC.md).\n\n## Requirements\n\nThe requirements of SpaceWasm are levied from similar work produced by [DLR](https://github.com/DLR-FT/wasm-interpreter).\n\nSee [requirements](./REQUIREMENTS.md).\n\n## Embedding\n\nEmbedding the interpreter refers to instantiating it and providing implementations for the functions that are imported\ninto the module. Typically, the set of functions imported by the module are fixed and should be specified at compile\ntime both for the Wasm module and the embedder.\n\n## Dynamic Allocation\n\nSpaceWasm has a unique dynamic memory allocation model. All of its design choices stem from requirements levied by common\nflight-software standards. Dynamic allocation follows the following rules:\n\n1. All allocations occur over a discrete number of fixed size blocks called _pages_. These pages are distinct from Wasm's linear memory pages.\n2. Deallocation cannot precede allocation.\n3. Sub-regions inside pages cannot grow or shrink, sizes should be fixed ahead of time.\n4. Memory usage must be deterministic.\n5. Any allocation failures must _not_ result in panic.\n\nThe standard Rust [allocation](https://doc.rust-lang.org/alloc/) does not meet these constraints even with custom\nallocators. To that end, SpaceWasm provides its own data structures that guarantee these properties. You will find these\ndata-structures contain the only usage of `unsafe` Rust semantics.\n\n> [!NOTE]\n> These limitations are only enforced on the implementation of the interpreter and _not_ on the Wasm bytecode it is made to interpret.\n\nWasm linear memory pages are allocated outside of dynamic memory pages.\n\n## Streaming\n\n_Peak_ memory usage is often an important constraint on small systems found on spacecraft. Many Wasm interpreters\nrequire the Wasm binary to be given in one linear blob to the interpreter. This is typically fine for systems where the\nsame regions of memory may be reused for different purposes. Flight software on spacecraft generally assign fixed\nportions of memory for certain purposes. Th",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:13.994380"
+  },
+  {
+    "basic_info": {
+      "name": "Codex-X",
+      "full_name": "yynxxxxx/Codex-X",
+      "owner": "yynxxxxx",
+      "description": "Codex Switch & Instruct desktop manager",
+      "url": "https://github.com/yynxxxxx/Codex-X",
+      "clone_url": "https://github.com/yynxxxxx/Codex-X.git",
+      "ssh_url": "git@github.com:yynxxxxx/Codex-X.git",
+      "homepage": "https://github.com/yynxxxxx/Codex-X",
+      "created_at": "2026-07-04T03:28:35Z",
+      "updated_at": "2026-07-17T03:40:05Z",
+      "pushed_at": "2026-07-16T13:48:10Z"
+    },
+    "stats": {
+      "stars": 1185,
+      "forks": 182,
+      "watchers": 1185,
+      "open_issues": 11,
+      "size": 10019
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 542452,
+        "TypeScript": 286549,
+        "CSS": 150974,
+        "JavaScript": 38769,
+        "Python": 15965,
+        "Shell": 2424,
+        "HTML": 540
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"README.md\"><img src=\"https://img.shields.io/badge/中文-当前-blue\" alt=\"中文\" /></a>\n  <a href=\"README.en.md\"><img src=\"https://img.shields.io/badge/English-Switch-lightgrey\" alt=\"English\" /></a>\n</p>\n\n<div align=\"center\">\n  <img src=\"apps/desktop/src-tauri/icons/icon.png\" alt=\"Codex-X Logo\" width=\"150\" />\n\n  # Codex-X\n\n  **Codex 可视化提示词注入 · Provider · 会话 · Skills / MCP 管理工具**\n\n  一款面向 **OpenAI Codex 桌面端 / Codex CLI** 的跨平台桌面工具。把提示词模板、自定义 Prompt、第三方 API 供应商、会话同步、Skills / MCP 和 TOML 配置都放进可视化界面里，不用反复手改文件。\n\n  <p>\n    <img src=\"https://img.shields.io/github/v/release/yynxxxxx/Codex-X?label=version&color=blue\" alt=\"version\" />\n    <img src=\"https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555\" alt=\"platform\" />\n    <img src=\"https://img.shields.io/badge/built%20with-Tauri%202-24C8DB\" alt=\"tauri\" />\n    <img src=\"https://img.shields.io/badge/license-MIT-green\" alt=\"license\" />\n  </p>\n\n  <p>\n    <img src=\"https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/SQLite-Ready-003B57?logo=sqlite&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/Vite-Ready-646CFF?logo=vite&logoColor=white\" />\n  </p>\n</div>\n\n---\n\n## Codex-X 是什么？\n\n当你同时使用 Codex 桌面端、CLI、第三方 API、Skills / MCP 和多套提示词时，配置很容易散落在不同文件里。Codex-X 把这些高频操作集中到一个桌面界面中，让当前状态看得见、常用操作点一下就能完成。\n\n你可以用它：\n\n- 像管理插件一样管理提示词：分类、导入 Markdown、自定义编辑、一键启用 / 禁用\n- 内置 5 套提示词模板，同时支持用户把自己的提示词变成可视化模板库\n- 保存、测试并切换 OpenAI Official 与第三方 API，还能从 cc-switch 导入现有供应商\n- 同步、检查、搜索和删除本地会话，按项目路径整理 Codex 历史记录\n- 集中管理 Skills 与 MCP，查看当前 `config.toml`、`auth.json` 和操作备份\n\n## 软件预览\n\n<details open>\n<summary><b>新版 UI：指令提示词管理中心</b></summary>\n\n<p align=\"center\">\n  <img src=\"docs/screenshots/app/new-ui/prompts.png\" alt=\"Codex-X 新版指令提示词管理界面\" width=\"920\" />\n</p>\n\n</details>\n\n<div align=\"center\">\n<table>\n  <tr>\n    <td align=\"center\" width=\"50%\">\n      <b>分类管理</b><br />\n      <sub>把提示词按破甲 / 逆向、软件开发、写作辅助等分类维护</sub><br />\n      <img src=\"docs/screenshots/app/new-ui/prompt-categories.png\" alt=\"Codex-X 提示词分类管理\" width=\"420\" />\n    </td>\n    <td align=\"center\" width=\"50%\">\n      <b>自定义提示词</b><br />\n      <sub>直接添加、编辑或导入自己的 Markdown 提示词</sub><br />\n      <img src=\"docs/screenshots/app/new-ui/prompt-form.png\" alt=\"Codex-X 添加自定义提示词\" width=\"420\" />\n    </td>\n  </tr>\n</table>\n</div>\n\n<details>\n<summary><b>Skills / MCP 可视化管理</b></summary>\n\n<p align=\"center\">\n  <img src=\"docs/screenshots/app/new-ui/skills-mcp.png\" alt=\"Codex-X Skills 与 MCP 管理界面\" width=\"920\" />\n</p>\n\n</details>\n\n## 功能特性\n\n<div align=\"center\">\n<table>\n  <tr>\n    <th align=\"center\" width=\"190\">你想做的事</th>\n    <th align=\"center\">Codex-X 能帮你</th>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>提示词注入管理</b></td>\n    <td align=\"left\">内置 <b>5 套</b>提示词模板，支持分类、GitHub 同步、本地缓存、导入 <code>.md</code>、添加自定义提示词、编辑说明、一键启用 / 禁用。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>启用方式切换</b></td>\n    <td align=\"left\">可选择“保留原提示词”追加写入，也可选择“替换原提示词”完整切换；适合在不同模型、不同任务、不同 Prompt 之间快速切换。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>Provider / API</b></td>\n    <td align=\"left\">添加、编辑、启用、删除第三方供应商；支持连接检测、模型获取 / 测试、从 cc-switch 导入，并可在 OpenAI Official 与中转 API 之间切换。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>会话管理</b></td>\n    <td align=\"left\">搜索本地会话、按项目路径分组、同步当前供应商、检查会话状态，并支持单选 / 多选 / 项目级永久删除。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>Skills / MCP</b></td>\n    <td align=\"left\">可视化查看 Skills 与 MCP，导入已有配置，从 ZIP 安装 Skill，逐项启用 / 禁用，并检查更新状态。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>配置与登录</b></td>\n    <td align=\"left\">集中查看 Codex 当前使用的 <code>config.toml</code> 与 <code>auth.json</code>，区分官方登录态和第三方 API Key；重要写入前自动备份。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>跨平台使用</b></td>\n    <td align=\"left\">提供 macOS Apple Silicon / Intel、Windows MSI / 便携版和 Linux 安装包；安装版可在应用内直接下载、校验并安装更新，便携版继续使用手动下载。</td>\n  </tr>\n</table>\n</div>\n\n## 核心亮点\n\n### 1. 可视化提示词注入中心\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/当前模板库-5_套-2563eb?style=flat-square\" alt=\"当前模板库 5 套\" />\n  <img src=\"https://img.shields.io/badge/离线内置-5_套-16a34a?style=flat-square\" alt=\"离线内置 5 套\" />\n  <img src=\"https://img.shields.io/badge/GitHub_同步-自动更新-f59e0b?style=flat-square\" alt=\"GitHub 自动同步\" />\n  <img src=\"https://img.shields.io/badge/自定义提示词-支持导入_编辑-7c3aed?style=flat-square\" alt=\"支持自定义提示词\" />\n</p>\n\n> [!TIP]\n> **安装后就能用，联网后自动补齐，也能维护自己的提示词库。**\n>\n> 安装包离线自带当前全部 5 套模板；软件启动后可同步 GitHub `examples/` 的更新和新增模板。同步成功的在线版本会缓存到本地，临时离线仍可继续使用。你也可以导入自己的 `.md`、新增分类、编辑说明，并像切换插件一样启用或禁用任意提示词。\n\nCodex-X 现在不只是“几套内置 Prompt”的启动器，而是一个可视化提示词注入与管理工具：\n\n- 按分类管理提示词，例如破甲 / 逆向、软件开发、写作辅助，也可以新增自己的分类\n- 支持同步 GitHub 模板、导入 Markdown、手动添加提示词、编辑标题 / 文件名 / 内容\n- 每个提示词都有独立开关，打开时自动按当前启用方式写入 Codex 指令文件\n- 支持“保留原提示词”和“替换原提示词”两种模式，适合日常叠加或完整切换\n- 本地缓存可离线使用，后续模板更新不会影响你自己维护的自定义提示词\n\n<div align=\"center\">\n<table>\n  <tr>\n    <th align=\"center\">模板</th>\n    <th align=\"center\">适合场景</th>\n    <th align=\"center\">获取方式</t",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:15.336775"
+  },
+  {
+    "basic_info": {
+      "name": "skillspec",
+      "full_name": "modiqo/skillspec",
+      "owner": "modiqo",
+      "description": "SkillSpec makes agent skills followable, testable, and provable with Doctor risk reports, guided imports, structured contracts, and alignment proof.",
+      "url": "https://github.com/modiqo/skillspec",
+      "clone_url": "https://github.com/modiqo/skillspec.git",
+      "ssh_url": "git@github.com:modiqo/skillspec.git",
+      "homepage": "https://skillspec.sh",
+      "created_at": "2026-06-19T23:42:55Z",
+      "updated_at": "2026-07-16T20:17:44Z",
+      "pushed_at": "2026-07-13T18:20:37Z"
+    },
+    "stats": {
+      "stars": 974,
+      "forks": 59,
+      "watchers": 974,
+      "open_issues": 8,
+      "size": 2571
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2415527,
+        "Shell": 4763,
+        "Just": 4456
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "ai-evals",
+        "ai-tool"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://github.com/modiqo/skillspec/raw/main/assets/skillspec-wordmark.svg\" alt=\"SkillSpec\" width=\"520\">\n</p>\n\n# Skills that agents can actually follow\n\n[![CI](https://github.com/modiqo/skillspec/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/modiqo/skillspec/actions/workflows/ci.yml)\n\nYou wrote a good `SKILL.md`. But did the agent actually follow it, or skip the\nlate safety rule, grab an undeclared tool, and report \"done\" with no proof?\n\n**SkillSpec tells you.** Run one command and get a risk report. Then turn any\nskill into a contract the agent has to follow, with a record you can inspect at\nthe end.\n\nNo new agent runtime. No orchestration platform. Just a CLI and a small\n`skill.spec.yml` that lives next to your `SKILL.md`.\n\n<p align=\"center\">\n  <a href=\"https://github.com/modiqo/skillspec/blob/main/assets/skillspec-layer-stack.svg\">\n    <img src=\"https://raw.githubusercontent.com/modiqo/skillspec/main/assets/skillspec-layer-stack.svg\" alt=\"SkillSpec sits inside the skills layer\" width=\"1100\">\n  </a>\n</p>\n\n## Star History\n\n<a href=\"https://www.star-history.com/?repos=modiqo%2Fskillspec&type=date&legend=top-left\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/chart?repos=modiqo/skillspec&type=date&theme=dark&legend=top-left\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/chart?repos=modiqo/skillspec&type=date&legend=top-left\" />\n   <img alt=\"Star History Chart\" src=\"https://api.star-history.com/chart?repos=modiqo/skillspec&type=date&legend=top-left\" />\n </picture>\n</a>\n\n## See It In 30 Seconds\n\nPoint Doctor at any skill, a local folder or a public GitHub URL:\n\n```bash\nskillspec doctor ./my-skill\n```\n\n```text\nSkillSpec Doctor\n================\nTarget: ./my-skill        Shape: simple_skill\n\nAgent follow-through risk: HIGH (74/100)\n\nFindings\n- description is short and generic -> automatic discovery may be unreliable\n- active skill load is 8,482 tokens -> above the balanced target\n- 14 must/never obligations appear after 60% of the body -> easy to miss\n- tools and commands are used, but dependencies are never declared\n- no tests and no progress/trace surface -> \"done\" can't be checked\n\nLikely consequence\nAn agent may follow the broad task but skip a late safety gate, use an\nundeclared tool, or claim completion without evidence.\n\nNext step\nAsk your agent: /skillspec import ./my-skill, compile it, test it, install it,\nand print the alignment summary.\n```\n\nNo install required to try it. Paste a public skill URL into the hosted page:\n\n**<https://skillspec.sh/>**\n\n## Why This Exists\n\nA `SKILL.md` is just text. The harness loads it and hopes the model reads the\nright part. For a throwaway skill, that can be fine. For a skill you rely on,\n\"hope\" is not a plan:\n\n- **Buried rules get skipped.** The important \"never do X\" sits at line 400,\n  and models are most reliable at the start and end of context, not the middle.\n- **Every miss grows the prose.** Each failure becomes another paragraph, which\n  makes the next miss more likely.\n- **You only see the final answer.** There is no durable record of which route\n  ran, which steps happened, or what was skipped.\n\nSkillSpec moves the load-bearing parts out of prose and into a small structured\ncontract:\n\n- when to use the skill\n- which route to take\n- what is forbidden\n- what dependencies must exist\n- what checks must pass\n- what proof should exist at the end\n\n## Install\n\nInstall the CLI:\n\n```bash\ncurl -fsSL https://skillspec.sh/install.sh | sh\nskillspec --version\n```\n\nOr with Cargo:\n\n```bash\ncargo install skillspec\nskillspec --version\n```\n\nThen add the plugin to your harness.\n\nClaude Code:\n\n```bash\nclaude plugin marketplace add modiqo/skillspec --sparse .claude-plugin plugins/skillspec\nclaude plugin install skillspec@skillspec\nclaude plugin list\n```\n\nCodex:\n\n```bash\ncodex plugin marketplace add modiqo/skillspec --ref main --sparse .agents --sparse plugins/skillspec\ncodex plugin add skillspec@skillspec\n```\n\n<details>\n<summary>Other platforms, pinned releases, direct downloads, and local development</summary>\n\nPrebuilt binaries are available on the\n[releases page](https://github.com/modiqo/skillspec/releases):\n\n- `skillspec-macos.tar.gz`\n- `skillspec-linux-x86_64.tar.gz`\n- `skillspec-windows-x86_64.zip`\n\nRelease artifacts include `.sha256` checksums. The installer verifies the\nchecksum and writes to `~/.local/bin` by default.\n\nPin a version or choose an install directory:\n\n```bash\ncurl -fsSL https://skillspec.sh/install.sh \\\n  | SKILLSPEC_VERSION=v0.1.0 SKILLSPEC_INSTALL_DIR=\"$HOME/.local/bin\" sh\n```\n\nInstall unreleased `main`:\n\n```bash\ncargo install --git https://github.com/modiqo/skillspec --package skillspec --force\nskillspec --version\n```\n\nInstall from a local checkout:\n\n```bash\ncargo install --path crates/skillspec-cli --force\nskillspec --version\n```\n\nLocal development can also install the skill folder directly:\n\n```bash\n# Codex\nski",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:16.735736"
+  },
+  {
+    "basic_info": {
+      "name": "Aether",
+      "full_name": "CluvexStudio/Aether",
+      "owner": "CluvexStudio",
+      "description": null,
+      "url": "https://github.com/CluvexStudio/Aether",
+      "clone_url": "https://github.com/CluvexStudio/Aether.git",
+      "ssh_url": "git@github.com:CluvexStudio/Aether.git",
+      "homepage": null,
+      "created_at": "2026-07-14T14:20:44Z",
+      "updated_at": "2026-07-17T03:39:37Z",
+      "pushed_at": "2026-07-16T17:41:26Z"
+    },
+    "stats": {
+      "stars": 941,
+      "forks": 45,
+      "watchers": 941,
+      "open_issues": 0,
+      "size": 2134
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4665496,
+        "C": 111477,
+        "JavaScript": 28744,
+        "Shell": 12535,
+        "HTML": 9173,
+        "Makefile": 3104,
+        "Dockerfile": 2979,
+        "CSS": 2053,
+        "Batchfile": 254
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Aether\n\n### اینترنت آزاد برای همه :))\n**[راهنمای فارسی](README.fa.md)** · **[English Guide](Docs/GUIDE.en.md)** · **[راهنمای کامل فارسی](Docs/GUIDE.fa.md)**\n\nTelegram: https://t.me/CluvexStudio\n\nAether is a censorship circumvention client designed for heavily restricted networks. It automatically discovers reachable routes, establishes an encrypted tunnel, and exposes a local SOCKS5 proxy for your applications.\n\nUnlike traditional VPN clients, Aether is built for environments where Deep Packet Inspection (DPI), protocol fingerprinting, UDP throttling, and endpoint blocking are common.\n\n## Features\n\n- Automatic endpoint discovery, with end-to-end data-plane validation so a gateway is only trusted once it actually passes traffic, not just once it answers the handshake\n- MASQUE (HTTP/3 & HTTP/2), with optional TLS ClientHello fragmentation on HTTP/2\n- WireGuard support\n- Nested WireGuard mode (`gool`)\n- Traffic obfuscation\n- Automatic reconnection, and quick-reconnect to your last known-good gateway to skip rescanning\n- Local SOCKS5 proxy\n- Command-line flags, environment variables, or interactive prompts — your choice\n- Linux, Windows, macOS and Android (Termux)\n\n## Download\n\nPrebuilt binaries are available on the Releases page for:\n\n- Linux\n- Windows\n- macOS\n- Android (Termux)\n\n### Termux (Android) — one-line install\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/CluvexStudio/aether/main/aether.sh -o aether.sh && chmod +x aether.sh && ./aether.sh install\n```\n\nThis detects your device architecture, downloads the matching release, verifies its checksum, and installs `aether` into `$PREFIX/bin`. Run it afterwards with:\n\n```bash\naether\n```\n\nTo update later, run `./aether.sh update`. To remove it, run `./aether.sh uninstall`.\n\n## Build\n\n### Requirements\n\n- Rust (latest stable)\n- C/C++ compiler\n- CMake\n\nThe `quiche` repository must be placed alongside `aether`:\n\n```text\n<repo>/\n  aether/\n  quiche/\n```\n\nBuild:\n\n```bash\ncargo build --release\n```\n\nBinary:\n\n```text\ntarget/release/aether\n```\n\n## Docker\n\nYou can run Aether in an isolated environment using Docker. The official image is available on GitHub Container Registry (GHCR).\n\nPull and run the pre-built image (interactive mode is required for initial setup):\n\n```bash\ndocker run -it -p 1819:1819 ghcr.io/cluvexstudio/aether:latest\n```\n\nYou can also bypass prompts by providing environment variables:\n\n```bash\ndocker run -it -p 1819:1819 \\\n  -e AETHER_PROTOCOL=masque \\\n  -e AETHER_SCAN=balanced \\\n  ghcr.io/cluvexstudio/aether:latest\n```\n\nIf you prefer to build the image manually from source:\n\n```bash\ndocker build -t aether .\ndocker run -it -p 1819:1819 aether\n```\n\n## Usage\n\nRun with no arguments and answer the prompts:\n\n```bash\n./target/release/aether\n```\n\nOr skip the prompts with flags:\n\n```bash\n./target/release/aether --masque -4 --scan turbo --noize firewall\n```\n\nOn Windows, double-click `run-aether.bat` (included in the release zip) instead — it opens a terminal, runs `aether.exe`, and keeps the window open afterwards so you can read any errors.\n\nEvery prompt has a flag and an environment variable equivalent. Run `./target/release/aether --help` for the full list, or see the guides linked below.\n\nAfter startup, a SOCKS5 proxy will be available at:\n\n```\n127.0.0.1:1819\n```\n\nExample:\n\n```bash\ncurl -x socks5h://127.0.0.1:1819 https://www.cloudflare.com/cdn-cgi/trace\n```\n\n## Supported Protocols\n\n### MASQUE (Recommended)\n\nEncapsulates traffic over HTTP/3 (QUIC) or HTTP/2 (TLS), making it resemble ordinary HTTPS traffic.\n\n### WireGuard\n\nFast and lightweight transport for networks with less aggressive inspection.\n\n### Nested WireGuard (`gool`)\n\nA WireGuard tunnel running inside another WireGuard tunnel, providing an additional encryption layer.\n\n## Documentation\n\nDetailed documentation is available in:\n\n- [Docs/GUIDE.en.md](Docs/GUIDE.en.md) — English guide\n- [Docs/GUIDE.fa.md](Docs/GUIDE.fa.md) — راهنمای فارسی\n\n## Credits\n\nDeveloped by **CluvexStudio**. :))\n\nMASQUE support is built on top of Cloudflare's **Quiche** library.\n\n\n## Contributing\n\n> **Experienced network developers and protocol engineers are welcome to contribute.**\n\n> **Please keep the codebase clean, maintainable, and well-engineered. Low-quality or vibe-coded contributions will not be accepted.**\n\n## Donate\n\nIf Aether has been useful to you, consider supporting its development:\n\n- **TRX (Tron):** `TRxVSHcoADZnBfztFmFb2TQopusAwWYEVR`\n- **BTC:** `bc1qnjnvzsa5avgj7n0uy383cv5zdxfjnvvp257egm`\n- **TON:** `UQAH75bXaaRUhZMwiF0ZujOXFDDmvLSPASKoOsWF0HNasiaM`\n\n## License\n\nSee the LICENSE file for licensing information.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:18.100384"
+  },
+  {
+    "basic_info": {
+      "name": "dnsglobe",
+      "full_name": "514-labs/dnsglobe",
+      "owner": "514-labs",
+      "description": "Global DNS propagation checker TUI — watch a DNS record propagate across 34 public resolvers worldwide, on a world map in your terminal",
+      "url": "https://github.com/514-labs/dnsglobe",
+      "clone_url": "https://github.com/514-labs/dnsglobe.git",
+      "ssh_url": "git@github.com:514-labs/dnsglobe.git",
+      "homepage": null,
+      "created_at": "2026-07-05T01:03:37Z",
+      "updated_at": "2026-07-16T14:31:51Z",
+      "pushed_at": "2026-07-11T20:18:03Z"
+    },
+    "stats": {
+      "stars": 884,
+      "forks": 27,
+      "watchers": 884,
+      "open_issues": 1,
+      "size": 7990
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 336671,
+        "Nix": 1753
+      },
+      "license": "MIT License",
+      "topics": [
+        "cli",
+        "dns",
+        "dns-checker",
+        "dns-propagation",
+        "ratatui",
+        "rust",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# dnsglobe\n\n[![crates.io](https://img.shields.io/crates/v/dnsglobe)](https://crates.io/crates/dnsglobe)\n[![dnsglobe](https://img.shields.io/aur/version/dnsglobe?label=aur%20dnsglobe)](https://aur.archlinux.org/packages/dnsglobe/)\n[![dnsglobe-bin](https://img.shields.io/aur/version/dnsglobe-bin?label=aur%20dnsglobe-bin)](https://aur.archlinux.org/packages/dnsglobe-bin/)\n[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n\n**A global DNS propagation checker for your terminal** — a Rust TUI that\nqueries 34 public DNS resolvers around the world in parallel, compares their\nanswers, and shows the propagation of your record on a world map.\n\n![dnsglobe demo — checking A and NS records for a domain across 34 resolvers worldwide with EDNS Client Subnet, cycling the client subnet, then morphing the world map into a rotating globe](demo/demo.gif)\n\nThink dnschecker.org / whatsmydns.net, but in your terminal, with watch mode:\nstart a check and it re-polls until the record has propagated everywhere.\n\nResolvers span the global anycast networks (Google, Cloudflare, Quad9),\nNorth America, Europe, Russia, the Middle East, East Asia, and the southern\nhemisphere (Telstra AU, SafeSurfer NZ, UOL BR) — each queried directly, so\nyou see every server's own current view of the record.\n\nEach resolver is queried directly (no cache, EDNS0, TCP fallback for\ntruncated answers), so what you see is each server's own current view of the\nrecord. Answers sharing any record are grouped together — so round-robin DNS\n(each resolver caching a different subset of an IP pool) counts as one\nconsistent answer, not twenty conflicting ones. The propagation gauge shows\nhow many resolvers are in the majority group; outliers are flagged\n`≠ DIFFERS` once all results are in.\n\nWhen the terminal is wide enough, a view of the world appears on the right\nwith one dot per resolver, colored by status (green agrees, magenta differs,\nred error, yellow in flight). The view adapts to the width: terminals ≥157\ncolumns get a flat world map, narrower ones (≥131 columns) get a spinning 3D\nglobe, which needs fewer columns; resizing across the threshold morphs one\ninto the other. Ctrl+O toggles map/globe by hand, and `--view auto|map|globe`\n(or `view = \"...\"` in the config file) forces a style outright.\n\nAnycast networks are asked which of their sites is answering you: Quad9\n(`TXT id.server.on.quad9.net`), Cloudflare (`CH TXT id.server`), Google\n(egress subnet via `TXT o-o.myaddr.l.google.com` matched against\n`TXT locations.publicdns.goog`), OpenDNS (`TXT debug.opendns.com`),\nCleanBrowsing, and Neustar UltraDNS. The discovered site shows in the Loc\ncolumn as `→YUL`-style codes, and the resolver's map dot moves to the POP\nactually serving your queries.\n\n## Usage\n\nInstall:\n\n```sh\nbrew install 514-labs/tap/dnsglobe   # Homebrew (macOS/Linux)\ncargo install dnsglobe               # from crates.io\nyay -S dnsglobe                      # from archlinux aur (compile from source)\nyay -S dnsglobe-bin                  # from archlinux aur (install prebuilt binary)\nnix run github:514-labs/dnsglobe     # Nix flakes (builds from source)\n# or grab a prebuilt binary from the GitHub Releases page\n```\n\nRun:\n\n```sh\ndnsglobe                            # start empty, type a domain\ndnsglobe example.com                # query immediately and watch\ndnsglobe example.com TXT            # same, starting on TXT records\ndnsglobe --once example.com TXT     # no TUI: print results, exit (for scripts)\ndnsglobe example.com --ecs 203.0.113.0/24        # see the zone as that client network does\ndnsglobe --once example.com --ecs 203.0.113.0/24,198.51.100.0/24\n                                    # one table per subnet + a convergence summary\n```\n\n### EDNS Client Subnet (ECS)\n\n`--ecs` (or `ecs = [...]` in the config file) attaches an EDNS Client Subnet\noption ([RFC 7871](https://datatracker.ietf.org/doc/html/rfc7871)) to every\nquery, so GeoDNS zones answer for that client network instead of the\nresolver's own vantage point. Subnets are CIDRs or bare IPs; most public\nresolvers use at most /24 (IPv4) or /56 (IPv6). With several subnets\nconfigured, Ctrl+N cycles the active one (plus an *off* position) and\nre-queries immediately; `--once` runs every subnet and ends with a\nper-subnet convergence summary. Resolvers that deliberately ignore ECS\n(Cloudflare, Quad9, …) are tagged `NO ECS` — their answer is shown for\nreference but excluded from the propagation percentage, since it describes\ntheir own location, not the probed network.\n\n### Keys\n\n| Key            | Action                          |\n| -------------- | ------------------------------- |\n| type / ⌫ / Del | edit domain                     |\n| ←/→ / Home/End | move cursor in the domain field |\n| Enter          | start the check and watch: re-polls every 30 s until propagation reaches 100% |\n| Ctrl+R         | stop or resume watching         |\n| Tab / Shift-Tab | select record type (A, AAAA, CNAME, MX, NS, TXT, SOA) and re-query |\n| ↑/↓ / PgUp/PgDn",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:19.493847"
+  },
+  {
+    "basic_info": {
+      "name": "waggle",
+      "full_name": "modiqo/waggle",
+      "owner": "modiqo",
+      "description": "Attributed, resolvable artifact references for agent handoffs — a ~30-byte token instead of pasted context. MCP-native; the reference layer for the agent-harness world.",
+      "url": "https://github.com/modiqo/waggle",
+      "clone_url": "https://github.com/modiqo/waggle.git",
+      "ssh_url": "git@github.com:modiqo/waggle.git",
+      "homepage": "https://waggle.sh",
+      "created_at": "2026-07-08T04:33:09Z",
+      "updated_at": "2026-07-17T01:53:56Z",
+      "pushed_at": "2026-07-14T14:33:37Z"
+    },
+    "stats": {
+      "stars": 787,
+      "forks": 140,
+      "watchers": 787,
+      "open_issues": 0,
+      "size": 4696
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 996260,
+        "Python": 151436,
+        "TeX": 80758,
+        "TypeScript": 66880,
+        "JavaScript": 12320,
+        "Just": 3532,
+        "Shell": 3284,
+        "Makefile": 475
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-agents",
+        "harness-engineering",
+        "llm-tools",
+        "loop-engineering"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">\n  <img src=\"docs/assets/logo.svg\" width=\"52\" alt=\"the waggle mark: a figure-eight dance with the waggle run as an arrow\" align=\"center\"> waggle\n</h1>\n\n<p align=\"center\">\n  <strong>Not a path. Not a URL. A handoff that answers back.</strong>\n</p>\n\n<p align=\"center\">\n  Locations are dumb — no per-agent shaping, no receipts, no way to fix them\n  once sent. waggle's 30-byte <strong>token</strong> resolves into each\n  agent's own view, <strong>counts every read</strong>, and propagates a\n  correction to every holder. A path can't do that; a URL needs a server;\n  this needs neither.\n</p>\n\n<p align=\"center\">\n  <a href=\"#the-problem\">The problem</a> ·\n  <a href=\"#how-it-works\">How it works</a> ·\n  <a href=\"#install\">Install</a> ·\n  <a href=\"#wire-it-into-your-harness\">Harness setup</a> ·\n  <a href=\"#by-file-type\">By file type</a> ·\n  <a href=\"#reach-local--machines--the-edge\">Reach</a> ·\n  <a href=\"#the-tmux-switchboard\">Switchboard</a> ·\n  <a href=\"docs/design/essay.md\">The essay</a> ·\n  <a href=\"paper/\">The paper</a>\n</p>\n\n<p align=\"center\">\n  <img src=\"docs/assets/hero.svg\" alt=\"The handoff, before and after: pasting the whole artifact to every subagent, versus handing off a 30-byte token that each consumer resolves into its own projection\" width=\"940\">\n</p>\n\n## The problem\n\nWe are entering the world of agent harnesses: Claude Code orchestrators\nfanning out subagents, Codex sessions delegating in parallel, cross-vendor\nagents discovering each other over open protocols. And every one of these\nhandoffs, today, works the same way: **forward the context and hope.**\n\nThe costs are measured, not hypothetical. Multi-agent systems consume ~15×\nthe tokens of a chat session — the overhead attributed by the vendor itself\nto *\"duplicating context across agents… and summarizing results for\nhandoffs,\"* whose one-line summary is **\"each handoff loses context.\"**\nRoughly 37% of multi-agent failures trace to exactly this seam.\n\nWaggle's competitor is not another protocol. It is\n`\"Here's /tmp/analysis.md. Use it.\"` — and that instinct is *correct*: a\npath is a 30-byte reference, which is exactly the right size for a handoff.\nBut a raw path has **no attribution** (who made this, from what), **no\nadaptation** (the small-context model gets the same 9,000 tokens as the\nfrontier model), **no lifecycle** (a stale path silently serves wrong data\nforever), **no telemetry** (which subagent actually read its input? which\nstalled?), and **no reach** (it dies at the machine boundary).\n\n<p align=\"center\">\n  <img src=\"docs/assets/context.svg\" alt=\"Three context windows compared: a full handoff fills the window with the artifact again; a raw path is cheap but blind; a waggle token stays small and pulls back only budgeted slices through resolve, search, and read\" width=\"940\">\n</p>\n\nOnly the *string* enters the consumer's context — the artifact behind it\nnever travels unless something fetches it. Waggle standardizes that third\npattern and enforces its one hard rule **by type**: the token travels; the\nartifact never auto-expands; `resolve`, `read`, and `search` return only the\nprojection or slice the consumer asked for, under byte budgets. Cheap like a\npath — but the reference answers back.\n\n## \"But my subagents share a filesystem — that's already share-by-reference\"\n\nIt is, and that's the smartest thing you can do without waggle. A path isn't a\ncopy; both agents point at the same bytes. Our benchmark's `reference` arm is\n*exactly* this — a local path plus `ls`, `grep`, `open`, `pdftotext` — and with a\nfair toolset it scores **90%**, competitive with waggle's 96%. If your agents are\nlocal, the task is short, and you never need to audit anything, **use the path** —\nwaggle is overhead.\n\nThe distinction isn't copy-vs-reference. It's that a path is a *location*, and a\nlocation can't answer three questions a handoff eventually has to:\n\n- **Was it read — and which parts?** `cat` and `grep` leave no trace you can query.\n  The entire \"did your subagent actually read it?\" check is *impossible* with a bare\n  path, not just inconvenient — reading a file records nothing. Our sharpest result\n  (regions read → 99% correct; skipped → 20%) exists only because reads go through\n  the token.\n- **Which version?** A path names *mutable* bytes. Correct the file mid-task and\n  agent A read the old copy, B the new, with nothing to tell them apart — the\n  divergent-copy failure, happening *with* a shared filesystem. Waggle snapshots at\n  mint (content-addressed, immutable) and gives `supersede`/`revoke` with lineage.\n- **Reachable from where?** `file:///…` means nothing to an agent in another\n  container or at the edge. The same token resolves unchanged across all three radii.\n\nThe case for waggle is **accountability, versioning, and reach** — never that the\nfilesystem duplicates bytes. The moment you need to *prove* what an agent read,\nsurvive the file changing, or hand off to something not on this box, a path runs out\nand a name doesn't.\n\n## How it w",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:20.941234"
+  },
+  {
+    "basic_info": {
+      "name": "FluxDown",
+      "full_name": "zerx-lab/FluxDown",
+      "owner": "zerx-lab",
+      "description": "Rust 驱动的多协议下载管理器，支持 HTTP/FTP/BitTorrent 磁力链接及 HLS/DASH 流媒体，智能多线程加速与浏览器无缝集成。精美界面，极致性能，永久免费，零广告。",
+      "url": "https://github.com/zerx-lab/FluxDown",
+      "clone_url": "https://github.com/zerx-lab/FluxDown.git",
+      "ssh_url": "git@github.com:zerx-lab/FluxDown.git",
+      "homepage": "https://fluxdown.zerx.dev/",
+      "created_at": "2026-07-03T01:00:17Z",
+      "updated_at": "2026-07-17T03:50:13Z",
+      "pushed_at": "2026-07-17T01:03:18Z"
+    },
+    "stats": {
+      "stars": 570,
+      "forks": 36,
+      "watchers": 570,
+      "open_issues": 43,
+      "size": 56837
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3475547,
+        "Dart": 1970564,
+        "TypeScript": 1634728,
+        "C++": 233690,
+        "CSS": 105949,
+        "Swift": 80735,
+        "Astro": 64498,
+        "JavaScript": 62279,
+        "CMake": 44160,
+        "HTML": 39409,
+        "Inno Setup": 25352,
+        "Shell": 23742,
+        "Python": 19313,
+        "Kotlin": 15119,
+        "C": 7657,
+        "Dockerfile": 5179,
+        "Ruby": 4900,
+        "Objective-C": 38
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/logo/fluxdown_logo.png\" alt=\"FluxDown Logo\" width=\"128\" />\n\n# FluxDown\n\n### Downloads, Supercharged.\n\n*A blazing fast, multi-protocol download manager — the free & open-source IDM alternative.*\n\n[![Latest Release](https://img.shields.io/github/v/release/zerx-lab/FluxDown?style=flat-square&color=06b6d4&label=release)](https://github.com/zerx-lab/FluxDown/releases/latest)\n[![Downloads](https://img.shields.io/github/downloads/zerx-lab/FluxDown/total?style=flat-square&color=22c55e)](https://github.com/zerx-lab/FluxDown/releases)\n[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square)](LICENSE)\n[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20NAS%20%7C%20Android-8b5cf6?style=flat-square)](#installation)\n[![Rust](https://img.shields.io/badge/engine-Rust-f74c00?style=flat-square&logo=rust)](native/engine)\n[![Flutter](https://img.shields.io/badge/UI-Flutter-02569B?style=flat-square&logo=flutter)](lib)\n[![MCP Server](https://img.shields.io/badge/MCP-Glama-8b5cf6?style=flat-square)](https://glama.ai/mcp/servers/zerx-lab/FluxDown)\n\n[**Website**](https://fluxdown.zerx.dev) · [**Download**](https://fluxdown.zerx.dev/#download) · [**Changelog**](https://fluxdown.zerx.dev/changelog) · [**FAQ**](https://fluxdown.zerx.dev/faq) · [**Feedback**](https://fluxdown.zerx.dev/feedback)\n\n**English** | [简体中文](README.zh-CN.md)\n\n</div>\n\n---\n\n## Highlights\n\n- **Up to 10x faster** — Rust + Tokio engine with IDM-style dynamic segmentation\n- **Multi-protocol** — HTTP/HTTPS, FTP, BitTorrent, eD2K, HLS & DASH streaming\n- **Browser integration** — Chrome / Edge / Firefox extension with a 3-layer interception engine\n- **AI-agent ready** — built-in MCP (Model Context Protocol) server: let Claude, Cursor & other AI clients manage your downloads\n- **Resume anywhere** — full download state persisted in SQLite; survive crashes and reboots\n- **Beautiful UI** — light/dark themes, 13 color schemes, responsive three-pane layout\n- **Clean & private** — free forever, no ads, no tracking, no account, local-first\n\n## Features\n\n| Feature | Description |\n|---|---|\n| **Rust-Powered Engine** | Built on Rust and Tokio with zero-cost abstractions — memory-safe concurrency at maximum throughput |\n| **Smart Segmentation** | Segments split dynamically at runtime; idle threads rescue slow segments, just like IDM — but smarter |\n| **Multi-Protocol** | Dedicated engines for HTTP/HTTPS, FTP, BitTorrent (DHT/UPnP/magnet), eD2K (server + Kad DHT source finding, MD4 verification), HLS (AES-decrypt) and DASH |\n| **Speed Control** | Token-bucket global rate limiting — download in the background without killing your browsing |\n| **Resume Anywhere** | Every byte tracked in SQLite with WAL; power loss never costs you progress |\n| **Browser Integration** | Three-layer download interception, streaming media sniffing, Alt+Click bypass, right-click send |\n| **MCP Server** | Built-in Model Context Protocol endpoint (Streamable HTTP) with 9 tools — AI agents can add, monitor and control downloads |\n| **Beautiful Interface** | shadcn-style widgets, IDM-style segment visualization, named queues, system tray |\n| **Clean & Private** | Zero ads, zero telemetry lock-in, zero accounts — your data never leaves your machine |\n\n## FluxDown vs. IDM\n\n| | FluxDown | IDM |\n|---|:---:|:---:|\n| Price | **Free forever** | $24.95 + renewals |\n| Open source | Yes (AGPL-3.0) | No |\n| Platforms | Windows / macOS / Linux / NAS / Android | Windows only |\n| BitTorrent & magnet | Yes | No |\n| eD2K / eMule links | Yes | No |\n| HLS / DASH streaming | Yes | Partial |\n| Dynamic segmentation | Yes | Yes |\n| Browser extension | Chrome / Edge / Firefox | Yes |\n| Ads & tracking | **None** | — |\n\n## Installation\n\nGrab the latest build from [**GitHub Releases**](https://github.com/zerx-lab/FluxDown/releases/latest) or [**fluxdown.zerx.dev**](https://fluxdown.zerx.dev/#download):\n\n| Platform | Packages |\n|---|---|\n| **Windows** (x64 / ARM64) | `setup.exe` installer · portable `.zip` |\n| **macOS** (Intel / Apple Silicon) | `.dmg` · portable `.tar.gz` |\n| **Linux** (x64) | `.AppImage` · `.deb` · Arch `.pkg.tar.zst` · portable `.tar.gz` |\n| **Android** (arm64-v8a / armeabi-v7a / x86_64) | per-ABI `.apk` · universal `.apk` |\n| **NAS / Server** (headless, x64 / ARM64) | [Docker](https://ghcr.io/zerx-lab/fluxdown-server) · Synology DSM 6/7 `.spk` · QNAP `.qpkg` · OpenWrt `.ipk` · Unraid CA template · CasaOS / ZimaOS app store |\n\n### Browser Extension\n\nInstall the extension so FluxDown takes over browser downloads automatically:\n\n[<img src=\"https://img.shields.io/badge/Chrome-Web%20Store-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white\" alt=\"Chrome Web Store\" />](https://chromewebstore.google.com/detail/fluxdown/meleenglfggcmcajknpeeeiobnpfmahc)\n[<img src=\"https://img.shields.io/badge/Edge-Add--ons-0078D4?style=for-the-badge&logo=microsoftedge&logoColor=white\" alt=\"Edge Add-ons\" />](https://m",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:22.317340"
+  },
+  {
+    "basic_info": {
+      "name": "pon",
+      "full_name": "can1357/pon",
+      "owner": "can1357",
+      "description": "Python 3.14, compiled to metal — JIT & AoT native compiler and runtime in Rust. Cranelift backend, ruff parser, Green Tea GC, byte-exact differential testing against CPython.",
+      "url": "https://github.com/can1357/pon",
+      "clone_url": "https://github.com/can1357/pon.git",
+      "ssh_url": "git@github.com:can1357/pon.git",
+      "homepage": null,
+      "created_at": "2026-07-02T16:44:07Z",
+      "updated_at": "2026-07-16T21:30:54Z",
+      "pushed_at": "2026-07-07T08:12:09Z"
+    },
+    "stats": {
+      "stars": 522,
+      "forks": 16,
+      "watchers": 522,
+      "open_issues": 1,
+      "size": 27599
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 14639330,
+        "Python": 898042,
+        "C": 218415,
+        "Shell": 1434
+      },
+      "license": null,
+      "topics": [
+        "aot",
+        "compiler",
+        "cranelift",
+        "garbage-collector",
+        "jit",
+        "python",
+        "python3",
+        "runtime",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/hero.png\" alt=\"pon — Python, compiled to metal — no interpreter\" width=\"100%\" />\n</p>\n\n# pon\n\n`pon` is a JIT & AoT native compiler and runtime for Python 3.14, written in Rust. There is no interpreter and no bytecode: every module is parsed with the ruff parser, lowered to one shared IR, and compiled to machine code through Cranelift — either just-in-time inside the process (`pon run`) or ahead-of-time into a standalone native executable (`pon build`). Memory is managed by a Green Tea garbage collector instead of reference counting, and correctness is enforced by a byte-exact differential harness against CPython v3.14.0.\n\nThe end goal is the bun/v8 of Python: a runtime that passes the CPython test suite, runs a multi-tier JIT well past CPython, ships single-binary executables, and includes batteries (package manager, tooling) out of the box. The project is under heavy active development — see [Status](#status) for what is true today versus where it is going.\n\n## Quickstart\n\n```sh\n# JIT: parse → IR → Cranelift → run, in-process\nprintf 'def add(a, b):\\n    return a + b\\n\\nprint(\"hello, world\")\\nprint(add(2, 3))\\n' > hello.py\ncargo run -p pon -- run hello.py\n\n# AoT: same IR through cranelift-object, linked into a native executable\ncargo run -p pon -- build hello.py -o hello\n./hello\n```\n\nBoth paths print the same bytes CPython would. That property is not aspirational — it is the exit gate of the conformance suite (see [Conformance](#conformance--testing)).\n\n```\npon run <file> [args]\npon build <file> -o <out> [--allow-dynamic] [--opt] [--target <triple>]\npon repl\npon -c 'print(40 + 2)'\npon - < script.py\n```\n\n## Architecture\n\n<p align=\"center\">\n  <img src=\"assets/architecture.png\" alt=\"pon workspace architecture\" width=\"100%\" />\n</p>\n\nOne IR, two backends, one runtime ABI. Every tier — baseline JIT, optimizing JIT, and AoT — lowers the same IR and calls the same `pon_*` helper functions:\n\n```\nsource.py\n   │ ruff parser (pinned 0.14.0, PythonVersion::PY314)\nAST ──> PON IR (pon-ir, one IR for every tier)\n   │\n   ├── pon run:   pon-codegen ──> cranelift-jit ──> native code in process\n   │                 tier-0 baseline (all boxed)\n   │                 tier-1 typed: inline caches, OSR, background compile\n   │\n   └── pon build: pon-codegen ──> cranelift-object ──> object file ──> linked executable\n   │\npon-runtime  (object model, builtins, NULL-sentinel pon_* ABI)\npon-gc       (Green Tea garbage collector)\n```\n\n**Object model:** CPython's heap object layout minus the refcount header. Errors cross the ABI as NULL sentinels, not unwinding. Integers are arbitrary-precision (`num-bigint` behind `PyLong`); a tagged small-int fast path is landing in the typed tier.\n\n**Tiering:** tier-0 compiles everything boxed with no type feedback and is the correctness baseline (`PON_TIER0_ONLY=1` forces it). Runtime helpers feed `FeedbackCell` type profiles from the first execution; hot functions recompile on a background thread and running loops enter the optimized code via on-stack replacement.\n\n**GC:** the Green Tea collector owns all Python objects. Tier-0 uses conservative stack scanning with a register-flush trampoline at safepoints; the typed tier upgrades to precise Cranelift user stack maps.\n\n## Workspace\n\n| Crate | Role |\n| --- | --- |\n| `pon-ir` | ruff-based frontend: parse Python 3.14, lower to the shared PON IR |\n| `pon-codegen` | IR → Cranelift CLIF, shared by every backend and tier |\n| `pon-jit` | in-process compilation, tiering, inline caches, OSR, background compile |\n| `pon-aot` | `cranelift-object` backend: object files and linked native executables |\n| `pon-runtime` | object model, builtins, stdlib native modules, the `pon_*` helper ABI |\n| `pon-gc` | Green Tea garbage collector |\n| `pon-abi` | ABI types shared between codegen and runtime |\n| `pon` | the `pon` binary: `run`/`build`/`repl` entry points + package manager (index client, resolver, wheel/sdist install) |\n| `pon-conformance` | differential conformance suites, fuzzing, benchmarks, floor ratchets |\n\nAll dependencies are declared once in the root `Cargo.toml` under `[workspace.dependencies]`; member crates only inherit (see [`AGENTS.md`](AGENTS.md)).\n\n## Conformance & testing\n\nThe correctness contract is differential: a corpus module passes only if `pon` produces **byte-identical output** to CPython v3.14.0 (`TZ=UTC`, `PYTHONHASHSEED=0`). Passing sets are ratcheted into committed floor files, and CI fails on any regression below the floor.\n\n| Suite | What it measures | Committed floor |\n| --- | --- | --- |\n| `cpython` | corpus modules, JIT, byte-exact vs CPython 3.14 | 244 modules ([`conformance-floor.json`](conformance-floor.json)) |\n| `cpython-aot-subset` | same corpus compiled AoT and executed as native binaries | 206 modules ([`aot-parity-floor.json`](aot-parity-floor.json)) |\n| `cpython-full` | CPython's own test suite (`Lib/test`), run under pon | being brought up ([`conformance-full-floor.json`](conformance-full-f",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:23.678746"
+  },
+  {
+    "basic_info": {
+      "name": "BrowserSkill",
+      "full_name": "Tencent/BrowserSkill",
+      "owner": "Tencent",
+      "description": "Let AI agents use your real, logged-in browser without interrupting your work. CLI + extension for browser automation across any shell-capable AI agent.",
+      "url": "https://github.com/Tencent/BrowserSkill",
+      "clone_url": "https://github.com/Tencent/BrowserSkill.git",
+      "ssh_url": "git@github.com:Tencent/BrowserSkill.git",
+      "homepage": "",
+      "created_at": "2026-06-22T07:24:40Z",
+      "updated_at": "2026-07-17T02:59:38Z",
+      "pushed_at": "2026-07-09T16:30:40Z"
+    },
+    "stats": {
+      "stars": 521,
+      "forks": 36,
+      "watchers": 521,
+      "open_issues": 15,
+      "size": 2378
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 899702,
+        "TypeScript": 652100,
+        "PowerShell": 6632,
+        "JavaScript": 4591,
+        "Shell": 3898,
+        "CSS": 2833,
+        "HTML": 297
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "browser-use"
+      ]
+    },
+    "content": {
+      "readme": "# BrowserSkill\n\n<p align=\"center\">\n  <img src=\"docs/assets/browserskill-readme-banner.png\" alt=\"BrowserSkill banner\" />\n</p>\n\n<p align=\"center\">\n  <strong>Let AI agents use your browser without interrupting your work.</strong>\n</p>\n\n<p align=\"center\">\n  English · <a href=\"README.zh-CN.md\">中文</a>\n</p>\n\n**BrowserSkill** connects Cursor, Claude Code, Codex, OpenClaw, CodeBuddy,\nWorkBuddy, Pi, Hermes Agent, and other shell-capable AI agents to your already logged-in\nbrowser.\n\nNeed the agent to touch a tab you already have open? It must borrow that tab\nexplicitly, return it when the task is done, and leave the rest of your browser\nalone.\n\nhttps://github.com/user-attachments/assets/db782c92-b1d4-4aae-a255-039675937a90\n\n## BrowserSkill Advantages\n\n- **Reuse real login state**: Agents can work with sites you are already signed\n  into, without separate test accounts.\n- **Keep working uninterrupted**: browser tasks run in a separate, visible\n  Agent Window, so you can keep using your own browser.\n- **Support any Agent**: any Agent that can call a shell can use BrowserSkill\n  through the `bsk` CLI, with no lock-in to a specific model, Agent framework, or\n  harness.\n- **Built-in human-in-loop**: when a task hits captcha, login, confirmation\n  dialogs, or other human-only steps, the Agent can ask you to take over and\n  then continue afterwards.\n\n## Runtime Environment\n\nBrowserSkill has two local runtime pieces: the `bsk` CLI/daemon and the browser\nextension.\n\n| Runtime | Support |\n| --- | --- |\n| Operating systems | macOS (Apple Silicon and Intel), Linux (x64 and ARM64), Windows x64 |\n| Browsers | Chrome and Microsoft Edge are supported; other Chromium-based browsers are expected to work when they support unpacked Chromium extensions; Firefox is planned |\n\n## Quick Start\n\n<details open>\n<summary><b>Install with your Agent (recommended)</b></summary>\n\n<br>\n\nAlready using Cursor, Claude Code, Codex, or another shell-capable agent? Just\ncopy this one line and send it to your agent — it will install the CLI and skill\nfor you, then walk you through loading the extension:\n\n```text\nSet up browser-skill on this machine by following https://raw.githubusercontent.com/Tencent/BrowserSkill/main/AGENT_INSTALL.md\n```\n\n</details>\n\n<details>\n<summary><b>Manual install</b></summary>\n\n<br>\n\nInstall the CLI, then install the extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi).\n\n#### 1. Install the `bsk` CLI\n\n**macOS / Linux** (recommended — installs to `~/.local/bin`):\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/Tencent/BrowserSkill/main/install.sh | sh\n```\n\n**Windows** (PowerShell — installs to `~/.local/bin`):\n\n```powershell\nirm https://raw.githubusercontent.com/Tencent/BrowserSkill/main/install.ps1 | iex\n```\n\nVerify the binary:\n\n```bash\nbsk --version\n```\n\n#### 2. Install the browser extension\n\nInstall BrowserSkill from the [Chrome Web Store](https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi).\n\n#### 3. Install the skill\n\nBrowserSkill ships a skill that teaches your agent harness how to use `bsk`. For\nthese harnesses, install it in one step:\n\n<p align=\"center\">\n<table>\n  <tr>\n    <td align=\"center\" width=\"108\"><a href=\"https://cursor.com\" title=\"Cursor\"><img src=\"docs/assets/harnesses/cursor.svg\" height=\"36\" alt=\"Cursor\" /></a><br /><sub><b>Cursor</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://docs.anthropic.com/en/docs/claude-code\" title=\"Claude Code\"><img src=\"docs/assets/harnesses/claude.svg\" height=\"36\" alt=\"Claude Code\" /></a><br /><sub><b>Claude Code</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://developers.openai.com/codex\" title=\"Codex\"><img src=\"docs/assets/harnesses/codex.svg\" height=\"36\" alt=\"Codex\" /></a><br /><sub><b>Codex</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://openclaw.ai\" title=\"OpenClaw\"><img src=\"docs/assets/harnesses/openclaw.svg\" height=\"36\" alt=\"OpenClaw\" /></a><br /><sub><b>OpenClaw</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://www.codebuddy.ai\" title=\"CodeBuddy\"><img src=\"docs/assets/harnesses/codebuddy.svg\" height=\"36\" alt=\"CodeBuddy\" /></a><br /><sub><b>CodeBuddy</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://www.workbuddy.ai\" title=\"WorkBuddy\"><img src=\"docs/assets/harnesses/workbuddy.svg\" height=\"36\" alt=\"WorkBuddy\" /></a><br /><sub><b>WorkBuddy</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://github.com/badlogic/pi-mono\" title=\"Pi\"><img src=\"docs/assets/harnesses/pi.svg\" height=\"36\" alt=\"Pi\" /></a><br /><sub><b>Pi</b></sub></td>\n    <td align=\"center\" width=\"108\"><a href=\"https://github.com/NousResearch/hermes-agent\" title=\"Hermes Agent\"><img src=\"docs/assets/harnesses/hermes.png\" height=\"36\" alt=\"Hermes Agent\" /></a><br /><sub><b>Hermes Agent</b></sub></td>\n  </tr>\n</table>\n</p>\n\n```bash\nbsk install-skill\n```\n\nUse <kbd>Space</kbd> to select the Agent harness you want to install into, then\npre",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:25.048239"
+  },
+  {
+    "basic_info": {
+      "name": "autoshorts",
+      "full_name": "JayWebtech/autoshorts",
+      "owner": "JayWebtech",
+      "description": "AutoShorts is a local-first desktop application for turning long-form video or audio recordings into high-impact, vertical short-form clip candidates (9:16 portrait) with AI-powered viral moment ranking.",
+      "url": "https://github.com/JayWebtech/autoshorts",
+      "clone_url": "https://github.com/JayWebtech/autoshorts.git",
+      "ssh_url": "git@github.com:JayWebtech/autoshorts.git",
+      "homepage": "",
+      "created_at": "2026-06-22T13:08:10Z",
+      "updated_at": "2026-07-17T03:41:56Z",
+      "pushed_at": "2026-07-01T17:05:23Z"
+    },
+    "stats": {
+      "stars": 492,
+      "forks": 114,
+      "watchers": 492,
+      "open_issues": 13,
+      "size": 1868
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 95294,
+        "TypeScript": 62183,
+        "CSS": 32444,
+        "HTML": 297
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "⭐ [Support AutoShorts](#support)\n\n# AutoShorts\n\nAutoShorts is a local-first desktop application for turning long-form video or audio recordings into high-impact, vertical short-form clip candidates (9:16 portrait) with AI-powered viral moment ranking.\n\nThis repository implements the desktop app foundation using **Tauri 2 + React + TSX + Rust + SQLite**.\n\n<img width=\"1397\" height=\"918\" alt=\"Screenshot 2026-06-22 at 4 10 13 PM\" src=\"https://github.com/user-attachments/assets/3a58ff60-6d9b-46fc-81e8-2778c96aba62\" />\n\n---\n\n## Key Features\n\n- **Dynamic Multi-LLM Support**: Supports both **DeepSeek** (default) and **Claude** (anthropic) for viral moment detection and hooks analysis.\n- **Automated Pipeline**: Imports media, extracts audio, transcribes using Deepgram, and automatically analyzes and ranks moments in a single automated chain.\n- **Local SQLite Storage**: Saves transcripts, candidates, custom names, and rendering data locally.\n- **Native Project Manager**: Create, open, rename, and delete projects from the dashboard.\n- **Portrait Auto-Cropping**: Automatically center-crops landscape videos to vertical H.264 portrait clips using native `ffmpeg` integration.\n- **Key Warnings**: Built-in visual warnings that identify missing environment variables and prompt you directly in the UI.\n\n---\n\n## Prerequisites\n\nTo run the application, **FFmpeg & FFprobe** must be installed and available on your system `PATH` to handle cropping, audio extraction, and dynamic captions:\n\n* **macOS**: Install using Homebrew:\n  ```bash\n  brew install ffmpeg\n  ```\n  *Note: To ensure full captions rendering support, if standard Homebrew FFmpeg lacks drawtext/subtitles filters, tap and install the `homebrew-ffmpeg` formula:*\n  ```bash\n  brew tap homebrew-ffmpeg/ffmpeg\n  brew install homebrew-ffmpeg/ffmpeg/ffmpeg\n  ```\n* **Windows**: Install using Winget (in PowerShell):\n  ```powershell\n  winget install Gyan.FFmpeg\n  ```\n  *(Or download the release build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and add it to your system PATH environment variables).*\n* **Linux**: Install via your native package manager:\n  ```bash\n  sudo apt install ffmpeg      # Debian/Ubuntu\n  sudo pacman -S ffmpeg        # Arch Linux\n  sudo dnf install ffmpeg      # Fedora\n  ```\n\n---\n\n## Installation Guide (For Users)\n\nDownload the correct package matching your system from the latest [GitHub Releases](https://github.com/JayWebtech/autoshorts/releases/tag/autoshorts).\n\n### 🖥️ macOS Installation\n1. **Download**:\n   * **Apple Silicon (M1/M2/M3)**: Select the `aarch64.dmg` package.\n   * **Intel Mac**: Select the `x64.dmg` package.\n2. **Install**: Double-click the `.dmg` file and drag **AutoShorts** to your **Applications** folder.\n3. **Bypass Gatekeeper** (For unsigned local builds):\n   * Right-click `AutoShorts.app` in Finder, select **Open**, and click **Open** in the warning dialog.\n   * *Alternatively*, run this command in Terminal:\n     ```bash\n     xattr -cr /Applications/AutoShorts.app\n     ```\n\n### 🪟 Windows Installation\n1. **Download**: Select the `.msi` (installer) or `.exe` (portable executable) package.\n2. **Install**: Double-click the `.msi` file to run the setup wizard.\n3. **SmartScreen Bypass**: Since the package is self-signed, Windows SmartScreen may show a warning. Click **\"More Info\"** in the window and choose **\"Run anyway\"**.\n\n### 🐧 Linux Installation\n1. **Download**: Select the `.deb` (Debian/Ubuntu) or `.AppImage` (universal portable binary).\n2. **Install `.deb`**:\n   ```bash\n   sudo dpkg -i autoshorts_*.deb\n   ```\n3. **Run `.AppImage`**:\n   Make it executable and launch it:\n   ```bash\n   chmod +x autoshorts_*.AppImage\n   ./autoshorts_*.AppImage\n   ```\n\n### 🚀 First-Launch Onboarding & AI Configuration\n\nWhen you first launch the application, you will be greeted by an **Onboarding Wizard** that lets you choose your preferred workflow:\n\n#### Option A: Fully Offline (Ollama + Whisper)\n1. **Ollama Setup**: Select a local model card (`llama3.2 3B`, `qwen2.5 3B`, or `qwen2.5 7B`). The application will check if Ollama is running and automatically pull the model weights, showing a downloader progress bar.\n2. **Local Whisper**: Follow the prompt instructions to verify Python is installed and run `pip3 install openai-whisper` to enable fully offline transcription.\n\n#### Option B: Cloud API Keys\n1. Enter your API credentials for:\n   * **Deepgram**: For fast, accurate cloud transcription.\n   * **DeepSeek**: (Highly Recommended) For cheap, high-quality cloud moment detection.\n   * **Claude**: For premium copywriting, hooks, and moment detection.\n2. Click **Save & Start** to immediately load the dashboard.\n\n---\n\n### ⚙️ Modifying Settings & Resetting Onboarding\n\n* **Update Credentials**: Click the **API Settings** gear icon in the top right of your app dashboard to switch engines, select different local models, or update API keys.\n* **Reset Onboarding**: If you want to switch from Cloud to Offline (or vice-versa) and start setup from scratch, click the **",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:26.436104"
+  },
+  {
+    "basic_info": {
+      "name": "rayfish",
+      "full_name": "rayfish/rayfish",
+      "owner": "rayfish",
+      "description": "P2P mesh VPN powered by iroh",
+      "url": "https://github.com/rayfish/rayfish",
+      "clone_url": "https://github.com/rayfish/rayfish.git",
+      "ssh_url": "git@github.com:rayfish/rayfish.git",
+      "homepage": "https://rayfish.xyz",
+      "created_at": "2026-06-22T15:28:45Z",
+      "updated_at": "2026-07-17T00:05:03Z",
+      "pushed_at": "2026-07-15T19:19:10Z"
+    },
+    "stats": {
+      "stars": 468,
+      "forks": 14,
+      "watchers": 468,
+      "open_issues": 66,
+      "size": 18592
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1600130,
+        "Kotlin": 322572,
+        "Shell": 130866,
+        "HTML": 37739,
+        "Just": 2564,
+        "Gnuplot": 624
+      },
+      "license": "Mozilla Public License 2.0",
+      "topics": [
+        "iroh",
+        "quic",
+        "rust",
+        "trustless",
+        "vpn"
+      ]
+    },
+    "content": {
+      "readme": "# Rayfish\n\n**Your machines, on one private network, anywhere.** Rayfish is a peer-to-peer\nmesh VPN that lets your laptop, phone, server, and your friends' machines talk\nto each other as if they were all plugged into the same router, even when\nthey're scattered across the world behind different NATs.\n\nThere's nothing to host and nothing to sign up for. You don't rent a server,\nopen a port, or hand out IP addresses. One person runs a command, shares a code,\nand the network exists.\n\n```bash\nray create                 # you now have a private network of your own\nray invite gaming          # mint a one-time code to hand out\nray join <invite-code>     # a friend joins with the code\nping alice.gaming.ray      # you reach each other by name\n```\n\nThat's the whole idea. The rest of this README is the details.\n\n[![License: MPL 2.0](https://img.shields.io/badge/license-MPL%202.0-brightgreen.svg)](LICENSE)\n![Status: experimental](https://img.shields.io/badge/status-experimental-orange.svg)\n\n**Jump to:** [Why](#why-rayfish) · [How it works](#how-it-works) · [Features](#features) · [Quick start](#quick-start) · [Managing your network](#managing-your-network) · [Who can join](#who-can-join) · [Firewall](#firewall) · [Provisioning](#declarative-provisioning) · [Permissions](#permissions) · [Custom relay & DNS](#custom-relay--dns) · [Troubleshooting](#troubleshooting) · [How it compares](#how-it-compares) · [FAQ](#faq)\n\n---\n\n## Why Rayfish\n\n- **No infrastructure.** There's no control server to host or trust. Peers find each other through a DHT and connect directly. The only \"server\" is whoever ran `ray create`, and they can be offline once everyone's admitted.\n- **Identity, not IP.** Every machine has a cryptographic identity, and its addresses are derived from that identity: stable, collision-free, and assigned without any coordinator handing them out.\n- **Private by default.** Networks are closed unless you say otherwise. The code you share to discover a network isn't enough to join it.\n- **Works over NAT.** Hole-punching and end-to-end encryption come from [iroh](https://iroh.computer), including automatic port mapping (UPnP/NAT-PMP/PCP). When a direct path isn't possible (roughly 10% of the time), traffic falls back to encrypted relays. For routers that block automatic port mapping, the daemon listens on a fixed UDP port (41383) you can manually forward to guarantee a direct path. A manual forward maps the port to one machine, so only one node per LAN benefits; the others still use automatic traversal and relay fallback.\n- **Reach peers by name.** Magic DNS gives you `name.network.ray` so you never memorize a virtual IP.\n\n## How it works\n\nEach machine runs a small daemon (comparable to Tailscale's `tailscaled`) that creates a TUN device, captures IP packets, and tunnels them over iroh's QUIC connections. Everything else (`create`, `join`, `status`, file sharing) is an unprivileged command that talks to the daemon over a local socket.\n\n1. **Create.** One peer starts a network and becomes its coordinator. The network's public key is its **room id**: it lets others discover the network but, on a closed network, is not enough to get in.\n2. **Join.** On a closed network a peer gets in with a one-time invite code (`ray invite`) or by requesting approval (`ray requests` / `ray accept`). The coordinator is the gatekeeper.\n3. **Mesh.** Every peer derives its own stable virtual IPv4 (`100.64.0.0/10`) and IPv6 (`200::/7`) from its identity, then connects directly to every other peer.\n4. **Use it.** Any TCP/UDP app works, addressed by IP or by `name.network.ray`.\n\n## Features\n\nEach of these has a fuller treatment further down; this is the one-line tour.\n\n- 🔒 **Closed-by-default networks.** One-time invites, reusable fleet keys, or live approval, with `--open` for public ones. See [Who can join](#who-can-join).\n- 🤝 **Direct 2-peer links.** `ray connect <contact-id>` ties you to one person with no room id or invite, approved like a friend request. See [Direct 2-peer connections](#direct-2-peer-connections).\n- 🌐 **Magic DNS.** Reach peers at `name.network.ray`, updated live as they join, leave, or rename.\n- 🧱 **Per-device firewall.** A userspace firewall for mesh traffic, secure by default, layered on top of your host firewall. See [Firewall](#firewall).\n- 🔑 **Mesh SSH, no keys.** Log in over the mesh with a stock `ssh` client; peers authenticate by identity. See [SSH, no keys](#ssh-no-keys).\n- 📜 **Declarative provisioning.** `ray apply deploy.yaml` stands up networks and firewall rules from a YAML spec, with reusable `aliases:` and `groups:` instead of repeated hostnames.\n- 👥 **Multi-device identity.** Pair your laptop and phone under one identity, with encrypted key backup (optionally to 1Password). See [Pairing your own devices](#pairing-your-own-devices).\n- 📁 **File sharing.** `ray send file.zip bob`, with optional auto-accept for transfers from your own paired devices.\n- 📡 **mDNS** local discovery, and optional **Tor** transport.\n",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-17T03:55:27.769381"
+  },
+  {
+    "basic_info": {
+      "name": "brain0",
+      "full_name": "Brain0-ai/brain0",
+      "owner": "Brain0-ai",
+      "description": "The black box for AI-written code. Passive decision graph linking every commit to the agent prompts behind it: drift detection, DLP audit of what agents read, evidence-driven risk, MCP memory for coding agents, signed provenance attestations. One command, offline by default.",
+      "url": "https://github.com/Brain0-ai/brain0",
+      "clone_url": "https://github.com/Brain0-ai/brain0.git",
+      "ssh_url": "git@github.com:Brain0-ai/brain0.git",
+      "homepage": "",
+      "created_at": "2026-07-02T12:02:08Z",
+      "updated_at": "2026-07-17T03:11:04Z",
+      "pushed_at": "2026-07-02T12:34:35Z"
+    },
+    "stats": {
+      "stars": 450,
+      "forks": 15,
+      "watchers": 450,
+      "open_issues": 0,
+      "size": 340
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 550087,
+        "TypeScript": 231846,
+        "HTML": 30371,
+        "JavaScript": 26803,
+        "Shell": 2924
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "attestation",
+        "audit",
+        "claude",
+        "cli",
+        "code-review",
+        "coding-agents",
+        "developer-tools",
+        "dlp",
+        "git",
+        "llm",
+        "local-first",
+        "mcp",
+        "observability",
+        "provenance",
+        "rust",
+        "security",
+        "supply-chain-security",
+        "typescript"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<picture>\n  <source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/assets/brain0-wordmark-dark.svg\">\n  <img alt=\"brain0\" src=\"docs/assets/brain0-wordmark-light.svg\" width=\"380\">\n</picture>\n\n<br/>\n\n**The black box for AI-written code.**\n\n`git` tells you *what* changed. brain0 tells you *why*: which prompt wrote it,\nwhat the agent **read** to write it, and whether you can trust it.\n\n[![CI](https://github.com/Brain0-ai/brain0/actions/workflows/ci.yml/badge.svg)](https://github.com/Brain0-ai/brain0/actions/workflows/ci.yml)\n[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)\n[![npm](https://img.shields.io/npm/v/brain0?color=cb3837&logo=npm)](https://www.npmjs.com/package/brain0)\n[![Rust](https://img.shields.io/badge/core-Rust-e43717?logo=rust)](./crates)\n[![TypeScript](https://img.shields.io/badge/gui-TypeScript-3178c6?logo=typescript&logoColor=white)](./packages)\n[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-27a644.svg)](./CONTRIBUTING.md)\n\n[Quickstart](#quickstart) · [What it answers](#the-questions-your-repo-cant-answer-today) ·\n[Give your agent memory](#give-your-agent-the-why-layer-mcp) · [How it works](#how-it-works) ·\n[Comparison](#how-it-compares) · [Docs](./docs)\n\n</div>\n\n---\n\nCoding agents now write most of the diff: continuously, in parallel, and opaquely.\nbrain0 **passively** builds a decision graph of your repository: every **commit** linked to\nthe **agent intents** behind it, down to the single **function**, with dated history, drift\ndetection, a DLP audit of what agents *read*, and a two-dimensional **risk score** rendered\ngreen → red. No hooks, no agent cooperation, no code changes: it reads git and the\ntranscripts your agents already write to disk.\n\n> Dogfooded from day one: brain0's own development is tracked by brain0.\n\n## Quickstart\n\n```bash\nnpx brain0 up\n```\n\nThat's it. From any repo, `up` infers the repo id from your git remote, indexes the git\nhistory (the **facts**), passively ingests your coding-agent sessions (the **intents**,\nwith Codex and Claude Code auto-discovered), and opens the GUI at `http://localhost:8787`:\nan explorable graph of your codebase, from repo to module, file and symbol, where clicking a\ncommit reveals the prompts behind it, per-file diffs, and risk at a glance.\n\nThen make it a habit:\n\n```bash\nbrain0 today             # morning triage: what agents did, riskiest first\nbrain0 report            # the accountability report (add --md to share it)\nbrain0 query \"why did the parser break\"   # root-cause debug over the graph\n```\n\n## What you need\n\nThe only hard requirement is **Node.js ≥ 20**. brain0 is offline-first: with nothing else\ninstalled it still works end to end: deterministic summaries, local feature-hash embeddings,\nzero egress. Local models make it *better*, never *required*.\n\n| Piece | Needed for | Without it |\n|---|---|---|\n| **Node.js ≥ 20** | everything (`npx brain0 up`) | (required) |\n| **git** | commit history (the facts side) | filesystem checkpoint mode (`brain0 watch`) |\n| **A coding agent**: Codex (`~/.codex`) or Claude Code (`~/.claude/projects`), auto-discovered | the *why* layer: prompts, drift, reads/DLP | graph of commits + code only |\n| **[Ollama](https://ollama.com)** + models (below) | model-written summaries · semantic search · GUI smart chat | deterministic summaries · feature-hash embeddings · retrieval-only answers |\n| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` (opt-in) | a hosted LLM for the GUI smart chat | local Ollama (default) |\n\n### Recommended local models\n\n```bash\nollama pull qwen3:4b               # summarizer (default)\nollama pull qwen3-embedding:0.6b   # embeddings (default; nomic-embed-text is the auto-fallback)\n```\n\nBoth run on modest hardware. On a small GPU (≈4 GB VRAM) use a lighter summarizer for the\nfirst, cache-populating run. Summaries are content-cached in `~/.cache/brain0/`, so every\nlater rebuild costs zero model calls (and even an interrupted run keeps its work):\n\n```bash\nBRAIN0_SUMMARIZER_MODEL=qwen3:1.7b npx brain0 up\n```\n\nIf a configured model is missing, brain0 tells you exactly what to pull and degrades\ngracefully (embedder falls back to `nomic-embed-text`, then local). Every choice is\noverridable: `BRAIN0_SUMMARIZER_{PROVIDER,MODEL,ENDPOINT}`, `BRAIN0_EMBED_{PROVIDER,MODEL,ENDPOINT,DIM}`,\n`BRAIN0_LLM_PROVIDER`. Details in [`docs/models.md`](./docs/models.md).\n\n## The questions your repo can't answer today\n\n- *Which prompt introduced this bug?*\n- *Who (agent or human) touched this function, when, and **why**?*\n- *The agent claimed it \"changed little.\" **Did it?***\n- *Did any session read `.env` or a private key before pushing code?*\n- *This change looked harmless. Did it later prove dangerous?*\n\nbrain0 answers all five, by construction. Three of those answers exist nowhere else:\n\n### ① Drift: declared vs. done\nAgents narrate what they changed; git records what actually changed. brain0 reconciles the\ntwo and scores the gap. From brain0's own",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:29.134298"
+  },
+  {
+    "basic_info": {
+      "name": "open_oura",
+      "full_name": "Th0rgal/open_oura",
+      "owner": "Th0rgal",
+      "description": "A Rust toolkit for the Oura Ring (Gen 3/4/5): reverse-engineered BLE protocol, event decoders, and reimplemented data-processing algorithms. Sync, store, and analyze your data locally.",
+      "url": "https://github.com/Th0rgal/open_oura",
+      "clone_url": "https://github.com/Th0rgal/open_oura.git",
+      "ssh_url": "git@github.com:Th0rgal/open_oura.git",
+      "homepage": "",
+      "created_at": "2026-06-21T10:43:18Z",
+      "updated_at": "2026-07-16T12:10:24Z",
+      "pushed_at": "2026-07-11T17:17:24Z"
+    },
+    "stats": {
+      "stars": 425,
+      "forks": 63,
+      "watchers": 425,
+      "open_issues": 3,
+      "size": 3397
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 229553,
+        "Python": 88649
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# open_oura\n\nReverse-engineering the Oura ring BLE protocol, plus an independent, **cloud-free**\nclient that reads your data straight from the ring.\n\nTested live against a Ring 3 Horizon and a Ring 5 (pairing, auth, and event sync\nconfirmed on both). Designed for Ring 3/4/5, which share the same GATT layout,\npacket framing, and authentication flow.\n\n## What you can recover\n\nStraight from the ring, with no Oura account: device info, battery, live heart rate\n(IBI to BPM), latest HR / SpO2, and the full history-event stream. That stream\ncarries raw PPG/IBI/temperature/motion/SpO2 samples plus the ring's **on-device**\nsleep stages, activity MET levels, and HRV.\n\nThe ring itself does **not** emit the 0-100 Readiness / Sleep / Activity / Stress\nscores. But those are **not** computed in\nOura's cloud either: they're computed **on the phone** by the native `ecore`\nengine and a set of on-device PyTorch models (the same `.pt` we run here), then\nuploaded; the cloud only stores and syncs them back. So they're reproducible\noffline. The one genuine cloud-only step is **workout auto-classification**\n(`POST /api/activity-tagging/v2`). See\n[`docs/data-recovery-map.md`](docs/data-recovery-map.md),\n[`docs/algorithms/README.md`](docs/algorithms/README.md), and\n[`docs/model-runners.md`](docs/model-runners.md) for what runs.\n\n> **Those PyTorch models are Oura's proprietary IP and are NOT included in this\n> repo** (gitignored under `notes/models/`). The runners reference them by path; you\n> decrypt and supply your own locally. Nothing model-related is committed or pushed.\n\n## Repository map\n\n- **`crates/`**: the Rust client, split by concern (`oura-protocol` decode,\n  `oura-link` fetch, `oura-analysis` metrics, `oura-store` SQLite, `oura-cli`).\n  Start here: [`crates/README.md`](crates/README.md) and\n  [`docs/architecture.md`](docs/architecture.md).\n- **`tools/`**: Python research bench for protocol exploration. `oura_protocol.py`\n  (full command matrix, auth, danger-gated ops, JSONL capture) and\n  `oura_realtime_listener.py`.\n- **`docs/`**: protocol and reverse-engineering reference (index below).\n- **`reverse/`, `captures/`**: local-only, gitignored. The decompiled app and raw\n  captures (which may contain serials, MACs, and auth keys).\n\n## Quick start (Rust client)\n\n```bash\ncargo build --release\n./target/release/oura scan\n./target/release/oura --key-file key.hex info\n```\n\nSee [`crates/README.md`](crates/README.md) for all commands (`scan`, `pair`,\n`info`, `sync`, `latest`, `live-hr`, `accel`, `viz`, `game`, `features`, `rdata`,\n`events`, `redecode`, `sleep-analyze`, `sessions`) and the auth-key details. `oura viz` opens a\nreal-time 3D motion visualizer in the browser; `oura game` is a tilt-controlled\nasteroid game driven by the ring.\n\n## Research bench (Python)\n\n```bash\npython3 -m venv .venv && .venv/bin/pip install -r requirements.txt\n.venv/bin/python tools/oura_protocol.py --list\n```\n\nState-changing and destructive commands are hidden behind `--include-state` and\n`--include-danger`. On macOS, grant Bluetooth permission to the terminal.\n\n## Documentation\n\n- [`docs/horizon-ring3-protocol-cheatsheet.md`](docs/horizon-ring3-protocol-cheatsheet.md):\n  the protocol command reference (requests, responses, auth, features), Ring 3.\n- [`docs/android-app-reversing.md`](docs/android-app-reversing.md): app internals,\n  BLE constants, the auth operations, key generation, and nonce encryption.\n- [`docs/data-recovery-map.md`](docs/data-recovery-map.md): what the ring emits vs\n  what only the cloud computes.\n- [`docs/sync-orchestration.md`](docs/sync-orchestration.md): when and how the app\n  pulls each data channel, and the minimal client sync recipe.\n- [`docs/ring-5-observations.md`](docs/ring-5-observations.md): Ring 5 BLE surface\n  and first-contact findings.\n- [`docs/ring-features.md`](docs/ring-features.md): the feature capabilities, runtime\n  modes, what's on by default, and which event each enabled feature produces (incl.\n  what `experimental` does — and doesn't).\n- [`docs/model-runners.md`](docs/model-runners.md): running Oura's decrypted on-device\n  models on your synced data — what runs (activity, sleep, CVA, SpO2) vs what's blocked.\n- [`docs/cva-cardiovascular-age.md`](docs/cva-cardiovascular-age.md): decoding the raw\n  PPG (`cva_raw_ppg_data` 0x81) and running the cardiovascular-age model.\n- [`docs/spo2-calibration.md`](docs/spo2-calibration.md): turning the SpO2 R-ratio into\n  a percentage with Oura's own calibration.\n- [`docs/firmware-update.md`](docs/firmware-update.md): the DFU/OTA opcodes, the\n  working cloud download pipeline + codename map, per-device encryption status, and\n  why the firmware key is unreachable (device-resident; not brute-forceable).\n- [`docs/security-observations.md`](docs/security-observations.md): findings-only\n  notes on the model/firmware encryption (the \"what\", not the \"how\" — no keys,\n  endpoints, or procedures).\n- [`docs/architecture.md`](docs/architecture.md): the fetch/interpret/apply crate\n  laye",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:30.519888"
+  },
+  {
+    "basic_info": {
+      "name": "CSSwitch",
+      "full_name": "SuperJJ007/CSSwitch",
+      "owner": "SuperJJ007",
+      "description": "帮你的 Claude Science 一键接入你自己的 API：DeepSeek / 通义千问 / 智谱 GLM / Kimi / MiniMax / 小米 MiMo / 硅基流动 / OpenRouter / 任意 OpenAI·Anthropic 兼容端点",
+      "url": "https://github.com/SuperJJ007/CSSwitch",
+      "clone_url": "https://github.com/SuperJJ007/CSSwitch.git",
+      "ssh_url": "git@github.com:SuperJJ007/CSSwitch.git",
+      "homepage": null,
+      "created_at": "2026-07-02T16:46:56Z",
+      "updated_at": "2026-07-17T03:24:16Z",
+      "pushed_at": "2026-07-15T18:53:24Z"
+    },
+    "stats": {
+      "stars": 369,
+      "forks": 38,
+      "watchers": 369,
+      "open_issues": 22,
+      "size": 4267
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1782870,
+        "Python": 419870,
+        "JavaScript": 61631,
+        "Shell": 54857,
+        "CSS": 9778,
+        "HTML": 8943
+      },
+      "license": "MIT License",
+      "topics": [
+        "anthropic",
+        "claude",
+        "claude-science",
+        "dashscope",
+        "deepseek",
+        "llm",
+        "macos",
+        "mcp",
+        "menubar",
+        "openai-compatible",
+        "proxy",
+        "qwen",
+        "tauri"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/assets/social-preview.png\" alt=\"CSSwitch\" width=\"760\">\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/license-MIT-blue.svg\" alt=\"MIT License\">\n  <a href=\"https://github.com/SuperJJ007/CSSwitch/releases/tag/v0.6.0\"><img src=\"https://img.shields.io/badge/release-v0.6.0-2ea44f.svg\" alt=\"CSSwitch v0.6.0\"></a>\n  <img src=\"https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-1d1d1f.svg\" alt=\"macOS Apple Silicon\">\n  <img src=\"https://img.shields.io/badge/built%20with-Tauri%202-C25A34.svg\" alt=\"Tauri 2\">\n</p>\n\n<p align=\"center\">\n  <a href=\"./README.md\">简体中文</a> ·\n  <a href=\"./README.en.md\">English</a>\n</p>\n\n# CSSwitch\n\nCSSwitch 是一个给 Claude Science 使用的本地配置转换器。它把 Science 的推理请求转换并接入你自己的模型 API，可配置 DeepSeek、通义千问、Kimi、MiniMax、GLM、OpenRouter、中转站或自定义兼容端点。\n\n它面向的不只是开发者：你只需要准备 Claude Science、一个第三方 API Key，然后在桌面面板里新建配置、设为当前、点击「一键开始」。\n\n> 当前版本主要支持 macOS Apple Silicon。首次打开未公证的 `.dmg` 应用时，macOS 可能需要你右键选择「打开」。\n\n[下载最新版](../../releases/latest) · [项目文档](./docs/README.md) · [更新日志](./CHANGELOG.md) · [报告问题](https://github.com/SuperJJ007/CSSwitch/issues/new?template=bug_report.yml) · [功能建议](https://github.com/SuperJJ007/CSSwitch/issues/new?template=feature_request.yml)\n\n> **0.6.0：** 外部 Skill 安装现在支持准确的公开 GitHub URL 和主面板本地 `.zip` / `.skill` 两条路线；GitHub 慢下载提供单请求进度、终态清理和重启中断恢复。bundle 从任意成员卸载时，必须先返回完整受影响 Skill 列表并由用户确认整包卸载，不做部分物理删除。v0.5.0 的旧 connector 路由会自动迁移，用户 MCP 配置和未知字段保持原样。详见[外部 Skill bridge](./docs/features/external-skill-bridge.md)、[系统 SSH](./docs/features/system-ssh.md)和[架构说明](./docs/architecture/overview.md)。\n\n## 目录\n\n- [为什么需要 CSSwitch](#为什么需要-csswitch)\n- [可以做什么](#可以做什么)\n- [快速开始](#快速开始)\n- [安装和卸载外部 Skill](#安装和卸载外部-skill)\n- [从旧版升级](#从旧版升级)\n- [支持的模型来源](#支持的模型来源)\n- [状态诊断与能力 catalog](#状态诊断与能力-catalog)\n- [它如何保护你的真实账号](#它如何保护你的真实账号)\n- [哪些能力暂时用不了](#哪些能力暂时用不了)\n- [多语言](#多语言)\n- [开发与构建](#开发与构建)\n- [风险与免责声明](#风险与免责声明)\n\n## 为什么需要 CSSwitch\n\nClaude Science 是 Anthropic 面向科研与分析场景的 AI Agent 应用，可以做文献分析、数据处理、代码执行、图表生成和论文写作等工作。但 Science 默认依赖 Claude 登录和 Anthropic 推理服务。\n\nCSSwitch 做的是本地运行控制：\n\n- 在隔离环境里启动 Claude Science。\n- 在独立的本地工作区中运行第三方模型模式，不接管你的真实 Claude 账号。\n- 把 Science 的模型请求转发到你选择的第三方 provider。\n- 在需要时把 Anthropic Messages API 和 OpenAI 兼容接口互相转换。\n- 保留「官方 Claude」模式，可随时切回 Science 的官方服务配置。\n\n简单理解：CSSwitch 之于 Claude Science，类似 CC Switch 之于 Claude Code，并额外管理桌面应用、隔离工作区与本地网关。\n\n```text\nClaude Science sandbox\n  -> CSSwitch local proxy\n  -> DeepSeek / Qwen / Kimi / MiniMax / GLM / OpenRouter / custom endpoint\n```\n\n## 可以做什么\n\n**给普通用户**\n\n- 用桌面面板管理多套模型配置，不需要手改环境变量。\n- 同一家 provider 可以保存多套配置，例如不同 Key、不同模型、不同中转地址。\n- 点击「设为当前」前会先验证 Key；失败不会悄悄切换到坏配置。\n- 点击「一键开始」会自动启动代理、准备隔离环境、打开 Science。\n- Science 顶部模型选择器会显示你选择的真实模型名，而不是笼统的 `claude` 或 `opus`。\n- 可以一键切回「官方 Claude」模式，不干扰你的真实 Claude 登录。\n- 复用 Science 的持久化 data-dir；Skill 状态不阻塞 CSSwitch 启动。0.6.0 可从准确的公开 GitHub URL 或本地 `.zip` / `.skill` 安装单 Skill/bundle；bundle 卸载必须整包确认并只隔离 CSSwitch 自己的导入。\n- CSSwitch 默认继承 `/Applications/Claude Science.app` 中用户当前安装的 Science，不比较、固定、升级或降级版本；更新 App 后，下次启动继续复用原 data-dir 并使用更新后的 App executable。\n- 如果 Science App 缺失，CSSwitch 不会静默启动 data-dir 中的旧缓存。只有缓存可执行且版本可确认时，UI 才允许“仅本次使用缓存版本”；该选择不保存。否则只能打开 [Claude 官方下载页](https://claude.com/download) 安装 / 更新或取消。\n\n**给进阶用户**\n\n- 支持原生 Anthropic 兼容端点、OpenAI Chat Completions 兼容端点、OpenAI Responses 兼容端点。\n- 支持自定义 `base_url`、模型名和中转站。\n- DeepSeek、Kimi、MiniMax 等原生 Anthropic 端点优先透传，尽量保留工具调用、thinking 和流式响应。\n- Qwen 与自定义 OpenAI 端点通过本地代理做协议转换。\n- 配置和日志都保存在本机，便于自查和反馈。\n\n## 快速开始\n\n开始之前，请确认你已经安装：\n\n- [Claude Science（Claude 官方下载页）](https://claude.com/download)\n- macOS Apple Silicon 设备\n- 一个可用的第三方模型 API Key\n- CSSwitch 已内置 Rust inference gateway，无需另外安装 Python 运行时\n\n1. 从 [GitHub Releases](../../releases/latest) 下载最新的 `CSSwitch_*.dmg`。\n2. 将 CSSwitch 拖入「应用程序」。\n3. 第一次打开如果被 Gatekeeper 拦截，请右键应用并选择「打开」。\n4. 保持顶部模式为「第三方模型」。\n5. 点击「+ 新建」，选择 provider，填写 API Key、模型和必要的 `base_url`。\n6. 点击「创建」，再在配置列表中点击「设为当前」。\n7. 验证通过后点击「一键开始」。\n8. CSSwitch 会启动隔离 Science，并在浏览器中打开入口。\n\nCSSwitch 不替你选择 Science 版本。正常启动使用当前安装的 Claude Science App；如果 App 缺失，面板会据实显示可确认的历史缓存版本并要求你明确选择“仅本次使用”，或打开官方下载页安装 / 更新。缓存选择不会写入配置；以后检测到 App 时会自动恢复使用 App。\n\n如果你想使用 Science 的官方服务配置，切到「官方 Claude」模式即可。CSSwitch 会停止第三方代理链路，再打开真实 Science。\n\n## 安装和卸载外部 Skill\n\nCSSwitch 0.6.0 提供 GitHub 和本地文件两条安装路线。两条路线使用相同的路径、大小、符号链接和保留文件校验，并在安装后把 Skill 原生绑定到 Science 的默认 Agent。安装器不会替你登录 GitHub，也不会读取或接管 Science 凭证。\n\n**从公开 GitHub URL 安装**\n\n1. 在 CSSwitch 中完成「一键开始」，然后打开一个新的 Science 对话。\n2. 把准确的公开 GitHub tree URL 发给 Agent，并明确要求使用 CSSwitch 外部 Skill 安装器。例如：\n\n   ```text\n   请使用 CSSwitch 外部 Skill 安装器安装这个固定提交，只发起一次请求，不要自动重试：\n   https://github.com/<owner>/<repo>/tree/<commit>/<path>\n   ```\n\n3. Science 请求访问 CSSwitch bridge 目录时，核对路径后批准本次读写授权。\n4. 下载期间等待同一个请求继续推进，不要重复发送安装指令。成功后，单 Skill 会要求在当前会话做一次加载验证；bundle 会报告完整成员数量和绑定结果。\n\n推荐使用固定 commit URL，便于复用和核对。公开仓库的根目录 bundle 也可以使用 `.../tree/<commit>`。私有仓库、名称搜索、覆盖更新和 Skill 发布不在当前范围内。\n\n**从本地文件安装**\n\n1. 保持隔离 Science 正在运行且状态正常。\n2. 在 CSSwitch 主面板点击「导入 Skill 包」。\n3. 选择 `.zip` 或 `.skill` 文件。支持 archive 根目录直接包含 `SKILL.md`、唯一外层 Skill 目录，以及包含多个直接 Skill 子目录和可选 `_shared` 的 bundle。\n4. CSSwitch 校验、原子写入并绑定后，在新的 Science 对话中加载对应 S",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:31.886630"
+  },
+  {
+    "basic_info": {
+      "name": "txm",
+      "full_name": "thatmagicalcat/txm",
+      "owner": "thatmagicalcat",
+      "description": "Terminal Math rendering engine",
+      "url": "https://github.com/thatmagicalcat/txm",
+      "clone_url": "https://github.com/thatmagicalcat/txm.git",
+      "ssh_url": "git@github.com:thatmagicalcat/txm.git",
+      "homepage": null,
+      "created_at": "2026-07-09T03:24:59Z",
+      "updated_at": "2026-07-16T19:01:44Z",
+      "pushed_at": "2026-07-13T22:51:17Z"
+    },
+    "stats": {
+      "stars": 299,
+      "forks": 19,
+      "watchers": 299,
+      "open_issues": 10,
+      "size": 2118
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 103811,
+        "Nix": 6808,
+        "Shell": 711
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <h1>TXM</h1>\n  <p>TXM (Terminal TeX Math) is a math rendering engine with LaTeX support.</p>\n</div>\n\n# Screenshots:\n![s0](./screenshots/0.png)\n![s1](./screenshots/1.png)\n![s2](./screenshots/2.png)\n![s3](./screenshots/3.png)\n![s4](./screenshots/4.png)\n![s5](./screenshots/5.png)\n\n### Quick run using nix\n```\nnix run github:thatmagicalcat/txm -- \"E = mc^2\"\n```\nRequires [Nix](https://nix.dev/install-nix) with flakes enabled.\n\n# Installation\n### Arch Linux (AUR)\nInstall `txm-git` using an AUR helper like `yay` or `paru`:\n```bash\nyay -S txm-git\n```\n\nOr install it manually:\n```bash\ngit clone https://aur.archlinux.org/txm-git.git\ncd txm-git\nmakepkg -si\n```\n\n### Gentoo Linux (GURU)\n```bash\nemerge -a app-text/txm\n```\n\n### Cargo (Rust)\n```\n$ cargo install txm\n```\nOr\n```\n$ cargo install --git https://github.com/thatmagicalcat/txm\n```\n\n### Bindings\n- Python bindings live in [`bindings/py/`](./bindings/py/).\n\n# Projects using TXM:\n- [**txm.nvim**](https://github.com/rv178/txm.nvim/): LaTeX preview inside NeoVim using\n\n## License\n- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))\n- MIT license ([LICENSE-MIT](LICENSE-MIT))\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:33.305487"
+  },
+  {
+    "basic_info": {
+      "name": "Godcoder",
+      "full_name": "eli-labz/Godcoder",
+      "owner": "eli-labz",
+      "description": "A local-first, open-source coding agent for your desktop. Bring your own LLM key; your code stays on your machine and only ever leaves to the model provider. The AI Agent builds its own Harnes.",
+      "url": "https://github.com/eli-labz/Godcoder",
+      "clone_url": "https://github.com/eli-labz/Godcoder.git",
+      "ssh_url": "git@github.com:eli-labz/Godcoder.git",
+      "homepage": "",
+      "created_at": "2026-06-27T00:56:36Z",
+      "updated_at": "2026-07-15T09:28:55Z",
+      "pushed_at": "2026-07-04T20:02:41Z"
+    },
+    "stats": {
+      "stars": 290,
+      "forks": 8,
+      "watchers": 290,
+      "open_issues": 0,
+      "size": 16097
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1272974,
+        "Go": 1111525,
+        "TypeScript": 713443,
+        "CSS": 88227,
+        "Starlark": 22055,
+        "Python": 19876,
+        "Dockerfile": 12275,
+        "Batchfile": 9079,
+        "PowerShell": 7899,
+        "Shell": 5106,
+        "JavaScript": 2233,
+        "HTML": 1505
+      },
+      "license": "Other",
+      "topics": [
+        "ai",
+        "coding-agent",
+        "desktop-app",
+        "llm",
+        "local-first",
+        "mcp",
+        "open-source",
+        "openai",
+        "rust",
+        "tauri"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# ⚡ Godcoder\n\n### A local-first, open-source AI coding agent for your desktop.\n\n**Bring your own LLM key. Your code never leaves your machine.**\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n[![Built with Rust](https://img.shields.io/badge/Built%20with-Rust-orange?logo=rust)](https://www.rust-lang.org/)\n[![Tauri 2](https://img.shields.io/badge/Tauri-2.0-blue?logo=tauri)](https://tauri.app/)\n[![Stars](https://img.shields.io/github/stars/eli-labz/Godcoder?style=social)](https://github.com/eli-labz/Godcoder/stargazers)\n[![Forks](https://img.shields.io/github/forks/eli-labz/Godcoder?style=social)](https://github.com/eli-labz/Godcoder/network/members)\n\n[**Download**](#getting-started) · [**Features**](#what-godcoder-can-do) · [**Architecture**](ARCHITECTURE.md) · [**Contribute**](CONTRIBUTING.md)\n\n</div>\n\n---\n\n## 🚀 What is Godcoder?\n\nGodcoder is a **local-first, fully open-source AI coding agent** that runs as a native desktop app. Unlike cloud-based tools, your source code never transits a vendor backend — API requests go straight from your machine to whichever model provider you configure.\n\nIt goes beyond editing code: Godcoder can **build and continuously improve its own agent harness** (Harness mode) and **self-train to drive the Open Cowork desktop app**, even **executing human-action tasks** — clicking, typing, opening apps, sending email, e-signing — through GUI/OS automation (CoWork mode). Both modes run a self-optimizing loop that compounds lessons over time, so the agent gets measurably better with use.\n\n```\nYour Machine ──► Model Provider (OpenAI / Anthropic / Any OpenAI-compatible API)\n     ▲\n     │  (no middleman, no cloud backend, no data lock-in)\n     │\n  Your Code\n```\n\n> Reimagined from the ground up. The original 2024 autonomous-dev pipeline is frozen under `v1/` — preserved, not maintained.\n\n---\n\n## 🧬 The Agent Builds Its Own Harness — Live\n\n> **Godcoder doesn't just use a harness. It writes one, improves it, and optimizes it — autonomously, in real time.**\n\nThis is the defining capability that sets Godcoder apart. Activate **Harness mode** and the agent takes over its own agent loop: it scaffolds a live sandbox, engineers its own tools and workflows, runs improvement cycles, measures what works, and compounds that knowledge — all without you writing a single prompt.\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│              HARNESS MODE  —  Real-Time Self-Build          │\n│                                                             │\n│  START                                                      │\n│    │                                                        │\n│    ▼                                                        │\n│  🏗️  Scaffold  →  creates harness-build/ sandbox            │\n│    │                                                        │\n│    ▼                                                        │\n│  🗺️  Route     →  selects the highest-value next change     │\n│    │                                                        │\n│    ▼                                                        │\n│  📋  Plan      →  designs the improvement                   │\n│    │                                                        │\n│    ▼                                                        │\n│  ⚙️  Execute   →  writes, edits, runs code                  │\n│    │                                                        │\n│    ▼                                                        │\n│  ✅  Evaluate  →  verifies with the project's own checks    │\n│    │                                                        │\n│    ▼                                                        │\n│  📝  Log       →  records outcome in persistent memory      │\n│    │                                                        │\n│    ▼                                                        │\n│  🔁  Optimize  →  biases future iterations toward success   │\n│    │                                                        │\n│    └──────────────────────────────► repeat                  │\n└─────────────────────────────────────────────────────────────┘\n```\n\n**How it works:**\n- Pick **Harness** in the new-session composer and press start — no prompt to type, no folder to choose.\n- The agent instantly creates a dedicated `harness-build/` workspace, opens it in your file explorer, and confines all new work there — reading the rest of the repo for reference but never rewriting it.\n- Each iteration makes **one decisive, verifiable change**: keep it if it's an improvement, discard it otherwise.\n- Results are stored in a **persistent memory store** (via the ResearchSwarm bridge) so lessons from past runs rank and steer future iterations — the harness compounds knowledge over time.\n- Like Freestyle mode, every tool call is auto-approved after the first confirmation.\n\nThe loop is powered by the [`self-optimizing-harness`](./crates/agent/default-sk",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:34.668752"
+  },
+  {
+    "basic_info": {
+      "name": "bw24",
+      "full_name": "avifenesh/bw24",
+      "owner": "avifenesh",
+      "description": "From-scratch Rust+CUDA inference engine, bit-exact by construction — NVFP4, MoE, MTP speculative decoding, tuned against measured limits of one RTX 5090 Laptop (sm_120a).",
+      "url": "https://github.com/avifenesh/bw24",
+      "clone_url": "https://github.com/avifenesh/bw24.git",
+      "ssh_url": "git@github.com:avifenesh/bw24.git",
+      "homepage": "https://huggingface.co/Avifenesh/bw24-bench",
+      "created_at": "2026-07-05T20:45:33Z",
+      "updated_at": "2026-07-17T01:41:29Z",
+      "pushed_at": "2026-07-17T02:07:12Z"
+    },
+    "stats": {
+      "stars": 269,
+      "forks": 31,
+      "watchers": 269,
+      "open_issues": 1,
+      "size": 8145
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2370022,
+        "Cuda": 1367193,
+        "Python": 523314,
+        "Shell": 154651,
+        "HTML": 49025,
+        "C++": 8619
+      },
+      "license": "MIT License",
+      "topics": [
+        "blackwell",
+        "cuda",
+        "gguf",
+        "gpu-kernels",
+        "llama-cpp",
+        "llm-inference",
+        "moe",
+        "nvfp4",
+        "rust",
+        "speculative-decoding"
+      ]
+    },
+    "content": {
+      "readme": "# bw24 — from-scratch LLM inference for sm_120a (RTX 50-series Blackwell)\n\n[![ci](https://github.com/avifenesh/bw24/actions/workflows/ci.yml/badge.svg)](https://github.com/avifenesh/bw24/actions/workflows/ci.yml)\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n![Rust](https://img.shields.io/badge/rust-edition%202024-orange.svg)\n![CUDA](https://img.shields.io/badge/CUDA-12.8%20%2F%2013.1-76B900.svg)\n![arch](https://img.shields.io/badge/arch-sm__120a%20(Blackwell)-black.svg)\n\n![bw24 vs llama.cpp perf board](docs/perf-card.svg)\n\nFrom-scratch LLM inference engine in Rust + CUDA, built for one machine: an RTX 5090 Laptop (Blackwell sm_120a, 24 GB). No frameworks, no ggml — every kernel written and tuned against measured hardware limits, with llama.cpp as the benchmark to beat on the same rig.\n\nThe headline capability is **MTP speculative decoding**: 1.1-1.9x over llama.cpp's best spec config on every supported Qwen model, with trimmed drafter heads published ready-to-use ([huggingface.co/Avifenesh/bw24-bench](https://huggingface.co/Avifenesh/bw24-bench)) — behind a drop-in OpenAI-compatible server. Exactness is the contract: speculative output is gated token-identical to plain decode, so the speedup never changes what the model says.\n\nRunning bw24 on your own rig — desktop 50-series, older NVIDIA, anything? A [hardware validation report](.github/ISSUE_TEMPLATE/hardware-validation.md) is the fastest way to help: 50-series reports bless the rest of the family, older-card reports map the compatibility floor.\n\n**Current standing: six supported models, all fully gated. Qwen leads llama.cpp on every cell (plain 1.06-1.08x, spec 1.1-1.9x). Gemma leads decisively where llama lacks the capability or the depth (31B spec 1.7k 1.16x, E4B spec ≥1.23x, E4B plain 1.10x) and sits at 0.99-1.06x elsewhere under the strictest best-vs-best pairing (2026-07-15 re-audit).** Every number below is a same-session, same-prompt, interleaved measurement against llama.cpp's best config; exactness is gated (argmax match + speculative self-consistency) on every kernel change, so speed never buys different outputs.\n\n## Model support\n\n| Tier | Models | State |\n|---|---|---|\n| **Supported** | Qwen3.5-9B, Qwen3.6-27B, Qwen3.6-35B-A3B MoE (NVFP4/IQ4_XS); Gemma-4 26B-A4B MoE, 31B dense, E4B (QAT Q4_0 + MTP drafters) | Board-published, fully gated, exactness-first; margins per model in the tables below |\n| **In progress** | Hy3-REAP50, MiniMax-M3 REAP50 (safetensors, VRAM→RAM→NVMe spill) | Loads + generates; hybrid/sigmoid-router arcs still open |\n\n## Quick start\n\nPrebuilt Linux x86_64 binaries (sm_120a) ship with each [release](https://github.com/avifenesh/bw24/releases) — or build from source:\n\n```bash\ncargo build --release\n./target/release/kernel-check                     # every kernel vs CPU reference\nBW24_CHAT=1 ./target/release/run-gen /path/to/model.gguf --prompt \"Explain KV caches.\"\nBW24_SPEC_K=3 ./target/release/run-spec /path/to/qwen36-27b.gguf   # MTP speculative\n./target/release/run-gen hf:owner/repo:Q4_K_M --prompt \"hi\"        # auto-download from HF (needs `hf` CLI)\n./target/release/frspec-owngen model.gguf trim.gguf --validate     # build + validate an FR-Spec draft trim from the model's OWN generations\n./target/release/bw24-server                      # OpenAI-compatible /v1\n```\n\nExpected output — `kernel-check` ends with:\n\n```\nALL GREEN: kernels match CPU reference.\n```\n\nand `run-gen` prints its correctness gate before any generation:\n\n```\nverify-prefill argmax=N  decode argmax=N  logit maxdiff=...  MATCH\n```\n\nTuned paths are the defaults — no flags needed. Flags exist only for runtime parameters, machine config, and rollback seams (`docs/FLAGS.md`). `run-gen` prints a prefill/decode argmax gate before timing anything; a MISMATCH line voids the numbers after it.\n\n## Performance — Qwen (NVFP4 / IQ4_XS)\n\n<!-- PERF-DATE:START (generated by tools/update-perf-board.py — do not hand-edit; edit research/tune-data/current-board.json instead) -->\nMeasured 2026-07-13 on the target rig (RTX 5090 Laptop, N=2+ medians, both engines interleaved in the same thermal window on the same rig, same exact prompts, validity-gated cold starts, no flags (tuned paths are defaults). Full per-run logs: research/tune-data/ (Qwen) and research/gemma4-bringup/ (Gemma) — every win and every loss) against llama.cpp built on the same machine, same exact prompts, both engines re-baselined the same day. Boards move with the tuning campaign — `research/tune-data/rig5090.jsonl` is the running record; the README is refreshed with every board-moving merge.\n<!-- PERF-DATE:END -->\n\n**Plain decode** (no speculation, tg128 at 512-token context):\n\n<!-- PERF-PLAIN:START (generated by tools/update-perf-board.py — do not hand-edit; edit research/tune-data/current-board.json instead) -->\n| Model | bw24 plain | llama.cpp plain | Ratio |\n|---|---|---|---|\n| Qwen3.5-9B NVFP4 (GGUF) | 135.7 | 126.7 | **1.07x** |\n| Qwen3.6-27B NVFP4 (GGUF) | 48.4 | 44.9 ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:36.078042"
+  },
+  {
+    "basic_info": {
+      "name": "usbtree",
+      "full_name": "gnomeria/usbtree",
+      "owner": "gnomeria",
+      "description": "Live USB device tree in your terminal. Rust TUI, no root, no libusb. Full activity metrics on Linux; device tree on macOS/Windows.",
+      "url": "https://github.com/gnomeria/usbtree",
+      "clone_url": "https://github.com/gnomeria/usbtree.git",
+      "ssh_url": "git@github.com:gnomeria/usbtree.git",
+      "homepage": "https://gnomeria.github.io/usbtree/",
+      "created_at": "2026-07-07T14:19:23Z",
+      "updated_at": "2026-07-17T01:33:08Z",
+      "pushed_at": "2026-07-16T10:20:22Z"
+    },
+    "stats": {
+      "stars": 244,
+      "forks": 6,
+      "watchers": 244,
+      "open_issues": 1,
+      "size": 9379
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 152197,
+        "Shell": 16714,
+        "PowerShell": 4955
+      },
+      "license": "MIT License",
+      "topics": [
+        "cli",
+        "linux",
+        "macos",
+        "nusb",
+        "ratatui",
+        "rust",
+        "terminal",
+        "tui",
+        "usb",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "# usbtree\n\nCross-platform TUI for inspecting the USB device tree (Linux, macOS, Windows). Enumerates via [nusb](https://crates.io/crates/nusb) — pure Rust, no root, no libusb. One static binary, zero runtime deps: **~1.5 MB download, ~5–7 MB on disk**.\n\n![usbtree](https://img.shields.io/badge/rust-ratatui-blue)\n[![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)\n[![ci](https://github.com/gnomeria/usbtree/actions/workflows/ci.yml/badge.svg)](https://github.com/gnomeria/usbtree/actions/workflows/ci.yml)\n[![release](https://img.shields.io/github/v/release/gnomeria/usbtree)](https://github.com/gnomeria/usbtree/releases/latest)\n\n**Website:** [gnomeria.github.io/usbtree](https://gnomeria.github.io/usbtree)\n\n![usbtree demo](docs/screenshots/demo.gif)\n\n## Platform support\n\n| Feature                                              |     Linux     | macOS | Windows |\n| ---------------------------------------------------- | :-----------: | :---: | :-----: |\n| Device tree — hubs, classes, speeds, tree rails      |      ✅       |  ✅   |   ✅    |\n| Friendly names (`overrides.ids` + usb.ids)           |      ✅       |  ✅   |   ✅    |\n| Hot-plug watch + timestamped event log               |      ✅       |  ✅   |   ✅    |\n| Detail panel — sysfs path, vid:pid, serial, children |      ✅       |  ✅   |   ✅    |\n| Device power — advertised `bMaxPower`                |      ✅       |  ✅   |    —    |\n| Live activity sparklines — URBs/s (unprivileged)     |      ✅       |   —   |    —    |\n| Real bandwidth — bytes/s via usbmon (root)           |      ✅       |   —   |    —    |\n| Prebuilt binaries                                    | amd64 · arm64 | arm64 |  amd64  |\n\nLive per-device activity is Linux-only — [why →](#activity-metrics-linux).\n\n## Install\n\n> [!NOTE]\n> The shell installer and prebuilt links need a published GitHub release. None yet? Install from source.\n\n**Linux / macOS**\n\n```sh\ncurl -fsSL https://raw.githubusercontent.com/gnomeria/usbtree/main/scripts/install.sh | sh\n```\n\n**Windows**\n\n```powershell\nirm https://raw.githubusercontent.com/gnomeria/usbtree/main/scripts/install.ps1 | iex\n```\n\n**From source**\n\n```sh\ncargo install --git https://github.com/gnomeria/usbtree\n```\n\nInstallers verify the archive's sha256 against `checksums.txt` and install to `/usr/local/bin` or `~/.local/bin` (Linux/macOS) / `%LOCALAPPDATA%\\usbtree\\bin` + user `PATH` (Windows). Env vars (prefix `$env:` in PowerShell):\n\n| Variable               | Effect                                                     |\n| ---------------------- | ---------------------------------------------------------- |\n| `USBTREE_VERSION`      | pin a version, e.g. `0.0.1` (default: latest)              |\n| `USBTREE_INSTALL_DIR`  | install directory override                                 |\n| `USBTREE_SUDO_SYMLINK` | `1` also symlinks into `/usr/local/bin` via `sudo`, so `sudo usbtree` finds it for usbmon bytes/s |\n\nOr grab a `usbtree_<version>_<os>-<arch>.{tar.gz,zip}` archive from the [latest release](https://github.com/gnomeria/usbtree/releases/latest); each sha256 is in `checksums.txt`.\n\n> [!NOTE]\n> **macOS and Windows binaries are not code-signed or notarized.**\n> - **macOS**: the install script clears the quarantine flag; manual downloads need `xattr -d com.apple.quarantine ./usbtree` (or right-click → Open once).\n> - **Windows**: SmartScreen may warn — _More info_ → _Run anyway_, or `Unblock-File usbtree.exe`.\n> Verify the sha256 or build from source if in doubt.\n\n## Features\n\n- Live USB tree — color-coded class gutter, per-class icons, tree rails, speed badges (`▂` low/full, `▄` high 480M, `█` SuperSpeed+ 5G/10G); rescans every second. Collapse hubs with `Enter`/`Space`/`h`/`l` → `▸` + `+N` child badge\n- Names via fallback chain: `overrides.ids` → descriptor strings → downloaded [usb.ids](http://www.linux-usb.org/usb-ids.html) (`--updatelist`) → embedded snapshot → vendor/class heuristics\n- Composite/Misc (0xef) devices classified by interface class, so e.g. a MOTU M2 shows as Audio, not Misc\n- Hot-plug watch — plugged flash green, unplugged linger as red ghosts for 30 s, all events logged with timestamps\n- Live per-device activity (Linux) — inline sparklines + detail-pane bandwidth graph; URBs/s unprivileged, real bytes/s via usbmon (root, see below)\n- Detail panel — sysfs path, vid:pid, vendor, class, speed, `bMaxPower`, serial, connected children\n- Safe eject (Linux, unprivileged) — `e` on a mass-storage device unmounts + cuts port power via udisks2, with a confirm dialog\n- PCI view (`p`) — flat address-sorted PCI list with detail pane (prog-if, subsystem, link speed/width, NUMA, IOMMU group, power state)\n- Live filter (`/`), yank (`y` vid:pid, `Y` full details), `--dump` prints the tree once (no TUI)\n\n## Usage\n\n```sh\nusbtree                 # TUI\nusbtree --dump          # print the tree once and exit\nusbtree --updatelist    # download the latest usb.ids into the config dir\nusbtree --demo          # fake tree with scripted hot-plug + t",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-17T03:55:37.452690"
+  }
+]

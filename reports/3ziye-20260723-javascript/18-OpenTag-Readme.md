@@ -1,0 +1,129 @@
+<p align="center">
+  <img src="docs/banner.png" alt="OpenTag banner" width="100%" />
+</p>
+
+<h1 align="center">OpenTag</h1>
+
+<p align="center">
+  <strong>Open-source, channel-native multiplayer AI gateway with shared, auditable team knowledge.</strong>
+</p>
+
+<p align="center">
+  Tag local AI agents into Slack threads, with local execution, visible progress, approvals, audit trails, and pluggable agent runtimes.
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> ·
+  <a href="README.zh-CN.md">简体中文</a> ·
+  <a href="docs/user-guide/README.md">User Guide</a> ·
+  <a href="SECURITY.md">Security</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+<p align="center">
+  <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue">
+  <img alt="Node" src="https://img.shields.io/badge/node-%3E%3D20.11.0-339933">
+  <img alt="Slack first" src="https://img.shields.io/badge/channel-Slack--first-4A154B">
+  <img alt="Status" src="https://img.shields.io/badge/status-MVP-orange">
+</p>
+
+OpenTag brings AI agents into the place where team work already happens: Slack channels and threads.
+
+Instead of running an agent from one person's terminal and pasting results back into chat, a team can mention `@OpenTag`, discuss the task in the same thread, approve risky actions when needed, and keep the outcome visible to everyone who has access to that channel.
+
+---
+
+## ✨ What You Can Do
+
+- Ask an agent to investigate a bug from a Slack thread.
+- Let teammates add context before or during the agent run.
+- Route work to different agent backends such as Codex, Claude Code, OpenCode, Docker-based agents, HTTP agents, or custom CLIs.
+- Teach OpenTag an explicit team fact, decision, convention, preference, or procedure; corrections are versioned, scoped, sourced, and reused by every configured runtime.
+- Use Channel Profiles / Access Bundles so different projects can have different permissions, memories, default agents, and run limits.
+- Require approvals before write actions or risky operations.
+- Keep a record of sessions, decisions, outputs, and generated artifacts.
+
+OpenTag is designed for team workflows where context, permission, and accountability matter.
+
+---
+
+## 💬 How It Feels In Slack
+
+```text
+@OpenTag summarize why this deployment failed
+
+@OpenTag check this thread and draft the fix plan
+
+/runtime codex-readonly explain the current project structure
+
+/opentag sessions
+/opentag approvals
+/opentag status <session_id>
+```
+
+The agent replies in the same Slack thread, so the work stays connected to the original discussion.
+
+---
+
+## 🚀 Why OpenTag
+
+Most AI coding and automation tools are built around a single local operator. OpenTag is built around shared channels.
+
+- **Shared by default**: the conversation, context, and result stay in the team thread.
+- **Channel-aware**: each channel can have its own project, instructions, memory, permissions, default runtime, and run limits.
+- **Shared team knowledge**: correct a fact once and future threads receive the latest active version, with provenance and revision history under your control.
+- **Agent-flexible**: use the agent runtime that fits the task instead of locking the team into one backend.
+- **Approval-ready**: sensitive actions can pause for human review.
+- **Auditable**: sessions, messages, approvals, outputs, and artifacts can be reviewed later.
+
+---
+
+## ⚡ Quick Start
+
+OpenTag requires Node.js `>=20.11.0`.
+
+```bash
+npm install
+npm run smoke
+```
+
+Try OpenTag locally without Slack:
+
+```bash
+npm run start:console
+```
+
+Start the Slack gateway with the example configuration:
+
+```bash
+npm link
+opentag init --project . --runtime mock --open-slack
+opentag setup launch
+opentag doctor --strict
+```
+
+`opentag setup launch` starts the local daemon when needed and opens a step-by-step setup wizard at `http://127.0.0.1:8787/setup`. The wizard walks through agent selection, Slack manifest import, local token saving, and final verification.
+
+Run this any time to see the next setup step:
+
+```bash
+opentag next
+```
+
+For detailed Slack setup, start with:
+
+- [`docs/user-guide/01-install.md`](docs/user-guide/01-install.md)
+- [`examples/slack-app-manifest.yaml`](examples/slack-app-manifest.yaml)
+
+---
+
+## 📦 What Is Included
+
+- Slack gateway for mentions, thread replies, DMs, slash commands, and approvals.
+- Local console mode for trying OpenTag without Slack.
+- Runtime options for mock runs, Codex, Claude Code, OpenCode, Docker, HTTP agents, and generic CLI agents.
+- Channel configuration for default runtime, allowed runtimes, allowed users, approvers, instructions, memory, and workspace roots.
+- Versioned Team Knowledge with workspace/private-channel boundaries, source references, archive/restore, and permanent deletion.
+- Channel Profiles / Access Bundles for per-channel runtime, memory, approval, and limit boundaries.
+- Local storage for sessions, messages, approvals, runs, audit records, and artifacts.
+- Admin and integration surfaces for teams that want to build deeper workflows.

@@ -1,0 +1,904 @@
+[
+  {
+    "basic_info": {
+      "name": "Generals-Mac-iOS-iPad",
+      "full_name": "ammaarreshi/Generals-Mac-iOS-iPad",
+      "owner": "ammaarreshi",
+      "description": "Command & Conquer Generals: Zero Hour running natively on macOS, iPhone & iPad — real engine (EA GPL v3 source, via GeneralsX), DXVK/MoltenVK renderer, RTS touch controls. No game assets included.",
+      "url": "https://github.com/ammaarreshi/Generals-Mac-iOS-iPad",
+      "clone_url": "https://github.com/ammaarreshi/Generals-Mac-iOS-iPad.git",
+      "ssh_url": "git@github.com:ammaarreshi/Generals-Mac-iOS-iPad.git",
+      "homepage": "",
+      "created_at": "2026-07-04T02:59:39Z",
+      "updated_at": "2026-07-26T22:43:53Z",
+      "pushed_at": "2026-07-05T17:23:48Z"
+    },
+    "stats": {
+      "stars": 1522,
+      "forks": 127,
+      "watchers": 1522,
+      "open_issues": 15,
+      "size": 45484
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 56796073,
+        "C": 1598833,
+        "CMake": 421403,
+        "Python": 264443,
+        "Shell": 232578,
+        "Perl": 4250,
+        "Dockerfile": 2918,
+        "Batchfile": 1524,
+        "HTML": 583,
+        "Objective-C": 213,
+        "CSS": 152
+      },
+      "license": "Other",
+      "topics": [
+        "apple-silicon",
+        "command-and-conquer",
+        "dxvk",
+        "game-port",
+        "generals-zero-hour",
+        "ios",
+        "ipad",
+        "macos",
+        "moltenvk",
+        "open-source-game",
+        "rts",
+        "sdl3"
+      ]
+    },
+    "content": {
+      "readme": "# Command & Conquer Generals: Zero Hour — macOS, iOS & iPadOS\n\n<img width=\"500\" height=\"281\" alt=\"IMG_3457_500\" src=\"https://github.com/user-attachments/assets/aeaf6692-36e6-40c8-b9f8-8066d014ec4b\" />\n\n**Zero Hour running natively on Apple Silicon Macs, iPhone, and iPad** — campaign,\nskirmish, and Generals Challenge, with touch controls built for RTS (tap-select,\ndrag-box, long-press deselect, two-finger scroll, pinch zoom). No emulation: this\nis the real 2003 engine compiled for ARM64, rendering DirectX 8 →\n[DXVK](https://github.com/doitsujin/dxvk) → Vulkan →\n[MoltenVK](https://github.com/KhronosGroup/MoltenVK) → Metal.\n\nBuilt on EA's GPL v3 source release, standing on a chain of community work —\n[TheSuperHackers](https://github.com/TheSuperHackers/GeneralsGameCode),\n[Fighter19's original Unix port](https://github.com/Fighter19/CnC_Generals_Zero_Hour), and\n[fbraz3/GeneralsX](https://github.com/fbraz3/GeneralsX) — this fork adds the iOS/iPadOS\nport and a set of engine fixes. See [Lineage & credits](#lineage--credits) for who built\nwhat. The original GeneralsX README lives on the `upstream-main` branch.\n\n**No game assets are included or distributed.** You need your own copy\n([Steam](https://store.steampowered.com/app/2732960/), ~$5 on sale).\n\n## What this port actually involved\n\n\"Porting\" undersells how weird this journey was, so here's the honest shape of it.\nThe lineage below built the foundation: EA's source release, the community's\nmodernization, Fighter19's original Unix port, GeneralsX's macOS/Linux work.\nWhat did *not* exist was any of this on iOS — and iOS is a hostile place for a\n2003 Windows RTS:\n\n- **The engine assumes a writable filesystem wherever it lives.** iOS apps live in a\n  read-only, code-signed bundle. Every config write, cache, and save path had to be\n  rerouted — and the working directory bootstrapped from the bundle itself.\n- **The renderer speaks DirectX 8. The iPad speaks Metal.** In between: DXVK\n  translating D3D8→Vulkan, MoltenVK translating Vulkan→Metal — and DXVK had never\n  been built for iPhoneOS. That took a Meson cross-build and a patch to its Vulkan\n  loader, because iOS confines `dlopen` to the app bundle ([`Patches/dxvk-ios.patch`](Patches/dxvk-ios.patch)).\n- **iOS owns your process.** Open the app switcher and the OS seizes the Metal\n  drawable *without backgrounding you* — draw one more frame and you're dead on\n  resume. The whole render/sim loop learned to hold its breath.\n- **An RTS needs a mouse.** SDL3 (from the lineage below) delivers raw touch events;\n  the RTS semantics on top are new. Taps defer until the 2003 GUI has processed\n  hover (or menu buttons never highlight), a drag has to decide \"selection box or\n  camera pan,\" long-press became right-click, and a cancelled touch must never\n  ghost-click a rally point.\n- **And then the bug hunts** — the best part. The minimap that rendered black\n  because a 2003 texture-format fallback silently dropped the alpha channel. The\n  EVA voice that went randomly mute because one zombie audio stream held a global\n  \"don't talk over speech\" flag while chirping forever. Every one chased to root\n  cause on a real device, fixed, and offered upstream.\n\n**→ The war stories: [Porting Playbook §8 — the bug archaeology](docs/port/PORTING_PLAYBOOK.md#8-post-ship-bug-hunts-junejuly-2026--the-archaeology-section)**\n**→ The complete engineering log: [docs/port/PORTING_PLAYBOOK.md](docs/port/PORTING_PLAYBOOK.md)**\n**→ How to do this to another game: [docs/port/PORTING_PATTERNS.md](docs/port/PORTING_PATTERNS.md)**\n\nWorth saying plainly: this was a **human + AI collaboration**. The engineering —\nthe C++, the cross-builds, the device debugging — was done by\n[Claude Code](https://claude.com/claude-code) (Anthropic's Claude, Fable model),\ndirected and playtested by a human who described symptoms like *\"the minimap is\nblack\"* and *\"I hear chirping\"* and owned every decision. Neither half ships this\nalone: one of us can't write C++, and the other can't hear the chirping.\n\n## Quick start — macOS\n\nPrerequisites (one time):\n\n```sh\n# Toolchain\nxcode-select --install\nbrew install cmake ninja meson pkgconf\nbrew install --cask steamcmd\n\n# vcpkg (full clone — a shallow clone breaks manifest baselines)\ngit clone https://github.com/microsoft/vcpkg ~/vcpkg && ~/vcpkg/bootstrap-vcpkg.sh\nexport VCPKG_ROOT=~/vcpkg          # add to your shell profile\n\n# LunarG Vulkan SDK (NOT the Homebrew cask) — https://vulkan.lunarg.com/sdk/home\nexport VULKAN_SDK=$HOME/VulkanSDK/<version>/macOS   # add to your shell profile\n```\n\nClone, build, get assets, play:\n\n```sh\ngit clone https://github.com/ammaarreshi/Generals-Mac-iOS-iPad.git GeneralsX\ncd GeneralsX\n./scripts/build/macos/build-macos-zh.sh     # checks deps, configures, builds\n./scripts/build/macos/deploy-macos-zh.sh    # creates ~/GeneralsX/GeneralsZH + run.sh\n./scripts/get-assets.sh <your_steam_username>   # fetches game data you own\ncd ~/GeneralsX/GeneralsZH && ./run.sh -win\n```\n\n## Quick start — iPhone / iPad\n\nOn ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:18.291899"
+  },
+  {
+    "basic_info": {
+      "name": "sony-head-tracker",
+      "full_name": "NicholasSlattery/sony-head-tracker",
+      "owner": "NicholasSlattery",
+      "description": "Use the motion sensors inside Sony headphones as a low-latency Windows and MacOS head tracker for OpenTrack and simulator games.",
+      "url": "https://github.com/NicholasSlattery/sony-head-tracker",
+      "clone_url": "https://github.com/NicholasSlattery/sony-head-tracker.git",
+      "ssh_url": "git@github.com:NicholasSlattery/sony-head-tracker.git",
+      "homepage": "",
+      "created_at": "2026-07-02T01:50:03Z",
+      "updated_at": "2026-07-26T20:33:16Z",
+      "pushed_at": "2026-07-13T19:14:25Z"
+    },
+    "stats": {
+      "stars": 536,
+      "forks": 22,
+      "watchers": 536,
+      "open_issues": 8,
+      "size": 302
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 352736,
+        "Objective-C++": 43342,
+        "Swift": 22815,
+        "PowerShell": 5898,
+        "Batchfile": 4546,
+        "CMake": 3414,
+        "C": 2849,
+        "Shell": 2558
+      },
+      "license": "Other",
+      "topics": [
+        "bluetooth-hid",
+        "cpp",
+        "flight-simulator",
+        "head-tracking",
+        "macos",
+        "opentrack",
+        "sim-racing",
+        "sony-headphones",
+        "spatial-audio",
+        "wh-1000xm5",
+        "windows-11"
+      ]
+    },
+    "content": {
+      "readme": "# Sony Head Tracker\n\nUse the motion sensors already inside compatible Sony headphones and earbuds as\na real-time head tracker on Windows or macOS.\n\n[![Build](https://github.com/NicholasSlattery/sony-head-tracker/actions/workflows/build.yml/badge.svg)](https://github.com/NicholasSlattery/sony-head-tracker/actions/workflows/build.yml)\n[![Latest release](https://img.shields.io/github/v/release/NicholasSlattery/sony-head-tracker)](https://github.com/NicholasSlattery/sony-head-tracker/releases/latest)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Platform: Windows 11](https://img.shields.io/badge/platform-Windows%2011-0078D6.svg)](#build)\n[![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-000000.svg)](docs/MACOS.md)\n[![Language: C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg)](#build)\n[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-yellow?style=for-the-badge)](https://buymeacoffee.com/nicholasslattery)\n> **Unofficial** open-source bridge. Not affiliated with or endorsed by\n> Sony.\n\nhttps://github.com/user-attachments/assets/851e4ff7-3134-45e9-90b4-a0fa42258730\n\nSony Head Tracker connects to the Android Head Tracker sensor exposed by\nsupported Sony Bluetooth devices, reads live orientation and gyroscope data, and\nsends yaw, pitch, and roll to [OpenTrack](https://github.com/opentrack/opentrack)\nor your own applications.\n\nNo webcam, infrared tracker, additional hardware, firmware modification, or\ncustom kernel driver is required.\n\nOriginally developed and tested for the Sony WH-1000XM5, the project now supports\nany compatible Sony headset that exposes the standard\n[Android Head Tracker HID protocol](https://source.android.com/docs/core/interaction/sensors/head-tracker-hid-protocol).\n\nIf you arrived searching for **Sony WH-1000XM5 head tracking on Windows**, how to\n**use WH-1000XM5 with OpenTrack**, or an **XM5 head tracker for Assetto Corsa** or\nother sims, you are in the right place: the WH-1000XM5 is the reference device,\nand the same bridge now works across the wider Sony range.\n\n## What you can do with it\n\n- Use compatible Sony headphones for head tracking in racing and flight\n  simulators.\n- Send live yaw, pitch, and roll to OpenTrack.\n- Read orientation, quaternion, and gyroscope data through a local JSON stream.\n- Inspect sensor activity through the included native diagnostics interfaces.\n- Test additional Sony models with the read-only compatibility probe.\n\n## Featured in\n\n- [PC Gamer — This free software aims to turn Sony headphones into a head tracker for '200+ PC games'](https://www.pcgamer.com/hardware/gaming-headsets/this-free-software-aims-to-turn-sony-headphones-into-a-head-tracker-for-200-pc-games/)\n- [Tom's Hardware — You can now use your Sony headphones as a free real-time head tracker for race and flight simulators on PC](https://www.tomshardware.com/video-games/pc-gaming/you-can-now-use-your-sony-headphones-as-a-real-time-head-tracker-for-race-and-flight-simulators-on-pc-several-hundred-games-already-supported-enthusiast-creates-open-source-app-that-translates-live-sensor-data-into-in-game-camera-controls)\n- [TechLinked — Sony Headphones Become Head Trackers](https://youtu.be/ITmMIqiJwOg?si=M28zLj3hcO0RshHZ&t=405)\n- [GSMArena — Developer turns Sony's headphones into real-time head tracker for PC simulators](https://www.gsmarena.com/developer_turns_sonys_headphones_into_realtime_head_tracker_for_pc_simulators-news-73610.php)\n- [Hackaday — Flight Sim Tracking From Spatial Audio](https://hackaday.com/2026/07/06/flight-sim-tracking-from-spatial-audio/)\n- [Techspot — A free app lets Sony headphones do head tracking for racing and flight sims](https://www.techspot.com/news/113019-free-app-sony-headphones-do-head-tracking-racing.html)\n- [SoundGuys — This free app turns Sony WH-1000XM5 into head trackers for PC gaming](https://www.soundguys.com/sony-headphones-windows-head-tracking-159435/)\n\n\n## Quick start\n\n### Windows 11\n\n1. Download `sony-head-tracker.exe` from the\n   [latest release](https://github.com/NicholasSlattery/sony-head-tracker/releases/latest)\n   (or [build it yourself](#build), it is one `cl` command).\n2. [Pair your compatible Sony headphones or earbuds](#pair-the-headphones)\n   through Windows 11.\n3. Open the application. It automatically discovers compatible head-tracking\n   sensors, displays live orientation data, and streams tracking output while it\n   is open.\n4. **Starting the app for the first time on a fresh boot? Press Repair Tracker\n   first.** Windows very often pairs a Sony headset but does not create the\n   head-tracker sensor node until something nudges it, so on a cold boot the app\n   frequently shows nothing at first. Press the **Repair Tracker** button and\n   approve the single administrator prompt. This is the normal first step, not a\n   sign that anything is broken, and it is exactly what the button is for. After\n   the app reopens, your headset should appear.\n5. For ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:19.723053"
+  },
+  {
+    "basic_info": {
+      "name": "ghostty-blackhole-main",
+      "full_name": "XboxNahida/ghostty-blackhole-main",
+      "owner": "XboxNahida",
+      "description": "适用于Windows环境的黑洞屏保",
+      "url": "https://github.com/XboxNahida/ghostty-blackhole-main",
+      "clone_url": "https://github.com/XboxNahida/ghostty-blackhole-main.git",
+      "ssh_url": "git@github.com:XboxNahida/ghostty-blackhole-main.git",
+      "homepage": "",
+      "created_at": "2026-06-27T06:09:52Z",
+      "updated_at": "2026-07-27T04:29:12Z",
+      "pushed_at": "2026-07-25T05:59:04Z"
+    },
+    "stats": {
+      "stars": 468,
+      "forks": 44,
+      "watchers": 468,
+      "open_issues": 14,
+      "size": 87240
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 3145648,
+        "C": 335475,
+        "QML": 210002,
+        "PowerShell": 101368,
+        "GLSL": 76776,
+        "HLSL": 13473,
+        "CMake": 12952
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Black Hole / 黑洞桌面特效\n\n[![Release](https://img.shields.io/badge/release-v1.2.4-2ea44f)](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.4)\n[![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#设备要求与兼容性)\n[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n\n![Black Hole 演示](demo.gif)\n\nBlack Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面并实时渲染引力透镜、吸积盘和光子环效果，可常驻显示，也可在系统空闲时自动出现。\n\n**当前版本：v1.2.4**\n\n[下载 v1.2.4](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.4) · [查看全部 Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases)\n\n## 下载与安装\n\n1. 从 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载 `BlakholeUI-v1.2.4-windows-x64.zip`。\n2. 将 ZIP **完整解压**到一个可写目录。\n3. 双击 `appBlakholeUI.exe` 启动界面。\n\n> 不要只复制单个 EXE。Qt DLL、插件、Shader、图片和 `blackhole.exe` Renderer 都是运行所需文件；文件缺失会导致界面、预览或黑洞渲染无法启动。\n\n## v1.2.4 修复重点\n\n- 修复 AMD 等严格 OpenGL 驱动上的片元 Shader 编译失败。\n- 修复启用实验性吸积盘光影后，桌面只取左下区域并被放大的问题。\n- 改用 Per-Monitor V2 DPI 感知，改善不同缩放比例双屏上的尺寸和坐标异常。\n- 限制同一目标只能运行一个 Renderer，避免重复启动造成画面叠加。\n- 黑洞移动速度现在允许设为 0，可保持黑洞静止。\n- 调整 Windows 11 WGC 捕获帧生命周期，避免帧池过早复用导致的竞争、闪烁或旧帧。\n- 自动模式下 WGC 初始化失败时改为回退 DXGI，避免瞬时捕获服务异常导致 Renderer 直接退出。\n\n吸积盘光影仍是实验性功能，启用后可能出现泛白、对比度变化或其他画面异常。\n\n## 主要功能\n\n- **黑洞实时渲染**：引力透镜、吸积盘、光子环、星空背景及多组外观参数。\n- **两种触发模式**：始终显示，或达到设定空闲时间后自动出现；鼠标和键盘恢复活动后自动隐藏。\n- **视频与游戏检测**：综合媒体会话、前台窗口、全屏状态和进程特征，减少观看视频或游戏时误触发。\n- **三类名单**：始终允许触发、媒体识别提示、前台强制不触发。\n- **便捷添加程序**：支持从正在运行的程序选择、浏览 EXE，也保留手动输入。\n- **多显示器**：主屏、副屏、跨屏和一屏一黑洞。\n- **移动控制**：鼠标跟随、鼠标惯性、范围限制、四角或随机出现位置、自由移动速度。\n- **外观配置**：预设管理、播放顺序、固定大小、吸积盘光影及实时预览。\n- **更新提醒**：启动后后台检查新版本，在设置入口显示红点，不阻塞主界面。\n- **启动诊断**：Renderer 缺文件、初始化失败、提前退出或超时会显示错误详情，可复制信息并打开程序目录。\n\n## 快速开始\n\n1. 启动 `appBlakholeUI.exe`。\n2. 在主界面调整外观、显示器和运行模式。\n3. 点击“启动”运行黑洞。\n4. 使用空闲模式时，等待设定的空闲时间；移动鼠标或按键会隐藏黑洞。\n5. 需要完全退出时，在系统托盘中右键程序图标并选择退出。\n\n若首次使用只想确认渲染是否正常，可先选择“始终显示”。确认黑洞能出现后，再切换到空闲检测并配置视频、游戏和名单规则。\n\n## 设备要求与兼容性\n\n以下是根据当前正式包、Qt 平台支持范围和实际代码路径审核后的要求。\n\n| 项目 | 最低要求 / 说明 |\n|------|-----------------|\n| 操作系统 | 64 位 Windows 10 1809（build 17763）或更高版本 |\n| 推荐系统 | Windows 11 22H2（build 22621）或更高版本 |\n| 处理器架构 | x86-64；不提供 32 位或 Windows on ARM 原生版本 |\n| 图形能力 | OpenGL 3.3，并且能够创建硬件 D3D11 设备 |\n| 显卡驱动 | 建议使用 Intel、NVIDIA 或 AMD 提供的较新正式驱动 |\n\n为什么同时需要两套图形能力：\n\n- Qt 实时预览和黑洞 Renderer 都显式使用 **OpenGL 3.3**。\n- 桌面画面通过 **WGC 或 DXGI Desktop Duplication** 捕获，两条路径都需要 D3D11 硬件设备。\n- Windows 11 22H2+ 的自动模式优先使用可抑制黄色捕获边框的 WGC。\n- Windows 10 和较早的 Windows 11 在自动模式下通常回退到 DXGI；也可以手动选择 WGC，但可能出现黄色捕获边框。\n\n显卡型号或发布时间不能单独证明兼容。双显卡、远程桌面、虚拟机、特殊显卡驱动，以及同时运行的录屏/远控软件都可能影响桌面捕获。项目目前没有覆盖所有硬件组合，因此不提供“某系列显卡完全兼容”的保证。\n\n## 视频、游戏与名单\n\n视频检测会综合 Windows 媒体会话、前台窗口和进程信息，内置常用浏览器、本地播放器及哔哩哔哩、腾讯视频、爱奇艺、优酷等常见客户端的识别提示。\n\n- 媒体处于播放状态时可阻止空闲黑洞触发；暂停后允许触发。\n- 开启“播放视频时视为空闲”后，即使检测到播放也允许黑洞触发。\n- 无声视频、未向 Windows 上报媒体状态的客户端或特殊播放方式可能漏检。\n- 游戏检测覆盖独占全屏、无边框和部分窗口化游戏；低负载、特殊渲染方式或不在前台的游戏可能漏检。\n\n检测不到时，可以在“空闲检测名单”中选择目标程序：\n\n| 名单 | 行为 |\n|------|------|\n| 始终允许触发 | 目标在前台时忽略媒体和游戏检测，允许黑洞触发 |\n| 媒体识别提示 | 仅在目标实际播放且检测到媒体信号时阻止触发 |\n| 前台强制不触发 | 目标在前台时无条件阻止；切到后台后失效 |\n\n每类名单都支持“运行程序选择”“浏览可执行文件”和“手动输入”。自动检测采用偏保守策略，少数漏检程序由用户名单补充，避免普通后台进程长期误阻止黑洞。\n\n## 常见问题\n\n### 启动后没有黑洞\n\n1. 确认 ZIP 已完整解压，`appBlakholeUI.exe` 与 `blackhole.exe` 位于同一目录，`shaders`、Qt DLL 和插件目录没有缺失。\n2. 先切换到“始终显示”并点击启动，排除尚未达到空闲时间的情况。\n3. 如果程序弹出 Renderer 启动错误，点击“复制错误详情”并打开程序目录。\n4. 更新显卡驱动后重试；不要从压缩包内直接运行 EXE。\n\n### 日志出现 `DXGI_Init primary failed`\n\n这表示桌面捕获初始化失败。窗口创建和 OpenGL 初始化可能已经成功，问题通常位于 D3D11/DXGI Desktop Duplication 环境。\n\n按顺序尝试：\n\n1. 关闭 OBS、录屏工具、远程控制软件和动态壁纸后重试。\n2. 更新显卡驱动。双显卡电脑可在 Windows“图形设置”中让 `appBlakholeUI.exe` 和 `blackhole.exe` 使用同一块 GPU。\n3. 在高级设置中手动选择 WGC。Windows 10 上可能出现黄色捕获边框。\n4. 退出远程桌面或虚拟机，在本机物理桌面会话中测试。\n\n需要补充 DXGI 详细错误码时，在解压目录打开 PowerShell：\n\n```powershell\n.\\blackhole.exe --render 2> dxgi_error.txt\n```\n\n### Windows 或杀毒软件报毒\n\n当前 EXE **没有商业代码签名**。程序还会进行桌面捕获、全屏置顶、进程检测、开机自启动配置和联网更新检查，这些行为可能触发 SmartScreen 或杀毒软件的启发式检测。\n\n- 只从本仓库的 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载。\n- 优先核对 Release 发布说明或校验文件中的 SHA-256。\n- 不建议关闭杀毒软件。确认下载来源和校验值后，可按安全软件提示单独放行；无法放行时请停止运行。\n- 反馈误报时请提供安全软件名称、检测名称和文件 SHA-256，便于提交误报样本。\n\n### 如何反馈问题\n\n请在 [GitHub Issues](https://github.com/XboxNahida/ghostty-blackhole-main/issues) 提交以下信息：\n\n- `blackhole_debug.txt`。\n- 如果是 DXGI 问题，再附上 `dxgi_error.txt`。\n- Windows 版本和 build 号。\n- CPU、显卡型号，以及是否为双显卡电脑。\n- 是否使用远程桌面或虚拟机。\n- 是否同时运行录屏、远控或动态壁纸软件。\n- Renderer 错误弹窗中复制的完整详情。\n\n日志可能包含本机目录路径或正在识别的程序名，公开上传前请自行检查隐私信息。\n\n## 更新机制\n\n当前版本为 **v1.2.4**。程序每次启动会在后台检查 GitHub Release，不阻塞启动流程：\n\n- 有新版本时，设置入口显示红点。\n- 只有用户点击“检查更新”后才弹出更新窗口。\n- 点击下载会在默认浏览器中打开 Release 链接。\n- 忽略某个版本后会记住选择；下一个新版本仍会重新提醒。\n\n## 开发者构建\n\n构建要求：CMake 3.20+、支持 C++17 的 MinGW-w64 UCRT64、Qt 6.8+、GLFW3 和 OpenGL 开发库。当前正式包使用 Qt 6.11.1 x64 构建。\n\n```powershell\n# Renderer\ncmake -S . -B _build_v124_renderer -G \"MinGW Makefiles\" `\n  -DCMAKE_BUILD_TYPE=Release `\n  -DCMAKE_CXX_COMPILER=C:/Qt/Tools/mingw1310_64/bin/c++.exe\ncmake --build _build_v124_renderer --config Release --clean-first\n\n# Qt UI：按本机 Qt 安装路径调整 CMAKE_PREFIX_PATH\ncmake -S Blakhole_UI `\n  -B _build_v124_ui `\n  -G \"MinGW Makefiles\" `\n  -DCMAKE_BUILD_TYPE=Release `\n  -DCMAKE_CXX_COMPILER=C:/Qt/Tools/mingw1310_64/bin/c++.exe `\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:21.088939"
+  },
+  {
+    "basic_info": {
+      "name": "Pocket-Lab-Power-Supply",
+      "full_name": "BenMakesEverything/Pocket-Lab-Power-Supply",
+      "owner": "BenMakesEverything",
+      "description": "A lab bench power supply, but pocket-sized and battery powered.",
+      "url": "https://github.com/BenMakesEverything/Pocket-Lab-Power-Supply",
+      "clone_url": "https://github.com/BenMakesEverything/Pocket-Lab-Power-Supply.git",
+      "ssh_url": "git@github.com:BenMakesEverything/Pocket-Lab-Power-Supply.git",
+      "homepage": null,
+      "created_at": "2026-07-01T00:00:37Z",
+      "updated_at": "2026-07-27T01:51:46Z",
+      "pushed_at": "2026-07-16T12:56:46Z"
+    },
+    "stats": {
+      "stars": 448,
+      "forks": 31,
+      "watchers": 448,
+      "open_issues": 2,
+      "size": 8938
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 27354
+      },
+      "license": "CERN Open Hardware Licence Version 2 - Strongly Reciprocal",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Pocket Lab Power Supply\n\nA lab bench power supply, but pocket-sized and battery powered. (This repo is currently WIP)\n\n![Project photo](docs/images/photo-main.jpg)\n\n## What it is:\n\nA 4S Lithium Ion-based Battery Bank which can act as a portable Lab-Bench Power Supply. Designed for use with 4S lithium-ion battery packs.\nVideo about the project: https://www.youtube.com/watch?v=i2HRpcJS6Vk\n\n## Features:\n\n- Adjustable output voltage and current limit\n- Battery powered\n- USB-C/PD charging\n- 8-Character 5x7 LED Matrix Display \n- Open hardware and firmware\n\n## Repository Structure:\n\n- `/hardware` - PCB, schematic, BOM, Gerbers, CAD\n- `/firmware` - MCU firmware and utilities\n- `/docs` - build guide, diagrams, images, notes (WIP)\n\n## Parts List\n\n- Main PCB\n- \"Backpack\" PCB for Display Module\n- Display: HCMS-2971 or HCMS-2972 or HCMS-2973 or HCMS-2974 or HCMS-2975\n- 4S 21700 Battery with integrated BMS (XH2.54mm connector) [LINK](https://www.foxbuying.com/21700-14-8v-4s1p-4500mah-rechargeable-power-lithium-battery-pack-with-customised-connetor.html)\n- Faceplate\n- 3D Printable Body\n- 4x M3 Threaded Inserts\n- 4x M3 Hex-head/socket bolts (16mm threaded portion)\n- Plastic cap for button\n- Encoder Knob [LINK](https://www.adafruit.com/product/5531)\n\n## Documentation:\n\nFor common questions, see the [FAQ](docs/FAQ.md). This is a work in progress and I will add more.\n\nThe following flowchart gives an overview of the way the main components are connected.\n\n![Flowchart](docs/images/flowchart.png)\n\n## Safety Notice:\n\nThis project involves lithium-ion batteries and power electronics. Build and use at your own risk.\n\nThe PCB was designed for use with 4S battery packs. The BQ25792 will charge the pack up to 16.8V.\n\nIF YOU WANT TO USE ANOTHER CELL CONFIGURATION YOU MUST CHANGE THIS! OTHERWISE THE CELLS WILL BE OVERCHARGED AND DAMAGED!\n\n(Pin 20 \"PROG\" on the BQ25792 is the thing you need to adjust.)\n\nYOU MUST USE A PACK THAT CONTAINS A BMS! THIS DESIGN DOES NOT INCLUDE ONE.\n\n## License!\n\nThis project is licensed under the CERN Open Hardware Licence Version 2 - Strongly Reciprocal, CERN-OHL-S-2.0.\n\nUnless otherwise stated, this applies to all hardware design files, firmware, software utilities, documentation, images, diagrams, CAD files, manufacturing files, and other project files in this repository.\n\nCommercial use is allowed under the terms of the license. The project name, author name, logo, branding, and media identity are not licensed for use in marketing or endorsement without permission.\n\nSee `LICENSE.txt` for the full license text.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:22.420487"
+  },
+  {
+    "basic_info": {
+      "name": "light-ocr",
+      "full_name": "arcships/light-ocr",
+      "owner": "arcships",
+      "description": "Fast, offline OCR for Node.js & C++. PP-OCRv6 with Core ML / WebGPU hardware acceleration — recognize text in images with confidence scores & coordinates. npm: @arcships/light-ocr",
+      "url": "https://github.com/arcships/light-ocr",
+      "clone_url": "https://github.com/arcships/light-ocr.git",
+      "ssh_url": "git@github.com:arcships/light-ocr.git",
+      "homepage": null,
+      "created_at": "2026-07-14T01:32:23Z",
+      "updated_at": "2026-07-27T04:13:28Z",
+      "pushed_at": "2026-07-27T04:12:26Z"
+    },
+    "stats": {
+      "stars": 431,
+      "forks": 38,
+      "watchers": 431,
+      "open_issues": 2,
+      "size": 95505
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 518526,
+        "JavaScript": 191004,
+        "CMake": 62987,
+        "Objective-C++": 29990,
+        "TypeScript": 2097,
+        "Dockerfile": 702
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "apple-silicon",
+        "computer-vision",
+        "coreml",
+        "cpp17",
+        "d3d12",
+        "image-processing",
+        "machine-learning",
+        "napi",
+        "native-addon",
+        "nodejs",
+        "nvidia",
+        "ocr",
+        "ocr-recognition",
+        "offline-ocr",
+        "paddleocr",
+        "ppocr",
+        "text-recognition",
+        "typescript",
+        "vulkan",
+        "webgpu"
+      ]
+    },
+    "content": {
+      "readme": "# light-ocr\n\n[![Core CI](https://github.com/arcships/light-ocr/actions/workflows/core.yml/badge.svg?branch=main)](https://github.com/arcships/light-ocr/actions/workflows/core.yml)\n[![License](https://img.shields.io/github/license/arcships/light-ocr)](LICENSE)\n[![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C.svg)](https://isocpp.org/)\n[![Node--API v8](https://img.shields.io/badge/Node--API-v8-339933.svg)](bindings/node/README.md)\n[![npm](https://img.shields.io/npm/v/%40arcships%2Flight-ocr?color=CB3837)](https://www.npmjs.com/package/@arcships/light-ocr)\n\n<a href=\"https://trendshift.io/repositories/82168?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-82168\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/82168/daily?language=C%2B%2B\" alt=\"arcships%2Flight-ocr | Trendshift\" width=\"250\" height=\"55\"/></a>\n\nEnglish | [简体中文](README.zh-CN.md)\n\n![light-ocr pixel-art banner](docs/assets/light-ocr-banner.png)\n\n**Fast, offline OCR for Node.js and C++.**\n\nRecognize text in JPEG, PNG, or raw image data directly on your machine. `light-ocr` returns lines in reading order with confidence scores and quadrilateral coordinates. For Node.js, the npm package includes PP-OCRv6 Small and prebuilt components for macOS, Linux, and Windows.\n\n## Quick start\n\nNode.js 22 and 24 are supported.\n\n```bash\nnpm install @arcships/light-ocr\n```\n\n```ts\nimport { createEngine } from \"@arcships/light-ocr\";\nimport { readFile } from \"node:fs/promises\";\n\nconst engine = await createEngine();\nconst result = await engine.recognizeEncoded(\n  await readFile(\"image.jpg\"),\n);\n\nfor (const line of result.lines) {\n  console.log(line.text, line.confidence, line.box);\n}\n\nawait engine.close();\n```\n\n`createEngine()` automatically chooses the right execution mode for the current platform. If your application already decodes images, [`recognize()`](bindings/node/README.md#usage) also accepts `GRAY8`, `RGB8`, `BGR8`, and `RGBA8` pixel data.\n\n### Model tiers\n\nSmall remains the stable default. N2 also provides two opt-in preview packages under the `next` tag; all three expose the same API, types, result schema, and error model, while each install contains only its selected model.\n\n| Tier | Package / command | Model payload | Status |\n| --- | --- | ---: | --- |\n| Small | `@arcships/light-ocr` / `light-ocr` | ~30 MB | stable default |\n| Tiny | `@arcships/light-ocr-tiny@next` / `light-ocr-tiny` | ~6.3 MB | preview; 49 languages, no Japanese |\n| Medium | `@arcships/light-ocr-medium@next` / `light-ocr-medium` | ~139 MB | preview; quality-first |\n\nTiny and Medium stay on `next` until real use shows a clear reason to promote them; they do not change what `npm install @arcships/light-ocr` installs.\n\n## CLI\n\nThe `light-ocr` command is available after install — no extra setup:\n\n```bash\n# Recognize text + coordinates\nlight-ocr image.png --format json\n\n# Just text\nlight-ocr image.png --format text\n\n# Detect text regions only (no recognition)\nlight-ocr detect image.png\n\n# Region of interest\nlight-ocr recognize image.png --region 100,80,640,320 --format json\n\n# Engine info\nlight-ocr info --version\n\n# System diagnostics (hardware and providers)\nlight-ocr doctor --json\n```\n\nFour subcommands: `recognize` (default), `detect` (boxes only), `info` (version diagnostics), and `doctor` (system diagnostics). Output wraps in a versioned `schemaVersion: 1` envelope with stable line/detection IDs. EXIF orientation is corrected automatically. See the [CLI design](docs/cli-design.md) and [npm README](bindings/node/README.md#cli) for full reference.\n\n### PDF and multi-page documents\n\nPDF and multi-page OCR live in an explicit preview package so the stable default keeps its script-free, offline-installable dependency closure. Installing the preview runs `pdfium-native`'s verified prebuild installer; PDF processing itself stays local.\n\n```bash\nnpm install @arcships/light-ocr-document@next\n\n# Single PDF with default 150 DPI\nlight-ocr-document report.pdf\n\n# Page range with streaming JSONL output\nlight-ocr-document report.pdf --pages 1-10 --format jsonl\n\n# Multiple images as one document\nlight-ocr-document scan1.png scan2.png scan3.png --format text\n```\n\nProgrammatic API:\n\n```ts\nimport { recognizeDocument } from \"@arcships/light-ocr-document\";\n\n// Stream pages from a PDF\nfor await (const page of recognizeDocument(\"report.pdf\", { dpi: 200 })) {\n  console.log(page.index, page.lines.length, page.source.kind);\n}\n\n// Multiple images\nfor await (const page of recognizeDocument([buf1, buf2, buf3])) {\n  console.log(page.index, page.lines);\n}\n```\n\n## Agent Skill\n\nAn [Agent Skill](.agents/skills/local-ocr/SKILL.md) is included for AI agents that can call local commands. It provides scenario-driven workflows, a decision flow for command selection, and exit code reference:\n\n- When to use OCR vs. a multimodal model\n- Detect-then-recognize two-step pattern for large images\n- ROI field extraction for receipts and fo",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:23.716097"
+  },
+  {
+    "basic_info": {
+      "name": "CS2FOW",
+      "full_name": "karola3vax/CS2FOW",
+      "owner": "karola3vax",
+      "description": null,
+      "url": "https://github.com/karola3vax/CS2FOW",
+      "clone_url": "https://github.com/karola3vax/CS2FOW.git",
+      "ssh_url": "git@github.com:karola3vax/CS2FOW.git",
+      "homepage": null,
+      "created_at": "2026-07-05T06:13:49Z",
+      "updated_at": "2026-07-26T22:11:54Z",
+      "pushed_at": "2026-07-25T18:52:10Z"
+    },
+    "stats": {
+      "stars": 288,
+      "forks": 24,
+      "watchers": 288,
+      "open_issues": 0,
+      "size": 260150
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 362313,
+        "JavaScript": 309972,
+        "Python": 50015,
+        "HTML": 34486,
+        "C#": 3012
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# CS2FOW\n\n### Server-side anti-wallhack for Counter-Strike 2 community servers\n\n[![Issues](https://img.shields.io/github/issues/karola3vax/CS2FOW?style=for-the-badge&label=issues)](https://github.com/karola3vax/CS2FOW/issues) [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)\n\n<img src=\"docs/ancient.gif\" width=\"800\" alt=\"CS2FOW hiding players behind solid map geometry on Ancient\">\n\n<img src=\"docs/smokeandhegrenade.gif\" width=\"800\" alt=\"CS2FOW hiding players behind smoke and revealing them through an HE-cleared opening\">\n\n</div>\n\nCS2FOW stops your server from sending an enemy's live position when walls or smoke completely hide them. A wallhack cannot draw a player your server never sent.\n\n- **It stays on your server:** CS2FOW never runs on your players' computers.\n- **Players install nothing:** they join and play normally. There is no client injection or extra download.\n- **When in doubt, show the player:** if data is missing, too old, or unsafe, CS2FOW steps aside instead of hiding someone by mistake. This is called failing open.\n\n## Across different maps\n\nEvery map gets a lightweight 3D copy of its solid walls. CS2FOW uses that copy to check who can actually see whom.\n\n<table>\n<tr>\n<td width=\"50%\" align=\"center\">\n<img src=\"docs/cache.gif\" width=\"100%\" alt=\"CS2FOW operating around the Cache A site\"><br>\n<strong>Cache &mdash; A site</strong>\n</td>\n<td width=\"50%\" align=\"center\">\n<img src=\"docs/dust2b.gif\" width=\"100%\" alt=\"CS2FOW operating around the Dust II B site\"><br>\n<strong>Dust II — B site</strong>\n</td>\n</tr>\n<tr>\n<td width=\"50%\" align=\"center\">\n<img src=\"docs/dust2long.gif\" width=\"100%\" alt=\"CS2FOW operating across Dust II long sightlines\"><br>\n<strong>Dust II — Long</strong>\n</td>\n<td width=\"50%\" align=\"center\">\n<img src=\"docs/mirageaside.gif\" width=\"100%\" alt=\"CS2FOW operating around the Mirage A site\"><br>\n<strong>Mirage &mdash; A site</strong>\n</td>\n</tr>\n</table>\n\n## FAQ\n\n<details>\n<summary><strong>What is CS2FOW?</strong></summary>\n\nCS2FOW is an anti-wallhack plugin for Counter-Strike 2 community servers. If walls or live smoke completely hide a living player, your server can stop sending that player's live visuals to the opponent who cannot see them.\n\nIt is not a filter drawn over the screen. Everything happens on your server.\n\n</details>\n\n<details>\n<summary><strong>Does it work in Premier or Valve matchmaking?</strong></summary>\n\nNo. You need a community or dedicated server running Metamod:Source. Only Valve could add something similar to official matchmaking.\n\n</details>\n\n<details>\n<summary><strong>Do players install anything or risk a VAC ban?</strong></summary>\n\nNothing. Players join your server like normal. CS2FOW does not modify, inject into, or even run inside their CS2 client.\n\n</details>\n\n<details>\n<summary><strong>Can a cheat bypass it?</strong></summary>\n\nA cheat cannot unpack an exact live enemy position if your server never put it in the package. It can still listen for sounds, use teammate information, remember the last known position, or guess a common prefire spot. CS2FOW cuts off the main source used by wallhacks; it does not make every kind of cheating impossible.\n\n</details>\n\n<details>\n<summary><strong>What exactly gets hidden?</strong></summary>\n\nCS2FOW hides only the known visuals that travel with a living player: the player model, carried weapons, wearables, and a hostage they are currently carrying. Anything unknown or independent stays visible.\n\nYou always receive yourself, dead players, spectators, and HLTV. Teammates also stay visible by default, but you can choose to apply the same visibility check to living teammates.\n\n</details>\n\n<details>\n<summary><strong>Can players still wallbang a hidden enemy?</strong></summary>\n\nYes. Hidden does not mean deleted. The player is still fully present on your server, so movement, hit registration, bullet penetration, damage, and game rules keep working normally.\n\n</details>\n\n<details>\n<summary><strong>Does it block radar cheats or sound ESP?</strong></summary>\n\nIt helps against radar cheats that need live enemy positions. It does not silence footsteps or gunshots, hide bomb information, remove teammate knowledge, or erase every other clue the game provides.\n\n</details>\n\n<details>\n<summary><strong>What about smokes, doors, breakables, and moving props?</strong></summary>\n\nSmoke blocks sight too. CS2FOW copies the game's live smoke shape, which is stored as a 3D grid of tiny boxes called voxels. That lets it follow changing edges, overlapping smokes, growth, fading, and holes opened by grenades.\n\nDoors, breakable objects, and moving props do not block CS2FOW yet. The baked map is a frozen copy of solid map geometry, so it only knows about walls that stay put.\n\n</details>\n\n<details>\n<summary><strong>How does it avoid enemies appearing too late around corners?</strong></summary>\n\nCS2FOW checks Valve's nineteen animated hitbox capsules as complete three-dimensional volumes, p",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:25.110730"
+  },
+  {
+    "basic_info": {
+      "name": "LegacyHive",
+      "full_name": "MSNightmare/LegacyHive",
+      "owner": "MSNightmare",
+      "description": "Windows ProfSvc 0day",
+      "url": "https://github.com/MSNightmare/LegacyHive",
+      "clone_url": "https://github.com/MSNightmare/LegacyHive.git",
+      "ssh_url": "git@github.com:MSNightmare/LegacyHive.git",
+      "homepage": "",
+      "created_at": "2026-07-14T05:27:18Z",
+      "updated_at": "2026-07-26T21:45:43Z",
+      "pushed_at": "2026-07-14T17:41:34Z"
+    },
+    "stats": {
+      "stars": 273,
+      "forks": 75,
+      "watchers": 273,
+      "open_issues": 3,
+      "size": 9
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 14409
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# LegacyHive : Windows user profile service arbitrary hive load elevation of privileges vulnerability\n\nThe PoC requires another standard user credentials and a third username (which can be an administrator account), if the PoC is successful, it will end up mounting the target user hive in current user classes root.\n\nThe PoC was stripped down as an attempt to prevent public exploitation, the original PoC did not require additional user credential and was not limited to usrclass.dat hive, any hive could be loaded using this vulnerability but you would need some brain cells to make the PoC do it.\n\n<img width=\"1228\" height=\"627\" alt=\"Screenshot 2026-07-14 102705\" src=\"https://github.com/user-attachments/assets/49deeaef-aadf-4a13-9006-a7c95eb2531e\" />\n\nThe PoC is fully functional in all currently supported desktop and server installation with July 2026 patch.\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:26.472301"
+  },
+  {
+    "basic_info": {
+      "name": "audio.cpp-webui",
+      "full_name": "kigner/audio.cpp-webui",
+      "owner": "kigner",
+      "description": "audio.cpp with a full-task WebUI - pure C++ audio-model inference engine powered by ggml. TTS, ASR/STT, VAD, voice conversion, speaker diarization, music generation. No Python dependency.",
+      "url": "https://github.com/kigner/audio.cpp-webui",
+      "clone_url": "https://github.com/kigner/audio.cpp-webui.git",
+      "ssh_url": "git@github.com:kigner/audio.cpp-webui.git",
+      "homepage": null,
+      "created_at": "2026-07-12T08:50:12Z",
+      "updated_at": "2026-07-27T03:54:32Z",
+      "pushed_at": "2026-07-23T07:51:09Z"
+    },
+    "stats": {
+      "stars": 238,
+      "forks": 59,
+      "watchers": 238,
+      "open_issues": 2,
+      "size": 94091
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 10606216,
+        "Python": 1471759,
+        "PowerShell": 150540,
+        "JavaScript": 121685,
+        "CSS": 75015,
+        "CMake": 42521,
+        "Batchfile": 21838,
+        "Shell": 21281,
+        "Cuda": 16949,
+        "HTML": 14981,
+        "Dockerfile": 6375,
+        "Nix": 5100,
+        "C": 2980
+      },
+      "license": "Other",
+      "topics": [
+        "asr",
+        "audio",
+        "cpp",
+        "ggml",
+        "inference-engine",
+        "music-generation",
+        "speaker-diarization",
+        "speech-recognition",
+        "speech-synthesis",
+        "speech-to-text",
+        "text-to-speech",
+        "tts",
+        "vad",
+        "voice-conversion",
+        "webui"
+      ]
+    },
+    "content": {
+      "readme": "# audio.cpp\n\n> [!NOTE]\n> This repository is a downstream distribution of [**0xShug0/audio.cpp**](https://github.com/0xShug0/audio.cpp) (Apache-2.0, Copyright ShugoAI LLC), extended with a full-task WebUI and Windows-friendly local launcher scripts, and periodically merged with upstream. All credit for the core inference framework goes to the upstream project — please star and contribute there.\n\n`audio.cpp` is a high-performance C++ audio inference framework built on top of `ggml`, designed to make modern local audio models practical, portable, and fast.\n\nTired of juggling a dozen Conda environments, hundreds of Python packages, and dependency conflicts just to try a few audio models? audio.cpp gives those paths a shared native runtime instead.\n\n> [!IMPORTANT]\n> **CUDA performance headline:** multiple TTS paths already run **1.8x-5.0x faster than their Python reference paths** while cutting end-to-end latency by **45%-80%**.\n>\n> **VibeVoice 1.5B:** generates a **93.9-minute podcast in 18.2 minutes** with **10 diffusion steps** and without quantization, running about **5.15x faster than real time**.\n>\n> **Supertonic 3:** generates about **10 hours of audio in 3 minutes** on RTX5090. Up to 200x+ real-time on CUDA, 6x+ real-time on CPU, and 47 ms TTFT in CUDA streaming mode.\n> [Demo: 10 hours of audio generated in 3 minutes](https://www.reddit.com/r/LocalLLaMA/comments/1uwpvt9/audiocpp_10_hours_of_audio_generated_in_3_minutes/).\n>\n> **Real-world ASR win:** In [TranscrIA benchmark](https://github.com/Martossien/transcria/blob/main/docs/STT_BENCHMARK_REAL_MEETINGS.md) on messy French meeting audio, audio.cpp’s Nemotron 3.5 ASR matched the same WER as other implementations while using about **1/4 of the wall time**. \n\nIt is built for real end-to-end execution rather than one-off model demos: the same runtime powers TTS, voice cloning, voice conversion, ASR, diarization, VAD, source separation, alignment, codec-style models, and higher-level workflows through a common framework surface.\n\nHighlights:\n\n- **Parity.** Strong parity tooling against Python reference paths.\n- **Performance.** Performance-focused execution, reusable sessions, and batch-style offline inference. **Optimized for CUDA**.\n- **Portability.** A portable native stack centered on `ggml`, with CLI and server entry points instead of Python-only deployment paths.\n- **Pipelines.** Experimental JSON pipeline support for higher-level multi-step workflows.\n- **Audio Utilities.** Built-in denoise, enhancement, resampling, and STFT/ISTFT utilities for real production-style task paths.\n\n<p><strong><span style=\"font-size:1.1em;\">The goal of the framework is to provide highly optimized, reusable building blocks for audio-related models, so new model integrations can be brought up faster, shared components can be improved once and benefit many families, and real end-to-end inference paths can stay efficient, maintainable, and portable.</span></strong></p>\n\naudio.cpp would not be moving this quickly without generous contributors bringing in real fixes, new capabilities, and careful polish. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute and for a shout-out to the people already helping shape the project.\n\n> [!TIP]\n> **Contribution focus:** the most helpful contributions right now are improvements to the UI, API server, and pipeline/workflow subsystems. These areas make the existing model surface easier to use, serve, compose, and validate. See [CONTRIBUTING.md](CONTRIBUTING.md) for more details.\n>\n> **New model PRs:** before starting a new model port, **please check the supported model table because several families are already implemented or under testing**. If you do add a model, follow the validation style in [PR #19](https://github.com/0xShug0/audio.cpp/pull/19): include exact build/run commands, model paths or package ids, generated outputs, parity or path-test results, and relevant performance or memory notes.\n\n## WebUI and Local Helper Scripts\n\nThe `webui/` directory contains a Windows-friendly local launcher layer for audio.cpp:\n\n- `run_webui.bat` starts the Gradio WebUI at `http://127.0.0.1:7860`, with on-demand model loading, model switching, model download support, reference voice upload/recording, generated controls for advanced model parameters, and inline run/error status.\n- `run_realtime.bat` starts the realtime voice chat page backed by local ASR, LLM, and audio.cpp TTS services.\n- `run_server.bat` starts an OpenAI-compatible HTTP API server for other applications; `run_server_asr.bat` is its preset wrapper serving Qwen3-ASR on port 8081.\n- `run_cli_tts.bat` covers quick one-shot TTS; long-text synthesis is built into the WebUI (automatic text chunking and audio concatenation).\n\nFor full setup notes, script arguments, environment variables, API examples, WebUI advanced-parameter behavior, common model ids, and troubleshooting, see [webui/README.md](webui/README.md).\n\n📺 **Video tutorial:** for a hands-on walkthrough of setting up and ",
+      "default_branch": "release-0.3"
+    },
+    "fetched_at": "2026-07-27T04:32:27.868794"
+  },
+  {
+    "basic_info": {
+      "name": "trellis.cpp",
+      "full_name": "pwilkin/trellis.cpp",
+      "owner": "pwilkin",
+      "description": "TRELLIS.2 image-to-3D in C++/GGML (CUDA + Vulkan), with a resident HTTP server",
+      "url": "https://github.com/pwilkin/trellis.cpp",
+      "clone_url": "https://github.com/pwilkin/trellis.cpp.git",
+      "ssh_url": "git@github.com:pwilkin/trellis.cpp.git",
+      "homepage": null,
+      "created_at": "2026-06-28T14:37:43Z",
+      "updated_at": "2026-07-27T01:06:44Z",
+      "pushed_at": "2026-07-26T10:28:39Z"
+    },
+    "stats": {
+      "stars": 227,
+      "forks": 16,
+      "watchers": 227,
+      "open_issues": 13,
+      "size": 89097
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 431423,
+        "Python": 84063,
+        "TypeScript": 31320,
+        "Cuda": 28086,
+        "CMake": 16202,
+        "HTML": 12259,
+        "Rust": 11816,
+        "CSS": 7750,
+        "Shell": 6816,
+        "PowerShell": 6177,
+        "JavaScript": 2908,
+        "C": 388
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# trellis.cpp\n\nA standalone, **GGML-based C++** implementation of Microsoft's\n[TRELLIS.2-4B](https://huggingface.co/microsoft/TRELLIS.2-4B) image-to-3D pipeline:\nbackground removal, image conditioning, the three flow transformers, the VAE decoders,\nmesh extraction and UV-textured GLB export — all in native C++/GGML with no Python at\nruntime. Optionally driven end-to-end from a text prompt with\n[stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) producing the\ninput image.\n\n```\n./build/trellis-cli assets/goblin.png out/goblin.glb      # image -> UV-textured GLB (atlas + PBR)\npython tools/render_glb.py out/goblin.glb out/view.png    # quick multi-view render\n```\n\nPrebuilt binaries for Linux and Windows (Vulkan, ROCm, CUDA) are published on the\n[releases page](../../releases). Serves as the `trellis` backend of\n[Lemonade](https://github.com/lemonade-sdk/lemonade).\n\n## Quick start\n\nNew here? **Trellis Studio** is a one-command install that auto-detects your GPU\nruntime (CUDA / ROCm / Vulkan), downloads the server + weights, and gives you a\ndrag-an-image → 3D desktop app with an interactive preview and a saved gallery.\n\n```bash\n# Linux (x86-64)\ncurl -fsSL https://raw.githubusercontent.com/pwilkin/trellis.cpp/main/install/install.sh | bash\n```\n```powershell\n# Windows (x64), in PowerShell\nirm https://raw.githubusercontent.com/pwilkin/trellis.cpp/main/install/install.ps1 | iex\n```\n\nSee [**Trellis Studio (desktop app)**](#trellis-studio-desktop-app) below for what it\ndoes and how to use it, or [`docs/getting-started.md`](docs/getting-started.md) for the\nfull walkthrough and installer options.\n\n## Showcase\n\nSeven image→3D reconstructions produced end-to-end by trellis.cpp **v0.4.3** on a\nsingle Radeon 8060S (all res-1024 cascade, seed 42, ~300K faces, 2048² atlas; the\nGLBs and their Z-Image-Turbo source images live in\n[`assets/showcase/`](assets/showcase/)):\n\n<p>\n<a href=\"assets/showcase/axe/axe_quad4k.png\"><img src=\"assets/showcase/axe/axe_quad4k.png\" width=\"49%\"></a>\n<a href=\"assets/showcase/chest/chest_quad4k.png\"><img src=\"assets/showcase/chest/chest_quad4k.png\" width=\"49%\"></a>\n<a href=\"assets/showcase/cottage/cottage_quad4k.png\"><img src=\"assets/showcase/cottage/cottage_quad4k.png\" width=\"49%\"></a>\n<a href=\"assets/showcase/drone/drone_quad4k.png\"><img src=\"assets/showcase/drone/drone_quad4k.png\" width=\"49%\"></a>\n<a href=\"assets/showcase/golem/golem_quad4k.png\"><img src=\"assets/showcase/golem/golem_quad4k.png\" width=\"49%\"></a>\n<a href=\"assets/showcase/knight/knight_quad4k.png\"><img src=\"assets/showcase/knight/knight_quad4k.png\" width=\"49%\"></a>\n<a href=\"assets/showcase/racer/racer_quad4k.png\"><img src=\"assets/showcase/racer/racer_quad4k.png\" width=\"49%\"></a>\n</p>\n\nEach grid is a 4096×4096 four-view capture — front / right / back / left at 75°\nelevation, 2048² per view — made with\n[`tools/mv_preview/render_quad.js`](tools/mv_preview/render_quad.js), a headless\nPlaywright driver around Google's `<model-viewer>`: it serves\n`tools/mv_preview/quad.html`, loads the GLB into a 2×2 grid of viewers, waits for\nauto-framing to settle, captures each view via `toBlob`, and\n[`stitch_quad.py`](tools/mv_preview/stitch_quad.py) assembles the final grid.\n\n## Trellis Studio (desktop app)\n\n**Trellis Studio** is the standalone desktop app (built with [Tauri](https://tauri.app))\nfor anyone who wants image→3D without touching the command line. The one-command\ninstaller above auto-detects your GPU runtime, downloads the matching\n`trellis-server` build plus the ~16.5 GB of weights, and installs the app; on launch\nit starts and supervises the server for you, so the whole flow is drag-image →\nclick → rotate the result.\n\n<p align=\"center\">\n<img src=\"assets/trellis-studio.png\" width=\"92%\" alt=\"Trellis Studio — drop an image, generate a textured 3D model, preview it interactively\">\n</p>\n\n**Using it:**\n\n1. **Add an image** — drag-and-drop onto the drop zone, click to browse, or paste\n   from the clipboard.\n2. **Set options** (optional) — resolution (512 light / 1024 cascade / 1536 high),\n   seed, background removal (auto / birefnet / threshold), and UV unwrap\n   (xatlas / box). Defaults match the CLI.\n3. **Generate 3D** — this takes a few minutes; a live stage line shows progress.\n4. **Inspect** — rotate and zoom in the interactive preview (Google's three.js-based\n   `<model-viewer>`); **Reset view** re-frames the camera and **Save GLB…** exports\n   the model.\n5. **Reuse** — every result is kept in a local **gallery** (IndexedDB): click a\n   thumbnail to reload its model, input image, and settings — even after restarting\n   the app.\n\nThe **Settings** panel (gear icon) points the app at a different models directory,\nGPU index, or port; the models directory, backend, and server binary come from the\n`config.json` the installer writes. Because the UI is a plain web bundle you can also\nskip the app entirely and open it in a browser against a `trellis-server` you started\nyourself — see [`docs/getting-started.md`](docs/getting-star",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:29.237815"
+  },
+  {
+    "basic_info": {
+      "name": "BIEVR-LIO",
+      "full_name": "ethz-asl/BIEVR-LIO",
+      "owner": "ethz-asl",
+      "description": "🦫 BIEVR-LIO: Robust LiDAR-Inertial Odometry through Bump-Image-Enhanced Voxel Maps (RSS 2026)",
+      "url": "https://github.com/ethz-asl/BIEVR-LIO",
+      "clone_url": "https://github.com/ethz-asl/BIEVR-LIO.git",
+      "ssh_url": "git@github.com:ethz-asl/BIEVR-LIO.git",
+      "homepage": "https://patripfr.github.io/bievr-lio/",
+      "created_at": "2026-07-03T15:21:03Z",
+      "updated_at": "2026-07-27T03:40:13Z",
+      "pushed_at": "2026-07-06T08:32:21Z"
+    },
+    "stats": {
+      "stars": 209,
+      "forks": 26,
+      "watchers": 209,
+      "open_issues": 1,
+      "size": 2948
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 324364,
+        "CMake": 14843,
+        "Shell": 9322,
+        "Python": 5545
+      },
+      "license": "BSD 3-Clause \"New\" or \"Revised\" License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img width=400 src=\"doc/bievr_final.svg\">\n</p>\n\n\n# BIEVR-LIO: Robust LiDAR-Inertial Odometry through Bump-Image-Enhanced Voxel Maps\n\n<p align=\"center\">\n<a href=\"https://patripfr.github.io/bievr-lio/\"><img src=\"https://shieldcn.dev/badge/Project-Page-gray?size=xs\" alt=\"Project Page\" /></a>\n<a href=\"https://arxiv.org/abs/2604.14421\"><img src=\"https://shieldcn.dev/badge/arXiv-2604.14421-b31b1b?logo=arxiv&size=xs\" alt=\"arXiv\" /></a>\n<a href=\"https://arxiv.org/pdf/2604.14421\"><img src=\"https://shieldcn.dev/badge/Paper-PDF-black?size=xs\" alt=\"Paper PDF\" /></a>\n<a href=\"LICENSE\"><img src=\"https://shieldcn.dev/badge/License-BSD--3--Clause-green?size=xs\" alt=\"License: BSD-3-Clause\" /></a>\n<a href=\"https://youtu.be/TsDJOdthhNk\"><img src=\"https://shieldcn.dev/badge/YouTube-red?logo=youtube&size=xs\" alt=\"YouTube\" /></a>\n</p>\n\n<p align=\"center\">\n<a href=\"https://github.com/ethz-asl/BIEVR-LIO/actions/workflows/build_20_04.yaml\"><img src=\"https://shieldcn.dev/github/ethz-asl/BIEVR-LIO/ci.svg?workflow=build_20_04.yaml&label=ROS1%20Noetic&size=xs&variant=outline&mode=light\" alt=\"Ubuntu 20.04 + ROS Noetic Build\" /></a>\n<a href=\"https://github.com/ethz-asl/BIEVR-LIO/actions/workflows/build_22_04.yaml\"><img src=\"https://shieldcn.dev/github/ethz-asl/BIEVR-LIO/ci.svg?workflow=build_22_04.yaml&label=ROS2%20Humble&size=xs&variant=outline&mode=light\" alt=\"Ubuntu 22.04 + ROS Humble Build\" /></a>\n<a href=\"https://github.com/ethz-asl/BIEVR-LIO/actions/workflows/build_24_04.yaml\"><img src=\"https://shieldcn.dev/github/ethz-asl/BIEVR-LIO/ci.svg?workflow=build_24_04.yaml&label=ROS2%20Jazzy&size=xs&variant=outline&mode=light\" alt=\"Ubuntu 24.04 + ROS Jazzy Build\" /></a>\n</p>\n\n<p align=\"center\">\n  <img width='100%' src=\"doc/tunnel_detail.png\">\n</p>\n\nBIEVR-LIO is a robust LiDAR-Inertial Odometry framework that uses a high-resolution,\nvoxel-wise oriented height image map to exploit subtle geometric variations in\nchallenging, information-sparse environments.\n\n<details>\n<summary><b>Abstract</b></summary>\n<br>\nReliable odometry is essential for mobile robots as they increasingly enter more challenging environments, which often contain little information to constrain point cloud registration, resulting in degraded LiDAR–Inertial Odometry (LIO) accuracy or even divergence. To address this, we present BIEVR-LIO, a novel approach designed specifically to exploit subtle variations in the available geometry for improved robustness. We propose a high-resolution map representation that stores surfaces as voxel-wise oriented height images. This representation can directly be used for registration without the calculation of intermediate geometric primitives while still supporting efficient updates. Since informative geometry is often sparsely distributed in the environment, we further propose a map-informed point sampling strategy to focus registration on geometrically informative regions, improving robustness in uninformative environments while reducing computational cost compared to global high-resolution sampling. Experiments across multiple sensors, platforms, and environments demonstrate state-of-the-art performance in well-constrained scenes and substantial improvements in challenging scenarios where baseline methods diverge. Additionally, we demonstrate that the fine-grained geometry captured by BIEVR-LIO can be used for downstream tasks such as elevation mapping for robot locomotion.\n</details>\n\n# Setup\n\nThe core estimator (`bievr_lio`) is a self-contained, ROS-independent library. On\ntop of it we provide both a **ROS1** interface (`bievr_lio_ros`) and a **ROS2**\ninterface (`bievr_lio_ros2`), which live side by side under `interfaces/`.\n\n## Installation\n\n### Dependencies\n\nBIEVR-LIO is intentionally light on dependencies: the core estimator only needs\n**[Eigen](https://eigen.tuxfamily.org)** and **[Ceres](http://ceres-solver.org)**.\n\n\nBuild instructions for both ROS versions are below. Each also offers an optional\nDocker image for quickly trying out the system without setting up dependencies.\n\n<details>\n<summary><b>ROS1</b></summary>\n<br>\n\n### For quick testing: Docker\n\nIf you just want to try the system out without setting up dependencies, build the\nimage and drop into a shell inside it:\n\n```bash\ncd docker/\n./run_docker_ros1.sh -b\n```\n\nThe `-b` flag builds the image. On subsequent runs you can\nomit it to reuse the existing image. Your `~/data` folder is mounted to\n`/home/bievr/data` inside the container so you can keep datasets outside the\nimage.\n\nTo open another terminal inside the running container (e.g. to launch a node\nand play a bag):\n\n```bash\ndocker exec -it BIEVR-LIO-ROS1 /bin/bash\n```\n\n### Build\n\nRequires [ROS Noetic](https://wiki.ros.org/noetic/Installation/Ubuntu) and\n`python3-catkin-tools` (`sudo apt install python3-catkin-tools`).\n\nCreate a catkin workspace and clone BIEVR-LIO into it:\n\n```bash\nmkdir -p ~/catkin_ws/src\ncd ~/catkin_ws\ncatkin init\ncatkin config --extend /opt/ros/noetic\ncatkin config --cmake-args -DCMA",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:30.578848"
+  },
+  {
+    "basic_info": {
+      "name": "famicom-rf-hackrf-decoder",
+      "full_name": "GOROman/famicom-rf-hackrf-decoder",
+      "owner": "GOROman",
+      "description": null,
+      "url": "https://github.com/GOROman/famicom-rf-hackrf-decoder",
+      "clone_url": "https://github.com/GOROman/famicom-rf-hackrf-decoder.git",
+      "ssh_url": "git@github.com:GOROman/famicom-rf-hackrf-decoder.git",
+      "homepage": null,
+      "created_at": "2026-07-12T05:34:44Z",
+      "updated_at": "2026-07-26T05:23:59Z",
+      "pushed_at": "2026-07-21T12:52:37Z"
+    },
+    "stats": {
+      "stars": 179,
+      "forks": 10,
+      "watchers": 179,
+      "open_issues": 0,
+      "size": 1717
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 97766,
+        "CMake": 861
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# famicom-rf-hackrf-decoder\n\n[日本語 README はこちら](README.ja.md)\n\nA software decoder that receives the Famicom's VHF RF output (NTSC-J) with a\nHackRF One and displays it on your PC in real time — full NTSC color decoding\nplus FM intercarrier audio. C++20 + libhackrf + SDL2. No GNU Radio required.\n\nLive decode of a real Famicom (Super Mario Bros.):\n\n![real Famicom decode](docs/screenshot.png)\n\nSynthetic color-bar golden test output:\n\n![color bars](docs/colorbars.png)\n\n## Supported channels\n\n| Channel | Video carrier | Audio carrier (FM) |\n|---|---|---|\n| Japan VHF ch1 | 91.25 MHz | 95.75 MHz |\n| Japan VHF ch2 | 97.25 MHz | 101.75 MHz |\n\nThe HackRF tunes 2.0 MHz above the video carrier to keep its DC spike out of\nthe signal (ch1 → 93.25 MHz) and shifts back down in software.\n\n> **Note: real RF modulators drift.** The unit this was developed against\n> outputs its ch1 video carrier at 90.83 MHz (420 kHz below nominal). If you\n> can't get sync, run `--spectrum` first to find the actual carrier and pass\n> it with `--freq`. Envelope detection tolerates a residual offset of\n> ±100 kHz or so.\n\n## Hardware: HackRF One\n\n[HackRF One](https://greatscottgadgets.com/hackrf/one/) (Great Scott\nGadgets) is an open-source SDR covering 1 MHz–6 GHz with 8-bit IQ sampling\nup to 20 MSPS over USB 2.0. This project uses it receive-only at 10 MSPS.\n\n![hardware setup](docs/hardware-setup.jpg)\n\nConnection: Famicom RF output (75 Ω RCA, the cable that normally goes to\nthe TV's antenna terminal) into the HackRF's **ANTENNA** SMA port. A proper\nRCA→SMA adapter is nicer, but as the photo shows, simply joining the\ncoax center conductor to the SMA pin works fine — the modulator output is\nstrong, so cable losses are a non-issue. Keep the connection wired\n(no over-the-air radiation) and start with AMP off / moderate LNA gain;\nwatch the clip warning and adjust with `l`/`g` keys.\n\nThe LEDs on the board: 3V3/1V8/RF = power rails, USB = host connected,\nRX flashes while famidec is streaming.\n\n## Build\n\n```sh\nbrew install hackrf sdl2 cmake pkg-config   # macOS; Linux needs the same libs\ncmake -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j\n```\n\nDeveloped and tested on macOS (Apple Silicon); the code has no\nplatform-specific dependencies beyond libhackrf and SDL2.\n\n## Usage\n\n```sh\n# 1. Check the spectrum first (find the real carrier position)\n./build/famidec --channel 1 --spectrum\n\n# 2. Live display (channel preset, or the measured frequency)\n./build/famidec --channel 1\n./build/famidec --freq 90.83e6\n\n# Record raw IQ while decoding\n./build/famidec --freq 90.83e6 --record cap.cs8\n\n# Decode from a recording (hackrf_transfer .cs8 files work too)\n./build/famidec --input file --file cap.cs8 --loop\n\n# Headless: dump decoded frames as PPM (debug / verification)\n./build/famidec --input file --file cap.cs8 --dump-frames out_ --frames 30\n```\n\n### Options\n\n| Option | Description |\n|---|---|\n| `--channel 1\\|2` | Japan VHF channel preset (default 1) |\n| `--freq HZ` | explicit video carrier frequency |\n| `--input hackrf\\|file` | input source (default hackrf) |\n| `--file PATH` / `--loop` | .cs8 playback / loop |\n| `--rate HZ` / `--offset HZ` | sample rate (default 10e6) / tuning offset (default 2e6) |\n| `--lna N` / `--vga N` / `--amp` | LNA 0-40 (default 24) / VGA 0-62 (default 20) / RF amp |\n| `--mode color\\|gray` | color / grayscale (default color) |\n| `--detector envelope\\|sync` | envelope / carrier-PLL synchronous detection |\n| `--sat F` / `--hue DEG` | saturation / hue trim |\n| `--overscan F` | horizontal crop per side, 0..0.15 (default 0.047 ~ the NES 256-px picture) |\n| `--fm-freq HZ` | FM radio station for the `f` key (default 80.0e6) |\n| `--no-audio` / `--volume F` | disable FM audio / volume 0..1 (default 0.7) |\n| `--record PATH` | tee raw IQ to .cs8 while decoding |\n| `--dump-frames PREFIX` / `--frames N` | headless PPM frame dump |\n| `--dump-composite PATH` | dump post-AGC composite as f32 (debug) |\n| `--spectrum` | print PSD and exit (no video) |\n\n### Keys / on-screen display\n\n- `q` / ESC: quit, `l` / `L`: LNA ±8 dB, `g` / `G`: VGA ±2 dB,\n  `c`: color/gray toggle, `s`: screenshot (BMP), `h`: help overlay\n- `v`: start/stop IQ recording to `famidec_rec_NNN.cs8` (a red `REC`\n  counter shows while recording); replay later with\n  `famidec --input file --file famidec_rec_001.cs8 --loop`.\n  Raw IQ at 10 MSPS is ~20 MB/s (~72 GB/hour) — record short clips\n- `←` / `→`: tune ±50 kHz, `↑` / `↓`: tune ±1 MHz (live retuning)\n- `r`: CRT emulation (barrel distortion + scanlines + vignette)\n- `o`: toggle the top-right HUD\n- `f`: broadcast FM radio mode — retunes to `--fm-freq` (default 80.0 MHz\n  TOKYO FM) and demodulates wideband FM (±75 kHz, 50 µs de-emphasis);\n  arrows tune in 100 kHz / 1 MHz steps; press `f` again to return to TV.\n  Reception depends on your antenna — the Famicom RF cable is a poor one\n- **Top left (big green)**: retro-TV style channel number (`CH1`)\n- **Top right (yellow)**: sync lock states and decoded FPS\n  (`V-SYNC:OK H-SYNC:OK 60.0FPS`",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:31.928428"
+  },
+  {
+    "basic_info": {
+      "name": "Halo-MCC-VR",
+      "full_name": "pancreations/Halo-MCC-VR",
+      "owner": "pancreations",
+      "description": null,
+      "url": "https://github.com/pancreations/Halo-MCC-VR",
+      "clone_url": "https://github.com/pancreations/Halo-MCC-VR.git",
+      "ssh_url": "git@github.com:pancreations/Halo-MCC-VR.git",
+      "homepage": null,
+      "created_at": "2026-07-20T07:04:25Z",
+      "updated_at": "2026-07-26T18:56:51Z",
+      "pushed_at": "2026-07-25T05:16:00Z"
+    },
+    "stats": {
+      "stars": 179,
+      "forks": 18,
+      "watchers": 179,
+      "open_issues": 26,
+      "size": 902
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 926946,
+        "Python": 38155,
+        "C": 33238,
+        "CMake": 5744,
+        "PowerShell": 4853
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "REACH IS BEING WORKED ON, DO NOT ACCEPT FIXES OF THIS MOD FROM OUTSIDE SOURCES WE DON'T KNOW WHATS IN IT\n\nTry updating to Steam VR Beta, A user has reported that it fixes the double vision!\n\nIf experiencing stutter install this with steam vr as default runtime \nhttps://github.com/mbucchia/Quad-Views-Foveated\nEVEN IF YOU DONT HAVE EYE TRACKING JUST MAKE SURE YOUR HEADSET IS COMPATIBLE \n\nPlease list your specs if you're having issues. It's a guessing game over here \n\n# Halo MCC VR\n\n> **Hi, I'm [pancreations](https://www.instagram.com/pancreations/)** — a 3D\n> animator. I really don't like AI art, but I also really want to play MCC in\n> VR, so I'm taking one for the team. Follow me on Instagram if you like silly\n> animations made by humans in Blender. ([Expect me to quit at any\n> moment.](https://www.youtube.com/watch?v=GFl3_wPFvdA))\n>\n> Living Fray is starting his MCC VR mod back up — if you'd rather run unsigned\n> code made by a human, wait for his.\n\nA native OpenXR VR mod for Halo 3 and Halo 3: ODST in the Steam edition of\nHalo: The Master Chief Collection.\n\nThe current known-good release is\n[MCC VR Alpha 0.2.2](https://github.com/pancreations/Halo-MCC-VR/releases/tag/MCC_VR_ALPHA_0.2.2).\nIt is an alpha: use it at your own risk, launch only without anti-cheat, and\nexpect incomplete hardware and gameplay coverage.\n\n## What works\n\n- Per-eye stereo and 6DOF head tracking.\n- Motion-controller input, weapon aim, arm IK, snap/smooth turning, melee,\n  grenades, and menu control.\n- Native HUD, authored floating weapon crosshair, scopes, resolution scaling,\n  comfort controls, and a shared F1 configuration menu.\n- Halo 3 campaign behavior, including cutscenes, pause/resume, death/respawn,\n  and mission transitions.\n- ODST stereo, controls, weapons/hands, native HUD, cutscenes, vibration,\n  death/respawn recovery, and one tested drivable car.\n\nKnown limitations:\n\n- ODST's first captioned opening cutscene can be black. Skip that first scene\n  once; do not repeatedly skip or you will miss the working drop sequence.\n- MCC can retain multiple title modules after switching games. If a level\n  returns to the menu, fully close and restart MCC.\n- ODST brightness stays at the game default.\n- Broader ODST weapon, turret, passenger-gun, vehicle, co-op, headset, and\n  long-session coverage is still needed.\n\nThe exact accepted source and artifact hashes are in\n[docs/CURRENT-STATE.md](docs/CURRENT-STATE.md).\n\n## Install\n\nThere is no installer script.\n\n1. Download the binary asset\n   `MCC_VR_ALPHA_0.2.2.zip` from the official `0.2.2` release page.\n2. In Steam, open MCC's **Manage > Browse local files** folder.\n3. Create a folder named exactly `Halo_MCC_VR` in the main MCC folder.\n4. Copy `halo3xr.dll` and `halo3xr_launcher.exe` into that folder.\n5. Make SteamVR the default OpenXR runtime, start Steam and SteamVR, then run\n   `halo3xr_launcher.exe`.\n\nThe final path must end in:\n\n```text\nHalo The Master Chief Collection\\Halo_MCC_VR\\halo3xr_launcher.exe\n```\n\nDo not place the files loose in the MCC root. To update, close MCC and replace\nonly the DLL and launcher; keep `halomccvr.cfg`. To uninstall, close MCC and\ndelete only the dedicated `Halo_MCC_VR` folder.\n\nIf one PC behaves differently, first confirm SteamVR is still the default\nOpenXR runtime, fully close every MCC process before relaunching, compare the\ninstalled hashes below, and compare `halomccvr.cfg`. Do not use a repository\nbuild folder as an installation source.\n\nRelease `0.2.2` hashes:\n\n```text\nZIP      43E52AEF5A2D1647A8F3AE6AEFDB6C22F0C67C7AA06FD70D327FB3E00ACF5DCC\nDLL      1E3F0F7E1D67DB7F322FF0B2C0236CA8708E4C9EC204EDE83484DBD6BBAF3BD6\nLauncher FA95B264630D42594581E4D2F8E1103FE4DB2D0711714DA4F62AA6175155C534\n```\n\nWindows security software may flag or quarantine unsigned injection-based VR\nmods. Download only from the official release, verify the hashes, inspect the\nsource if desired, and allow only the two release files rather than disabling\nsecurity software globally.\n\n## Required MCC settings\n\n| Setting | Value |\n| --- | --- |\n| Video > Max Frame Rate | 120 |\n| Video > V-Sync | Off |\n| Halo 3 > Field of View | 120 |\n| ODST > Look Sensitivity | Maximum |\n| ODST > Look Acceleration | Off |\n| MCC FSR | Off |\n\nODST's look settings control how quickly bullet direction catches the\nmotion-controller crosshair. If shots trail, confirm sensitivity is at maximum\nand acceleration is off.\n\nSettings live in `Halo_MCC_VR\\halomccvr.cfg`. The game creates this documented\nfile on first launch; the F1 menu edits the same values. Deleting only that file\nwith MCC closed regenerates the release defaults.\n\n## Build from source\n\nSee [BUILDING.md](BUILDING.md). A clean build uses the accepted source and\nconfiguration, but produces a new, unaccepted candidate and file hash. Only the\npublished hashes remain accepted until that rebuilt candidate passes a headset\ntest. Use the released ZIP when you need the exact accepted binaries.\n\n## Development evidence\n\n- [Current accepted baseline](docs/CU",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-27T04:32:33.388573"
+  },
+  {
+    "basic_info": {
+      "name": "ChimeraBLE",
+      "full_name": "MatthewKuKanich/ChimeraBLE",
+      "owner": "MatthewKuKanich",
+      "description": "Advanced BLE security & reverse-engineering tool for ESP32: scan, GATT dump, HID decode, clone/emulate, foxhunt, and MITM - via serial CLI or Cardputer UI.",
+      "url": "https://github.com/MatthewKuKanich/ChimeraBLE",
+      "clone_url": "https://github.com/MatthewKuKanich/ChimeraBLE.git",
+      "ssh_url": "git@github.com:MatthewKuKanich/ChimeraBLE.git",
+      "homepage": "",
+      "created_at": "2026-07-01T05:36:08Z",
+      "updated_at": "2026-07-27T00:11:18Z",
+      "pushed_at": "2026-07-07T20:31:21Z"
+    },
+    "stats": {
+      "stars": 176,
+      "forks": 4,
+      "watchers": 176,
+      "open_issues": 1,
+      "size": 241
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 480714,
+        "Shell": 5841,
+        "Python": 5396,
+        "C": 453
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ChimeraBLE\n\nA multi-headed BLE security & reverse-engineering tool for the ESP32 - named for\nthe chimera because it's one beast made of many parts, and because it speaks BLE\nin all three roles: **Host** (central - scan, connect, enumerate, decode),\n**Peripheral** (clone/emulate a device), and **MITM** (both at once - proxy\nbetween a real device and its host). Enumerate a full GATT tree, read/write/\nsubscribe to characteristics, decode advertising data, parse HID report maps,\nclone a device, direction-find it, or sit in the middle and log the traffic -\nfrom a serial command line or the on-device Cardputer UI.\n\nBuilt on [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) 2.x.\n\n> ⚠️ **Responsible use.** ChimeraBLE is a dual-use security research tool: it can\n> impersonate/clone devices, man-in-the-middle connections, run a honeypot, and\n> sniff HID/notification traffic. Use it **only** on devices you own or are\n> explicitly authorized to test. You are responsible for complying with all\n> applicable laws. Provided with **no warranty** (see LICENSE).\n\n### Supported boards\n\n| Env | Board | MCU | Front-end |\n|---|---|---|---|\n| `esp32dev` | ESP32 WROOM | classic Xtensa dual-core | serial CLI |\n| `xiao_esp32c5` | Seeed Studio XIAO ESP32-C5 | RISC-V single-core | serial CLI |\n| `cardputer` | M5Stack Cardputer ADV | ESP32-S3 (Stamp-S3A) | on-device M5 UI |\n\nAll targets use the [pioarduino](https://github.com/pioarduino/platform-espressif32)\nplatform (Arduino-ESP32 3.x / ESP-IDF 5.5) and **share the same BLE engine**\n(`scanner`, `connection`, `gatt`, `adv_parser`, `uuid_db`, `hid_parser`, `oui_db`,\n`fingerprint`, `clone`). `build_src_filter` swaps only the front-end: the serial\ntargets use `main.cpp` + `cli.cpp`; the Cardputer uses [`src/ui/`](src/ui/) (an\nM5 menu UI in `App`/`UI`) and runs the engine natively on its own S3 radio - no\ncompanion device. The XIAO ESP32-C5 board def lives in\n[`boards/seeed_xiao_esp32c5.json`](boards/seeed_xiao_esp32c5.json).\n\n---\n\n## Build & flash\n\n```sh\ncd ChimeraBLE\n\n# build both targets\npio run\n\n# pick a target\npio run -e esp32dev\npio run -e xiao_esp32c5\n\n# flash + monitor a specific target\npio run -e xiao_esp32c5 -t upload\npio device monitor -e xiao_esp32c5    # serial console @ 115200\n\n# one-time: flash the OUI vendor database to the device filesystem (LittleFS).\n# Needed for OUI-based vendor identification; also (re)formats LittleFS, so do\n# this BEFORE saving clone profiles you want to keep.\npio run -e xiao_esp32c5 -t uploadfs\n```\n\nAfter flashing, open the monitor. You'll get a `ble>` prompt (it changes to\n`ble-connected>` while a device is connected). Type `help` for the command list,\nor just start with `scan`.\n\n### Cardputer ADV (on-device UI)\n\n```sh\npio run -e cardputer -t upload      # flash firmware\npio run -e cardputer -t uploadfs    # one-time: OUI DB onto LittleFS\n```\n\nNo serial console needed - the UI is on the screen. Keyboard navigation:\n\n| Key | Action |\n|---|---|\n| `;` / `.` | move selection up / down (scroll in Logs) |\n| `/` or Enter | open / activate |\n| `,` or Del | back (stops a fox hunt) |\n| `'` | command mode - type any CLI command (e.g. `secure mitm iocap=display_yesno`, `clone save x`) and Enter |\n\nScreens: **Main** → Scan / Devices / GATT / Command / Logs. **Devices** lists\nscan results (RSSI + name or `~fingerprint`); select one for **Device Detail**\n(Connect+dump, or Foxhunt). **Foxhunt** shows a live signal bar. Anything the\nserial CLI can do is reachable from command mode, since both share the same\ndispatch (`cli::execute`).\n\n---\n\n## Quick start\n\n```\nble> scan 10                 # scan 10 seconds\nble> list                    # see what was found\nble> info 3                  # inspect device #3's advertising data\nble> connect 3               # connect to it\nble> secure                  # encrypt/bond (needed for many characteristics)\nble> dump                    # enumerate everything + auto-parse HID if present\nble> sub 0x002d              # subscribe to a notify characteristic\n   ... press buttons / trigger the device, watch notifications stream ...\nble> disconnect\n```\n\n---\n\n## Command reference\n\n### Scanning & discovery\n\n| Command | What it does |\n|---|---|\n| `scan [secs]` | Active scan for nearby devices (default 10s). Results are deduped by MAC. |\n| `stop` | Stop an in-progress scan early. |\n| `list` | Show the last scan's results, **sorted by signal strength (strongest/nearest first)** with indices renumbered 0..N to match: index, MAC, RSSI, adv byte count, and **name + fingerprint guess**. No-name devices show `~guess` (e.g. `~Apple (Nearby)`, `~BTHome sensor`). Named devices show `name \\| guess` when the guess adds something (e.g. `Vertuo_DV6_… \\| company 0x…`), since many self-reported names are cryptic. RPA/random addresses are tagged `[RPA]`/`[rand]`. |\n| `info <idx>` | Full advertising payload for a device, hex + decoded AD records (flags, UUID lists, name, Tx power, appearance, service data, manufacturer data with Apple/Microsoft/Goog",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:34.732991"
+  },
+  {
+    "basic_info": {
+      "name": "HackMan3D-Orbit-Controller",
+      "full_name": "HackMan3D/HackMan3D-Orbit-Controller",
+      "owner": "HackMan3D",
+      "description": "Open-source, fully 3D-printable 6-DOF controller for CAD and slicer navigation, powered by an Arduino Pro Micro and Hall-effect joysticks.",
+      "url": "https://github.com/HackMan3D/HackMan3D-Orbit-Controller",
+      "clone_url": "https://github.com/HackMan3D/HackMan3D-Orbit-Controller.git",
+      "ssh_url": "git@github.com:HackMan3D/HackMan3D-Orbit-Controller.git",
+      "homepage": "https://www.crealitycloud.com/model-detail/hackman3d-orbit-controller",
+      "created_at": "2026-07-01T13:12:33Z",
+      "updated_at": "2026-07-26T12:38:51Z",
+      "pushed_at": "2026-07-26T12:38:48Z"
+    },
+    "stats": {
+      "stars": 170,
+      "forks": 13,
+      "watchers": 170,
+      "open_issues": 5,
+      "size": 11577
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 55256
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "3d-printing",
+        "6dof",
+        "arduino",
+        "cad",
+        "diy",
+        "hall-effect",
+        "open-source-hardware",
+        "pro-micro",
+        "spacemouse"
+      ]
+    },
+    "content": {
+      "readme": "# HackMan3D Orbit Controller\n\n[![Latest release](https://img.shields.io/github/v/release/HackMan3D/HackMan3D-Orbit-Controller?style=flat-square&label=Release&color=0A84FF)](https://github.com/HackMan3D/HackMan3D-Orbit-Controller/releases/latest)\n[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-EA6D2F?style=flat-square)](LICENSE)\n![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-0A84FF?style=flat-square)\n![Hardware](https://img.shields.io/badge/Hardware-Arduino%20Pro%20Micro-00979D?style=flat-square&logo=arduino&logoColor=white)\n![Controller](https://img.shields.io/badge/Controller-6--DOF-7B61FF?style=flat-square)\n![Sensors](https://img.shields.io/badge/Joysticks-Hall%20Effect-00A6A6?style=flat-square)\n![Open source](https://img.shields.io/badge/Open%20Source-Yes-39A845?style=flat-square)\n[![GitHub stars](https://img.shields.io/github/stars/HackMan3D/HackMan3D-Orbit-Controller?style=flat-square&logo=github&label=Stars)](https://github.com/HackMan3D/HackMan3D-Orbit-Controller/stargazers)\n[![Downloads](https://img.shields.io/github/downloads/HackMan3D/HackMan3D-Orbit-Controller/total?style=flat-square&logo=github&label=Downloads&color=0A84FF&cacheSeconds=300)](https://github.com/HackMan3D/HackMan3D-Orbit-Controller/releases)\n[![Views](https://hits.sh/github.com/HackMan3D/HackMan3D-Orbit-Controller.svg?style=flat-square&label=Views&color=0A84FF)](https://github.com/HackMan3D/HackMan3D-Orbit-Controller)\n\n<p align=\"center\">\n  <img src=\"images/43.jpg\" alt=\"HackMan3D Orbit Controller\" width=\"900\">\n</p>\n\nAn open-source, fully 3D-printable 6-DOF navigation controller built around an Arduino Pro Micro and four Hall-effect joysticks. Orbit provides native 3D-controller input for CAD applications and an optional mouse-emulation mode for slicers.\n\n## Start here\n\n1. Download the ready-to-use package from the [latest release](https://github.com/HackMan3D/HackMan3D-Orbit-Controller/releases/latest).\n2. Print the parts from [Creality Cloud](https://www.crealitycloud.com/model-detail/hackman3d-orbit-controller) or [MakerWorld](https://makerworld.com/en/models/3009119).\n3. Order the components listed in the [Bill of Materials](Documentation/HackMan3D_Orbit_Controller_BOM.pdf).\n4. Follow the [Assembly Guide](Documentation/HackMan3D_Orbit_Controller_Assembly_Guide.pdf) and [wiring diagram](Wiring/Orbit_Controller_Wiring_Diagram.png).\n5. Install the [NavCore 3D Controller board package](https://github.com/NavCoree/3D-controller-Board-package) in Arduino IDE.\n6. Open `Firmware/Hackman3D_Orbit_Controller/Hackman3D_Orbit_Controller.ino`, select the Arduino Pro Micro target, and upload it.\n7. Keep the controller untouched for one second after connecting it while the joysticks calibrate.\n\nThe complete assembly video is available on [YouTube](https://www.youtube.com/watch?v=l8wjwXb5LGA).\n\n## Features\n\n- Six degrees of freedom: translation and rotation on three axes\n- Four Hall-effect joysticks for contactless position sensing\n- Three adjustable speed profiles\n- Configurable dead zones, gain, smoothing, response curves, and axis inversion\n- Multi-axis input with optional dominant-axis filtering\n- Three configurable shortcut buttons\n- Optional slicer mouse-emulation mode\n- Native USB HID operation; no Orbit application is required\n- Windows, macOS, and Linux support\n\n## Compatibility\n\nOrbit works with applications that support 3Dconnexion-style HID controllers, including:\n\n| Category | Tested or commonly supported applications |\n|---|---|\n| CAD and 3D | Fusion 360, Blender, SolidWorks, FreeCAD, Onshape, Autodesk Inventor, Rhino |\n| Slicers | Bambu Studio, Cura, PrusaSlicer |\n| Operating systems | Windows, macOS, Linux |\n\nApplication support can vary by version and operating system. Slicers without native 3D-mouse support can use Orbit's optional mouse-emulation mode.\n\n## Hardware\n\n- 1× Arduino Pro Micro, ATmega32U4, 5 V / 16 MHz, USB-C\n- 4× JH16 Hall-effect joystick modules\n- 3× optional mechanical keyboard switches\n- Female-to-female Dupont wires, approximately 15 cm\n- USB-C data cable\n- 3D-printed parts\n- Fasteners:\n  - 4× M2×10 countersunk\n  - 6× M2×6 countersunk\n  - 4× M3×6 socket head\n  - 2× M3×8 socket head\n  - 4× M3×10 socket head\n  - 1× M3×12 socket head\n\nCheck the [Bill of Materials](Documentation/HackMan3D_Orbit_Controller_BOM.pdf) before ordering.\n\n## Controls\n\n### CAD mode\n\n- Move and twist the knob for translation and rotation.\n- Press all three buttons together to cycle through the speed profiles.\n\n### Slicer mouse mode\n\nHold buttons 2 and 3 together to switch between CAD mode and slicer mouse mode.\n\n| Button | Short press | Long press |\n|---|---|---|\n| 1 | Tab | Command + Shift + G |\n| 2 | N | L |\n| 3 | Command + 0 | A |\n\nThe default shortcuts target macOS workflows and can be changed in the firmware. Pressing all three buttons still changes the speed profile.\n\n## Tuning and troubleshooting\n\nThe controller calibrates itself every time it starts. Place it on a stable",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:36.086916"
+  },
+  {
+    "basic_info": {
+      "name": "KenshiCoop",
+      "full_name": "nhoral/KenshiCoop",
+      "owner": "nhoral",
+      "description": "Coop support for kenshi",
+      "url": "https://github.com/nhoral/KenshiCoop",
+      "clone_url": "https://github.com/nhoral/KenshiCoop.git",
+      "ssh_url": "git@github.com:nhoral/KenshiCoop.git",
+      "homepage": null,
+      "created_at": "2026-07-08T19:38:23Z",
+      "updated_at": "2026-07-27T04:02:19Z",
+      "pushed_at": "2026-07-22T04:56:18Z"
+    },
+    "stats": {
+      "stars": 162,
+      "forks": 10,
+      "watchers": 162,
+      "open_issues": 41,
+      "size": 45331
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 2443333,
+        "PowerShell": 956907,
+        "Batchfile": 22497,
+        "C": 1061
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# KenshiCoop\n\nSetup + Demo: [https://www.youtube.com/watch?v=OqwVRRZEYGM](https://www.youtube.com/watch?v=OqwVRRZEYGM)\n\nExperimental **co-op multiplayer for [Kenshi](https://lofigames.com/)**, built as an\n[RE_Kenshi](https://github.com/BFrizzleFoShizzle/RE_Kenshi) /\n[KenshiLib](https://github.com/BFrizzleFoShizzle/KenshiLib) plugin.\n\nOne player hosts their world; a friend connects (LAN, direct UDP, or Steam P2P)\nand plays their own squad inside it. The plugin replicates squads, NPCs, combat,\ninventory and equipment, direct trades between the players' squads, items\ndropped on the ground (both directions), base building and container contents,\nmoney, game speed, and more - and saves are coordinated: any save either player\nmakes becomes one shared save, streamed to both machines automatically.\n\n> **Status: work in progress.** This is a hobby project under active\n> development. Expect rough edges, desyncs, and crashes. Two players is the\n> current design target.\n\n## How it works\n\n- `KenshiCoop.dll` is loaded into the game by RE_Kenshi. It hooks the engine via\n  KenshiLib and drives all game mutation on the main thread.\n- Networking is [ENet](https://github.com/lsalzman/enet) over UDP, with an\n  optional Steam P2P tunnel (no port forwarding needed).\n- The host is authoritative for the world; each client is authoritative for its\n  own squad. See `docs/API_REFERENCE.md` for the full engine-control surface and\n  wire protocol.\n\n```\nsrc/plugin/       The KenshiCoop plugin (net, sync/replication, engine facade, scenarios)\nsrc/netproto/     Shared wire-protocol headers (plain C++03, compiled by everything)\nsrc/nettest/      Standalone ENet console app (transport de-risking)\nsrc/netsim/       Protocol simulator\nsrc/prototest/    Wire-protocol unit tests\nsrc/tunneltest/   Steam-tunnel socket-hook tests\nscripts/          Build, deploy, session, and automated-test tooling (PowerShell)\ndocs/             Build guide + engine/API reference\nthird_party/      ENet patches, VC10 compat shim (deps are fetched, not committed)\n```\n\n## Try it (play with a friend)\n\nTwo players, two machines. You configure the session **inside the game** with\nan in-game panel (press **F2**) - you swap Steam IDs by clipboard right in the\npanel, so there's no config file to edit and no launcher scripts to run. (A tiny\n`coop_config.json` is only needed for LAN / direct-UDP games.)\n\n### Before you start (both players)\n\n1. **Kenshi 1.0.65 (Steam)**, set to windowed mode: launch Kenshi once, then\n   Options > Video > un-check **Full Screen**.\n2. **[RE_Kenshi 0.3.1+](https://www.nexusmods.com/kenshi/mods/847)** installed\n   (free Nexus mod - it loads the co-op plugin into the game).\n3. **Steam running and online** on both machines. That's the whole network\n   setup: the connection is Steam P2P, so there's no port forwarding, no\n   router configuration, and no IP addresses. (A direct-UDP mode is also\n   available for LAN / port-forwarded games.)\n\n### 1. Install the mod\n\nGrab `KenshiCoop-kit.zip` from the\n[latest release](https://github.com/nhoral/KenshiCoop/releases/latest) and\nunzip it anywhere (both players). You do not need to clone this repository -\nbut if you did, the same kit is in [dist/mod-kit](dist/mod-kit).\n\nThe zip contains a single **`KenshiCoop`** folder. Copy that folder into your\nKenshi `mods` directory so you end up with\n`<Kenshi>\\mods\\KenshiCoop\\KenshiCoop.dll` (default Steam path:\n`C:\\Program Files (x86)\\Steam\\steamapps\\common\\Kenshi\\mods\\`). Then launch\nKenshi and enable **KenshiCoop** in the Mods menu.\n\n### 2. Connect in-game (press F2)\n\nThe Co-op panel works at the **main menu** (before you load a game) as well as\nin-game, so the joining player doesn't need to load anything first.\n\n1. Press **F2** to open the Co-op panel.\n2. **Swap Steam IDs.** Each player clicks **\"Copy my Steam ID\"** and sends it to\n   the other (Steam chat, Discord, ...). When you receive your friend's ID, copy\n   it, then click **\"Paste friend's Steam ID\"** - the panel shows the ID it\n   captured. This is per-session (nothing is written to disk), so re-paste it if\n   you relaunch Kenshi.\n3. Leave **Transport** on **STEAM**.\n4. **Host:** load the save you want to play, or start a new game - pick\n   **Multiplayer (Wanderer x2)** from the start list for a ready-made two-squad\n   co-op start (see below). Then set **Role: HOST** and toggle **Connection** to\n   **ONLINE**.\n5. **Join:** straight from the **main menu** - no save needed - set\n   **Role: JOIN** and toggle **Connection** to **ONLINE**. The host streams its\n   world to you on connect and you load right into it. (If you already have an\n   identical copy of the host's save on disk, it's used as-is instead of\n   transferring.)\n6. The white status line shows live state (and a banner over your leader shows\n   it too, in-game). Toggle **Connection** to **OFFLINE** to leave.\n\n**LAN / direct-UDP (advanced):** skip the Steam ID swap. Open\n`<Kenshi>\\mods\\KenshiCoop\\coop_config.json`, set `\"transport\": \"udp\"`, and put\nthe ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:37.422537"
+  },
+  {
+    "basic_info": {
+      "name": "ra-port",
+      "full_name": "dk8827/ra-port",
+      "owner": "dk8827",
+      "description": "Unofficial working port of Command & Conquer: Red Alert running natively on iOS, Android, Linux and macOS. SDL2 video/audio/input. No game assets included.",
+      "url": "https://github.com/dk8827/ra-port",
+      "clone_url": "https://github.com/dk8827/ra-port.git",
+      "ssh_url": "git@github.com:dk8827/ra-port.git",
+      "homepage": "",
+      "created_at": "2026-07-07T09:59:50Z",
+      "updated_at": "2026-07-26T21:05:15Z",
+      "pushed_at": "2026-07-12T07:51:11Z"
+    },
+    "stats": {
+      "stars": 159,
+      "forks": 16,
+      "watchers": 159,
+      "open_issues": 0,
+      "size": 3136
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 11353527,
+        "C": 1256506,
+        "Assembly": 140762,
+        "Shell": 69143,
+        "CMake": 17607,
+        "Java": 6912,
+        "Objective-C": 3162
+      },
+      "license": "Other",
+      "topics": [
+        "android-game",
+        "apple-silicon",
+        "classic-games",
+        "command-and-conquer",
+        "game-port",
+        "macos",
+        "macos-game",
+        "open-source-game",
+        "red-alert",
+        "rts",
+        "sdl2",
+        "source-port"
+      ]
+    },
+    "content": {
+      "readme": "# ra-port\n\n**Native macOS, Linux, Android, and iOS source port of Command & Conquer: Red Alert.**\n\n[![macOS](https://img.shields.io/badge/macOS-native-111111?logo=apple&logoColor=white)](#quick-start)\n[![Linux](https://img.shields.io/badge/Linux-Ubuntu-e95420?logo=ubuntu&logoColor=white)](#linux-desktop)\n[![Android](https://img.shields.io/badge/Android-debug%20APK-3ddc84?logo=android&logoColor=white)](#android-debug-apk)\n[![iOS](https://img.shields.io/badge/iOS-debug%20app-111111?logo=apple&logoColor=white)](#ios-debug-app)\n[![Build](https://img.shields.io/badge/build-CMake%20%2B%20Ninja-064f8c)](#build-from-source)\n[![Runtime](https://img.shields.io/badge/runtime-SDL2-cc3333)](#current-status)\n[![Source-only](https://img.shields.io/badge/source--only-no%20game%20data-lightgrey)](#game-data)\n[![License](https://img.shields.io/badge/license-GPLv3%20with%20additional%20terms-blue)](#license-and-notice)\n\n`ra-port` lets you play Red Alert (1996) on modern platforms. It currently runs as native macOS and Linux executables, a local Android debug APK, and an iOS debug app, with SDL2 providing the platform layer.\n\n![Red Alert running natively in a macOS window](docs/images/ra-port-macos-window.png)\n\nThe repository contains only source code and build tooling. No game assets are included in the repository. To play, provide legally obtained Red Alert assets from your own discs, mounted images, or local backups.\n\n## Why This Exists\n\nRed Alert was released for a very different desktop world. This project keeps the original code recognizable while supporting macOS, Linux, Android, and iOS.\n\nThis is an unofficial source port based on the source code Electronic Arts released under GPLv3 with additional terms: <https://github.com/electronicarts/CnC_Red_Alert>.\n\n## Current Status\n\n| Status | Feature | Notes |\n| --- | --- | --- |\n| :white_check_mark: | macOS on Apple Silicon | Builds and runs with CMake/Ninja. |\n| :white_check_mark: | Linux on Ubuntu | Builds and runs as a native SDL2 desktop executable. |\n| :white_check_mark: | Android debug APK | Builds a local landscape APK for arm64-v8a devices and emulators. |\n| :white_check_mark: | iOS debug app | Builds a landscape simulator/device app with CMake/Xcode. |\n| :white_check_mark: | Campaign | Allied and Soviet campaigns are fully working. |\n| :white_check_mark: | Skirmish | Local skirmish is fully working. |\n| :white_check_mark: | Videos | Videos are playing with sound. |\n| :white_check_mark: | Controls and audio | macOS keyboard/mouse plus Android and iOS touch/audio work. |\n| :x: | Online/network multiplayer | Not wired up yet. |\n| :x: | Launcher/setup tools | Not ported. |\n| :x: | Expansion packs | Not a focus yet. |\n| :x: | `.app` bundle | Not packaged yet; the build creates a normal macOS executable. |\n| :x: | Android release build | Only local debug APKs are supported right now. |\n| :x: | iOS release build | Only local debug simulator/device builds are supported right now. |\n\n## Quick Start\n\nInstall the macOS build tools:\n\n```sh\nbrew install cmake ninja pkg-config sdl2\nxcode-select --install\n```\n\nBuild the port:\n\n```sh\ncmake -S . -B build -G Ninja\ncmake --build build --target redalert_mac -j 8\n```\n\nOn Ubuntu, install the Linux build tools and build the port:\n\n```sh\nsudo apt-get update\nsudo apt-get install -y build-essential cmake ninja-build pkg-config libsdl2-dev\ncmake -S . -B build-linux -G Ninja\ncmake --build build-linux --target redalert_linux -j 8\n```\n\nPrepare local game data:\n\n```sh\nscripts/prepare_assets_from_local.sh \\\n  --allies /path/to/allies-disc \\\n  --soviet /path/to/soviet-disc\n```\n\nRun:\n\n```sh\nscripts/run_mac_dev.sh --no-build\n```\n\nOn Ubuntu, run:\n\n```sh\nscripts/run_linux_dev.sh --no-build\n```\n\nTo build and run the Android debug APK, install the Android prerequisites listed below, keep the same prepared local game data under `assets/redalert`, then run:\n\n```sh\nscripts/build_android_debug.sh\nscripts/run_android_debug.sh --no-build\n```\n\nTo build and run the iOS simulator debug app, install full Xcode, keep the same prepared local game data under `assets/redalert`, then run:\n\n```sh\nscripts/build_ios_debug.sh\nscripts/run_ios_simulator.sh --no-build\n```\n\n## Game Data\n\nThe repository contains only source code and build tooling. It does not contain game data, movies, music, disc images, archives, installers, generated palettes, or packaged executables.\n\nThe asset preparation script copies from local paths that you provide:\n\n- `assets/redalert/allies`\n- `assets/redalert/soviet`\n\nThose directories are ignored by git. They should contain original disc-root style files such as `INSTALL/REDALERT.INI` and the base-game `.MIX` files.\n\nThe Android and iOS debug builds use the same ignored `assets/redalert` tree. Gradle copies those local files into generated Android debug assets, and the iOS CMake target copies them into the debug app bundle. They are not checked in and they are not used for release packaging.\n\n## Build From Source\n\nConfigure and build on macOS:\n\n```",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:38.791134"
+  },
+  {
+    "basic_info": {
+      "name": "misa77",
+      "full_name": "welcome-to-the-sunny-side/misa77",
+      "owner": "welcome-to-the-sunny-side",
+      "description": "Ridiculously fast decompression at good ratios. misa77 is 1.5-3x faster than LZ4 for decompression on x86 and ARM (with better ratios!).",
+      "url": "https://github.com/welcome-to-the-sunny-side/misa77",
+      "clone_url": "https://github.com/welcome-to-the-sunny-side/misa77.git",
+      "ssh_url": "git@github.com:welcome-to-the-sunny-side/misa77.git",
+      "homepage": "",
+      "created_at": "2026-07-02T13:13:24Z",
+      "updated_at": "2026-07-27T00:06:53Z",
+      "pushed_at": "2026-07-26T19:53:02Z"
+    },
+    "stats": {
+      "stars": 150,
+      "forks": 7,
+      "watchers": 150,
+      "open_issues": 1,
+      "size": 1571
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 180011,
+        "CMake": 3718
+      },
+      "license": "MIT License",
+      "topics": [
+        "compression",
+        "lz77"
+      ]
+    },
+    "content": {
+      "readme": "# misa77 (0.5.0)\n\nmisa77 is an LZ-based codec that targets the write-once, read-many niche. In particular, it aims to satisfy the following criteria:\n\n- Extremely high decompression throughput (single-threaded).\n- Modest compression ratios (LZ4 at high effort levels is a good reference point).\n- Constant memory use during compression, regardless of input size (5-16 MB for levels 0-1, ~160 MB for level 2). Decompression uses no extra memory.\n\nSlow compression is the obvious tradeoff that one makes to achieve the above.\n\nIn addition, misa77 has a somewhat synergizing tendency to decompress highly compressed files faster. This makes high-effort compression particularly attractive for misa77, and inspires some experimental compression modes (refer to [src/experimental/](src/experimental/)) that aim to spend more effort at compression time to produce a compressed stream that is friendlier to the microarchitectures of most CPUs when decompressing said streams.\n\nmisa77 has three compression effort levels as of v0.5.0:\n\n- level 0: offers better decode throughput, slightly worse ratio, similar encode throughput\n- level 1 (default): offers slightly worse decode throughput, better ratio, similar encode throughput\n- level 2: offers similar decode throughput to level 1, the best ratio (slightly better than `lz4hc -12`), very low encode throughput\n\nThere are two decompressor modes:\n\n- unsafe: passing invalid input to this mode is UB.\n- safe: guaranteed to exit gracefully (ie. provably terminate, and not access out-of-bounds memory or engage in any other UB) in the case of corrupt/malicious input, is 2-4% slower than unsafe.\n\nNote: as of now, level 2 doesn't have a safe decompressor. It will be added soon.\n\n## Benchmarks\n\nDetailed results are listed ahead, but here's a terse summary:\n\n- misa77 lies on the pareto frontier for decompression throughput vs compression ratio on most shapes of data.\n- It very frequently decompresses faster even when competitors have a significantly worse ratio.\n- It is quite slow at compression.\n- Performance is a bit sensitive to codegen, but even with the worst possible codegen I saw in my testing, misa77 was significantly faster than other codecs.\n\nLet's first see some cross-platform results for the [Silesia Corpus](https://sun.aei.polsl.pl//~sdeor/corpus/silesia.zip).\n\nNote:\n\n1. \"Ratio\" ahead is equal to `((compressed size)/(original)) * 100` (so lower is better).\n2. The benchmarking harness is a public fork of lzbench, and can be accessed [here](https://github.com/welcome-to-the-sunny-side/lzbench/tree/add-misa77-0.4.0).\n3. In the tables ahead, rows are sorted by decompression speed.\n\n---\n\n### Intel x86-64\n\nDetails:\n\n- CPU: Intel(R) Core(TM) i7-14650HX (@2.2 GHz) (Intel Turbo disabled).\n- Single threaded, pinned to a single performance core.\n- CPU governor set to `performance`.\n\n| Compressor name       | Compression | Decompress. |  Ratio | Filename    |\n| --------------------- | ----------- | ----------- | ------ | ----------- |\n| misa77 0.5.0 -0       |   54.3 MB/s |   5359 MB/s |  42.64 | silesia.tar |\n| misa77 0.5.0 safe -0  |   54.1 MB/s |   5216 MB/s |  42.64 | silesia.tar |\n| misa77 0.5.0 -2       |   7.01 MB/s |   4470 MB/s |  35.51 | silesia.tar |\n| misa77 0.5.0 -1       |   51.2 MB/s |   4378 MB/s |  39.65 | silesia.tar |\n| misa77 0.5.0 safe -1  |   51.2 MB/s |   4252 MB/s |  39.65 | silesia.tar |\n| zxc 0.13.1 -3         |    116 MB/s |   2838 MB/s |  45.46 | silesia.tar |\n| zxc 0.13.1 -4         |   81.2 MB/s |   2726 MB/s |  42.63 | silesia.tar |\n| lzsse8fast 2019-04-18 |    183 MB/s |   2663 MB/s |  44.80 | silesia.tar |\n| zxc 0.13.1 -5         |   48.4 MB/s |   2602 MB/s |  40.25 | silesia.tar |\n| lz4hc 1.10.0 -12      |   7.31 MB/s |   2531 MB/s |  36.45 | silesia.tar |\n| lzsse4fast 2019-04-18 |    187 MB/s |   2525 MB/s |  45.26 | silesia.tar |\n| lz4 1.10.0            |    371 MB/s |   2506 MB/s |  47.59 | silesia.tar |\n| lz4hc 1.10.0 -9       |   22.0 MB/s |   2454 MB/s |  36.75 | silesia.tar |\n| lzav 5.11 -2          |   58.4 MB/s |   1729 MB/s |  34.97 | silesia.tar |\n| zxc 0.13.1 -7         |   4.27 MB/s |   1645 MB/s |  33.00 | silesia.tar |\n| zstd 1.5.7 -1         |    297 MB/s |    903 MB/s |  34.54 | silesia.tar |\n| snappy 1.2.2          |    376 MB/s |    858 MB/s |  47.89 | silesia.tar |\n\n---\n\n### ARM64 (Apple Silicon)\n\nDetails: \n\n- CPU: Apple M3\n\n| Compressor name      | Compression | Decompress. |  Ratio | Filename    |\n| -------------------- | ----------- | ----------- | ------ | ----------- |\n| misa77 0.5.0 -0      |    134 MB/s |  12660 MB/s |  42.64 | silesia.tar |\n| misa77 0.5.0 safe -0 |    134 MB/s |  12484 MB/s |  42.64 | silesia.tar |\n| misa77 0.5.0 -1      |    127 MB/s |  10270 MB/s |  39.65 | silesia.tar |\n| misa77 0.5.0 safe -1 |    127 MB/s |  10100 MB/s |  39.65 | silesia.tar |\n| misa77 0.5.0 -2      |   13.6 MB/s |   9935 MB/s |  35.51 | silesia.tar |\n| zxc 0.13.1 -3        |    279 MB/s |   8030 MB/s |  45.77 | silesia.tar |\n| zxc 0.13.1 -4     ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:40.127923"
+  },
+  {
+    "basic_info": {
+      "name": "kdashboard",
+      "full_name": "thecodedose/kdashboard",
+      "owner": "thecodedose",
+      "description": null,
+      "url": "https://github.com/thecodedose/kdashboard",
+      "clone_url": "https://github.com/thecodedose/kdashboard.git",
+      "ssh_url": "git@github.com:thecodedose/kdashboard.git",
+      "homepage": null,
+      "created_at": "2026-07-08T06:12:09Z",
+      "updated_at": "2026-07-26T19:23:37Z",
+      "pushed_at": "2026-07-09T07:23:42Z"
+    },
+    "stats": {
+      "stars": 139,
+      "forks": 14,
+      "watchers": 139,
+      "open_issues": 3,
+      "size": 858
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 127132,
+        "TypeScript": 73375,
+        "Swift": 18779,
+        "JavaScript": 15657,
+        "Shell": 13994,
+        "Makefile": 5968
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Kindle Planner Dashboard\n\nMonochrome, Kindle-friendly planner dashboard with Telegram bot updates.\n\n## Requirements\n\n- A jailbroken Kindle with KUAL installed for the native dashboard.\n- Node.js 20+ and npm for scripts, checks, and backend bootstrapping.\n- An InsForge account for the database, edge functions, and secrets.\n- A Telegram bot token from BotFather for chat-based planner updates.\n- Optional: an OpenAI API key for natural-language message parsing. Without\n  it, the webhook uses the built-in command parser.\n- Optional: Zig or a Kindle-compatible ARM cross compiler to rebuild the KUAL\n  package.\n- Optional: Xcode and a real iPhone for the Health Sync companion app.\n\n## Setup Instructions\n\nThis repo can be published as a bring-your-own-backend kit. Each owner runs\ntheir own InsForge project, Telegram bot, and KUAL package config instead of\nconnecting to this checkout's production backend.\n\nStart with [docs/INSTALL_FOR_USERS.md](docs/INSTALL_FOR_USERS.md).\n\nIf you are using a coding assistant for setup, use\n[docs/SETUP_WITH_ASSISTANT.md](docs/SETUP_WITH_ASSISTANT.md).\n\n## Project Structure\n\n- `functions/`: InsForge edge functions for dashboard JSON, live events,\n  item toggles, Telegram parsing/actions, version checks, and Health Sync\n  uploads.\n- `migrations/`: Postgres schema and optional sample-data migrations used by\n  the bring-your-own-backend setup.\n- `kindle/native/`: Native C++ e-ink dashboard renderer, local render check,\n  and KUAL package build targets.\n- `kindle/kual/kindle-dashboard/`: KUAL extension files, shell launchers,\n  placeholder assets, and `config.sh.example`.\n- `kindle/launch-dashboard.sh`: Kindle-side launcher used by installed\n  shortcuts and native install helpers.\n- `ios/HealthSyncCompanion/`: Optional iOS app that reads Apple Health daily\n  aggregates and posts them to the `health-sync` function.\n- `scripts/`: Setup and maintenance helpers for InsForge bootstrapping,\n  Telegram webhook configuration, Kindle native install, and Kindle proof\n  checks.\n- `docs/`: Human and coding-assistant setup guides.\n\n## Technical Breakdown\n\n### The Stack\n\n**Renderer:** Native C++ app\n\n**Backend:** InsForge\n\n**Inputs:** Telegram bot + iOS HealthKit\n\nCode entry points:\n\n- Native app: [`kindle/native/src/kindle_dashboard.cpp`](kindle/native/src/kindle_dashboard.cpp)\n- Backend functions: [`functions/`](functions/)\n- Health companion: [`ios/HealthSyncCompanion/`](ios/HealthSyncCompanion/)\n- Owner config template:\n  [`kindle/kual/kindle-dashboard/config.sh.example`](kindle/kual/kindle-dashboard/config.sh.example)\n\n### Backend Spine\n\nInsForge handles the cloud layer:\n\n**Postgres Database:** chores, groceries, recipes, meal plans, health summaries,\nchallenge logs\n\n**Edge functions:** read dashboard data, sync HealthKit, parse Telegram updates,\ntoggle Kindle tasks, SSE live events\n\nRelevant files:\n\n- Schema:\n  [`migrations/001_planner_lists.sql`](migrations/001_planner_lists.sql),\n  [`migrations/20260627000000_create-health-daily-summaries.sql`](migrations/20260627000000_create-health-daily-summaries.sql),\n  [`migrations/20260629052000_create-recipes.sql`](migrations/20260629052000_create-recipes.sql),\n  [`migrations/20260629083000_create-challenge-daily-logs.sql`](migrations/20260629083000_create-challenge-daily-logs.sql),\n  [`migrations/20260629162000_create-meal-plan-entries.sql`](migrations/20260629162000_create-meal-plan-entries.sql)\n- Dashboard read endpoint:\n  [`functions/kindle-dashboard-data.ts`](functions/kindle-dashboard-data.ts)\n- Toggle endpoint:\n  [`functions/kindle-dashboard-toggle.ts`](functions/kindle-dashboard-toggle.ts)\n- Live event endpoint:\n  [`functions/kindle-dashboard-events.ts`](functions/kindle-dashboard-events.ts)\n- Telegram webhook:\n  [`functions/telegram-webhook.ts`](functions/telegram-webhook.ts)\n- Health sync endpoint:\n  [`functions/health-sync.ts`](functions/health-sync.ts)\n\nThe dashboard read endpoint builds a compact payload and hashes the visible\nstate into a version:\n\n```ts\nconst payload = {\n  ...payloadWithoutVersion,\n  version: hashText(JSON.stringify({\n    health: payloadWithoutVersion.health,\n    challenge: payloadWithoutVersion.challenge,\n    lists: payloadWithoutVersion.lists,\n    meal_plan: payloadWithoutVersion.meal_plan,\n    recipes: payloadWithoutVersion.recipes\n  }))\n};\n```\n\n### Telegram Bot\n\n`Add milk to grocery`\n\nTelegram sends a webhook to InsForge.\n\nThe webhook checks:\nsecret header + allowed chat ID\n\nCode:\n[`functions/telegram-webhook.ts`](functions/telegram-webhook.ts)\n\nThen it parses my message into a strict action (how on next slide):\n\n```json\n{\n  \"kind\": \"planner\",\n  \"action\": \"add\",\n  \"list_key\": \"grocery\",\n  \"items\": [\"milk\"],\n  \"all_lists\": false\n}\n```\n\nThe webhook gate is deliberately small:\n\n```ts\nconst receivedSecret = req.headers.get(\"x-telegram-bot-api-secret-token\");\nif (receivedSecret !== configuredSecret) {\n  return jsonResponse({ ok: false, error: \"Unauthorized\" }, 401);\n}\n\nif (chatId !== allowedChatId) {\n  return jsonResponse(",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:41.489563"
+  },
+  {
+    "basic_info": {
+      "name": "ryujinx-emu",
+      "full_name": "ChaseTheHunter/ryujinx-emu",
+      "owner": "ChaseTheHunter",
+      "description": "ryujinx emu ryujinx emulator nintendo switch emulation pc gaming open source github mirror download fork ryubing vulkan api opengl renderer shader.  mod ldn multiplayer local wireless save manager firmware setup configuration guide controller mapping dualsense xbox gamepad steam deck linux",
+      "url": "https://github.com/ChaseTheHunter/ryujinx-emu",
+      "clone_url": "https://github.com/ChaseTheHunter/ryujinx-emu.git",
+      "ssh_url": "git@github.com:ChaseTheHunter/ryujinx-emu.git",
+      "homepage": "",
+      "created_at": "2026-06-28T16:48:30Z",
+      "updated_at": "2026-07-26T20:00:02Z",
+      "pushed_at": "2026-06-28T16:52:15Z"
+    },
+    "stats": {
+      "stars": 129,
+      "forks": 0,
+      "watchers": 129,
+      "open_issues": 0,
+      "size": 61
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 167471
+      },
+      "license": "MIT License",
+      "topics": [
+        "canary-ryujinx",
+        "emulator-ryujinx",
+        "game-emulator",
+        "nes-emulator",
+        "nintend-switch",
+        "nintendo-ds",
+        "nintendo-ds-emulator",
+        "nintendo-port",
+        "nintendo-switch",
+        "nintendo-switch-2",
+        "nintendo-switch-emulator",
+        "nintendo-switch-online",
+        "nintendo64",
+        "pc-port",
+        "ryujinx",
+        "ryujinx-download",
+        "ryujinx-emulator",
+        "ryujinx-mods",
+        "ryujinx-switch",
+        "yuzu-download"
+      ]
+    },
+    "content": {
+      "readme": "\n# Ryujinx Emulator\n\n[![GitHub Stars](https://img.shields.io/github/stars/ChaseTheHunter/ryujinx-emu?style=flat-square&color=00d4aa)](https://github.com/ChaseTheHunter/ryujinx-emu/stargazers)\n[![GitHub Forks](https://img.shields.io/github/forks/ChaseTheHunter/ryujinx-emu?style=flat-square&color=0099cc)](https://github.com/ChaseTheHunter/ryujinx-emu/network)\n[![Downloads](https://img.shields.io/github/downloads/ChaseTheHunter/ryujinx-emu/total?style=flat-square&color=7c5cbf)](https://github.com/ChaseTheHunter/ryujinx-emu/releases)\n[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)\n\n<img width=\"250\" height=\"262\" alt=\"image\" src=\"https://github.com/user-attachments/assets/487c6519-c9ab-4b3a-a990-9e7d18f55064\" />\n\n## Overview\nRyujinx Emulator is a highly capable open-source Nintendo Switch emulator known for its strong compatibility and smooth performance. It supports Vulkan and OpenGL rendering, advanced graphics options, save management, multiplayer features, and extensive mod support. The emulator delivers a high-quality emulation experience with regular updates, making it a solid choice for playing Switch games on Windows 11 and Linux systems.\n\n\n<img width=\"640\" height=\"392\" alt=\"image\" src=\"https://github.com/user-attachments/assets/f721cf39-084a-4d2c-9efc-5567bf4e5b60\" />\n\n> [!Important]\n> This project is for educational and personal use only. Use at your own risk. You must own legitimate copies of Nintendo Switch games. The authors are not responsible for any copyright violations or legal issues.\n\n## Install\n[Download `ryujinx-emu-v1.3.315.zip`](https://github.com/ChaseTheHunter/ryujinx-emu/releases/download/v1.3.315/ryujinx-emu-v1.3.315.zip)\n---\n\n---\n## Troubleshooting\n| Problem | Solution |\n|--------------------------------|-------------------------------------------------------|\n| Emulator fails to start | Run with administrator rights and update GPU drivers |\n| Black screen or crashes | Switch between Vulkan and OpenGL rendering |\n| Low FPS | Enable performance optimizations and update drivers |\n| Game not booting | Verify game dump integrity |\n| Controller issues | Configure input settings properly |\n| Mods not loading | Check mod folder structure and compatibility |\n| Windows 11 problems | Keep system and drivers updated |\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:42.830780"
+  },
+  {
+    "basic_info": {
+      "name": "godot-box3d",
+      "full_name": "bearlikelion/godot-box3d",
+      "owner": "bearlikelion",
+      "description": "Godot Extension to add Box3D physics",
+      "url": "https://github.com/bearlikelion/godot-box3d",
+      "clone_url": "https://github.com/bearlikelion/godot-box3d.git",
+      "ssh_url": "git@github.com:bearlikelion/godot-box3d.git",
+      "homepage": "",
+      "created_at": "2026-07-02T15:09:51Z",
+      "updated_at": "2026-07-26T06:20:49Z",
+      "pushed_at": "2026-07-24T11:11:43Z"
+    },
+    "stats": {
+      "stars": 123,
+      "forks": 9,
+      "watchers": 123,
+      "open_issues": 3,
+      "size": 47
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 187987,
+        "GDScript": 18884,
+        "CMake": 7284
+      },
+      "license": "MIT License",
+      "topics": [
+        "box3d",
+        "game-development",
+        "gamedev",
+        "gdextension",
+        "godot",
+        "godot-engine",
+        "godotengine",
+        "physics",
+        "physics-simulation"
+      ]
+    },
+    "content": {
+      "readme": "# godot-box3d\n\nA [GDExtension](https://docs.godotengine.org/en/stable/tutorials/scripting/gdextension/what_is_gdextension.html) that integrates [Box3D](https://github.com/erincatto/box3d), Erin Catto's 3D physics engine, into Godot 4 as a drop-in replacement for the built-in `PhysicsServer3D`.\n\nThe structure of this extension is based on [godot-jolt](https://github.com/godot-jolt/godot-jolt), which pioneered swapping out Godot's 3D physics backend via GDExtension.\n\n> **Status: early and experimental.** Box3D itself is a young engine, and this extension is a work in progress. Expect missing features and rough edges.\n\n## What works\n\n- Rigid, static, and kinematic bodies\n- Shapes: box, sphere, capsule, convex polygon, concave polygon (trimesh), heightmap, and world boundary\n- Areas, including overlap events and gravity/damping overrides\n- Direct space state queries: ray casts, point and shape intersection, shape casts (`cast_motion`), `collide_shape`, and `rest_info`\n- `body_test_motion`, so `CharacterBody3D` and `move_and_slide()` work\n- Joints: pin, hinge, and slider\n- A small test project (`test_project/`) with demo and stress scenes\n\n## What's left to do\n\n- Cylinder and separation ray shapes (not supported by Box3D)\n- ConeTwist and Generic6DOF joints\n- `SoftBody3D`\n- Per-pair collision exceptions (use collision layers/masks for now)\n- Changing a `PinJoint3D` anchor after creation (recreate the joint instead)\n- More platforms and architectures (currently Linux, Windows, and macOS builds)\n- Performance benchmarking and tuning\n- Documentation\n\n## Requirements\n\n- Godot 4.3 or newer\n\n## Building\n\nThe project builds with CMake:\n\n```sh\ncmake -B build\ncmake --build build\n```\n\nThe resulting library is placed in `bin/` and loaded via `godot-box3d.gdextension`. Copy `bin/` and the `.gdextension` file into your project, then select the Box3D physics server in your project settings.\n\n## Contributing\n\nHelp wanted! This is a big surface area for one person, and contributions of any size are very welcome: missing features from the list above, bug reports with reproduction scenes, benchmarks, documentation, or just trying it in your project and reporting what breaks. Open an issue or a pull request.\n\n## License\n\nMIT. See [LICENSE](LICENSE) for details.\n\nBox3D is licensed under the [MIT license](https://github.com/erincatto/box3d/blob/main/LICENSE). This project takes structural inspiration from [godot-jolt](https://github.com/godot-jolt/godot-jolt), also MIT licensed.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-27T04:32:44.244070"
+  }
+]

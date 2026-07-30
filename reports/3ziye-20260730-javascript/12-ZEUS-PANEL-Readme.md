@@ -1,0 +1,84 @@
+<div align="center">
+  
+# ⚡ ZEUS PANEL
+
+[![Version](https://img.shields.io/badge/Version-v1.10.6-blue.svg?style=for-the-badge&logo=cloudflare)](https://github.com/zeus-panel/ZEUS-PANEL)
+[![Platform](https://img.shields.io/badge/Platform-Cloudflare%20Workers-f38020.svg?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Database](https://img.shields.io/badge/Database-Cloudflare%20D1%20SQL-F38020.svg?style=for-the-badge&logo=sqlite&logoColor=white)](https://developers.cloudflare.com/d1/)
+[![Protocol](https://img.shields.io/badge/Protocol-VLESS%20%2F%20WebSocket-00c7b7.svg?style=for-the-badge)](https://github.com/zeus-panel/ZEUS-PANEL)
+[![License](https://img.shields.io/badge/License-Proprietary%20(Non--Commercial)-red.svg?style=for-the-badge)](https://github.com/zeus-panel/ZEUS-PANEL/blob/main/LICENSE)
+[![Telegram](https://img.shields.io/badge/Community-PANEL__ZEUS-2CA5E0.svg?style=for-the-badge&logo=telegram)](https://t.me/PANEL_ZEUS)
+</div>
+
+<img  src="https://raw.githubusercontent.com/zeus-panel/ZEUS-PANEL/refs/heads/main/photos/dark.png"  width="100%"  alt="Zeus Panel Dark Mode"  style="border-radius: 12px; margin-bottom: 15px;">
+
+  
+<img  src="https://raw.githubusercontent.com/zeus-panel/ZEUS-PANEL/refs/heads/main/photos/add.png"  width="100%"  alt="Zeus Panel Dark Mode"  style="border-radius: 12px; margin-bottom: 15px;">
+
+  
+
+<table  width="100%">
+
+<tr>
+
+<td width="50%" valign="middle" align="center">
+
+<img  src="https://raw.githubusercontent.com/zeus-panel/ZEUS-PANEL/refs/heads/main/photos/bot.jpg"  width="100%"  alt="Zeus Panel Status"  style="border-radius: 12px;">
+
+</td>
+
+<td width="50%" valign="middle" align="center">
+
+<img  src="https://raw.githubusercontent.com/zeus-panel/ZEUS-PANEL/refs/heads/main/photos/status.png"  width="100%"  alt="Zeus Panel Dark Mode"  style="border-radius: 12px;">
+
+</td>
+
+</tr>
+
+</table>
+
+  
+**A high-performance, multi-tenant network proxy management platform engineered for edge deployment on Cloudflare Workers and D1 Serverless SQL.**
+
+[Key Features](#️-key-features) • [Deployment Guide](#-quick-deployment-guide) • [SOCKS5 Proxy](#️-build-your-own-socks5-proxy-zeus-relay) • [Donate](#-donate--support) • [Credits](#️-credits--copyright)
+
+</div>
+
+---
+
+# ⚡️ Features
+
+* 🌍 **Multi-Location Routing:** Seamlessly assign up to five distinct proxies or geographic locations simultaneously to individual users, providing diversified connection pathways.
+* ⚡️ **Smart Buffering Engine:** Advanced dynamic data transfer management implemented to significantly boost overall connection speed and stability.
+* 👥 **Advanced User Management:** Enforce strict limits based on traffic volume (GB), time expiration (Days), total requests, and concurrent devices, featuring highly accurate tracking for CGNAT and mobile network environments.
+* ♻️ **Automated Quota Resets:** Scheduled auto-reset capabilities for volume and request counters based on specified timeframes.
+* 🛠 **Bulk Operations:** Comprehensive multi-select tools for batch user editing, deletion, and quota resets.
+* 🛡 **Anti-Filtering Mechanisms:** Built-in TLS Fragment support and custom ClientHello Fingerprint simulators to bypass DPI.
+* 📱 **Modern UI:** A responsive, mobile-friendly interface built with Tailwind CSS, featuring full AMOLED Dark Mode.
+* 🛑 **Smart Content Blocker:** Integrated DNS-over-HTTPS (DoH) engine to actively intercept and block NSFW content and advertisements.
+* 🌐 **Dynamic IP Rotation:** Automated rotation of clean Cloudflare edge IPs at custom, user-defined intervals.
+* 📊 **Live Quota Monitoring:** Real-time tracking of Cloudflare Worker requests to proactively prevent account bans or suspensions.
+* 🔗 **Self-Service Portals:** Auto-generation of robust, case-insensitive Subscription Links, QR codes, and dedicated real-time status pages for every user.
+* 🔄 **OTA Core Updates:** Automated edge deployment system updating the panel directly without database or data loss.
+* 🗄 **Complete Backup System:** Full JSON export and import utility covering the entire database, server configuration state, and advanced user proxy preferences.
+* 🚀 **One-Click Deployment:** Complete provisioning of the panel, subdomain, and D1 database directly via the Telegram Bot.
+* 🤖 **Multi-Account Bot Management:** Simultaneously manage multiple Cloudflare accounts, execute panel updates, and recover passwords using the Telegram Bot.
+
+---
+
+# 🚀 Quick Deployment Guide
+
+<div align="center">
+
+<a href="https://dash.cloudflare.com/" target="_blank">
+<img src="https://img.shields.io/badge/Cloudflare_Dashboard-Login-f38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare Dashboard" height="40">
+</a>
+
+<div align="center">
+First, log into your Cloudflare dashboard. Ensure you are using a verified email address (avoid temporary/fake emails), then proceed with one of the deployment methods below.
+</div>
+
+<br>
+
+<a href="https://t.me/ZEUS_PANEL_BOT" target="_blank">
+<img src="https://img.shields.i

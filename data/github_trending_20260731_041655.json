@@ -1,0 +1,849 @@
+[
+  {
+    "basic_info": {
+      "name": "grok-build",
+      "full_name": "xai-org/grok-build",
+      "owner": "xai-org",
+      "description": "SpaceXAI's coding agent harness and TUI. Fullscreen, mouse interactive, extensible.",
+      "url": "https://github.com/xai-org/grok-build",
+      "clone_url": "https://github.com/xai-org/grok-build.git",
+      "ssh_url": "git@github.com:xai-org/grok-build.git",
+      "homepage": null,
+      "created_at": "2026-07-14T20:04:23Z",
+      "updated_at": "2026-07-31T04:04:00Z",
+      "pushed_at": "2026-07-30T19:07:46Z"
+    },
+    "stats": {
+      "stars": 23592,
+      "forks": 4483,
+      "watchers": 23592,
+      "open_issues": 0,
+      "size": 23184
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 57209576,
+        "Python": 110069,
+        "JavaScript": 66127,
+        "Shell": 39383,
+        "PowerShell": 24822
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<h1>\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://media.x.ai/v1/website/spacexai-symbol-white-transparent-0c31957f.png\">\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png\">\n    <img alt=\"SpaceXAI logo\" src=\"https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png\" width=\"96\">\n  </picture>\n  <br>\n  Grok Build (<code>grok</code>)\n</h1>\n\n**Grok Build** is SpaceXAI's terminal-based AI coding agent. It runs as a\nfull-screen TUI that understands your codebase, edits files, executes shell\ncommands, searches the web, and manages long-running tasks — interactively,\nheadlessly for scripting/CI, or embedded in editors via the Agent Client\nProtocol (ACP).\n\n[Installing the released binary](#installing-the-released-binary) ·\n[Building from source](#building-from-source) ·\n[Documentation](#documentation) ·\n[Repository layout](#repository-layout) ·\n[Development](#development) ·\n[Contributing](#contributing) ·\n[License](#license)\n\n![Grok Build TUI](https://media.x.ai/v1/website/universe-tui-screenshot-6f7a0837.png)\n\n**Learn more about Grok Build at [x.ai/cli](https://x.ai/cli)**\n\nThis repository contains the Rust source for the `grok` CLI/TUI and its agent\nruntime. It is synced periodically from the SpaceXAI monorepo.\n\nA small `SOURCE_REV` file at the root records the full monorepo commit SHA\nfor the version of the code present in this tree.\n\n</div>\n\n---\n\n## Installing the released binary\n\nPrebuilt binaries are published for macOS, Linux, and Windows:\n\n```sh\ncurl -fsSL https://x.ai/cli/install.sh | bash   # macOS / Linux / Git Bash\nirm https://x.ai/cli/install.ps1 | iex          # Windows PowerShell\ngrok --version\n```\n\nSee the [changelog](https://x.ai/build/changelog) for the latest fixes,\nfeatures, and improvements in each release.\n\n## Building from source\n\nRequirements:\n\n- **Rust** — the toolchain is pinned by [`rust-toolchain.toml`](rust-toolchain.toml);\n  `rustup` installs it automatically on first build.\n- **[DotSlash](https://dotslash-cli.com)** — required so hermetic tools under\n  [`bin/`](bin/) (notably [`bin/protoc`](bin/protoc)) can download and run.\n  Install it and ensure `dotslash` is on your `PATH` **before** building:\n\n  ```sh\n  cargo install dotslash\n  # or: prebuilt packages — https://dotslash-cli.com/docs/installation/\n  /usr/bin/env dotslash --help   # sanity check\n  ```\n\n- **protoc** — proto codegen resolves [`bin/protoc`](bin/protoc) via DotSlash,\n  or falls back to a `protoc` on `PATH` / `$PROTOC`.\n- macOS and Linux are supported build hosts; Windows builds are best-effort\n  and not currently tested from this tree.\n\n```sh\ncargo run -p xai-grok-pager-bin              # build + launch the TUI\ncargo build -p xai-grok-pager-bin --release  # release binary: target/release/xai-grok-pager\ncargo check -p xai-grok-pager-bin            # fast validation\n```\n\nThe binary artifact is named `xai-grok-pager`; official installs ship it as\n`grok`. On first launch it opens your browser to authenticate — see the\n[authentication guide](crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md).\n\n## Documentation\n\nFull online documentation is available at\n[docs.x.ai/build/overview](https://docs.x.ai/build/overview).\n\nThe user guide ships with the pager crate:\n[`crates/codegen/xai-grok-pager/docs/user-guide/`](crates/codegen/xai-grok-pager/docs/user-guide/)\n— getting started, keyboard shortcuts, slash commands, configuration, theming,\nMCP servers, skills, plugins, hooks, headless mode, sandboxing, and more.\n\n## Repository layout\n\n| Path | Contents |\n|------|----------|\n| `crates/codegen/xai-grok-pager-bin` | Composition-root package; builds the `xai-grok-pager` binary |\n| `crates/codegen/xai-grok-pager` | The TUI: scrollback, prompt, modals, rendering |\n| `crates/codegen/xai-grok-shell` | Agent runtime + leader/stdio/headless entry points |\n| `crates/codegen/xai-grok-tools` | Tool implementations (terminal, file edit, search, ...) |\n| `crates/codegen/xai-grok-workspace` | Host filesystem, VCS, execution, checkpoints |\n| `crates/codegen/...` | The rest of the CLI crate closure (config, MCP, markdown, sandbox, ...) |\n| `crates/common/`, `crates/build/`, `prod/mc/` | Small shared leaf crates pulled in by the closure |\n| `third_party/` | Vendored upstream source (Mermaid diagram stack) — see below |\n\n> [!IMPORTANT]\n> The root `Cargo.toml` (workspace members, dependency versions, lints,\n> profiles) is **generated** — treat it as read-only. Prefer editing per-crate\n> `Cargo.toml` files.\n\n## Development\n\n```sh\ncargo check -p <crate>        # always target specific crates; full-workspace builds are slow\ncargo test -p xai-grok-config # per-crate tests\ncargo clippy -p <crate>       # lint config: clippy.toml at the repo root\ncargo fmt --all               # rustfmt.toml at the repo root\n```\n\n## Contributing\n\n> [!NOTE]\n> External contributions are not accepted. See [`CON",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:16:56.540550"
+  },
+  {
+    "basic_info": {
+      "name": "aos-ce",
+      "full_name": "unicity-aos/aos-ce",
+      "owner": "unicity-aos",
+      "description": "AOS Community Edition: the open agent operating system.",
+      "url": "https://github.com/unicity-aos/aos-ce",
+      "clone_url": "https://github.com/unicity-aos/aos-ce.git",
+      "ssh_url": "git@github.com:unicity-aos/aos-ce.git",
+      "homepage": null,
+      "created_at": "2026-07-12T23:39:52Z",
+      "updated_at": "2026-07-31T04:15:01Z",
+      "pushed_at": "2026-07-25T02:26:59Z"
+    },
+    "stats": {
+      "stars": 8081,
+      "forks": 15,
+      "watchers": 8081,
+      "open_issues": 25,
+      "size": 21271
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1386719,
+        "Python": 148032,
+        "Shell": 126865
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# AOS Community Edition\n\nAOS Community Edition is the open agent operating system for people who want\nan inspectable, composable environment for agents.\n\nIt owns the Community Edition product surface: the `aos` CLI, HTTP API,\ndistributions, first-party capsules, provider and model experience, and\nUnicity Audit.\n\n## Workspace layout\n\n```text\ncrates/       Product CLI, HTTP API, control client, and shared product code\ncapsules/     First-party production capsules\ndistros/      Community distribution manifests and release metadata\ndocs/         Product and operator documentation\n```\n\n## Install\n\nThe supported installer installs the `aos` product command, its pinned runtime,\nand the exact 21 Community Edition capsules built from this source tree under\nthe product-owned `~/.aos` root:\n\n```sh\ncurl --proto '=https' --tlsv1.2 -fsSL https://aos.unicity.ai/install.sh | sh\naos init\n```\n\n`aos init`, including `aos init --offline`, provisions from those local,\nproduct-versioned capsule assets. Re-running the installer performs a\ncoordinated product upgrade without\nrewriting a standalone runtime installation. Every release publishes\nchecksums, Sigstore bundles, GitHub build-provenance attestations, and\n`runtime-compatibility.toml`, which pins the exact runtime release and WIT commit.\nIts machine-readable runtime-compatibility and upgrade/self-heal gates must both\nbe true before a tag can publish. The latter is approved only after the exact\ncandidate preserves a frozen standalone-home clone and boots with freshly\ngenerated runtime coordination state.\n\n## Command boundary\n\nAOS owns its product roots, including `init`, `status`, `migrate`, `update`,\n`distro`, `mcp`, `daemon`, and `serve-health`:\n\n```sh\naos status\naos status --json\naos --principal codex-code mcp serve\naos daemon foreground --workspace /workspace\n```\n\nOn Unix, `aos daemon foreground` replaces the AOS process with the persistent\nbundled daemon, preserving direct signal and exit-status ownership for process\nsupervisors. On other hosts it waits for the daemon and preserves its exit\nstatus. Both paths apply the product-owned runtime home, `.aos` workspace\nlayout, enforced Community Edition distro, and stderr logging environment.\nNeither path enables ephemeral lifetime.\n\nEvery other runtime root is part of the AOS CLI directly. Arguments, exit\ncodes, and signals pass through unchanged; there is no nested `aos astrid` or\n`aos runtime` namespace:\n\n```sh\naos doctor\naos capsule build\n```\n\nWhen AOS owns a root such as `status`, `init`, `update`, or `mcp`, its product\nimplementation replaces the lower-level command at that same location. The\ncomplete supported surface therefore remains `aos <verb>`. Release validation\ncompares the exact pinned runtime's public command inventory with AOS's\nclassified root contract, so a new runtime verb cannot enter a product release\nwithout an explicit inherit-or-own decision.\n\n`aos mcp serve` is the product edge shared by Codex, Claude, and Grok. A client\nthat supports MCP form elicitation keeps presenting its own constrained\napproval forms. When a client does not, the default `--interaction auto` mode\nuses a local AOS decision surface: AppKit on macOS, a native Windows dialog, or\nPinentry on Linux. `--interaction client`, `native`, and `deny` make the policy\nexplicit. The local bridge accepts only a single boolean or the fixed AOS\napproval enum; arbitrary strings, password-shaped fields, and URL\nelicitations are never collected through it.\n\n## Build on AOS\n\nUnicity AOS is the operating system in which agents and agent-native software\nrun. Capsules are general user-space building blocks: users can compose them\ninto harnesses, meta-harnesses, connectors, services, or other systems.\nCommunity Edition ships Forge as OS construction tooling so a fresh agent can\ninspect the running system, learn the capsule model, identify a real capability\ngap, and build and verify a least-privilege capsule. Forge also installs the\n`meta-harness` skill, which teaches an agent how to build a governed\nmeta-harness on AOS by treating its instructions, memory, skills, harness code,\ntools, capsules, traces, and evaluations as an improvable user-space world. The\nagent is instructed to notice useful extensions during real work and reach for\nForge proactively when new code is the right way to improve that world.\n\nSee [Extending an agent's world on AOS](docs/meta-harness.md) for the world\nmodel, research loop, Forge boundary, optional worker pattern, and\nrepresentative user experiences.\n\nProvisioning another principal keeps the authenticated operator separate from\nthe target environment:\n\n```sh\naos --principal operator init --target-principal alice\n```\n\nThis AOS release fixes its distribution state to Unicity CE. Use a standalone\n`astrid` installation and runtime home to apply another distribution. Homebrew\ninstallations update with `aos update`. Direct installs resolve the signed\n`stable` channel by default and can select `dev`, `nightly`, or an exact version;\nall",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:16:57.814697"
+  },
+  {
+    "basic_info": {
+      "name": "AgentENV",
+      "full_name": "kvcache-ai/AgentENV",
+      "owner": "kvcache-ai",
+      "description": "AgentENV (AENV) is a distributed platform for running agent environments at scale.",
+      "url": "https://github.com/kvcache-ai/AgentENV",
+      "clone_url": "https://github.com/kvcache-ai/AgentENV.git",
+      "ssh_url": "git@github.com:kvcache-ai/AgentENV.git",
+      "homepage": null,
+      "created_at": "2026-07-23T02:48:07Z",
+      "updated_at": "2026-07-31T04:05:09Z",
+      "pushed_at": "2026-07-31T03:39:13Z"
+    },
+    "stats": {
+      "stars": 2622,
+      "forks": 200,
+      "watchers": 2622,
+      "open_issues": 50,
+      "size": 1664
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4842649,
+        "Go": 352610,
+        "Shell": 141701,
+        "Python": 29460,
+        "Makefile": 14671,
+        "TypeScript": 9432,
+        "Dockerfile": 6505
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"assets/heading-logo-dark.svg\" />\n    <img src=\"assets/heading-logo.svg\" alt=\"AgentENV\" />\n  </picture>\n  <p><strong>Running agent environments at scale</strong></p>\n</div>\n\n[![Coverage workflow status](https://github.com/kvcache-ai/AgentENV/actions/workflows/coverage.yml/badge.svg?branch=main&event=push)](https://github.com/kvcache-ai/AgentENV/actions/workflows/coverage.yml)\n[![Latest coverage report](https://github.com/kvcache-ai/AgentENV/blob/coverage-data/coverage/badge.svg?raw=1)](https://github.com/kvcache-ai/AgentENV/blob/coverage-data/coverage/coverage.json)\n📖 [Full documentation](https://kvcache-ai.github.io/AgentENV/)\n\nAgentENV (AENV) is a platform for running agent environments at scale, powering agentic RL training for **Kimi K3**.\n\n---\n\n## 🚀 Why AgentENV\n\n- **Scale across diverse environments**: AENV runs massive numbers of Firecracker environments across machines and diverse OCI-compatible images, loaded on demand via [overlaybd](https://containerd.github.io/overlaybd/#/). Local disk acts as a bounded cache, retaining hot data and evicting cold, so images can exceed disk capacity while startup stays fast cluster-wide, without pre-warming every host.\n- **Make idle environments inexpensive**: Snapshot-backed environments boot or resume in under 50 ms and pause in under 100 ms. Idle environments can quickly release CPU and memory, then return when new work arrives.\n- **Native snapshot and fork support**: AENV snapshots memory and filesystem changes incrementally, completing in under 100 ms even under heavy disk modification. A running environment can fork into multiple independent sandboxes for parallel agent workflows. Snapshots persist to S3-compatible object storage or a shared distributed filesystem to prevent data loss.\n- **Preserve performance and density over time**: AENV delivers high-performance I/O via ublk while sharing the host page cache across storage and memory-snapshot data. Memory ballooning returns reclaimable guest memory to the host, sustaining high overcommit as environments run longer and diverge.\n\n---\n\n## 📋 Prerequisites\n\n- **Linux kernel 6.8+**; the install script additionally requires **Ubuntu 24.04** (see *Quick Start* below for installation options)\n- `/dev/kvm` access for Firecracker microVM execution\n\n---\n\n## ⚡ Quick Start (Single Node)\n\n> [!WARNING]\n> **AgentENV currently does not support authorization.** Do not expose the AgentENV\n> API to the public network. Run it only on a trusted network or behind an\n> authorization proxy with appropriate network controls.\n\n**1. Install and start the server**\n\n*Option A — install script (Ubuntu 24.04)*\n\nInstall both the server and the `aenv` CLI, then start the server as a systemd service:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/kvcache-ai/AgentENV/main/scripts/install.sh | sudo bash\nsudo systemctl start aenv\n```\n\n*Option B — Docker*\n\nSet up the server:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/kvcache-ai/AgentENV/main/scripts/docker-setup.sh | sudo bash\ndocker pull ghcr.io/kvcache-ai/aenv-server:latest\ndocker run -d --privileged -v /dev:/dev -p 8000:8000 ghcr.io/kvcache-ai/aenv-server:latest\n```\n\nThe server is accessible at `http://127.0.0.1:8000` by default.\n\n**2. Install the aenv CLI** *(skip if you used Option A in step 1)*\n\nInstall separately if you used the Docker method above, or if you are running\nthe CLI on a different machine from the server. Supports Linux and macOS on\nx86_64 and arm64:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/kvcache-ai/AgentENV/main/scripts/install-cli.sh | bash\n```\n\n**3. Authenticate**\n\n```bash\naenv auth\n# AENV server URL [http://localhost:8000]: http://127.0.0.1:8000\n# API key: dummy\n```\n\n**4. Pull a template and run a sandbox**\n\n```bash\naenv pull ubuntu:22.04 --name ubuntu\naenv start ubuntu            # starts a sandbox and attaches an interactive shell\n```\n\n---\n\n## 🗂 Deployment\n\nFor Docker Compose / Kubernetes cluster deployment and build-from-source instructions,\nsee 📖 [Deployment](https://kvcache-ai.github.io/AgentENV/deployment/manual-compile.html).\n\n---\n\n## 🔌 E2B compatibility\n\nAgentENV exposes an E2B-compatible HTTP API. Point `E2B_API_URL` at your\nserver and use the standard E2B Python / TypeScript SDK without any code\nchanges. See 📖 [E2B integration](https://kvcache-ai.github.io/AgentENV/integration/e2b.html)\nfor setup details.\n\n---\n\n## 🛠 aenv CLI reference\n\n```bash\n# Templates\naenv pull docker.io/library/ubuntu:latest --name ubuntu    # FROM <image> → template\naenv template list                      # alias: aenv template ls\n\n# Sandboxes\naenv start ubuntu                       # start + attach interactive shell\naenv start ubuntu --detach              # start, print sandbox ID, don't attach\naenv cn <sandbox-id>                    # reattach a shell\naenv exec <sandbox-id> ls -la /         # one-shot command\naenv ls\n\naenv pause   <sandbox-id>\naenv resume  <sandbox-",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:16:59.063645"
+  },
+  {
+    "basic_info": {
+      "name": "Codex-X",
+      "full_name": "yynxxxxx/Codex-X",
+      "owner": "yynxxxxx",
+      "description": "Codex Switch & Instruct desktop manager",
+      "url": "https://github.com/yynxxxxx/Codex-X",
+      "clone_url": "https://github.com/yynxxxxx/Codex-X.git",
+      "ssh_url": "git@github.com:yynxxxxx/Codex-X.git",
+      "homepage": "https://github.com/yynxxxxx/Codex-X",
+      "created_at": "2026-07-04T03:28:35Z",
+      "updated_at": "2026-07-31T04:06:38Z",
+      "pushed_at": "2026-07-31T04:06:26Z"
+    },
+    "stats": {
+      "stars": 1895,
+      "forks": 278,
+      "watchers": 1895,
+      "open_issues": 4,
+      "size": 12138
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 865747,
+        "TypeScript": 324277,
+        "CSS": 202936,
+        "JavaScript": 159682,
+        "PowerShell": 76619,
+        "Python": 21932,
+        "Shell": 2424,
+        "HTML": 540
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"README.md\"><img src=\"https://img.shields.io/badge/中文-当前-blue\" alt=\"中文\" /></a>\n  <a href=\"README.en.md\"><img src=\"https://img.shields.io/badge/English-Switch-lightgrey\" alt=\"English\" /></a>\n</p>\n\n<div align=\"center\">\n  <img src=\"apps/desktop/src-tauri/icons/icon.png\" alt=\"Codex-X Logo\" width=\"150\" />\n\n  # Codex-X\n\n  **Codex 可视化提示词注入 · Provider · 会话 · Skills / MCP 管理工具**\n\n  一款面向 **OpenAI Codex 桌面端 / Codex CLI** 的跨平台桌面工具。把提示词模板、自定义 Prompt、第三方 API 供应商、会话同步、Skills / MCP、macOS / Windows 皮肤和 TOML 配置都放进可视化界面里，不用反复手改文件。\n\n  <p>\n    <img src=\"https://img.shields.io/github/v/release/yynxxxxx/Codex-X?label=version&color=blue\" alt=\"version\" />\n    <img src=\"https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555\" alt=\"platform\" />\n    <img src=\"https://img.shields.io/badge/built%20with-Tauri%202-24C8DB\" alt=\"tauri\" />\n    <img src=\"https://img.shields.io/badge/license-MIT-green\" alt=\"license\" />\n  </p>\n\n  <p>\n    <img src=\"https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/SQLite-Ready-003B57?logo=sqlite&logoColor=white\" />\n    <img src=\"https://img.shields.io/badge/Vite-Ready-646CFF?logo=vite&logoColor=white\" />\n  </p>\n</div>\n\n---\n\n## Codex-X 是什么？\n\n当你同时使用 Codex 桌面端、CLI、第三方 API、Skills / MCP 和多套提示词时，配置很容易散落在不同文件里。Codex-X 把这些高频操作集中到一个桌面界面中，让当前状态看得见、常用操作点一下就能完成。\n\n你可以用它：\n\n- 像管理插件一样管理提示词：分类、导入 Markdown、自定义编辑、一键启用 / 禁用\n- 内置 5 套提示词模板，同时支持用户把自己的提示词变成可视化模板库\n- 保存、测试并切换 OpenAI Official 与第三方 API，还能从 cc-switch 导入现有供应商\n- 同步、检查、搜索和删除本地会话，按项目路径整理 Codex 历史记录\n- 集中管理 Skills 与 MCP，查看当前 `config.toml`、`auth.json` 和操作备份\n\n## 软件预览\n\n<details open>\n<summary><b>新版 UI：指令提示词管理中心</b></summary>\n\n<p align=\"center\">\n  <img src=\"docs/screenshots/app/new-ui/prompts.png\" alt=\"Codex-X 新版指令提示词管理界面\" width=\"920\" />\n</p>\n\n</details>\n\n<div align=\"center\">\n<table>\n  <tr>\n    <td align=\"center\" width=\"50%\">\n      <b>分类管理</b><br />\n      <sub>把提示词按破甲 / 逆向、软件开发、写作辅助等分类维护</sub><br />\n      <img src=\"docs/screenshots/app/new-ui/prompt-categories.png\" alt=\"Codex-X 提示词分类管理\" width=\"420\" />\n    </td>\n    <td align=\"center\" width=\"50%\">\n      <b>自定义提示词</b><br />\n      <sub>直接添加、编辑或导入自己的 Markdown 提示词</sub><br />\n      <img src=\"docs/screenshots/app/new-ui/prompt-form.png\" alt=\"Codex-X 添加自定义提示词\" width=\"420\" />\n    </td>\n  </tr>\n</table>\n</div>\n\n<details>\n<summary><b>Skills / MCP 可视化管理</b></summary>\n\n<p align=\"center\">\n  <img src=\"docs/screenshots/app/new-ui/skills-mcp.png\" alt=\"Codex-X Skills 与 MCP 管理界面\" width=\"920\" />\n</p>\n\n</details>\n\n## 功能特性\n\n<div align=\"center\">\n<table>\n  <tr>\n    <th align=\"center\" width=\"190\">你想做的事</th>\n    <th align=\"center\">Codex-X 能帮你</th>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>提示词注入管理</b></td>\n    <td align=\"left\">内置 <b>5 套</b>提示词模板，支持分类、GitHub 同步、本地缓存、导入 <code>.md</code>、添加自定义提示词、编辑说明、一键启用 / 禁用。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>启用方式切换</b></td>\n    <td align=\"left\">可选择“保留原提示词”追加写入，也可选择“替换原提示词”完整切换；适合在不同模型、不同任务、不同 Prompt 之间快速切换。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>Provider / API</b></td>\n    <td align=\"left\">添加、编辑、启用、删除第三方供应商；支持连接检测、模型获取 / 测试、从 cc-switch 导入，并可在 OpenAI Official 与中转 API 之间切换。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>会话管理</b></td>\n    <td align=\"left\">搜索本地会话、按项目路径分组、同步当前供应商、检查会话状态，并支持单选 / 多选 / 项目级永久删除。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>Skills / MCP</b></td>\n    <td align=\"left\">可视化查看 Skills 与 MCP，导入已有配置，从 ZIP 安装 Skill，逐项启用 / 禁用，并检查更新状态。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>配置与登录</b></td>\n    <td align=\"left\">集中查看 Codex 当前使用的 <code>config.toml</code> 与 <code>auth.json</code>，区分官方登录态和第三方 API Key；重要写入前自动备份。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>macOS / Windows 皮肤中心</b></td>\n    <td align=\"left\">内置“椎名真白·樱花画室”主题，以真实壁纸和完整界面缩略图展示主题效果，支持导入 / 导出、热切换和关闭皮肤；换肤运行时已经内置在 Codex-X 中，无需另装 Codex Dream Skin 引擎。</td>\n  </tr>\n  <tr>\n    <td align=\"center\"><b>跨平台使用</b></td>\n    <td align=\"left\">提供 macOS Apple Silicon / Intel、Windows MSI / 便携版和 Linux 安装包；安装版可在应用内直接下载、校验并安装更新，便携版继续使用手动下载。</td>\n  </tr>\n</table>\n</div>\n\n## 核心亮点\n\n### 1. 可视化提示词注入中心\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/当前模板库-11_套-2563eb?style=flat-square\" alt=\"当前模板库 11 套\" />\n  <img src=\"https://img.shields.io/badge/离线内置-5_套-16a34a?style=flat-square\" alt=\"离线内置 5 套\" />\n  <img src=\"https://img.shields.io/badge/GitHub_同步-自动更新-f59e0b?style=flat-square\" alt=\"GitHub 自动同步\" />\n  <img src=\"https://img.shields.io/badge/自定义提示词-支持导入_编辑-7c3aed?style=flat-square\" alt=\"支持自定义提示词\" />\n</p>\n\n> [!TIP]\n> **安装后就能用，联网后自动补齐，也能维护自己的提示词库。**\n>\n> 安装包离线自带 5 套模板；软件启动后会从 GitHub `examples/` 同步另外 6 套软件开发与写作辅助模板，以及后续更新。同步成功的在线版本会缓存到本地，临时离线仍可继续使用。你也可以导入自己的 `.md`、新增分类、编辑说明，并像切换插件一样启用或禁用任意提示词。\n\nCodex-X 现在不只是“几套内置 Prompt”的启动器，而是一个可视化提示词注入与管理工具：\n\n- 按分类管理提示词，例如破甲 / 逆向、软件开发、写作辅助，也可以新增自己的分类\n- 支持同步 GitHub 模板、导入 Markdown、手动添加提示词、编辑标题 / 文件名 / 内容\n- 每个提示词都有独立开",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:00.330134"
+  },
+  {
+    "basic_info": {
+      "name": "riddle",
+      "full_name": "MaximeRivest/riddle",
+      "owner": "MaximeRivest",
+      "description": "The diary of Tom Riddle for the reMarkable Paper Pro — write with your pen, the page drinks your ink and answers in a flowing hand",
+      "url": "https://github.com/MaximeRivest/riddle",
+      "clone_url": "https://github.com/MaximeRivest/riddle.git",
+      "ssh_url": "git@github.com:MaximeRivest/riddle.git",
+      "homepage": null,
+      "created_at": "2026-07-05T15:48:08Z",
+      "updated_at": "2026-07-30T20:21:03Z",
+      "pushed_at": "2026-07-12T23:53:42Z"
+    },
+    "stats": {
+      "stars": 1759,
+      "forks": 159,
+      "watchers": 1759,
+      "open_issues": 18,
+      "size": 7518
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 161790,
+        "Shell": 5288
+      },
+      "license": "MIT License",
+      "topics": [
+        "appload",
+        "eink",
+        "quill",
+        "remagic-app",
+        "remarkable-customization",
+        "remarkable-paper-pro"
+      ]
+    },
+    "content": {
+      "readme": "# riddle — the diary of Tom Riddle, for the reMarkable Paper Pro\n\nWrite on the page with your pen. After a pause, the diary **drinks your ink** —\nyour words fade into the paper — the page thinks for a moment, and an answer\nwrites itself back in a flowing hand, stroke by stroke, then fades away.\n\nNo screen glow, no keyboard, no chat UI. Just ink appearing on paper.\n\n_This is the diary from [the demo](https://x.com/MaximeRivest)._\n\n### 🪄 New to this? Start here\n\nYou need a **reMarkable Paper Pro** in developer mode with a launcher installed.\nIf that sounds like a lot, it isn't — **[remagic](https://github.com/maximerivest/remagic)**\nwalks you through turning on developer mode and sets up everything with one\ncommand. Come back here, drop riddle in, and start writing to Tom.\n\nAlready have xovi + AppLoad? Install from the [remagic](https://github.com/maximerivest/remagic)\ncatalog, [grab the prebuilt bundle](#install-the-prebuilt-bundle), or\n[build from source](#building).\n\n### Install with remagic (easiest)\n\n```sh\nremagic install riddle     # checksum-verified download → AppLoad\nremagic config riddle      # settings form in your browser (+ QR for phone)\n```\n\nThen in **AppLoad**: tap **Reload**, then **The Diary**. Write, and rest your\npen. (Or install it from the **Store** app right on the tablet.)\n\n### Install the prebuilt bundle\n\n1. Grab `riddle-<version>.zip` from the [latest release](https://github.com/MaximeRivest/riddle/releases/latest)\n   and unzip it into a folder: `unzip riddle-*.zip -d riddle`\n2. Copy the folder to your tablet:\n   `scp -O -r riddle root@10.11.99.1:/home/root/xovi/exthome/appload/`\n3. Add an API key: `cp oracle.env.example oracle.env` in that folder and put your `RIDDLE_OPENAI_KEY` in it (any OpenAI-compatible key). Or skip it to use [pi](#option-b--pi-the-power-path).\n4. In **AppLoad**: tap **Reload**, then **The Diary**. Write, and rest your pen.\n\n> ⚠️ **This modifies your device.** The prebuilt bundle and the catalog build\n> run in **takeover mode**: tapping The Diary stops the whole reMarkable UI\n> and takes the screen. Leave with a **5-finger tap** — xochitl restarts\n> automatically. It runs as root and drives the e-ink engine directly. It has\n> only been tested on a **reMarkable Paper Pro** (ferrari, aarch64,\n> OS 3.26–3.27). It may not work on other models or OS versions, and you use\n> it entirely at your own risk. Not affiliated with reMarkable AS. Keep SSH\n> access working before you install anything — if anything ever wedges:\n> `ssh root@10.11.99.1 'systemctl start xochitl'`.\n\n## How it works\n\n```\n pen (raw evdev, full 4096-level pressure, hardware event rate)\n   │ strokes\n   ▼\n riddle ── idle 2.8s → commit page → PNG ──► oracle (resident LLM process,\n   │                                          streams reply sentence-by-sentence)\n   ▼ strokes (Dancing Script → skeletonized to single-pixel pen paths)\n display backend\n   ├── qtfb        — windowed, inside xochitl (build-from-source flavour)\n   └── quill       — full takeover: xochitl stopped, vendor e-ink engine\n                     driven directly for instant ink (lowest latency there\n                     is; what the prebuilt bundle runs)\n```\n\n- **This repository** — the app (Rust). Pen input, ink surface, handwriting\n  synthesis (rasterize → Zhang-Suen thinning → stroke tracing → animated\n  replay), the oracle process manager, and both display backends.\n- **[Quill](https://github.com/MaximeRivest/quill)** — the sibling takeover display host (C/C++). A\n  clean-room, MIT-licensed adapter over the vendor `libqsgepaper.so` waveform\n  engine, exposed as a small C ABI (`quill_init` / `quill_buffer` / `quill_swap`)\n  that riddle links against with `--features takeover`. Also carries a small\n  family of demos (`scribble`, a pen-to-glass latency test, plus map, image,\n  and GIF renderers).\n\n## Gestures\n\n| Do this | And |\n|---------|-----|\n| Write, then rest the pen | The diary drinks your ink and Tom replies |\n| Write *\"show me what I wrote about…\"* | The remembered page **rises through the paper**: the date, your own handwriting rewriting itself stroke by stroke, Tom's old reply — all in faded ink. Touch the pen anywhere and today's page returns |\n| Write *\"what do you remember?\"* | Tom answers with a handwritten list of remembered moments |\n| Flip the marker | Erase |\n| Draw a large **?** | Summon the built-in guide |\n| Tap five fingers at once | Leave the diary *(takeover mode)* |\n| Power button | The page turns to *\"The diary sleeps.\"*, then the tablet suspends; press again to wake exactly where you were *(takeover mode)* |\n\nIn the windowed (qtfb) flavour, xochitl keeps the touchscreen and the power\nbutton: close the diary from AppLoad instead.\n\n## The diary remembers\n\nEvery finished page is kept — your actual pen strokes, a transcription, and\nTom's reply — so the diary can do three things:\n\n- **Follow the conversation.** Recent pages ride along with each request, so\n  Tom remembers what you wrote yesterday (both backends, same ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:01.582614"
+  },
+  {
+    "basic_info": {
+      "name": "Aether",
+      "full_name": "CluvexStudio/Aether",
+      "owner": "CluvexStudio",
+      "description": null,
+      "url": "https://github.com/CluvexStudio/Aether",
+      "clone_url": "https://github.com/CluvexStudio/Aether.git",
+      "ssh_url": "git@github.com:CluvexStudio/Aether.git",
+      "homepage": null,
+      "created_at": "2026-07-14T14:20:44Z",
+      "updated_at": "2026-07-31T03:53:44Z",
+      "pushed_at": "2026-07-30T08:01:30Z"
+    },
+    "stats": {
+      "stars": 1637,
+      "forks": 108,
+      "watchers": 1637,
+      "open_issues": 13,
+      "size": 3723
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4907960,
+        "C": 111636,
+        "JavaScript": 28744,
+        "Shell": 13052,
+        "HTML": 9173,
+        "Makefile": 3104,
+        "Dockerfile": 3047,
+        "CSS": 2053,
+        "Batchfile": 254
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Aether\n\n![Aether](Docs/Aether.png)\n\n### اینترنت آزاد برای همه :))\n**[راهنمای فارسی](README.fa.md)** · **[English Guide](Docs/GUIDE.en.md)** · **[راهنمای کامل فارسی](Docs/GUIDE.fa.md)**\n\nTelegram: https://t.me/CluvexStudio\n\nAether is a censorship circumvention client designed for heavily restricted networks. It automatically discovers reachable routes, establishes an encrypted tunnel, and exposes a local SOCKS5 proxy for your applications.\n\nUnlike traditional VPN clients, Aether is built for environments where Deep Packet Inspection (DPI), protocol fingerprinting, UDP throttling, and endpoint blocking are common.\n\n## Features\n\n- Automatic endpoint discovery, with end-to-end data-plane validation so a gateway is only trusted once it actually passes traffic, not just once it answers the handshake\n- MASQUE (HTTP/3 & HTTP/2), with optional TLS ClientHello fragmentation on HTTP/2\n- WireGuard support\n- Nested WireGuard mode (`gool`)\n- Traffic obfuscation\n- Automatic reconnection, and quick-reconnect to your last known-good gateway to skip rescanning\n- Local SOCKS5 proxy\n- Command-line flags, environment variables, or interactive prompts — your choice\n- Linux, Windows, macOS and Android (Termux)\n\n## Download\n\nPrebuilt binaries are available on the Releases page for:\n\n- Linux\n- Windows\n- macOS\n- Android (Termux)\n\n### Termux (Android) — one-line install\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/CluvexStudio/aether/main/aether.sh -o aether.sh && chmod +x aether.sh && ./aether.sh install\n```\n\nThis detects your device architecture, downloads the matching release, verifies its checksum, and installs `aether` into `$PREFIX/bin`. Run it afterwards with:\n\n```bash\naether\n```\n\nTo update later, run `./aether.sh update`. To remove it, run `./aether.sh uninstall`.\n\n## Build\n\n### Requirements\n\n- Rust (latest stable)\n- C/C++ compiler\n- CMake\n\nThe `quiche` repository must be placed alongside `aether`:\n\n```text\n<repo>/\n  aether/\n  quiche/\n```\n\nBuild:\n\n```bash\ncargo build --release\n```\n\nBinary:\n\n```text\ntarget/release/aether\n```\n\n## Docker\n\nYou can run Aether in an isolated environment using Docker. The official image is available on GitHub Container Registry (GHCR).\n\n> **The SOCKS5 proxy has no authentication.** Anyone who can reach the port can use your tunnel. Every command below publishes the port to `127.0.0.1` only, so it stays reachable from your own machine and nothing else. Do not replace it with `-p 1819:1819`, because that form listens on every interface of the host and turns the proxy into an open relay. If you genuinely need to serve other machines, put an authenticated front end in front of it and firewall the port.\n\nThe `-v aether-data:/data` volume keeps the generated WARP identity between runs. Without it every start registers a brand new device, and Cloudflare begins rate limiting your address.\n\nPull and run the pre-built image (interactive mode is required for initial setup):\n\n```bash\ndocker run -it -p 127.0.0.1:1819:1819 -v aether-data:/data ghcr.io/cluvexstudio/aether:latest\n```\n\nYou can also bypass prompts by providing environment variables:\n\n```bash\ndocker run -it -p 127.0.0.1:1819:1819 -v aether-data:/data \\\n  -e AETHER_PROTOCOL=masque \\\n  -e AETHER_SCAN=balanced \\\n  ghcr.io/cluvexstudio/aether:latest\n```\n\nIf you prefer to build the image manually from source:\n\n```bash\ndocker build -t aether .\ndocker run -it -p 127.0.0.1:1819:1819 -v aether-data:/data aether\n```\n\n## Usage\n\nRun with no arguments and answer the prompts:\n\n```bash\n./target/release/aether\n```\n\nOr skip the prompts with flags:\n\n```bash\n./target/release/aether --masque -4 --scan turbo --noize firewall\n```\n\nOn Windows, double-click `run-aether.bat` (included in the release zip) instead — it opens a terminal, runs `aether.exe`, and keeps the window open afterwards so you can read any errors.\n\nEvery prompt has a flag and an environment variable equivalent. Run `./target/release/aether --help` for the full list, or see the guides linked below.\n\nAfter startup, a SOCKS5 proxy will be available at:\n\n```\n127.0.0.1:1819\n```\n\nExample:\n\n```bash\ncurl -x socks5h://127.0.0.1:1819 https://www.cloudflare.com/cdn-cgi/trace\n```\n\n## Supported Protocols\n\n### MASQUE (Recommended)\n\nEncapsulates traffic over HTTP/3 (QUIC) or HTTP/2 (TLS), making it resemble ordinary HTTPS traffic.\n\n### WireGuard\n\nFast and lightweight transport for networks with less aggressive inspection.\n\n### Nested WireGuard (`gool`)\n\nA WireGuard tunnel running inside another WireGuard tunnel, providing an additional encryption layer.\n\n## Documentation\n\nDetailed documentation is available in:\n\n- [Docs/GUIDE.en.md](Docs/GUIDE.en.md) — English guide\n- [Docs/GUIDE.fa.md](Docs/GUIDE.fa.md) — راهنمای فارسی\n\n## Credits\n\nDeveloped by **CluvexStudio**. :))\n\nMASQUE support is built on top of Cloudflare's **Quiche** library.\n\n\n## Contributing\n\n> **Experienced network developers and protocol engineers are welcome to contribute.**\n\n> **Please keep the codebase clean, maintainable, and well-engineered. L",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:02.811893"
+  },
+  {
+    "basic_info": {
+      "name": "FluxDown",
+      "full_name": "zerx-lab/FluxDown",
+      "owner": "zerx-lab",
+      "description": "Rust 驱动的多协议下载管理器，支持 HTTP/FTP/BitTorrent 磁力链接及 HLS/DASH 流媒体，智能多线程加速与浏览器无缝集成。精美界面，极致性能，永久免费，零广告。",
+      "url": "https://github.com/zerx-lab/FluxDown",
+      "clone_url": "https://github.com/zerx-lab/FluxDown.git",
+      "ssh_url": "git@github.com:zerx-lab/FluxDown.git",
+      "homepage": "https://fluxdown.zerx.dev",
+      "created_at": "2026-07-03T01:00:17Z",
+      "updated_at": "2026-07-31T04:16:37Z",
+      "pushed_at": "2026-07-31T02:46:54Z"
+    },
+    "stats": {
+      "stars": 1237,
+      "forks": 62,
+      "watchers": 1237,
+      "open_issues": 118,
+      "size": 57634
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4878997,
+        "Dart": 3365872,
+        "TypeScript": 2247970,
+        "C++": 244648,
+        "CSS": 153166,
+        "Swift": 91121,
+        "Astro": 70443,
+        "JavaScript": 63901,
+        "CMake": 44160,
+        "HTML": 39409,
+        "Inno Setup": 31617,
+        "Shell": 25312,
+        "Python": 19313,
+        "Kotlin": 15119,
+        "C": 7721,
+        "Dockerfile": 5388,
+        "Ruby": 4900,
+        "Objective-C": 38
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/logo/fluxdown_logo.png\" alt=\"FluxDown Logo\" width=\"128\" />\n\n# FluxDown\n\n### Downloads, Supercharged.\n\n*A blazing fast, multi-protocol download manager — the free & open-source IDM alternative.*\n\n[![Latest Release](https://img.shields.io/github/v/release/zerx-lab/FluxDown?style=flat-square&color=06b6d4&label=release)](https://github.com/zerx-lab/FluxDown/releases/latest)\n[![Downloads](https://img.shields.io/github/downloads/zerx-lab/FluxDown/total?style=flat-square&color=22c55e)](https://github.com/zerx-lab/FluxDown/releases)\n[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square)](LICENSE)\n[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20NAS%20%7C%20Android-8b5cf6?style=flat-square)](#installation)\n[![Rust](https://img.shields.io/badge/engine-Rust-f74c00?style=flat-square&logo=rust)](native/engine)\n[![Flutter](https://img.shields.io/badge/UI-Flutter-02569B?style=flat-square&logo=flutter)](lib)\n[![MCP Server](https://glama.ai/mcp/servers/zerx-lab/FluxDown/badges/score.svg)](https://glama.ai/mcp/servers/zerx-lab/FluxDown)\n\n[![Awesome Rust](https://img.shields.io/badge/Awesome-Rust-orange?logo=rust&style=flat-square)](https://github.com/rust-unofficial/awesome-rust#utilities)\n[![Awesome Windows](https://img.shields.io/badge/Awesome-Windows-0078D4?style=flat-square)](https://github.com/thechampagne/awesome-windows#utilities)\n[![Awesome Free Apps](https://img.shields.io/badge/Awesome-Free%20Apps-22c55e?style=flat-square)](https://github.com/Axorax/awesome-free-apps#download-managers)\n[![Android FOSS](https://img.shields.io/badge/Android-FOSS-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/offa/android-foss#-downloader--manager)\n[![Open Source Android](https://img.shields.io/badge/Open%20Source-Android%20Apps-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/pcqpcq/open-source-android-apps/blob/master/categories/tools.md)\n[![Portainer](https://img.shields.io/badge/Portainer-Template-13BEF9?style=flat-square&logo=portainer&logoColor=white)](https://portainer-templates.as93.net/fluxdown)\n[![Unraid CA](https://img.shields.io/badge/Unraid-CA-F15A2C?style=flat-square)](https://github.com/selfhosters/unRAID-CA-templates/blob/master/templates/fluxdown.xml)\n[![Chinese Indie Dev](https://img.shields.io/badge/Chinese%20Indie-Dev-ef4444?style=flat-square)](https://github.com/1c7/chinese-independent-developer)\n\n[**Website**](https://fluxdown.zerx.dev) · [**Download**](https://fluxdown.zerx.dev/#download) · [**Changelog**](https://fluxdown.zerx.dev/changelog) · [**FAQ**](https://fluxdown.zerx.dev/faq) · [**Feedback**](https://fluxdown.zerx.dev/feedback)\n\n**English** | [简体中文](README.zh-CN.md)\n\n</div>\n\n---\n\n## Highlights\n\n- **Up to 10x faster** — Rust + Tokio engine with IDM-style dynamic segmentation\n- **Multi-protocol** — HTTP/HTTPS, FTP, BitTorrent, eD2K, HLS & DASH streaming\n- **Browser integration** — Chrome / Edge / Firefox extension with a 3-layer interception engine\n- **AI-agent ready** — built-in MCP (Model Context Protocol) server: let Claude, Cursor & other AI clients manage your downloads\n- **Resume anywhere** — full download state persisted in SQLite; survive crashes and reboots\n- **Beautiful UI** — light/dark themes, 13 color schemes, responsive three-pane layout\n- **Clean & private** — free and open source, no ads, no tracking, no account required, local-first\n\n## Features\n\n| Feature | Description |\n|---|---|\n| **Rust-Powered Engine** | Built on Rust and Tokio with zero-cost abstractions — memory-safe concurrency at maximum throughput |\n| **Smart Segmentation** | Segments split dynamically at runtime; idle threads rescue slow segments, just like IDM — but smarter |\n| **Multi-Protocol** | Dedicated engines for HTTP/HTTPS, FTP, BitTorrent (DHT/UPnP/magnet), eD2K (server + Kad DHT source finding, MD4 verification), HLS (AES-decrypt) and DASH |\n| **Speed Control** | Token-bucket global rate limiting — download in the background without killing your browsing |\n| **Resume Anywhere** | Every byte tracked in SQLite with WAL; power loss never costs you progress |\n| **Browser Integration** | Three-layer download interception, streaming media sniffing, Alt+Click bypass, right-click send |\n| **MCP Server** | Built-in Model Context Protocol endpoint (Streamable HTTP) with 12 tools — AI agents can add, monitor and control downloads |\n| **Beautiful Interface** | shadcn-style widgets, IDM-style segment visualization, named queues, system tray |\n| **Clean & Private** | Zero ads, zero telemetry lock-in, zero accounts — your data never leaves your machine |\n\n## FluxDown vs. IDM\n\n| | FluxDown | IDM |\n|---|:---:|:---:|\n| Price | **Free & open source** | $24.95 + renewals |\n| Open source | Yes (AGPL-3.0) | No |\n| Platforms | Windows / macOS / Linux / NAS / Android | Windows only |\n| BitTorrent & magnet | Yes | No |\n| eD2K / eMule links | Yes | No |\n| HLS / DASH st",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:04.033475"
+  },
+  {
+    "basic_info": {
+      "name": "dnsglobe",
+      "full_name": "514-labs/dnsglobe",
+      "owner": "514-labs",
+      "description": "Global DNS propagation checker TUI — watch a DNS record propagate across 34 public resolvers worldwide, on a world map in your terminal",
+      "url": "https://github.com/514-labs/dnsglobe",
+      "clone_url": "https://github.com/514-labs/dnsglobe.git",
+      "ssh_url": "git@github.com:514-labs/dnsglobe.git",
+      "homepage": null,
+      "created_at": "2026-07-05T01:03:37Z",
+      "updated_at": "2026-07-30T13:34:55Z",
+      "pushed_at": "2026-07-11T20:18:03Z"
+    },
+    "stats": {
+      "stars": 933,
+      "forks": 30,
+      "watchers": 933,
+      "open_issues": 3,
+      "size": 7990
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "MIT License",
+      "topics": [
+        "cli",
+        "dns",
+        "dns-checker",
+        "dns-propagation",
+        "ratatui",
+        "rust",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "# dnsglobe\n\n[![crates.io](https://img.shields.io/crates/v/dnsglobe)](https://crates.io/crates/dnsglobe)\n[![dnsglobe](https://img.shields.io/aur/version/dnsglobe?label=aur%20dnsglobe)](https://aur.archlinux.org/packages/dnsglobe/)\n[![dnsglobe-bin](https://img.shields.io/aur/version/dnsglobe-bin?label=aur%20dnsglobe-bin)](https://aur.archlinux.org/packages/dnsglobe-bin/)\n[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n\n**A global DNS propagation checker for your terminal** — a Rust TUI that\nqueries 34 public DNS resolvers around the world in parallel, compares their\nanswers, and shows the propagation of your record on a world map.\n\n![dnsglobe demo — checking A and NS records for a domain across 34 resolvers worldwide with EDNS Client Subnet, cycling the client subnet, then morphing the world map into a rotating globe](demo/demo.gif)\n\nThink dnschecker.org / whatsmydns.net, but in your terminal, with watch mode:\nstart a check and it re-polls until the record has propagated everywhere.\n\nResolvers span the global anycast networks (Google, Cloudflare, Quad9),\nNorth America, Europe, Russia, the Middle East, East Asia, and the southern\nhemisphere (Telstra AU, SafeSurfer NZ, UOL BR) — each queried directly, so\nyou see every server's own current view of the record.\n\nEach resolver is queried directly (no cache, EDNS0, TCP fallback for\ntruncated answers), so what you see is each server's own current view of the\nrecord. Answers sharing any record are grouped together — so round-robin DNS\n(each resolver caching a different subset of an IP pool) counts as one\nconsistent answer, not twenty conflicting ones. The propagation gauge shows\nhow many resolvers are in the majority group; outliers are flagged\n`≠ DIFFERS` once all results are in.\n\nWhen the terminal is wide enough, a view of the world appears on the right\nwith one dot per resolver, colored by status (green agrees, magenta differs,\nred error, yellow in flight). The view adapts to the width: terminals ≥157\ncolumns get a flat world map, narrower ones (≥131 columns) get a spinning 3D\nglobe, which needs fewer columns; resizing across the threshold morphs one\ninto the other. Ctrl+O toggles map/globe by hand, and `--view auto|map|globe`\n(or `view = \"...\"` in the config file) forces a style outright.\n\nAnycast networks are asked which of their sites is answering you: Quad9\n(`TXT id.server.on.quad9.net`), Cloudflare (`CH TXT id.server`), Google\n(egress subnet via `TXT o-o.myaddr.l.google.com` matched against\n`TXT locations.publicdns.goog`), OpenDNS (`TXT debug.opendns.com`),\nCleanBrowsing, and Neustar UltraDNS. The discovered site shows in the Loc\ncolumn as `→YUL`-style codes, and the resolver's map dot moves to the POP\nactually serving your queries.\n\n## Usage\n\nInstall:\n\n```sh\nbrew install 514-labs/tap/dnsglobe   # Homebrew (macOS/Linux)\ncargo install dnsglobe               # from crates.io\nyay -S dnsglobe                      # from archlinux aur (compile from source)\nyay -S dnsglobe-bin                  # from archlinux aur (install prebuilt binary)\nnix run github:514-labs/dnsglobe     # Nix flakes (builds from source)\n# or grab a prebuilt binary from the GitHub Releases page\n```\n\nRun:\n\n```sh\ndnsglobe                            # start empty, type a domain\ndnsglobe example.com                # query immediately and watch\ndnsglobe example.com TXT            # same, starting on TXT records\ndnsglobe --once example.com TXT     # no TUI: print results, exit (for scripts)\ndnsglobe example.com --ecs 203.0.113.0/24        # see the zone as that client network does\ndnsglobe --once example.com --ecs 203.0.113.0/24,198.51.100.0/24\n                                    # one table per subnet + a convergence summary\n```\n\n### EDNS Client Subnet (ECS)\n\n`--ecs` (or `ecs = [...]` in the config file) attaches an EDNS Client Subnet\noption ([RFC 7871](https://datatracker.ietf.org/doc/html/rfc7871)) to every\nquery, so GeoDNS zones answer for that client network instead of the\nresolver's own vantage point. Subnets are CIDRs or bare IPs; most public\nresolvers use at most /24 (IPv4) or /56 (IPv6). With several subnets\nconfigured, Ctrl+N cycles the active one (plus an *off* position) and\nre-queries immediately; `--once` runs every subnet and ends with a\nper-subnet convergence summary. Resolvers that deliberately ignore ECS\n(Cloudflare, Quad9, …) are tagged `NO ECS` — their answer is shown for\nreference but excluded from the propagation percentage, since it describes\ntheir own location, not the probed network.\n\n### Keys\n\n| Key            | Action                          |\n| -------------- | ------------------------------- |\n| type / ⌫ / Del | edit domain                     |\n| ←/→ / Home/End | move cursor in the domain field |\n| Enter          | start the check and watch: re-polls every 30 s until propagation reaches 100% |\n| Ctrl+R         | stop or resume watching         |\n| Tab / Shift-Tab | select record type (A, AAAA, CNAME, MX, NS, TXT, SOA) and re-query |\n| ↑/↓ / PgUp/PgDn",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:05.226922"
+  },
+  {
+    "basic_info": {
+      "name": "MovieBox-Tui",
+      "full_name": "mesamirh/MovieBox-Tui",
+      "owner": "mesamirh",
+      "description": "A modern Rust based terminal user interface for MovieBox. Fast, lightweight, keyboard first, and cross-platform.",
+      "url": "https://github.com/mesamirh/MovieBox-Tui",
+      "clone_url": "https://github.com/mesamirh/MovieBox-Tui.git",
+      "ssh_url": "git@github.com:mesamirh/MovieBox-Tui.git",
+      "homepage": "",
+      "created_at": "2026-07-16T07:09:47Z",
+      "updated_at": "2026-07-31T03:59:25Z",
+      "pushed_at": "2026-07-30T21:14:18Z"
+    },
+    "stats": {
+      "stars": 797,
+      "forks": 71,
+      "watchers": 797,
+      "open_issues": 8,
+      "size": 29641
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": [
+        "anime",
+        "moviebox",
+        "moviebox-api",
+        "movies-streaming",
+        "series",
+        "streaming"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:06.280383"
+  },
+  {
+    "basic_info": {
+      "name": "waggle",
+      "full_name": "modiqo/waggle",
+      "owner": "modiqo",
+      "description": "Attributed, resolvable artifact references for agent handoffs — a ~30-byte token instead of pasted context. MCP-native; the reference layer for the agent-harness world.",
+      "url": "https://github.com/modiqo/waggle",
+      "clone_url": "https://github.com/modiqo/waggle.git",
+      "ssh_url": "git@github.com:modiqo/waggle.git",
+      "homepage": "https://waggle.sh",
+      "created_at": "2026-07-08T04:33:09Z",
+      "updated_at": "2026-07-30T11:18:43Z",
+      "pushed_at": "2026-07-20T19:41:30Z"
+    },
+    "stats": {
+      "stars": 795,
+      "forks": 109,
+      "watchers": 795,
+      "open_issues": 0,
+      "size": 4706
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-agents",
+        "harness-engineering",
+        "llm-tools",
+        "loop-engineering"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:07.333132"
+  },
+  {
+    "basic_info": {
+      "name": "fastctx",
+      "full_name": "yc-duan/fastctx",
+      "owner": "yc-duan",
+      "description": "Fast, context-efficient repository tools for AI agents (MCP)",
+      "url": "https://github.com/yc-duan/fastctx",
+      "clone_url": "https://github.com/yc-duan/fastctx.git",
+      "ssh_url": "git@github.com:yc-duan/fastctx.git",
+      "homepage": null,
+      "created_at": "2026-07-17T03:05:57Z",
+      "updated_at": "2026-07-31T03:55:45Z",
+      "pushed_at": "2026-07-25T20:27:08Z"
+    },
+    "stats": {
+      "stars": 664,
+      "forks": 21,
+      "watchers": 664,
+      "open_issues": 9,
+      "size": 1595
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:08.385455"
+  },
+  {
+    "basic_info": {
+      "name": "pon",
+      "full_name": "can1357/pon",
+      "owner": "can1357",
+      "description": "Python 3.14, compiled to metal — JIT & AoT native compiler and runtime in Rust. Cranelift backend, ruff parser, Green Tea GC, byte-exact differential testing against CPython.",
+      "url": "https://github.com/can1357/pon",
+      "clone_url": "https://github.com/can1357/pon.git",
+      "ssh_url": "git@github.com:can1357/pon.git",
+      "homepage": null,
+      "created_at": "2026-07-02T16:44:07Z",
+      "updated_at": "2026-07-30T19:26:33Z",
+      "pushed_at": "2026-07-07T08:12:09Z"
+    },
+    "stats": {
+      "stars": 538,
+      "forks": 16,
+      "watchers": 538,
+      "open_issues": 1,
+      "size": 27599
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": null,
+      "topics": [
+        "aot",
+        "compiler",
+        "cranelift",
+        "garbage-collector",
+        "jit",
+        "python",
+        "python3",
+        "runtime",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:09.437610"
+  },
+  {
+    "basic_info": {
+      "name": "usbtree",
+      "full_name": "gnomeria/usbtree",
+      "owner": "gnomeria",
+      "description": "Live USB device tree in your terminal. Rust TUI, no root, no libusb. Full activity metrics on Linux; device tree on macOS/Windows.",
+      "url": "https://github.com/gnomeria/usbtree",
+      "clone_url": "https://github.com/gnomeria/usbtree.git",
+      "ssh_url": "git@github.com:gnomeria/usbtree.git",
+      "homepage": "https://gnomeria.github.io/usbtree/",
+      "created_at": "2026-07-07T14:19:23Z",
+      "updated_at": "2026-07-31T01:29:35Z",
+      "pushed_at": "2026-07-28T01:24:10Z"
+    },
+    "stats": {
+      "stars": 509,
+      "forks": 10,
+      "watchers": 509,
+      "open_issues": 5,
+      "size": 9437
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "MIT License",
+      "topics": [
+        "cli",
+        "linux",
+        "macos",
+        "nusb",
+        "ratatui",
+        "rust",
+        "terminal",
+        "tui",
+        "usb",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:10.490423"
+  },
+  {
+    "basic_info": {
+      "name": "tura",
+      "full_name": "Tura-AI/tura",
+      "owner": "Tura-AI",
+      "description": "Across 348 long-horizon benchmark sessions, Tura used up to 83.1% fewer turns on the rewrite benchmark and improved the DeepSWE pass rate by up to 16.7 percentage points compared with Codex CLI.",
+      "url": "https://github.com/Tura-AI/tura",
+      "clone_url": "https://github.com/Tura-AI/tura.git",
+      "ssh_url": "git@github.com:Tura-AI/tura.git",
+      "homepage": "https://turaai.net/",
+      "created_at": "2026-07-06T13:58:44Z",
+      "updated_at": "2026-07-31T04:15:40Z",
+      "pushed_at": "2026-07-28T10:31:44Z"
+    },
+    "stats": {
+      "stars": 490,
+      "forks": 24,
+      "watchers": 490,
+      "open_issues": 10,
+      "size": 146493
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "agent",
+        "agentic-ai",
+        "coding-agent",
+        "context-engineering",
+        "developer-tools",
+        "developer-tools-ai-agent",
+        "harness-engineering",
+        "llm",
+        "terminal-based",
+        "token-optimization",
+        "token-usage"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:11.542760"
+  },
+  {
+    "basic_info": {
+      "name": "CSSwitch",
+      "full_name": "SuperJJ007/CSSwitch",
+      "owner": "SuperJJ007",
+      "description": "帮你的 Claude Science 一键接入你自己的 API：DeepSeek / 通义千问 / 智谱 GLM / Kimi / MiniMax / 小米 MiMo / 硅基流动 / OpenRouter / 任意 OpenAI·Anthropic 兼容端点",
+      "url": "https://github.com/SuperJJ007/CSSwitch",
+      "clone_url": "https://github.com/SuperJJ007/CSSwitch.git",
+      "ssh_url": "git@github.com:SuperJJ007/CSSwitch.git",
+      "homepage": null,
+      "created_at": "2026-07-02T16:46:56Z",
+      "updated_at": "2026-07-30T12:35:15Z",
+      "pushed_at": "2026-07-30T11:55:53Z"
+    },
+    "stats": {
+      "stars": 420,
+      "forks": 43,
+      "watchers": 420,
+      "open_issues": 28,
+      "size": 8380
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "MIT License",
+      "topics": [
+        "anthropic",
+        "claude",
+        "claude-science",
+        "dashscope",
+        "deepseek",
+        "llm",
+        "macos",
+        "mcp",
+        "menubar",
+        "openai-compatible",
+        "proxy",
+        "qwen",
+        "tauri"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:12.595564"
+  },
+  {
+    "basic_info": {
+      "name": "tty7",
+      "full_name": "l0ng-ai/tty7",
+      "owner": "l0ng-ai",
+      "description": "A terminal workbench in pure Rust: shells, persistent sessions, SSH, coding agents. GPU-rendered on Zed's gpui, VT core from Alacritty.",
+      "url": "https://github.com/l0ng-ai/tty7",
+      "clone_url": "https://github.com/l0ng-ai/tty7.git",
+      "ssh_url": "git@github.com:l0ng-ai/tty7.git",
+      "homepage": "https://github.com/l0ng-ai/tty7/releases/latest",
+      "created_at": "2026-07-06T12:51:10Z",
+      "updated_at": "2026-07-31T04:11:41Z",
+      "pushed_at": "2026-07-31T04:11:45Z"
+    },
+    "stats": {
+      "stars": 407,
+      "forks": 23,
+      "watchers": 407,
+      "open_issues": 18,
+      "size": 7163
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-agents",
+        "alacritty",
+        "claude-code",
+        "coding-agent",
+        "cross-platform",
+        "daemon",
+        "developer-tools",
+        "gpu",
+        "gpui",
+        "linux",
+        "macos",
+        "pty",
+        "rust",
+        "shell",
+        "ssh",
+        "terminal",
+        "terminal-emulator",
+        "terminal-multiplexer",
+        "tmux",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:13.648054"
+  },
+  {
+    "basic_info": {
+      "name": "brain0",
+      "full_name": "Brain0-ai/brain0",
+      "owner": "Brain0-ai",
+      "description": "The black box for AI-written code. Passive decision graph linking every commit to the agent prompts behind it: drift detection, DLP audit of what agents read, evidence-driven risk, MCP memory for coding agents, signed provenance attestations. One command, offline by default.",
+      "url": "https://github.com/Brain0-ai/brain0",
+      "clone_url": "https://github.com/Brain0-ai/brain0.git",
+      "ssh_url": "git@github.com:Brain0-ai/brain0.git",
+      "homepage": "",
+      "created_at": "2026-07-02T12:02:08Z",
+      "updated_at": "2026-07-30T11:18:14Z",
+      "pushed_at": "2026-07-19T08:17:17Z"
+    },
+    "stats": {
+      "stars": 395,
+      "forks": 13,
+      "watchers": 395,
+      "open_issues": 0,
+      "size": 2885
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "attestation",
+        "audit",
+        "claude",
+        "cli",
+        "code-review",
+        "coding-agents",
+        "developer-tools",
+        "dlp",
+        "git",
+        "llm",
+        "local-first",
+        "mcp",
+        "observability",
+        "provenance",
+        "rust",
+        "security",
+        "supply-chain-security",
+        "typescript"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:14.700490"
+  },
+  {
+    "basic_info": {
+      "name": "leaves",
+      "full_name": "patonw/leaves",
+      "owner": "patonw",
+      "description": "A text-mode disk usage visualization utility",
+      "url": "https://github.com/patonw/leaves",
+      "clone_url": "https://github.com/patonw/leaves.git",
+      "ssh_url": "git@github.com:patonw/leaves.git",
+      "homepage": null,
+      "created_at": "2026-07-06T19:43:59Z",
+      "updated_at": "2026-07-31T01:41:55Z",
+      "pushed_at": "2026-07-28T19:12:12Z"
+    },
+    "stats": {
+      "stars": 329,
+      "forks": 6,
+      "watchers": 329,
+      "open_issues": 2,
+      "size": 182
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "Mozilla Public License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:15.752749"
+  },
+  {
+    "basic_info": {
+      "name": "nanocodex",
+      "full_name": "gakonst/nanocodex",
+      "owner": "gakonst",
+      "description": "Building blocks for frontier OpenAI agents in Rust. Nanocodex empowers you with Codex-level performance anywhere.",
+      "url": "https://github.com/gakonst/nanocodex",
+      "clone_url": "https://github.com/gakonst/nanocodex.git",
+      "ssh_url": "git@github.com:gakonst/nanocodex.git",
+      "homepage": "http://docs.rs/nanocodex",
+      "created_at": "2026-07-15T22:46:14Z",
+      "updated_at": "2026-07-31T03:59:43Z",
+      "pushed_at": "2026-07-31T04:13:56Z"
+    },
+    "stats": {
+      "stars": 315,
+      "forks": 26,
+      "watchers": 315,
+      "open_issues": 10,
+      "size": 41569
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": [
+        "codex"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-07-31T04:17:16.805019"
+  },
+  {
+    "basic_info": {
+      "name": "quota-float",
+      "full_name": "change-42-yhmm/quota-float",
+      "owner": "change-42-yhmm",
+      "description": "A lightweight Windows/macOS desktop widget that keeps your Codex quota visible from your local Codex Desktop session.",
+      "url": "https://github.com/change-42-yhmm/quota-float",
+      "clone_url": "https://github.com/change-42-yhmm/quota-float.git",
+      "ssh_url": "git@github.com:change-42-yhmm/quota-float.git",
+      "homepage": null,
+      "created_at": "2026-07-09T08:33:45Z",
+      "updated_at": "2026-07-31T01:27:37Z",
+      "pushed_at": "2026-07-22T13:38:44Z"
+    },
+    "stats": {
+      "stars": 314,
+      "forks": 20,
+      "watchers": 314,
+      "open_issues": 6,
+      "size": 2488
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {},
+      "license": "MIT License",
+      "topics": [
+        "codex",
+        "desktop-app",
+        "macos",
+        "productivity",
+        "quota",
+        "react",
+        "rust",
+        "tauri",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-07-31T04:17:17.857282"
+  }
+]

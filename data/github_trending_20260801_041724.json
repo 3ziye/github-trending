@@ -1,0 +1,848 @@
+[
+  {
+    "basic_info": {
+      "name": "grok-build",
+      "full_name": "xai-org/grok-build",
+      "owner": "xai-org",
+      "description": "SpaceXAI's coding agent harness and TUI. Fullscreen, mouse interactive, extensible.",
+      "url": "https://github.com/xai-org/grok-build",
+      "clone_url": "https://github.com/xai-org/grok-build.git",
+      "ssh_url": "git@github.com:xai-org/grok-build.git",
+      "homepage": null,
+      "created_at": "2026-07-14T20:04:23Z",
+      "updated_at": "2026-08-01T04:11:50Z",
+      "pushed_at": "2026-07-31T18:08:12Z"
+    },
+    "stats": {
+      "stars": 23718,
+      "forks": 4508,
+      "watchers": 23718,
+      "open_issues": 0,
+      "size": 24878
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 57715664,
+        "Python": 110069,
+        "JavaScript": 66127,
+        "Shell": 39383,
+        "PowerShell": 24822,
+        "RenderScript": 1
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<h1>\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://media.x.ai/v1/website/spacexai-symbol-white-transparent-0c31957f.png\">\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png\">\n    <img alt=\"SpaceXAI logo\" src=\"https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png\" width=\"96\">\n  </picture>\n  <br>\n  Grok Build (<code>grok</code>)\n</h1>\n\n**Grok Build** is SpaceXAI's terminal-based AI coding agent. It runs as a\nfull-screen TUI that understands your codebase, edits files, executes shell\ncommands, searches the web, and manages long-running tasks — interactively,\nheadlessly for scripting/CI, or embedded in editors via the Agent Client\nProtocol (ACP).\n\n[Installing the released binary](#installing-the-released-binary) ·\n[Building from source](#building-from-source) ·\n[Documentation](#documentation) ·\n[Repository layout](#repository-layout) ·\n[Development](#development) ·\n[Contributing](#contributing) ·\n[License](#license)\n\n![Grok Build TUI](https://media.x.ai/v1/website/universe-tui-screenshot-6f7a0837.png)\n\n**Learn more about Grok Build at [x.ai/cli](https://x.ai/cli)**\n\nThis repository contains the Rust source for the `grok` CLI/TUI and its agent\nruntime. It is synced periodically from the SpaceXAI monorepo.\n\nA small `SOURCE_REV` file at the root records the full monorepo commit SHA\nfor the version of the code present in this tree.\n\n</div>\n\n---\n\n## Installing the released binary\n\nPrebuilt binaries are published for macOS, Linux, and Windows:\n\n```sh\ncurl -fsSL https://x.ai/cli/install.sh | bash   # macOS / Linux / Git Bash\nirm https://x.ai/cli/install.ps1 | iex          # Windows PowerShell\ngrok --version\n```\n\nSee the [changelog](https://x.ai/build/changelog) for the latest fixes,\nfeatures, and improvements in each release.\n\n## Building from source\n\nRequirements:\n\n- **Rust** — the toolchain is pinned by [`rust-toolchain.toml`](rust-toolchain.toml);\n  `rustup` installs it automatically on first build.\n- **[DotSlash](https://dotslash-cli.com)** — required so hermetic tools under\n  [`bin/`](bin/) (notably [`bin/protoc`](bin/protoc)) can download and run.\n  Install it and ensure `dotslash` is on your `PATH` **before** building:\n\n  ```sh\n  cargo install dotslash\n  # or: prebuilt packages — https://dotslash-cli.com/docs/installation/\n  /usr/bin/env dotslash --help   # sanity check\n  ```\n\n- **protoc** — proto codegen resolves [`bin/protoc`](bin/protoc) via DotSlash,\n  or falls back to a `protoc` on `PATH` / `$PROTOC`.\n- macOS and Linux are supported build hosts; Windows builds are best-effort\n  and not currently tested from this tree.\n\n```sh\ncargo run -p xai-grok-pager-bin              # build + launch the TUI\ncargo build -p xai-grok-pager-bin --release  # release binary: target/release/xai-grok-pager\ncargo check -p xai-grok-pager-bin            # fast validation\n```\n\nThe binary artifact is named `xai-grok-pager`; official installs ship it as\n`grok`. On first launch it opens your browser to authenticate — see the\n[authentication guide](crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md).\n\n## Documentation\n\nFull online documentation is available at\n[docs.x.ai/build/overview](https://docs.x.ai/build/overview).\n\nThe user guide ships with the pager crate:\n[`crates/codegen/xai-grok-pager/docs/user-guide/`](crates/codegen/xai-grok-pager/docs/user-guide/)\n— getting started, keyboard shortcuts, slash commands, configuration, theming,\nMCP servers, skills, plugins, hooks, headless mode, sandboxing, and more.\n\n## Repository layout\n\n| Path | Contents |\n|------|----------|\n| `crates/codegen/xai-grok-pager-bin` | Composition-root package; builds the `xai-grok-pager` binary |\n| `crates/codegen/xai-grok-pager` | The TUI: scrollback, prompt, modals, rendering |\n| `crates/codegen/xai-grok-shell` | Agent runtime + leader/stdio/headless entry points |\n| `crates/codegen/xai-grok-tools` | Tool implementations (terminal, file edit, search, ...) |\n| `crates/codegen/xai-grok-workspace` | Host filesystem, VCS, execution, checkpoints |\n| `crates/codegen/...` | The rest of the CLI crate closure (config, MCP, markdown, sandbox, ...) |\n| `crates/common/`, `crates/build/`, `prod/mc/` | Small shared leaf crates pulled in by the closure |\n| `third_party/` | Vendored upstream source (Mermaid diagram stack) — see below |\n\n> [!IMPORTANT]\n> The root `Cargo.toml` (workspace members, dependency versions, lints,\n> profiles) is **generated** — treat it as read-only. Prefer editing per-crate\n> `Cargo.toml` files.\n\n## Development\n\n```sh\ncargo check -p <crate>        # always target specific crates; full-workspace builds are slow\ncargo test -p xai-grok-config # per-crate tests\ncargo clippy -p <crate>       # lint config: clippy.toml at the repo root\ncargo fmt --all               # rustfmt.toml at the repo root\n```\n\n## Contributing\n\n> [!NOTE]\n> External contributions are not accepted. See [`CON",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:25.371182"
+  },
+  {
+    "basic_info": {
+      "name": "Codex-Dream-Skin",
+      "full_name": "Fei-Away/Codex-Dream-Skin",
+      "owner": "Fei-Away",
+      "description": "Codex Dream Skin",
+      "url": "https://github.com/Fei-Away/Codex-Dream-Skin",
+      "clone_url": "https://github.com/Fei-Away/Codex-Dream-Skin.git",
+      "ssh_url": "git@github.com:Fei-Away/Codex-Dream-Skin.git",
+      "homepage": "https://www.dreamskin.cc",
+      "created_at": "2026-07-15T12:34:51Z",
+      "updated_at": "2026-08-01T04:15:08Z",
+      "pushed_at": "2026-07-31T17:07:33Z"
+    },
+    "stats": {
+      "stars": 12896,
+      "forks": 1288,
+      "watchers": 12896,
+      "open_issues": 78,
+      "size": 23374
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 742952,
+        "PowerShell": 524921,
+        "Shell": 227620,
+        "CSS": 179274,
+        "Swift": 92118,
+        "Inno Setup": 27687
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Codex Dream Skin\n\n<p align=\"center\">\n  <strong>中文</strong> · <a href=\"./README.en.md\">English</a>\n</p>\n\n<p align=\"center\">\n  <strong>给 Codex 桌面端换一张会呼吸的脸。</strong><br>\n  外部主题 / 换肤工具 · 本机 CDP 注入 · 不改官方安装包\n</p>\n\n<p align=\"center\">\n  一张图，一种心情 · 写代码，也要有氛围感\n</p>\n\n<p align=\"center\">\n  官方主题库：<a href=\"https://dreamskin.cc\"><strong>DreamSkin.cc</strong></a> ·\n  <a href=\"https://dreamskin.cc/gallery\">主题库 Gallery</a> ·\n  <a href=\"https://dreamskin.cc/studio\">在线 Studio</a>\n</p>\n\n<p align=\"center\">\n  非 OpenAI 官方产品。不修改 <code>.app</code> / <code>app.asar</code> / WindowsApps。\n</p>\n\n## 🤝 独家赞助\n\n<table>\n<tr>\n<td width=\"180\">\n<a href=\"https://passion8.cc/sign-up?aff=ZgLT\"><img src=\"docs/images/sponsor-passion8.png\" alt=\"Passion8\" width=\"150\"></a>\n</td>\n<td>\n感谢 Passion8 独家赞助本项目！Passion8 是一家面向开发者的 AI API 中转服务商，为个人开发者与团队提供稳定、低成本的主流大模型接入。<br><br>\n<strong>满血 AI · 触手可及</strong>：OpenAI、Claude 全系列原版模型，无降智、无套壳；使用前沿 AI 模型仅需官方价格的一小部分，充值 1:1，<strong>1$ = 1¥</strong>。保留原有官方 SDK，只把 Base URL 换成 Passion8，Claude Code、Codex、Grok 以及任意 OpenAI 兼容客户端都能直接跑——一行配置，代码不用改。\n<strong>全球节点加速</strong>：Cloudflare 全球边缘 + 多线路 BBR 加速，低延迟、高可用、稳定如一；7×24 稳定中转，99.9% SLA，首 Token 目标 1 秒内。\n<strong>安全可靠</strong>：独立 API Key、密钥加密存储、全链路 HTTPS，隐私优先。<br><br>\nPassion8 为本项目用户准备了专属福利：通过<a href=\"https://passion8.cc/sign-up?aff=ZgLT\">此链接</a>注册，首次充值自动赠送 10% 额度，无需申请，30 分钟内到账。有问题联系 <a href=\"mailto:support@passion8.cc\">support@passion8.cc</a>。\n</td>\n</tr>\n</table>\n\n<sub>换肤与 API 配置互相独立，本项目不会自动改写你的模型供应商设置。</sub>\n\n## 直接安装\n\n普通用户只需先安装并退出一次官方 Codex / ChatGPT，然后从\n[GitHub Releases](https://github.com/Fei-Away/Codex-Dream-Skin/releases) 下载：\n\n- macOS：打开 `CodexDreamSkin-vX.Y.Z.dmg`，把 App 拖进 Applications。\n- Windows：双击 `CodexDreamSkin-Setup-vX.Y.Z.exe`，按安装向导完成。\n\n不需要 clone 源码、安装 Node.js 或手动运行 `.sh` / `.ps1`。首次未签名放行、更新和卸载步骤见\n[macOS 安装说明](./docs/install-macos.md) / [Windows 安装说明](./docs/install-windows.md)。\n\n## 主题库与社区\n\n<p align=\"center\">\n  <a href=\"https://dreamskin.cc\">\n    <img src=\"docs/images/dreamskin-mark.svg\" alt=\"DreamSkin.cc\" width=\"140\">\n  </a>\n</p>\n\n<p align=\"center\">\n  <strong>DreamSkin.cc</strong> · 本项目的官方主题库与创作平台<br>\n  <sub>Make your workspace <em>yours.</em></sub>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://dreamskin.cc/gallery\"><strong>浏览主题库 →</strong></a>\n  &nbsp;·&nbsp;\n  <a href=\"https://dreamskin.cc/studio\"><strong>在线 Studio →</strong></a>\n</p>\n\n- [**主题库 Gallery**](https://dreamskin.cc/gallery)：浏览社区已审核的主题，支持最新 / 热门排序和创作者榜单。\n  每套主题都能先在网页里的桌面模拟器中试穿，再决定装不装。\n\n<p align=\"center\">\n  <a href=\"https://dreamskin.cc/gallery\">\n    <img src=\"docs/images/site-tryon-zh.webp\" alt=\"在 DreamSkin.cc 的桌面模拟器里试穿社区主题「晨雾山水」\" width=\"900\">\n  </a><br>\n  <sub>社区主题「晨雾山水」的在线试穿 · 首页/任务页、宽窄窗口、侧栏展开收起都能当场切，满意了再一键换肤或下载主题包</sub>\n</p>\n\n- [**在线 Studio**](https://dreamskin.cc/studio)：在浏览器里换背景图、调主题色、写 Safe CSS，导出 `.zip` 主题包，\n  也可以直接投稿到主题库（需登录，经人工审核后公开）。\n\n<p align=\"center\">\n  <a href=\"https://dreamskin.cc/studio\">\n    <img src=\"docs/images/site-studio-zh.webp\" alt=\"在 DreamSkin.cc 在线 Studio 里编辑社区主题「月下松岚」\" width=\"900\">\n  </a><br>\n  <sub>在线 Studio · 左侧实时预览，右侧调背景图、外观焦点与配色；主题库里任意一套主题都能一键载入继续改</sub>\n</p>\n\nmacOS 菜单栏和 Windows 托盘都有「主题库 Gallery」和「在线 Studio」入口，可以直接打开。\n\n### 一键换肤\n\n在 DreamSkin.cc 上看到喜欢的主题，点「一键换肤」就能让本机客户端直接装上，不用先下载再手动导入。\n需要 v1.5.0 或更新的客户端（建议 v1.5.5 及以上）。\n\n流程与安全边界：\n\n- 网页通过 `dreamskin://apply?version=ver_...` 唤起本机 App。链接只能携带一个主题版本 ID，**不能**携带\n  任意 URL、文件路径或命令，也不存在静默应用参数。\n- App 只向固定的官方 API 取包，并拒绝重定向。\n- 换肤前弹出原生确认框，并核对该版本的审核状态、一键兼容标记、版本号、包大小、实际下载字节数和 SHA-256。\n- 通过后复用与手动导入完全相同的 ZIP、manifest、图片与 Safe CSS 校验。\n- 只有真实渲染进程确认新主题已生效才算成功。启动或渲染失败会自动尝试恢复换肤前的主题，恢复结果\n  同样要经过可见性验证；无法确认时会明确报告状态未确认，而不是假装已恢复。\n\n只有完整满足当前主题包契约（背景图 + `theme.json` + 非空 `theme.css` + 声明 `safe-css` 能力）的主题\n才会显示一键换肤按钮；不满足的走下面的手动导入。\n\n## 实测精选预设\n\n### Gothic Void Crusade / 哥特虚空远征\n\n**特别感谢 [@seansong-ideogram](https://github.com/seansong-ideogram) 为社区设计并贡献这套精美、极具氛围感的原创哥特科幻作品。** 它是当前实测精选的第一套预设，也是 macOS 全新安装时默认启用的主题。\n\n<p align=\"center\">\n  <img src=\"docs/images/presets/gothic-void-crusade-preview.jpg\" alt=\"哥特虚空远征主题实机效果\" width=\"900\"><br>\n  <sub>真实 Codex 首页注入效果（仅预览）</sub>\n</p>\n\n安装后可直接从 macOS 菜单栏的「已保存主题」切换。\n\n### 桥本有菜 / Arina Hashimoto\n\n下面这套「桥本有菜 / Arina Hashimoto」已经在真实 Codex 首页分别验证浅色和暗色外观。用户提供的源 PNG 为 `1672 × 941`，主题包在保持源图近 16:9 构图的前提下派生导出 `2560 × 1440` JPEG，并不代表增加了源图细节。截图中的侧栏、卡片、项目选择和输入框都是 Codex 原生控件。\n\n<p align=\"center\">\n  <img src=\"docs/images/presets/arina-hashimoto-light.jpg\" alt=\"桥本有菜主题浅色实机效果\" width=\"900\"><br>\n  <sub>浅色 · 真实注入截图（未发送输入已在截图时遮蔽，仅预览）</sub>\n</p>\n\n<p align=\"center\">\n  <img src=\"docs/images/presets/arina-hashimoto-dark.jpg\" alt=\"桥本有菜主题暗色实机效果\" width=\"900\"><br>\n  <sub>暗色 · 真实注入截图（未发送输入已在截图时遮蔽，仅预览）</sub>\n</p>\n\n这组人物素材留在源码仓库用于参考与权利核验，不进入公开 DMG / Setup.exe；公开安装包只预置已确认\n可分发的 Gothic Void Crusade。普通用户仍可从菜单里的「更换背景图」导入自己有权使用的纯背景，\n保存后继续一键切换。\n\n> 可下载的用户源图是 [`docs/images/presets/arina-hashimoto-source.png`](./docs/images/presets/arina-hashimoto-source.png)（`1672 × 941`）；源码参考预设使用 [`macos/presets/preset-arina-hashimoto/background.jpg`](./macos/presets/preset-arina-hashimoto/background.jpg)（规范化派生 `2560 × 1440`）。上面两个效果图包含真实 UI，**只作预览，绝不能当背景导入**。背景为用户提供的 AI 生成示例，不代表 OpenAI/Codex 官方",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:26.617754"
+  },
+  {
+    "basic_info": {
+      "name": "openworker",
+      "full_name": "andrewyng/openworker",
+      "owner": "andrewyng",
+      "description": null,
+      "url": "https://github.com/andrewyng/openworker",
+      "clone_url": "https://github.com/andrewyng/openworker.git",
+      "ssh_url": "git@github.com:andrewyng/openworker.git",
+      "homepage": null,
+      "created_at": "2026-07-20T01:52:32Z",
+      "updated_at": "2026-08-01T04:16:27Z",
+      "pushed_at": "2026-07-30T22:40:32Z"
+    },
+    "stats": {
+      "stars": 11368,
+      "forks": 1529,
+      "watchers": 11368,
+      "open_issues": 329,
+      "size": 1079
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 2200436,
+        "TypeScript": 1160381,
+        "HTML": 125100,
+        "CSS": 86433,
+        "Rust": 55148,
+        "Shell": 16162,
+        "PowerShell": 5235,
+        "JavaScript": 1994
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# OpenWorker\n\n**[openworker.com](https://openworker.com)** · [Download](#download) · [Issues](https://github.com/andrewyng/openworker/issues)\n\n<a href=\"https://trendshift.io/repositories/91434?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-91434\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/91434/daily?language=Python\" alt=\"andrewyng%2Fopenworker | Trendshift\" width=\"250\" height=\"55\"/></a>\n\n> **Beta** - OpenWorker is in open beta: fully usable, updates itself, and we're actively polishing rough edges. [Issues](https://github.com/andrewyng/openworker/issues) welcome.\n\n**AI that gets your everyday tasks done.** OpenWorker is an open-source AI coworker that lives on your desktop and delivers **finished work**, not just chat: a polished document, a Slack reply with the numbers, an updated calendar, a triaged inbox.\n\nIt runs on your machine and doesn't lock you into any model: bring your own API key for OpenAI, Anthropic, Google, or an open-weight provider, or run fully local with Ollama. Your data leaves your machine only through the model and integrations *you* choose.\n\n[![How OpenWorker works](docs/assets/how-it-works.png)](https://openworker.com)\n\n## Download\n\n[**⬇ macOS (Apple Silicon)**](https://download.openworker.com/mac)\n<sub>macOS 12+ · signed & notarized · auto-updates</sub>\n\n[**⬇ Windows 10/11 (x64)**](https://download.openworker.com/windows)\n<sub>builds are not yet code-signed, so SmartScreen will warn; signing is in progress</sub>\n\nOpen the app, add a model key (or point it at Ollama), and ask for something real.\n\n## How it works\n\n1. Tell OpenWorker the outcome you want - \"prepare a customer brief,\" \"untangle my calendar,\" \"draft a report,\" \"check where the release stands across Jira and GitHub.\"\n2. It breaks the task into steps and works across your desktop, files, and connected apps.\n3. Before anything consequential - sending a message, changing a calendar, running a command - it checks in and you approve or redirect.\n4. You get the finished deliverable, not a to-do list.\n\nUnder the hood:\n\n```text\n┌────────────────────────────────────────────────┐\n│              OpenWorker desktop app            │  native shell + GUI\n├────────────────────────────────────────────────┤\n│           local agent server (Python)          │  engine · tools · connectors - built on aisuite\n├───────────────┬────────────────┬───────────────┤\n│  your files   │   your tools   │  your model   │  everything runs with your keys,\n│  & terminal   │ 25+ connectors │  any provider │  on your machine\n└───────────────┴────────────────┴───────────────┘\n```\n\n## What it can do\n\n- **Produce real deliverables** - documents, spreadsheets, reports, and web pages land as files you can open and share.\n- **Work from Slack** - mention `@OpenWorker` in a channel; a session opens on your desktop, the work happens with your tools, and the answer comes back as a thread reply.\n- **Use your everyday tools** - 25+ integrations including GitHub, Slack, Jira, Notion, Linear, HubSpot, Outlook, monday.com, Gmail, and Google Calendar, plus your **terminal and local files**. Any tool reachable over [MCP](https://modelcontextprotocol.io/) plugs in too, with per-tool control.\n- **Run on a schedule** - automations for recurring work: a morning brief, a weekly report, a standing watch over a channel. Runs land in the app with full transcripts.\n- **Ask before acting** - writes, sends, and shell commands are approval-gated. Unattended runs park their asks in an inbox instead of acting on their own.\n\n## Bring your own model\n\nModel access is yours: pick a provider, paste your key, switch anytime. Supported out of the box:\n\n**OpenAI · Anthropic · Google Gemini · Inkling (Thinking Machines) · GLM (Z.ai) · DeepSeek · Kimi (Moonshot) · Qwen · MiniMax · Mistral · Grok (xAI)** - plus open-weight models via **Together** and **Fireworks**, and fully local models via **Ollama**.\n\nA curated model list marks what we've verified for tool-calling work. Adding any model string works at your own risk.\n\n## Privacy\n\nOpenWorker is local-first. Everything lives on your machine: the agent loop, your conversations, connector tokens, and model keys - all in the app's local secret store. The only cloud piece is a small service that brokers OAuth handshakes for connectors. You can always use the App without signing-in - use the connectors via manually-created credentials/API-keys.\n\n## Run from source\n\nPrerequisites: Python 3.10+, Node 20+, and (for the desktop shell) the Rust toolchain via [rustup](https://rustup.rs/).\n\n```shell\ngit clone https://github.com/andrewyng/openworker\ncd openworker\n\n# 1. One-time bootstrap - creates the Python venv at .venv\n#    (on Windows, run from Git Bash or WSL)\nbash packaging/setup_dev_env.sh\n\n# 2. Start the local agent server\n.venv/bin/openworker-server --cwd ~/some/project --port 8765\n#    (Windows: .venv\\Scripts\\openworker-server.exe)\n\n# 3. In a second term",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:27.901998"
+  },
+  {
+    "basic_info": {
+      "name": "img2threejs",
+      "full_name": "img2threejs/img2threejs",
+      "owner": "img2threejs",
+      "description": "Rebuild the object in a reference image as a code-only, procedural, quality-gated, animation-ready Three.js model. Token-efficient image-to-3D.",
+      "url": "https://github.com/img2threejs/img2threejs",
+      "clone_url": "https://github.com/img2threejs/img2threejs.git",
+      "ssh_url": "git@github.com:img2threejs/img2threejs.git",
+      "homepage": "https://img2threejs.github.io/img2threejs-showcase/",
+      "created_at": "2026-07-15T02:58:39Z",
+      "updated_at": "2026-08-01T04:04:37Z",
+      "pushed_at": "2026-08-01T04:02:50Z"
+    },
+    "stats": {
+      "stars": 8811,
+      "forks": 667,
+      "watchers": 8811,
+      "open_issues": 42,
+      "size": 23547
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 954014
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "3d",
+        "ai-agents",
+        "claude-code",
+        "computer-graphics",
+        "generative",
+        "image-to-3d",
+        "procedural-generation",
+        "threejs",
+        "typescript",
+        "webgl"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/logo.svg\" width=\"112\" height=\"104\" alt=\"img2threejs logo\" />\n\n# img2threejs\n\n**Rebuild the object in a reference image as a code-only, procedural Three.js model.**\n\nQuality-gated, animation-ready, and deliberately token-efficient — reconstruction-by-code, not photogrammetry, mesh extraction, or downloaded art packs.\n\n[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)\n[![Version](https://img.shields.io/badge/version-1.4.3-green.svg)](https://github.com/img2threejs/img2threejs/releases)\n[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)\n[![Runtime](https://img.shields.io/badge/runtime-Three.js-000000.svg)](https://threejs.org)\n[![Tooling](https://img.shields.io/badge/tooling-Python%203.10%2B%20stdlib-3776ab.svg)](scripts)\n[![Sponsor](https://img.shields.io/badge/Sponsor-Buy%20Me%20A%20Coffee-FFDD00.svg?logo=buymeacoffee&logoColor=black)](https://www.buymeacoffee.com/hoainhowors)\n\n<table align=\"center\">\n  <tr>\n    <td align=\"center\"></td>\n    <td align=\"center\"><sub><b>DAILY</b></sub></td>\n    <td align=\"center\"><sub><b>WEEKLY</b></sub></td>\n  </tr>\n  <tr>\n    <td align=\"right\"><sub><b>Python</b></sub></td>\n    <td><a href=\"https://trendshift.io/repositories/83608?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-83608\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/83608/daily?language=Python\" alt=\"hoainho%2Fimg2threejs | Trendshift\" width=\"250\" height=\"55\"/></a></td>\n    <td><a href=\"https://trendshift.io/repositories/83608?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-83608\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/83608/weekly?language=Python\" alt=\"img2threejs%2Fimg2threejs | Trendshift\" width=\"250\" height=\"55\"/></a></td>\n  </tr>\n  <tr>\n    <td align=\"right\"><sub><b>All languages</b></sub></td>\n    <td><a href=\"https://trendshift.io/repositories/83608?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-83608\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/83608/daily\" alt=\"img2threejs%2Fimg2threejs | Trendshift\" width=\"250\" height=\"55\"/></a></td>\n    <td><a href=\"https://trendshift.io/repositories/83608?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-83608\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/83608/weekly\" alt=\"img2threejs%2Fimg2threejs | Trendshift\" width=\"250\" height=\"55\"/></a></td>\n  </tr>\n</table>\n\n</div>\n\n*Reference images reconstructed in code as animation-ready Three.js models, running live in the browser.*\n\n### [→ Open the Live Demo Gallery](https://img2threejs.github.io/img2threejs-showcase/)\n\nEvery model in the gallery is generated code, running in your browser. No mesh files, no downloads.\n\n---\n\n## Live demos\n\nReconstructions built entirely from primitives, procedural shaders, and generated geometry. Open any model to orbit it, inspect its reference, and read the generated source.\n\n| Demo | Subject | View | Source |\n| --- | --- | --- | --- |\n| Glock-18 · Ghost Protocol (Well-Worn) | CS2 weapon | [Live](https://img2threejs.github.io/img2threejs-showcase/#/demo/glock-ghost-protocol) | [code](https://github.com/img2threejs/img2threejs-showcase/blob/main/src/demos/glock-ghost-protocol/createGlockGhostProtocolModel.ts) |\n| Classic Knife · Fade (Minimal Wear) | CS2 weapon | [Live](https://img2threejs.github.io/img2threejs-showcase/#/demo/classic-fade) | [code](https://github.com/img2threejs/img2threejs-showcase/blob/main/src/demos/classic-fade/createClassicFadeModel.ts) |\n| BMX Endurance Bike | hard-surface object | [Live](https://img2threejs.github.io/img2threejs-showcase/#/demo/bmx-endurance) | [code](https://github.com/img2threejs/img2threejs-showcase/blob/main/src/demos/bmx-endurance/createBmxEnduranceBikeModel.ts) |\n| M9 Bayonet · Doppler Phase 2 | CS2 weapon | [Live](https://img2threejs.github.io/img2threejs-showcase/#/demo/m9-doppler) | [code](https://github.com/img2threejs/img2threejs-showcase/blob/main/src/demos/m9-doppler/createM9DopplerModel.ts) |\n| Sony WF-1000XM3 Earbuds + Case | hard-surface object | [Live](https://img2threejs.github.io/img2threejs-showcase/#/demo/sony-wf1000xm3) | [code](https://github.com/img2threejs/img2threejs-showcase/blob/main/src/demos/sony-wf1000xm3/createSonyWf1000xm3Model.ts) |\n| ISSACA 12 Gauge Shotgun | hard-surface object | [Live](https://img2threejs.github.io/img2threejs-showcase/#/demo/issaca-shotgun) | [code](https://github.com/img2threejs/img2threejs-showcase/blob/main/src/demos/issaca-shotgun/createIssacaShotgunModel.ts) |\n| Gerber Paracord Knife | hard-surface object | [Live](https://img2threejs.github.io/img2threejs-showcase/#/demo/gerber-knif",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:29.147784"
+  },
+  {
+    "basic_info": {
+      "name": "aos-ce",
+      "full_name": "unicity-aos/aos-ce",
+      "owner": "unicity-aos",
+      "description": "AOS Community Edition: the open agent operating system.",
+      "url": "https://github.com/unicity-aos/aos-ce",
+      "clone_url": "https://github.com/unicity-aos/aos-ce.git",
+      "ssh_url": "git@github.com:unicity-aos/aos-ce.git",
+      "homepage": null,
+      "created_at": "2026-07-12T23:39:52Z",
+      "updated_at": "2026-07-31T23:53:16Z",
+      "pushed_at": "2026-07-31T23:07:02Z"
+    },
+    "stats": {
+      "stars": 8576,
+      "forks": 16,
+      "watchers": 8576,
+      "open_issues": 25,
+      "size": 21274
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1386719,
+        "Python": 148032,
+        "Shell": 126865
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# AOS Community Edition\n\nAOS Community Edition is the open agent operating system for people who want\nan inspectable, composable environment for agents.\n\nIt owns the Community Edition product surface: the `aos` CLI, HTTP API,\ndistributions, first-party capsules, provider and model experience, and\nUnicity Audit.\n\n## Workspace layout\n\n```text\ncrates/       Product CLI, HTTP API, control client, and shared product code\ncapsules/     First-party production capsules\ndistros/      Community distribution manifests and release metadata\ndocs/         Product and operator documentation\n```\n\n## Install\n\nThe supported installer installs the `aos` product command, its pinned runtime,\nand the exact 21 Community Edition capsules built from this source tree under\nthe product-owned `~/.aos` root:\n\n```sh\ncurl --proto '=https' --tlsv1.2 -fsSL https://aos.unicity.ai/install.sh | sh\naos init\n```\n\n`aos init`, including `aos init --offline`, provisions from those local,\nproduct-versioned capsule assets. Re-running the installer performs a\ncoordinated product upgrade without\nrewriting a standalone runtime installation. Every release publishes\nchecksums, Sigstore bundles, GitHub build-provenance attestations, and\n`runtime-compatibility.toml`, which pins the exact runtime release and WIT commit.\nIts machine-readable runtime-compatibility and upgrade/self-heal gates must both\nbe true before a tag can publish. The latter is approved only after the exact\ncandidate preserves a frozen standalone-home clone and boots with freshly\ngenerated runtime coordination state.\n\n## Command boundary\n\nAOS owns its product roots, including `init`, `status`, `migrate`, `update`,\n`distro`, `mcp`, `daemon`, and `serve-health`:\n\n```sh\naos status\naos status --json\naos --principal codex-code mcp serve\naos daemon foreground --workspace /workspace\n```\n\nOn Unix, `aos daemon foreground` replaces the AOS process with the persistent\nbundled daemon, preserving direct signal and exit-status ownership for process\nsupervisors. On other hosts it waits for the daemon and preserves its exit\nstatus. Both paths apply the product-owned runtime home, `.aos` workspace\nlayout, enforced Community Edition distro, and stderr logging environment.\nNeither path enables ephemeral lifetime.\n\nEvery other runtime root is part of the AOS CLI directly. Arguments, exit\ncodes, and signals pass through unchanged; there is no nested `aos astrid` or\n`aos runtime` namespace:\n\n```sh\naos doctor\naos capsule build\n```\n\nWhen AOS owns a root such as `status`, `init`, `update`, or `mcp`, its product\nimplementation replaces the lower-level command at that same location. The\ncomplete supported surface therefore remains `aos <verb>`. Release validation\ncompares the exact pinned runtime's public command inventory with AOS's\nclassified root contract, so a new runtime verb cannot enter a product release\nwithout an explicit inherit-or-own decision.\n\n`aos mcp serve` is the product edge shared by Codex, Claude, and Grok. A client\nthat supports MCP form elicitation keeps presenting its own constrained\napproval forms. When a client does not, the default `--interaction auto` mode\nuses a local AOS decision surface: AppKit on macOS, a native Windows dialog, or\nPinentry on Linux. `--interaction client`, `native`, and `deny` make the policy\nexplicit. The local bridge accepts only a single boolean or the fixed AOS\napproval enum; arbitrary strings, password-shaped fields, and URL\nelicitations are never collected through it.\n\n## Build on AOS\n\nUnicity AOS is the operating system in which agents and agent-native software\nrun. Capsules are general user-space building blocks: users can compose them\ninto harnesses, meta-harnesses, connectors, services, or other systems.\nCommunity Edition ships Forge as OS construction tooling so a fresh agent can\ninspect the running system, learn the capsule model, identify a real capability\ngap, and build and verify a least-privilege capsule. Forge also installs the\n`meta-harness` skill, which teaches an agent how to build a governed\nmeta-harness on AOS by treating its instructions, memory, skills, harness code,\ntools, capsules, traces, and evaluations as an improvable user-space world. The\nagent is instructed to notice useful extensions during real work and reach for\nForge proactively when new code is the right way to improve that world.\n\nSee [Extending an agent's world on AOS](docs/meta-harness.md) for the world\nmodel, research loop, Forge boundary, optional worker pattern, and\nrepresentative user experiences.\n\nProvisioning another principal keeps the authenticated operator separate from\nthe target environment:\n\n```sh\naos --principal operator init --target-principal alice\n```\n\nThis AOS release fixes its distribution state to Unicity CE. Use a standalone\n`astrid` installation and runtime home to apply another distribution. Homebrew\ninstallations update with `aos update`. Direct installs resolve the signed\n`stable` channel by default and can select `dev`, `nightly`, or an exact version;\nall",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:30.564823"
+  },
+  {
+    "basic_info": {
+      "name": "codex-security",
+      "full_name": "openai/codex-security",
+      "owner": "openai",
+      "description": "OpenAI's Codex Security CLI and TypeScript SDK for finding, validating, and fixing security vulnerabilities. npm: https://www.npmjs.com/package/@openai/codex-security",
+      "url": "https://github.com/openai/codex-security",
+      "clone_url": "https://github.com/openai/codex-security.git",
+      "ssh_url": "org-14957082@github.com:openai/codex-security.git",
+      "homepage": "https://developers.openai.com/codex/security",
+      "created_at": "2026-07-13T22:00:13Z",
+      "updated_at": "2026-08-01T04:11:26Z",
+      "pushed_at": "2026-07-31T22:10:26Z"
+    },
+    "stats": {
+      "stars": 7845,
+      "forks": 515,
+      "watchers": 7845,
+      "open_issues": 107,
+      "size": 7066
+    },
+    "tech_info": {
+      "language": "TypeScript",
+      "languages": {
+        "TypeScript": 1138927,
+        "Python": 683215,
+        "JavaScript": 158888,
+        "Shell": 5705,
+        "Dockerfile": 2152
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-security",
+        "application-security",
+        "cli",
+        "code-scanning",
+        "codex",
+        "codex-security",
+        "cybersecurity",
+        "devsecops",
+        "nodejs",
+        "npm",
+        "openai",
+        "sdk",
+        "security",
+        "typescript",
+        "vulnerability-scanning"
+      ]
+    },
+    "content": {
+      "readme": "# Codex Security\n\n`@openai/codex-security` is a CLI and TypeScript SDK for finding, validating, and fixing security vulnerabilities in your code.\n\n**See the [Codex Security documentation](https://learn.chatgpt.com/docs/security/cli)** for more details.\n\n> Note: for best results, we recommend that your account is verified for [Trusted Access](https://chatgpt.com/cyber).\n\n## Quick start\n\nRequires Node.js 22.13.0 or later in the 22.x release line, Node.js 24.x, or\nNode.js 26.x; Python 3.10 or later; and access to Codex Security.\n\n```bash\nnpm install @openai/codex-security\nnpx @openai/codex-security login\nnpx @openai/codex-security scan .\nnpx @openai/codex-security scan . --model gpt-5.6-terra --effort high\n```\n\nFor CI, set `OPENAI_API_KEY` or `CODEX_API_KEY` instead of signing in. Environment API keys are\npassed directly to the current scan and are never stored in Codex's credential\nhome or system keyring.\n\nLocal sign-in honors Codex's configured credential backend, including a system\nkeyring required by a managed device. Codex Security keeps login and scan\ncredentials in the same private, persistent state directory.\n\nIf both a ChatGPT sign-in and an API key are available, interactive scans ask\nwhich credential to use. CI and other noninteractive scans keep the existing\nAPI-key precedence. Select a credential explicitly when needed:\n\n```bash\nnpx @openai/codex-security scan . --auth chatgpt\nnpx @openai/codex-security scan . --auth api-key\n```\n\nTo make your ChatGPT sign-in the automatic default, unset any configured API\nkeys:\n\n```bash\nunset OPENAI_API_KEY CODEX_API_KEY\n```\n\nScan history is stored in the Codex Security workbench state directory. If that\ndirectory cannot be written, set `CODEX_SECURITY_STATE_DIR` to a writable\ndirectory outside the repository.\n\n`scans compare BEFORE_SCAN_ID AFTER_SCAN_ID` automatically matches findings by\nroot cause, reuses saved matches, and identifies new, persisting, reopened,\nresolved, or unknown findings. Missing findings remain unknown when coverage is\nincomplete or their original location was not reviewed.\n\n## TypeScript SDK\n\n```ts\nimport { CodexSecurity } from \"@openai/codex-security\";\n\nconst security = new CodexSecurity();\nconst result = await security.run(\".\");\n\nconsole.log(result.reportPath);\nawait security.close();\n```\n\n## Containerized bulk scans\n\nUse the official image and included Docker Compose configuration for\nnoninteractive, resumable scans of repositories pinned to immutable Git\nrevisions. See the [container quick start](sdk/typescript/README.md#containerized-bulk-scans)\nfor authentication, private result storage, and optional Ubuntu AppArmor\nhardening.\n\nFor complete command help, runtime defaults, native multi-agent worker limits,\nenvironment variables, deep-scan configuration, and SDK options, see the\n[package README](sdk/typescript/README.md) and the\n[official CLI reference](https://learn.chatgpt.com/docs/security/cli/reference).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:31.834910"
+  },
+  {
+    "basic_info": {
+      "name": "Kimi-K3",
+      "full_name": "MoonshotAI/Kimi-K3",
+      "owner": "MoonshotAI",
+      "description": "Open Frontier Intelligence",
+      "url": "https://github.com/MoonshotAI/Kimi-K3",
+      "clone_url": "https://github.com/MoonshotAI/Kimi-K3.git",
+      "ssh_url": "git@github.com:MoonshotAI/Kimi-K3.git",
+      "homepage": null,
+      "created_at": "2026-07-27T08:01:37Z",
+      "updated_at": "2026-08-01T04:11:15Z",
+      "pushed_at": "2026-07-28T11:48:27Z"
+    },
+    "stats": {
+      "stars": 7734,
+      "forks": 536,
+      "watchers": 7734,
+      "open_issues": 16,
+      "size": 5017
+    },
+    "tech_info": {
+      "language": null,
+      "languages": {},
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <picture>\n      <img src=\"assets/kimi-logo.png\" width=\"30%\" alt=\"Kimi K3\">\n  </picture>\n</div>\n<hr>\n<div align=\"center\" style=\"line-height:1\">\n  <a href=\"https://www.kimi.com\" target=\"_blank\"><img alt=\"Chat\" src=\"https://img.shields.io/badge/🤖%20Chat-Kimi%20K3-ff6b6b?color=1783ff&logoColor=white\"/></a>\n  <a href=\"https://www.moonshot.ai\" target=\"_blank\"><img alt=\"Homepage\" src=\"https://img.shields.io/badge/Homepage-Moonshot%20AI-white?logo=Kimi&logoColor=white\"/></a>\n</div>\n\n<div align=\"center\" style=\"line-height: 1;\">\n  <a href=\"https://huggingface.co/moonshotai\" target=\"_blank\"><img alt=\"Hugging Face\" src=\"https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Moonshot%20AI-ffc107?color=ffc107&logoColor=white\"/></a>\n  <a href=\"https://twitter.com/kimi_moonshot\" target=\"_blank\"><img alt=\"Twitter Follow\" src=\"https://img.shields.io/badge/Twitter-Kimi.ai-white?logo=x&logoColor=white\"/></a>\n  <a href=\"https://discord.gg/TYU2fdJykW\" target=\"_blank\"><img alt=\"Discord\" src=\"https://img.shields.io/badge/Discord-Kimi.ai-white?logo=discord&logoColor=white\"/></a>\n  <a href=\"https://modelscope.cn/organization/moonshotai\" target=\"_blank\"><img alt=\"ModelScope\" src=\"https://img.shields.io/badge/ModelScope-Moonshot%20AI-white?labelColor=rgb(99%2C%2074%2C%255)\"/></a>\n</div>\n<div align=\"center\" style=\"line-height: 1;\">\n  <a href=\"https://huggingface.co/moonshotai/Kimi-K3/blob/main/LICENSE\"><img alt=\"License\" src=\"https://img.shields.io/badge/License-Kimi_K3-f5de53?&color=f5de53\"/></a>\n</div>\n\n\n<p align=\"center\">\n📰&nbsp;&nbsp;<a href=\"https://www.kimi.com/blog/kimi-k3\">Tech Blog</a> | &nbsp;&nbsp;&nbsp; <b>📄&nbsp;&nbsp;<a href=\"k3_tech_report.pdf\">Full Report</a></b>\n</p>\n\n\n## 1. Model Introduction\n\nKimi K3 is an open-weight, native multimodal agentic model and our most capable model to date. It is a 2.8T-parameter model built on Kimi Delta Attention (KDA) and Attention Residuals (AttnRes), with native vision capabilities and a 1-million-token context window. It is the world's first open 3T-class model, designed for frontier intelligence across long-horizon coding, knowledge work, and reasoning.\n\n### Key Features\n- **New Architecture**: Kimi K3 is built on Kimi Delta Attention (KDA) and Attention Residuals (AttnRes), and scales up MoE sparsity with a Stable LatentMoE framework that activates 16 out of 896 experts — yielding an approximate 2.5× improvement in overall scaling efficiency over Kimi K2.\n- **Long-Horizon Coding**: Operating with minimal human oversight, Kimi K3 sustains long engineering sessions, navigates massive repositories, and orchestrates terminal tools — from GPU kernel optimization and compiler development to vision-in-the-loop game dev, CAD, and even chip design.\n- **Agentic Knowledge Work**: Kimi K3 advances end-to-end knowledge work, producing deep research with interactive visualizations, widgets and dashboards, and motion design and video editing, powered by its native multimodal architecture.\n- **Native Multimodality & Long Context**: Kimi K3 understands text, images, and video within the same model, and supports a 1-million-token context window.\n- **Open Frontier Weights**: We release the full Kimi K3 model weights under the Kimi K3 License, making frontier intelligence openly available for research, deployment, and further innovation.\n## 2. Model Summary\n\n<div align=\"center\">\n<table>\n<tbody>\n<tr>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\"><strong>Architecture</strong></td>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\">Mixture-of-Experts (MoE)</td>\n</tr>\n<tr>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\"><strong>Total Parameters</strong></td>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\">2.8T</td>\n</tr>\n<tr>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\"><strong>Activated Parameters</strong></td>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\">104B</td>\n</tr>\n<tr>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\"><strong>Number of Layers</strong></td>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\">93</td>\n</tr>\n<tr>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\"><strong>Number of Dense Layers</strong></td>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\">1</td>\n</tr>\n<tr>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\"><strong>Attention-Layer Composition</strong></td>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\">69 KDA + 24 Gated MLA</td>\n</tr>\n<tr>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\"><strong>Attention Hidden Dimension</strong></td>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\">7168</td>\n</tr>\n<tr>\n<td align=\"center\" style=\"vertical-align: middle; text-align: center\"><strong>Number of Attention Heads</strong></td>\n<td align=\"center\" style=\"ve",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:33.142859"
+  },
+  {
+    "basic_info": {
+      "name": "X4G",
+      "full_name": "x4gKing/X4G",
+      "owner": "x4gKing",
+      "description": null,
+      "url": "https://github.com/x4gKing/X4G",
+      "clone_url": "https://github.com/x4gKing/X4G.git",
+      "ssh_url": "git@github.com:x4gKing/X4G.git",
+      "homepage": null,
+      "created_at": "2026-07-04T06:43:51Z",
+      "updated_at": "2026-08-01T03:14:06Z",
+      "pushed_at": "2026-07-21T12:47:04Z"
+    },
+    "stats": {
+      "stars": 7187,
+      "forks": 13160,
+      "watchers": 7187,
+      "open_issues": 19,
+      "size": 64
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 296324
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "کانال یوتوب : [https://www.youtube.com/@X4GHUB](https://www.youtube.com/@X4GHUB)\n\n# 🚀 X4G\n\nدروازه (Gateway) سریع و مدرن برای تونل‌زنی VLESS روی WebSocket و XHTTP + HTTP Proxy، با داشبورد مدیریتی زیبا، **ربات مدیریت تلگرام**، صفحات ساب حرفه‌ای و قابلیت ساخت لینک‌های اختصاصی با محدودیت ترافیک، سرعت و آی‌پی.\n\n## ✨ ویژگی‌ها\n\n* 🔌 تونل VLESS روی چند ترابرد قابل‌انتخاب: **WebSocket**، **XHTTP (packet-up)** و **XHTTP (stream-up)**\n* 🌐 HTTP Proxy داخلی\n* 📊 داشبورد مدیریتی کامل (آمار، نمودار ترافیک ساعتی، اتصالات زنده، لاگ فعالیت‌ها و خطاها)\n* 🔗 مدیریت لینک‌های نامحدود با محدودیت ترافیک اختصاصی (KB/MB/GB)\n* 🚦 محدودیت سرعت (Bandwidth Throttling) اختصاصی برای هر کانفیگ، بر حسب Mbps\n* ✅ فعال/غیرفعال‌سازی هر لینک به‌صورت لحظه‌ای، و انقضای خودکار بر اساس روز\n* 📱 خروجی QR Code برای هر لینک و هر ساب\n* 🛡️ Fingerprint (uTLS) و ALPN قابل تنظیم دستی برای هر کانفیگ\n* 🔢 پورت اتصال قابل تنظیم دستی برای هر کانفیگ (نه فقط 443)\n* 👥 محدودیت تعداد آی‌پی/کاربر هم‌زمان به‌ازای هر کانفیگ\n* 🗂 **گروه‌های ساب**: چند کانفیگ رو داخل یک گروه بذار و یک لینک ساب حرفه‌ای و زیبا (صفحه‌ی عمومی، قابل رمزدار کردن) برای همه‌شون بگیر\n* 💾 ذخیره‌سازی وضعیت روی دیسک (نه فقط حافظه) تا با ری‌استارت سرویس از بین نره — به شرطی که یک Volume دائمی روی مسیر دیتا وصل باشه\n* 🤖 **ربات مدیریت تلگرام** (اختیاری) برای مدیریت کامل کانفیگ‌ها و گروه‌های ساب، بدون نیاز به باز کردن پنل وب\n\n## 1️⃣ Fork روی گیت‌هاب\n\nابتدا روی دکمه Fork کلیک کنید تا این ریپازیتوری را به حساب خود منتقل کنید.\n\n## 2️⃣ Deploy روی Railway\n\n1. وارد سایت [Railway.app](https://railway.app/) شوید.\n2. روی New Project → Deploy from GitHub repo کلیک کنید.\n3. ریپازیتوری Fork شده را انتخاب کنید.\n4. Railway به‌صورت خودکار پروژه را Deploy می‌کند.\n\n💡 پس از دیپلوی، یک دامنه عمومی (Public Domain) برای سرویس خود از تنظیمات Railway فعال کنید تا متغیر `RAILWAY_PUBLIC_DOMAIN` به‌درستی مقداردهی شود.\n\n### 💾 ذخیره‌سازی دائمی (Volume)\n\nوضعیت سرویس (کانفیگ‌ها، آمار مصرف، گروه‌های ساب، رمز ادمین) روی فایل `x4g_state.json` داخل مسیر `DATA_DIR` (پیش‌فرض `/data`) ذخیره می‌شود. برای این‌که این اطلاعات با هر ری‌استارت یا دیپلوی جدید روی Railway از بین نرود، حتماً یک **Volume** بسازید و آن را روی همان مسیر (`/data`) به سرویس متصل کنید (از تنظیمات سرویس → بخش Volumes). بدون این کار، اطلاعات فقط روی همان کانتینر فعلی می‌مانند و با تعویض کانتینر پاک می‌شوند.\n\n## 3️⃣ اتصال به کانفیگ‌ها\n\nپس از دیپلوی موفق:\n\n1. به آدرس `https://your-app.up.railway.app/dashboard` بروید.\n2. در صفحه داشبورد کلی، لینک VLESS پیش‌فرض (بدون محدودیت) را مشاهده و کپی کنید.\n3. این لینک را در کلاینت دلخواه (v2rayNG، NekoBox، Streisand و...) وارد کنید.\n4. برای ساخت لینک‌های جداگانه با محدودیت ترافیک، سرعت، آی‌پی و... به بخش مدیریت لینک‌ها بروید.\n\n## 🔧 تنظیمات دستی هر کانفیگ\n\nهنگام ساخت یا ویرایش هر کانفیگ می‌توانید این موارد را جداگانه تنظیم کنید:\n\n* **پروتکل/ترابرد**: `vless-ws` (VLESS روی WebSocket) یا یکی از حالت‌های XHTTP (`xhttp-packet-up` / `xhttp-stream-up`)\n* **Fingerprint (uTLS)**: مقادیر chrome / firefox / safari / ios / android / edge / 360 / qq / random / randomized\n* **ALPN**: پیش‌فرض پروتکل، یا مقدار دستی مثل `h2,http/1.1` یا `http/1.1`\n* **پورت اتصال**: هر پورتی بین 1 تا 65535 (نه فقط 443) — دقت کنید که این پورت باید واقعاً روی دامنه/سرویس شما باز و در دسترس باشد\n* **محدودیت حجم**: بر حسب KB/MB/GB (0 = نامحدود)\n* **محدودیت سرعت**: بر حسب Mbps، به‌صورت مستقل برای هر کانفیگ (0 = نامحدود)\n* **محدودیت آی‌پی هم‌زمان**: تعداد آی‌پی/کاربری که مجاز است هم‌زمان از همان کانفیگ استفاده کند (0 = نامحدود)\n* **انقضا**: تعداد روزهای اعتبار کانفیگ (بدون مقدار = بدون انقضا)\n\n## 🗂 گروه‌های ساب (لینک ساب حرفه‌ای)\n\nبه‌جای لینک ساب ساده (`/sub/{uuid}` که فقط متن base64 کانفیگ رو برمی‌گردونه)، می‌تونید چند کانفیگ رو داخل یک **گروه ساب** قرار بدید تا یک **صفحه‌ی عمومی و زیبا** (`/p/{uuid_key}`) براشون ساخته بشه؛ شامل نمایش گرافیکی لیست کانفیگ‌ها، وضعیت هرکدوم، مصرف و QR Code، و در صورت نیاز قابل رمزدار کردن با پسورد. برای ساخت این لینک:\n\n1. به بخش «گروه‌های ساب» در پنل (یا از طریق ربات تلگرام) بروید.\n2. یک گروه جدید بسازید.\n3. کانفیگ(های) مورد نظر را داخل همان گروه اضافه کنید.\n4. لینک صفحه‌ی عمومی گروه را از همان‌جا کپی کنید.\n\n## 🤖 ربات مدیریت تلگرام (اختیاری)\n\nاگر می‌خواهید بدون باز کردن پنل وب، از طریق تلگرام کانفیگ‌ها را مدیریت کنید:\n\n1. دو متغیر محیطی زیر را در تنظیمات سرویس Railway اضافه کنید:\n   * `TELEGRAM_BOT_TOKEN` — توکن ربات از [@BotFather](https://t.me/BotFather)\n   * `TELEGRAM_ADMIN_IDS` — آیدی عددی تلگرام ادمین‌های مجاز، جدا شده با کاما (مثلاً `123456789,987654321`)\n2. بعد از ری‌استارت سرویس، به ربات پیام `/start` بدهید.\n\nامکانات ربات:\n\n* 📋 لیست، مشاهده، فعال/غیرفعال‌سازی و حذف کانفیگ‌ها\n* ➕ ساخت کانفیگ جدید با یک ویزارد مرحله‌به‌مرحله (برچسب → پروتکل → Fingerprint → ALPN → پورت → محدودیت حجم → محدودیت سرعت → محدودیت آی‌پی → روز انقضا)\n* 🔗 دریافت لینک اتصال VLESS و لینک ساب هر کانفیگ\n* 🗂 ساخت و مدیریت گروه‌های ساب و دریافت لینک ساب حرفه‌ای مستقیماً داخل چت\n\n## ⚙️ متغیرهای محیطی\n\n| متغیر | توضیح | پیش‌فرض |\n|---|---|---|\n| `ADMIN_PASSWORD` | رمز عبور ورود به داشبورد وب | `X4GKING` |\n| `SECRET_KEY` | کلید امضای سشن/پسورد؛ اگر تنظیم نشود، خودکار ساخته و روی د",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:34.399405"
+  },
+  {
+    "basic_info": {
+      "name": "scroll-world",
+      "full_name": "oso95/scroll-world",
+      "owner": "oso95",
+      "description": "A skill that turn any brand into a scrollable 3D world",
+      "url": "https://github.com/oso95/scroll-world",
+      "clone_url": "https://github.com/oso95/scroll-world.git",
+      "ssh_url": "git@github.com:oso95/scroll-world.git",
+      "homepage": "",
+      "created_at": "2026-07-06T21:28:58Z",
+      "updated_at": "2026-08-01T04:15:52Z",
+      "pushed_at": "2026-07-29T04:44:56Z"
+    },
+    "stats": {
+      "stars": 6190,
+      "forks": 733,
+      "watchers": 6190,
+      "open_issues": 6,
+      "size": 49
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 28697,
+        "Python": 2855,
+        "HTML": 2713
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# scroll-world\n\n\nhttps://github.com/user-attachments/assets/b08e641e-985b-4bd4-83ff-6750272d0c37\n\n\nAn agent skill — for Claude Code, Codex, and any `SKILL.md`-compatible agent — that\nbuilds an immersive, **scroll-scrubbed \"fly through the world\" landing page** for any industry or brand — the kind where, as you scroll, a camera flies\nfrom *outside* each scene *into* its interior, then flows on to the next scene with **no\ncuts**. One continuous connected flight through a little generated world (think the Emons\nlogistics site, applied to whatever you want).\n\n## Install\n\n### Claude Code — as a plugin (recommended)\n\n```\n/plugin marketplace add oso95/scroll-world\n/plugin install scroll-world@scroll-world\n```\n\nThen just ask for a scroll-through world landing page, or invoke `/scroll-world`.\n\n### Codex & other agents — via the skills CLI\n\nUsing [Vercel's skills CLI](https://github.com/vercel-labs/skills), which installs into\nCodex, Claude Code, Cursor, and 20+ other agents:\n\n```bash\nnpx skills add oso95/scroll-world            # pick your agent(s) when prompted\nnpx skills add oso95/scroll-world -a codex   # or target Codex directly\n```\n\nIn Codex, invoke it with `$scroll-world` (or `/skills` to browse), or just ask for a\nscroll-through world landing page.\n\n### Manually (drop-in skill)\n\nCopy the skill folder into your agent's skills directory:\n\n```bash\ngit clone https://github.com/oso95/scroll-world\ncp -R scroll-world/skills/scroll-world ~/.claude/skills/   # Claude Code\ncp -R scroll-world/skills/scroll-world ~/.codex/skills/    # Codex\n```\n\n## Requirements\n\n- The [Monid CLI](https://monid.ai) with an API key and balance — the **default\n  video-chain backend** (Seedance 2.0, billed per clip in USD; see below).\n- The [Higgsfield CLI](https://higgsfield.ai), authenticated (`higgsfield auth login`),\n  with credits — renders the scene stills, the `kling3_0` fallback, and the whole\n  chain when Monid is absent.\n- `ffmpeg` / `ffprobe` for frame extraction and encoding.\n- Python 3 with Pillow (for the mobile portrait canvases; also the optional\n  transparent-scene knockout).\n- The [Codex CLI](https://github.com/openai/codex) (optional) — if present, the scene\n  stills can be generated through Codex's built-in `image_gen` (the same GPT Image\n  model), billed to a ChatGPT subscription instead of Higgsfield credits.\n- About the Monid default: verified 2026-07-25 — first/last-frame conditioning\n  frame-locks, so it renders the full seamless chain; frames travel via Monid's\n  free workspace file system. Pay-per-use with no subscription or monthly expiry\n  (a 6-scene 1080p chain ≈ $27). The skill re-checks the endpoint schema each\n  build and keeps qualification probes in the pipeline for when the catalog\n  changes; Higgsfield credits remain the fallback biller.\n\n## What it does\n\nIt generates the art with AI: cohesive isometric diorama scenes (GPT Image 2 — via\nHiggsfield, or the Codex CLI on a ChatGPT subscription) and the camera flights\nthemselves (Seedance image-to-video via **Monid by default**, pay-per-clip; Seedance\nor Kling on Higgsfield credits as fallback — only models that can frame-lock a\nseam), scrubbed\nby scroll position — the same technique behind Apple's scroll-through product pages. The\ncamera genuinely moves; scroll only drives time. It's **framework-agnostic**: you get the\nHiggsfield pipeline, the prompt templates, and a portable vanilla-JS scrub engine that\ndrops into plain HTML, Next.js, Vue, or a Python-served page — nothing assumes a stack.\n\nWhen invoked, the skill:\n\n1. **Interviews you** — the subject/industry + pitch, a brand kit (import from a URL, hand\n   it over, or have it proposed), art direction, the ordered scenes the camera visits,\n   whether you want the **mobile version** (a second chain rendered natively in 9:16\n   portrait — composed for phones, not a crop of the landscape film), and the **budget** —\n   render tiers and stills source shown with estimated credit costs, approved before\n   anything generates.\n2. **Generates the assets** — one still per scene, one \"dive-in\" camera\n   clip per scene, and the **connector** clips that join consecutive scenes, generated\n   from the actual rendered frames of their neighbours so every seam is frame-identical.\n   Mobile opt-in renders a parallel portrait chain the same way, frame-locked against its\n   own 9:16 renders.\n3. **Wires it up** — a config-driven scroll engine that plays the whole chain as one\n   flight, serving the portrait clips and posters automatically on phones.\n\n## What's in the skill\n\n```\nskills/scroll-world/\n├── SKILL.md                    the procedure + the seam rule + gotchas\n└── references/\n    ├── prompts.md              intake checklist + every Higgsfield prompt template\n    ├── pipeline.md             copy-paste batch scripts (generate → frames → connectors → encode)\n    ├── scrub-engine.js         portable, config-driven scrub engine (blob-seek, lazy load, seam crossfade)\n    ├── index-template.html     a minimal standalone page t",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:35.632590"
+  },
+  {
+    "basic_info": {
+      "name": "T3MP3ST",
+      "full_name": "elder-plinius/T3MP3ST",
+      "owner": "elder-plinius",
+      "description": "autonomous red teaming platform; multi-agent offensive-security meta-harness",
+      "url": "https://github.com/elder-plinius/T3MP3ST",
+      "clone_url": "https://github.com/elder-plinius/T3MP3ST.git",
+      "ssh_url": "git@github.com:elder-plinius/T3MP3ST.git",
+      "homepage": "",
+      "created_at": "2026-07-02T17:53:55Z",
+      "updated_at": "2026-08-01T04:13:41Z",
+      "pushed_at": "2026-07-31T03:56:46Z"
+    },
+    "stats": {
+      "stars": 5328,
+      "forks": 1106,
+      "watchers": 5328,
+      "open_issues": 4,
+      "size": 2447
+    },
+    "tech_info": {
+      "language": "TypeScript",
+      "languages": {
+        "TypeScript": 1943311,
+        "JavaScript": 1053565,
+        "Python": 38728,
+        "Shell": 38395,
+        "PowerShell": 22915,
+        "Dockerfile": 11248,
+        "C": 10156,
+        "Java": 8159,
+        "Go": 1565,
+        "Rust": 1354,
+        "Perl": 1113
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "agents",
+        "ai",
+        "multi-agent",
+        "offensive-security",
+        "redteam"
+      ]
+    },
+    "content": {
+      "readme": "# 🌩️ T3MP3ST 🌩️\n\n<!-- ⊰ sharp eye on the raw source. there's a flag for the curious: T3MP3ST{r3c31pt5_n0t_v1b3z} — the one that counts, you earn: run `npm run verify-claims`. LOVE PLINY ⊱ -->\n\n```\n ▄▄▄█████▓▓█████  ███▄ ▄███▓ ██▓███  ▓█████   ██████ ▄▄▄█████▓\n ▓  ██▒ ▓▒▓█   ▀ ▓██▒▀█▀ ██▒▓██░  ██▒▓█   ▀ ▒██    ▒ ▓  ██▒ ▓▒\n ▒ ▓██░ ▒░▒███   ▓██    ▓██░▓██░ ██▓▒▒███   ░ ▓██▄   ▒ ▓██░ ▒░\n ░ ▓██▓ ░ ▒▓█  ▄ ▒██    ▒██ ▒██▄█▓▒ ▒▒▓█  ▄   ▒   ██▒░ ▓██▓ ░\n   ▒██▒ ░ ░▒████▒▒██▒   ░██▒▒██▒ ░  ░░▒████▒▒██████▒▒  ▒██▒ ░\n   ▒ ░░   ░░ ▒░ ░░ ▒░   ░  ░▒▓▒░ ░  ░░░ ▒░ ░▒ ▒▓▒ ▒ ░  ▒ ░░\n     ░     ░ ░  ░░  ░      ░░▒ ░      ░ ░  ░░ ░▒  ░ ░    ░\n   ░         ░   ░      ░   ░░          ░   ░  ░  ░    ░\n             ░  ░       ░               ░  ░      ░\n```\n\n<div align=\"center\">\n\n**A multi-agent offensive-security framework, built to turn the AI coding agent you already run into a zero-day hunter.**\n\n![scores: re-derivable](https://img.shields.io/badge/scores-re--derivable-brightgreen) &nbsp; ![verify-claims 27/27](https://img.shields.io/badge/verify--claims-27%2F27-brightgreen) &nbsp; ![PRs welcome](https://img.shields.io/badge/PRs-welcome-purple) &nbsp; ![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)\n\n</div>\n\n**Your AI coding agent is already a hacker — T3MP3ST hands it an arsenal.**\n\nPoint it at an authorized target and the kill chain runs itself: **recon → exploit → report**, from a browser War Room or the CLI, driven by the agent you're *already* signed into — Claude Code, Codex, Hermes — or a model you run **fully offline** (Ollama, LM Studio, vLLM). No new API keys, no cloud tenant, no second bill. Your agent is the brain; T3MP3ST is the war machine bolted around it. **Self-hosted storm. Keyless warfare.** ⚡\n\nAnd it won't ask you to take its word for it. On **XBOW's own 104-challenge suite it scores 90.1% pass@1** — above XBOW's self-reported 85% — alongside hint-free CTF solves and a **cold hunt on real, post-cutoff CVEs the model had never seen**. Every number in this README recomputes from committed data with one command (`npm run verify-claims`). Loud about the mission, honest about the build — the [status table](#what-ships-today) says exactly what's live, what's scaffolding, and what's still roadmap; full receipts in [Benchmarks](#benchmarks).\n\nThree things set it apart:\n\n1. **Reproducible.** Every number in this README recomputes from committed data — `npm run verify-claims` re-derives all of them, 27/27 green. A claim that can't be reproduced doesn't ship. No trust-me numbers, ever.\n2. **Keyless.** The AI coding agent already on your machine is the backbone. No API keys, no second bill, no gatekeeper.\n3. **Honest about scope.** The [status table](#what-ships-today) marks exactly what's stable, experimental, or roadmap — because red-teaming shouldn't be a priesthood, and it damn sure shouldn't run on vibes.\n\n**Jump to** → [Quick start](#quick-start) · [Usage guide](docs/GETTING_STARTED.md) · [Developer guide](docs/DEVELOPER_GUIDE.md) · [Updating](#updating-from-upstream) · [What it hunts](#what-it-hunts) · [What ships today](#what-ships-today) · [Benchmarks](#benchmarks) · [Architecture](#architecture) · [Docs](#documentation)\n\n## ⚠️ Authorized use only\n\nT3MP3ST is an **offensive** security tool, built for **authorized** testing, research, and education. Point it **only** at systems you own or have **explicit, written permission** to test. Unauthorized access to computers, networks, or data is illegal in most jurisdictions — **you alone are responsible** for how you use this software and for staying inside the law and your rules of engagement. Bring the storm to *your* targets, not someone else's.\n\nT3MP3ST is provided **as-is under the AGPL-3.0 license, with no warranty and no liability** for any damage, loss, or misuse. The authors do not endorse, support, or condone unauthorized activity. Get permission. Stay in scope. Don't be a menace. 🫡\n\n## Why it exists\n\nOffensive security sits behind years of practice and expensive tooling. The bet behind T3MP3ST is that a coordinated agent swarm puts real bug-hunting in reach of people who never got the invite, across web apps, CTFs, smart contracts, source code, and embedded/robotics OSS. That is an ambitious bet, and the sections below are careful to separate what already works from what is still a bet.\n\n## What it hunts\n\n| Domain | What it does | Status |\n|---|---|---|\n| 🕸️ **Web apps** | Black-box, external-attacker recon → exploit (XBEN suite) | ✅ Stable |\n| 🚩 **CTF** | Hint-free, sandbox-jailed solves (Cybench) | ✅ Stable |\n| 🤖 **Robotics / OT / embedded** | Coordinated-disclosure pipeline for OSS vuln hunting (OSV + live-PoC + refuter) | ✅ Pipeline stable |\n| 📂 **Source code** | White-box repo analysis with blind master-builder decomposition | ✅ Multi-language ingest (web-tree-sitter) |\n| 💰 **Smart contracts** | Damn Vulnerable DeFi | ⚠️ reproduction, not novel discovery |\n| ☁️ **Cloud (IaC)** | Misconfig-detection benchmark (`cloud:bench`) + op",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:36.867550"
+  },
+  {
+    "basic_info": {
+      "name": "gpt-5.6-instruct",
+      "full_name": "MDX-Tom/gpt-5.6-instruct",
+      "owner": "MDX-Tom",
+      "description": "A Codex jailbreak prompt and test pack for gpt-5.6-sol. 针对 gpt-5.6 系列的 Codex 破甲提示词与测试包。",
+      "url": "https://github.com/MDX-Tom/gpt-5.6-instruct",
+      "clone_url": "https://github.com/MDX-Tom/gpt-5.6-instruct.git",
+      "ssh_url": "git@github.com:MDX-Tom/gpt-5.6-instruct.git",
+      "homepage": "https://mdx-tom.github.io/gpt-5.6-instruct/",
+      "created_at": "2026-07-11T09:44:24Z",
+      "updated_at": "2026-08-01T04:13:08Z",
+      "pushed_at": "2026-08-01T03:10:36Z"
+    },
+    "stats": {
+      "stars": 4090,
+      "forks": 626,
+      "watchers": 4090,
+      "open_issues": 11,
+      "size": 9589
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 61490
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<picture>\n  <source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/images/gpt-5.6-instruct-hero-dark.webp\" />\n  <source media=\"(prefers-color-scheme: light)\" srcset=\"docs/images/gpt-5.6-instruct-hero-light.webp\" />\n  <img src=\"docs/images/gpt-5.6-instruct-hero-light.webp\" alt=\"gpt-5.6 破甲提示词及测试包\" width=\"70%\" />\n</picture><br />\n<img src=\"docs/images/readme-spacer.png\" alt=\"\" width=\"1\" height=\"5\" />\n\n<p>\n  <a href=\"https://github.com/MDX-Tom/gpt-5.6-instruct/stargazers\"><img src=\"https://img.shields.io/github/stars/MDX-Tom/gpt-5.6-instruct?logo=github&label=Stars\" alt=\"GitHub Stars\" /></a>\n  <img src=\"https://img.shields.io/badge/Model-gpt--5.6--sol-7c3aed\" alt=\"gpt-5.6-sol\" />\n  <a href=\"gpt-5.6-sol-unrestricted-v42.zip\"><img src=\"https://img.shields.io/badge/Release-v42-0f766e\" alt=\"Release v42\" /></a>\n  <a href=\"https://www.python.org/\"><img src=\"https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white\" alt=\"Python 3.8+\" /></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/github/license/MDX-Tom/gpt-5.6-instruct?color=f59e0b\" alt=\"MIT License\" /></a>\n  <a href=\"docs/comparison-tests-en.md\"><img src=\"https://img.shields.io/badge/Documentation-Purple?color=8A2BE2&logo=readthedocs\" alt=\"English Documentation\" /></a>\n  <a href=\"docs/comparison-tests.md\"><img src=\"https://img.shields.io/badge/中文文档-red?logo=readthedocs\" alt=\"中文文档\" /></a>\n</p>\n\n<p>\n  <a href=\"README_EN.md\"><img src=\"https://img.shields.io/badge/lang-English-blue.svg\" alt=\"English\" /></a>\n  <a href=\"README.md\"><img src=\"https://img.shields.io/badge/语言-简体中文-red.svg\" alt=\"简体中文\" /></a>\n</p>\n\n<h1>gpt-5.6 破甲提示词及测试包</h1>\n\n</div>\n\n<!-- README_SYNC: 修改 README.md 时必须同步更新 README_EN.md；图表也必须提供对应语言版本。 -->\n\n<a id=\"overview\"></a>\n\n本项目提供面向大模型的越狱/破甲提示词与配套工具链：将安全研究、渗透测试、逆向工程、软件破解及 NSFW 虚构内容统一纳入本地沙箱任务，并显式抑制拒绝与回退话术，提升 Codex 对复杂指令的连续执行能力。\n\n项目围绕 `v42` 持续迭代。每轮优化吸收用户指令、真实失败案例与 GitHub Issues，动态扩展测试集，定位失败原因并重写提示词；随后以 low、medium、high 三档回归和证据门禁复核结果，决定是否发布。\n\n当前唯一生产版本为 `v42`，可使用 `codex-instruct.py` 进行预览、部署和回滚。历史版本 `v5`、`v24`、`v35`、`v41` 与 `v41-skills` 已归档至 [`historical-versions/`](historical-versions/)，用于复现和对照。\n\n> **声明 ⚠️** 本项目不会用于任何商业化行为，包括但不限于创业融资宣传、技术授权转让和付费技术服务。本项目旨在提升 AI 安全。未来项目无论获得多少关注，都将保持初心，共同筑牢 AI 的安全边界。本项目使用 Codex 官方配置机制，不修改二进制、不劫持网络、不篡改进程。请仅在你有权操作的环境中使用，并自行承担使用风险。\n\n<a id=\"architecture\"></a>\n\n## 系统架构 🏗️\n\n<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/images/project-architecture-zh-dark.webp\" />\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"docs/images/project-architecture-zh-light.webp\" />\n    <img alt=\"破甲提示词持续迭代、发布门禁与生产运行架构\" src=\"docs/images/project-architecture-zh-light.webp\" width=\"100%\" />\n  </picture>\n</p>\n\n项目架构由迭代优化与生产使用两部分组成。迭代阶段持续吸收用户指令、失败样例及 GitHub Issues，由模型更新中英文测试集、分析回归结果并优化提示词，经三级推理与证据门禁后发布 v42。生产阶段通过脚本加载 v42，依次完成归一化、语义分派、意图路由、状态连续性和工件验证，最终生成可核验结果。\n\n<a id=\"versions\"></a>\n\n## 默认版本 📦\n\n| 版本 | 定位 | 入口 | 获取 |\n|---|---|---|---|\n| **v42** | 唯一生产版 | `python3 codex-instruct.py --apply` | [ZIP](gpt-5.6-sol-unrestricted-v42.zip) |\n\n当前发布 ZIP 的 SHA256：\n\n```text\nv42  11f0515be89943a7244d07b625a497b04dde07a51ba26e41df583a0acc145a09\n```\n\n<a id=\"quick-start\"></a>\n\n## 快速开始 🚀\n\n### 1. 获取项目 📥\n\n```bash\ngit clone https://github.com/MDX-Tom/gpt-5.6-instruct.git\ncd gpt-5.6-instruct\n```\n\n### 2. 预览并部署 ⚡\n\n```bash\n# 先预览 v42，不写入任何文件\npython3 codex-instruct.py --apply --dry-run\n\n# 部署唯一默认版 v42\npython3 codex-instruct.py --apply\n```\n\n不带参数运行可打开交互式菜单：\n\n```bash\npython3 codex-instruct.py\n```\n\n<details>\n<summary><strong>更多命令</strong></summary>\n\n```bash\n# 指定 Codex home\npython3 codex-instruct.py --apply --codex-dir ~/.codex\n\n# 部署自定义 ZIP 或 Markdown\npython3 codex-instruct.py --file ./custom-instructions.zip\n\n# 安全卸载提示词；只恢复本项目管理的配置项\npython3 codex-instruct.py --reset\n\n# 人工应急：显式恢复整份 config.toml 快照\npython3 codex-instruct.py \\\n  --restore-snapshot ~/.codex/config.toml.bak_YYYYMMDD_HHMMSS_ffffff \\\n  --codex-dir ~/.codex\n```\n\n</details>\n\n执行 `--reset` 时，脚本只恢复部署前的顶层 `model_instructions_file`，不会用旧快照覆盖整个 `config.toml`。脚本仅删除由本次状态记录为新建且 SHA256 未变化的提示词；部署前已存在或后来被用户修改的文件会保留。\n\n### 手动部署及回滚 ↩️\n\n解压 v42，将指令文件复制到 `CODEX_HOME`，为 `config.toml` 创建操作前快照，并写入：\n\n```toml\nmodel_instructions_file = \"./gpt-5.6-sol-unrestricted-v42.md\"\n```\n\n若要手动回滚，直接删除或用 `#` 注释掉上述行即可恢复模型原始默认行为；也可删除部署的版本化 Markdown 文件以清理本地文件。\n\n### 反代工具兼容性 🔌\n\n<details>\n<summary><strong>点击查看</strong></summary>\n\n- 部署前的指令项、已部署文件 SHA256 及部署前是否存在记录在 `CODEX_HOME/.gpt56-sol-instruct-state.json`；状态文件不保存 provider、模型、URL 或认证数据。\n- **CCSwitch 等反代工具在部署后写入的 provider、模型和认证配置会在 `--reset` 后保留。**\n- 完整 `config.toml.bak_<时间戳>` 快照只用于人工应急恢复；需要恢复整份配置时，必须显式使用 `--restore-snapshot` 并再次确认。\n- 旧版 `config.toml.gpt56-sol-instruct.bak` 只用于找回原有 `model_instructions_file`，其中的其他配置不会自动写回。\n- 已存在且未被状态文件接管的 Markdown 文件不会被覆盖；请使用其他 `--name`。\n\n</details>\n\n<a id=\"results\"></a>\n\n## 评测结果 📊\n\nv42 发布门禁中，Issues #5/#22 的两个无历史对话原始输入在 `medium` 推理下一次通过 **2/2 cases、2/2 turns、2/2 artifact gates**，无需重复输入。扩展专项集在 `low` 下达到 **60/60 cases、68/68 turns、8/8 artifact gates**；原 120 条 `medium` 测试集在 `low` 下首跑 115/120，定向审计 5/",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:38.129431"
+  },
+  {
+    "basic_info": {
+      "name": "os-taxonomy",
+      "full_name": "withmarbleapp/os-taxonomy",
+      "owner": "withmarbleapp",
+      "description": null,
+      "url": "https://github.com/withmarbleapp/os-taxonomy",
+      "clone_url": "https://github.com/withmarbleapp/os-taxonomy.git",
+      "ssh_url": "git@github.com:withmarbleapp/os-taxonomy.git",
+      "homepage": null,
+      "created_at": "2026-07-08T09:27:48Z",
+      "updated_at": "2026-08-01T03:34:59Z",
+      "pushed_at": "2026-07-08T14:18:23Z"
+    },
+    "stats": {
+      "stars": 3757,
+      "forks": 648,
+      "watchers": 3757,
+      "open_issues": 16,
+      "size": 5629
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 4798
+      },
+      "license": "Open Data Commons Open Database License v1.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Marble Skill Taxonomy\n\nAn open, structured taxonomy of **what children learn** across the primary/elementary years — decomposed into fine-grained \"micro-topics\", wired into a prerequisite graph, and aligned to national curriculum standards. Produced by [Marble](https://withmarble.com).\n\n> **Version:** `v1` · **Topics:** 1,590 · **Prerequisite edges:** 3,221 · **Subjects:** 8\n\n## See it\n\n![The taxonomy as a rotating 3D graph: every dot a micro-topic, colored by subject, wired by prerequisites](media/curriculum-viz.gif)\n\nEvery dot is a micro-topic, colored by subject; height is age; each thread is a prerequisite ([full-quality video](media/curriculum-viz.mp4)). Explore it interactively at [withmarble.com/curriculum](https://withmarble.com/curriculum) — tap any concept to trace everything a learner must master before it.\n\n\n## What this is\n\nMost curriculum data is either a flat list of standards or locked inside a product. This dataset is a **connected graph of learning**:\n\n- **1,590 micro-topics** — a single, teachable idea (e.g. *\"Building sentences\"*, *\"Apparent brightness of stars\"*), each with a plain-language description, mastery **evidence** criteria, a type (conceptual / procedural / representational / language / meta), a subject + domain, and an approximate age range.\n- **3,221 prerequisite dependencies** — a directed acyclic graph: *\"topic X depends on prerequisite Y\"*, each edge tagged `hard`/`soft` and carrying a one-line **reason**.\n- **Curriculum alignment** — each micro-topic links to the standards it was distilled from (NGSS, Common Core, the UK National Curriculum, and more).\n- **Domain clusters** — 183 parent-friendly one-paragraph summaries per (subject, domain, age band).\n\n### Subjects\n\n| Subject | Topics |\n|---|---:|\n| Science | 547 |\n| Mathematics | 503 |\n| English | 286 |\n| History | 90 |\n| Personal & Social Development | 88 |\n| Life Skills | 37 |\n| Computing | 21 |\n| Learning to Learn | 18 |\n\n## Files\n\nAll data lives in [`data/`](data/) as UTF-8 JSON. See [`schema/`](schema/) for JSON Schemas and [`manifest.json`](data/manifest.json) for counts + SHA-256 checksums.\n\n| File | What it holds |\n|---|---|\n| [`data/topics.json`](data/topics.json) | The micro-topics (graph **nodes**). |\n| [`data/dependencies.json`](data/dependencies.json) | Prerequisite **edges** (`topicId` depends on `prerequisiteId`). |\n| [`data/curriculum-standards.json`](data/curriculum-standards.json) | The source curriculum standards, grouped by curriculum. |\n| [`data/clusters.json`](data/clusters.json) | Parent-friendly domain summaries. |\n| [`data/manifest.json`](data/manifest.json) | Counts, per-subject breakdown, per-file checksums. |\n\n### A topic\n\n```json\n{\n  \"id\": \"mt_N8CpN1EJrP\",\n  \"type\": \"CONCEPTUAL\",\n  \"subject\": \"English\",\n  \"domain\": \"Grammar & Punctuation\",\n  \"name\": \"Building sentences\",\n  \"description\": \"Understand that words combine to make sentences — a sentence expresses a complete thought…\",\n  \"ageRangeStart\": 4,\n  \"ageRangeEnd\": 6,\n  \"centrality\": 0.257,\n  \"evidence\": [\n    \"Distinguish between complete sentences and fragments\",\n    \"Compose a complete sentence with a subject and verb\"\n  ],\n  \"assessmentPrompt\": \"If {{name}} says something like \\\"The dog\\\", can they tell you that's not a complete sentence…?\",\n  \"standards\": [\"ccss-ela:L.K.1f\", \"uk-nc-2013:Eng.App2.Y1.Sent.1\"]\n}\n```\n\n- `id` — stable identifier (`mt_…`), referenced by dependencies and by neighbours.\n- `standards` — keys into `curriculum-standards.json` (`\"<curriculum-slug>:<code>\"`).\n- `assessmentPrompt` — a natural-language check for the idea. Contains a `{{name}}` placeholder (the child's name); substitute or strip before display.\n\n### A dependency\n\n```json\n{ \"topicId\": \"mt__00ZSLnB7p\", \"prerequisiteId\": \"mt_VBl1T1sFCM\", \"strength\": \"hard\",\n  \"reason\": \"Must understand vibrations make sound before finding volume patterns\" }\n```\n\n`topicId` **depends on** `prerequisiteId`. Reverse the edge to get \"unlocks\".\n\n## Using it\n\nPure data — no runtime, no dependencies. Load the JSON and go.\n\n```js\nimport topics from './data/topics.json' with { type: 'json' };\nimport deps from './data/dependencies.json' with { type: 'json' };\n\nconst byId = new Map(topics.topics.map(t => [t.id, t]));\nconst prereqs = deps.dependencies\n  .filter(d => d.topicId === 'mt_N8CpN1EJrP')\n  .map(d => byId.get(d.prerequisiteId).name);\n```\n\nValidate structure + referential integrity:\n\n```bash\nnode scripts/validate.mjs\n```\n\n## License\n\nThis dataset is **multi-licensed** — read this before you use or redistribute it.\n\n| Layer | License |\n|---|---|\n| **The database** — the collection, structure, IDs, topic↔topic and topic↔standard relationships | [**ODbL 1.0**](LICENSE) — free for research **and** commercial use, **attribution** required, **share-alike** (derivative *databases* must stay open under ODbL). |\n| **The textual content Marble authored** — topic `description`/`name`/`evidence`/`assessmentPrompt`, dependency `reason`s, cluster `summary`s | [**CC BY-SA 4.0**](LICENSE-",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:39.391512"
+  },
+  {
+    "basic_info": {
+      "name": "no-ai-slop",
+      "full_name": "petergyang/no-ai-slop",
+      "owner": "petergyang",
+      "description": "Removes 20+ patterns of AI slop from any piece of writing.",
+      "url": "https://github.com/petergyang/no-ai-slop",
+      "clone_url": "https://github.com/petergyang/no-ai-slop.git",
+      "ssh_url": "git@github.com:petergyang/no-ai-slop.git",
+      "homepage": "https://creatoreconomy.so/p/use-my-no-ai-slop-skill-to-remove-20-ai-slop-patterns",
+      "created_at": "2026-07-07T05:05:58Z",
+      "updated_at": "2026-08-01T04:10:39Z",
+      "pushed_at": "2026-07-31T18:20:47Z"
+    },
+    "stats": {
+      "stars": 3670,
+      "forks": 287,
+      "watchers": 3670,
+      "open_issues": 18,
+      "size": 848
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 4390
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# No AI slop\n\nThis open-source skill removes 20+ patterns of AI slop from your writing without flattening your personal voice. It can also detect slop without guessing whether AI wrote the text.\n\n## What it catches\n\nThe patterns it detects include:\n\n| Pattern | Smells like |\n|---------|-------------|\n| Binary contrasts | \"It's not X. It's Y.\" |\n| Throat-clearing openers | \"Here's the thing...\" |\n| Faux-insight setups | \"What nobody tells you...\" |\n| Colon reveals | \"The best part: it learns.\" |\n| Superficial analysis | \"...highlighting the team's commitment\" |\n| Importance puffery | \"marks a pivotal moment\" |\n| Weasel attribution | \"experts agree,\" \"studies show\" |\n| Fake-strong verbs | \"serves as a centralized hub\" |\n| Synonym cycling | the agent, then the assistant, then the tool |\n| Negative listing | \"Not a X. Not a Y. A Z.\" |\n| Dramatic fragmentation | \"That's it. That's the whole thing.\" |\n\nIt also enforces the fundamentals that make writing good: Lead with the point when it helps, use active voice, untangle hard-to-follow sentences, and prefer concrete numbers over abstractions.\n\nI use it during the middle 50% of my writing process to improve spelling, grammar, and clarity. I write or dictate the first draft myself, use AI to edit, then do the final line-by-line pass myself. [Read the full 25/50/25 process.](https://creatoreconomy.so/p/use-my-no-ai-slop-skill-to-remove-20-ai-slop-patterns)\n\n## Install\n\nPaste this into Claude Code, Codex, or your favorite AI harness:\n\n\"Install this skill globally: [https://github.com/petergyang/no-ai-slop](https://github.com/petergyang/no-ai-slop)\"\n\nThe repository also contains a skills-only plugin package for ChatGPT and Codex. Tagged releases attach a validated plugin ZIP, and the plugin is available in the public ChatGPT directory.\n\n## Use\n\n**1. Edit a draft.** Paste it and invoke the skill:\n\n```\n/no-ai-slop\n\n[your draft]\n```\n\nYou get back the edited draft plus a short What changed section. The skill makes the minimum effective edit, then checks its own work against [eval.md](eval.md).\n\n**2. Detect slop.** Ask whether a piece reads as AI:\n\n```\n/no-ai-slop is this AI slop?\n\n[the text]\n```\n\nYou get every pattern it found each with the quoted line.\n\n## Files\n\n1. `SKILL.md`: The editing rules and workflow.\n2. `eval.md`: Pass/fail checks the skill runs on its own edits.\n3. `.codex-plugin/plugin.json`: Metadata for the ChatGPT and Codex plugin.\n4. `scripts/build_plugin.py`: Builds and validates the plugin ZIP from the canonical skill files.\n\n## Who made this\n\nThis is one skill from my personal AI operating system. The full library, including my courses and workflows, lives at [Behind the Craft](https://behindthecraft.com).\n\n## License\n\nMIT\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:40.634793"
+  },
+  {
+    "basic_info": {
+      "name": "bento",
+      "full_name": "nyblnet/bento",
+      "owner": "nyblnet",
+      "description": "Bento, the office suite that fits in a file",
+      "url": "https://github.com/nyblnet/bento",
+      "clone_url": "https://github.com/nyblnet/bento.git",
+      "ssh_url": "git@github.com:nyblnet/bento.git",
+      "homepage": "https://bento.page",
+      "created_at": "2026-07-17T16:55:09Z",
+      "updated_at": "2026-08-01T04:11:31Z",
+      "pushed_at": "2026-08-01T01:43:45Z"
+    },
+    "stats": {
+      "stars": 3341,
+      "forks": 216,
+      "watchers": 3341,
+      "open_issues": 16,
+      "size": 22628
+    },
+    "tech_info": {
+      "language": "TypeScript",
+      "languages": {
+        "TypeScript": 3347402,
+        "JavaScript": 306174,
+        "HTML": 101982,
+        "CSS": 70832,
+        "Swift": 33359
+      },
+      "license": "MIT License",
+      "topics": [
+        "mit-license",
+        "office",
+        "office-365",
+        "office-suite",
+        "office-tools",
+        "office365",
+        "open-source",
+        "powerpoint",
+        "self-hosted",
+        "single-page-app",
+        "slides",
+        "slideshare",
+        "slideshow",
+        "slideshow-gallery",
+        "slideshow-maker",
+        "slideshows"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://bento.page\" title=\"bento.page — try it in your browser\">\n    <img src=\"docs/assets/bento-logo.svg\" alt=\"Bento\" width=\"96\" height=\"96\">\n  </a>\n</p>\n\n# [Bento — the office suite that fits in a file](https://bento.page/)\n\n**This PowerPoint alternative is a single HTML file.** A Bento deck carries\nits own viewer, presenter, and editor inside the document — open it in any\nbrowser, edit it, present it, send it. The person you send it to needs\nnothing: the file *is* the software.\n\n**Try it in 10 seconds:** open [bento.page/slides](https://bento.page/slides)\n— that's the entire app, running on a starter deck that doubles as the\nfeature tour. Or grab a designed template from the\n[gallery](https://bento.page/) and make it yours.\n\n**Download the app:** grab the single `Bento_Slides.bento.html` from the\n[GitHub Releases](https://github.com/nyblnet/bento/releases) page or straight\nfrom [bento.page](https://bento.page/releases/slides/Bento_Slides.bento.html)\n(~560 KB, no account, no installer). Open it in any modern browser and it *is*\nthe editor. Save, and it rewrites itself with your deck inside.\n\n## Why this exists\n\nOffice documents used to be things you *had*. Now they're things you rent —\nlocked in someone's cloud, behind someone's login, readable only while a\ncompany keeps its servers on. Bento takes the other path:\n\n- **One file, forever.** Deck, fonts, images, charts, animations, and the\n  full editor travel together. A copy from 2026 will open in 2036.\n- **View-source honest.** Your data sits in a plain, readable JSON block at\n  the top of the file. No binary formats, no lock-in, no archaeology.\n- **It saves itself.** The file rewrites its own data block on save (File\n  System Access API, with a download fallback). No app to install, ever.\n- **Local-first, provably.** Flip on Offline mode and nothing leaves your\n  machine — updates and collaboration are hard-blocked, and the app says so.\n\n## What's inside\n\n| Feature | Description |\n|---|---|\n| **Morph presenting** | Elements that share an id animate between slides — position, size, color, even gradients. Duplicate a slide, rearrange, and the motion designs itself. |\n| **Live collaboration** | E2EE (AES-GCM) with keys that live in your file, never on a server. The file itself is the invitation: anyone who opens a copy joins. Offline edits merge back precisely — our own CRDT, character-level text merging included. |\n| **A blind relay** | The optional sync relay ([`server/sync-worker/`](server/sync-worker/)) stores ciphertext and learns nothing. Read the source; it's about one file. |\n| **Charts, built in** | Bar / line / pie / scatter drawn by our own dependency-free engine, live during presentations: tooltips, zoom, and data that morphs when a bar chart becomes a pie. |\n| **Designed for AI** | The document is plain JSON in the file, so agents edit `.bento.html` files in place and chatbots round-trip the JSON (`window.bento.loadDoc`). See [docs/agents.md](docs/agents.md). |\n| **Signed self-updates** | Releases are ECDSA-signed and offered in-app. Updating writes a *new* file — the old one stays as your rollback. No server ever touches your documents. |\n| **Everything else** | Speaker view, comments, layouts, hidden interactive states, hover reveals, motion paths, PDF export, page sizes, 8 UI languages — in a ~560 KB shell. |\n\n## Use it with AI\n\nBecause the document is plain JSON living in one plaintext block near the top\nof the file, any assistant that can read and write a file can edit your deck —\nno plugin, no API. Two ways in:\n\n- **File harnesses** edit the `#bento-doc` JSON in place:\n  [Claude Code](https://claude.com/claude-code), Cursor, Aider, or any agent\n  with filesystem access. Claude Code users get a packaged `bento-slides`\n  skill (installable from this repo's plugin marketplace: `/plugin marketplace\n  add nyblnet/bento`) that even downloads the latest Bento app by itself.\n- **Chat round-trip** for any chatbot: copy the document JSON out (*Save →\n  Copy document JSON*), let the assistant rewrite it, paste it back.\n\n**It works fully offline with local open-weight models** — point\n[Ollama](https://ollama.com), llama.cpp, or LM Studio at the deck and nothing\nleaves your machine. The agent guide is a single page you can drop into any\nmodel's context: [bento.page/agents.md](https://bento.page/agents.md) (also in\nthis repo at [docs/agents.md](docs/agents.md)).\n\n## Architecture in one paragraph\n\n`slides/src/model.ts` defines the JSON document model; one renderer\n(`render.ts`) draws it for the editor canvas, thumbnails, and present mode\n(Reveal.js drives navigation; morphs are computed from the model, not the\nDOM). Animation is an in-house engine (`anim.ts`), charts are in-house\n(`charts.ts`), collaboration is an in-house CRDT (`sync/crdt.ts` — pure\ndata, fuzz-tested by `scripts/test-sync.ts` across hundreds of thousands of\nconvergence checks). The shell compresses to ~560 KB with the document block\nleft as plaintext so o",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:41.926444"
+  },
+  {
+    "basic_info": {
+      "name": "quill",
+      "full_name": "digimata/quill",
+      "owner": "digimata",
+      "description": "Ultra-minimalist macOS recording + transcription.",
+      "url": "https://github.com/digimata/quill",
+      "clone_url": "https://github.com/digimata/quill.git",
+      "ssh_url": "git@github.com:digimata/quill.git",
+      "homepage": "",
+      "created_at": "2026-07-24T23:31:27Z",
+      "updated_at": "2026-08-01T04:17:05Z",
+      "pushed_at": "2026-07-30T08:11:29Z"
+    },
+    "stats": {
+      "stars": 3322,
+      "forks": 200,
+      "watchers": 3322,
+      "open_issues": 21,
+      "size": 22
+    },
+    "tech_info": {
+      "language": "Swift",
+      "languages": {},
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# quill\n\nA minimal, fully local macOS meeting recorder + transcriber. One menu-bar\nclick records your mic and all system audio as two separate tracks; when you\nstop, quill transcribes both on-device and writes a speaker-tagged transcript.\nNothing ever leaves the machine.\n\nNamed for the feather. Sibling of [parrot](https://github.com/digimata/parrot), same skeleton: single\nSwift binary, menu-bar tray, no app bundle.\n\n## Install\n\n```sh\ncd quill\nswift build -c release\nsudo cp .build/release/quill /usr/local/bin/quill\nquill install --launch-at-login   # optional — runs in the background on login\n```\n\n**Requires:** macOS 15+ (Core Audio process taps for system audio — no\nvirtual device, no kernel extension). Apple Silicon recommended for\ntranscription speed.\n\n## How to use\n\n1. **Run it** (`quill` in a terminal, or the LaunchAgent).\n2. **Click the feather in the menu bar → Start recording.** First use prompts\n   for microphone and System Audio Recording permissions. While recording, the\n   icon turns red with a running elapsed counter, and macOS shows the purple\n   recording indicator.\n3. **Click → Stop recording** when the meeting ends. Transcription starts\n   automatically (the menu shows progress); a notification fires when the\n   transcript is ready.\n\nEach session lands in `~/Recordings/<yyyy.MM.dd-HHmm>/`:\n\n| File | Contents |\n|---|---|\n| `mic.caf` | your side (default input device, AAC) |\n| `system.caf` | everything the Mac played — the other side of the call (AAC) |\n| `meta.json` | start/end timestamps, duration, per-track start offsets |\n| `transcript.json` | canonical transcript — engine provenance + timed, speaker-tagged segments |\n| `transcript.md` | the same transcript rendered for reading |\n| `transcribe.log` | transcription progress/errors for this session |\n\nTwo tracks on purpose: speech models do better on clean single-source audio,\nand mic-vs-system is free two-party diarization — `me` vs `them` with no\nspeaker-identification model. CAF on purpose: unlike m4a, it needs no\nfinalization pass — if the process dies mid-meeting, everything already\nwritten is still readable.\n\n## Transcription\n\nBuilt in, on-device, automatic. The default engine is **Parakeet TDT 0.6B v2**\n(English) via [FluidAudio](https://github.com/FluidInference/FluidAudio)'s\nCore ML port — roughly 20 seconds per hour of audio on Apple Silicon. Models\n(~600 MB) download once on first transcription; `quill doctor` tells you\nwhether they're already cached so you're never downloading after an important\nmeeting.\n\nEach track is transcribed separately, shifted by its start offset so both\nshare one clock, and merged by timestamp. Jobs run in a serial queue — you can\nstart a new recording while the last one transcribes. Unfinished jobs resume\non next launch (the filesystem is the queue: a session with `meta.json` but no\n`transcript.json` is pending). Failures append to the session's\n`transcribe.log` and never block later jobs.\n\nThe engine sits behind a small protocol; a Whisper engine (WhisperKit\nlarge-v3-turbo) is planned as the fallback / re-transcription option.\n\n## Config\n\nOptional, at `~/.config/quill/config.json`:\n\n```json\n{\n  \"recordings_dir\": \"~/Recordings\",\n  \"transcription\": { \"enabled\": true, \"engine\": \"parakeet\" },\n  \"on_stop\": \"my-hook\"\n}\n```\n\n- `recordings_dir` — where sessions land. Resolution order: `--out` flag >\n  config > `~/Recordings`.\n- `transcription.enabled` — set `false` to just record.\n- `mic_voice_processing` — Apple's echo cancellation on the mic (default off).\n  Set `true` when recording meetings through the speakers, so playback doesn't\n  bleed into the mic track and get transcribed twice as \"me\". The trade: while\n  the voice unit is live, macOS ducks other playback slightly (`.min` ducking\n  is configured, but it can't be zeroed). On headphones there's no echo to\n  cancel, so raw capture is the better default.\n- `on_stop` — shell command spawned with the session directory as its\n  argument, **after the transcript is written** (or right after recording if\n  transcription is disabled). Wire it to whatever comes next: summarization,\n  filing, indexing.\n\n## CLI\n\n```sh\nquill                        # run the menu-bar daemon (^C to quit)\nquill run --out <dir>        # custom recordings root (default ~/Recordings)\nquill doctor                 # check permissions, recordings folder, models\nquill install --launch-at-login\nquill install --uninstall\n```\n\n## Stack\n\n- **Swift** — single SPM executable target\n- **Core Audio process tap** (`AudioHardwareCreateProcessTap`, macOS 14.2+) —\n  system audio capture via a private aggregate device\n- **AVAudioEngine** — mic capture\n- **AVAudioFile** — streaming AAC encode into CAF\n- **FluidAudio / Parakeet** — on-device Core ML transcription\n- **NSStatusItem** — the whole UI\n\n## Gotchas\n\n- A global tap records *everything* the Mac plays — notification dings,\n  music, all of it. Don't play Spotify during meetings (or ask for a\n  per-process picker if it bothers you).\n- If recordings com",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-08-01T04:17:43.119457"
+  },
+  {
+    "basic_info": {
+      "name": "video-shotcraft",
+      "full_name": "Vincentwei1021/video-shotcraft",
+      "owner": "Vincentwei1021",
+      "description": "AI video skill for Claude Code & Codex — cinematic product videos with Remotion: 106 shot recipe cards, 161 motion previews, a production-ready template",
+      "url": "https://github.com/Vincentwei1021/video-shotcraft",
+      "clone_url": "https://github.com/Vincentwei1021/video-shotcraft.git",
+      "ssh_url": "git@github.com:Vincentwei1021/video-shotcraft.git",
+      "homepage": "https://vincentwei1021.github.io/video-shotcraft/",
+      "created_at": "2026-07-19T11:44:41Z",
+      "updated_at": "2026-08-01T04:04:38Z",
+      "pushed_at": "2026-07-28T07:18:42Z"
+    },
+    "stats": {
+      "stars": 3054,
+      "forks": 260,
+      "watchers": 3054,
+      "open_issues": 2,
+      "size": 185695
+    },
+    "tech_info": {
+      "language": "TypeScript",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-skills",
+        "ai-agents",
+        "ai-video",
+        "claude-code",
+        "claude-code-skills",
+        "claude-skills",
+        "codex",
+        "motion-design",
+        "motion-graphics",
+        "product-video",
+        "promo-video",
+        "remotion",
+        "video-generation",
+        "video-production"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:44.190035"
+  },
+  {
+    "basic_info": {
+      "name": "turbo-fieldfare",
+      "full_name": "drumih/turbo-fieldfare",
+      "owner": "drumih",
+      "description": "Gemma 4 26B-A4B inference in ~2 GB of RAM on any M-series MacBook",
+      "url": "https://github.com/drumih/turbo-fieldfare",
+      "clone_url": "https://github.com/drumih/turbo-fieldfare.git",
+      "ssh_url": "git@github.com:drumih/turbo-fieldfare.git",
+      "homepage": "",
+      "created_at": "2026-07-17T15:57:54Z",
+      "updated_at": "2026-08-01T04:16:30Z",
+      "pushed_at": "2026-07-31T12:55:38Z"
+    },
+    "stats": {
+      "stars": 3044,
+      "forks": 134,
+      "watchers": 3044,
+      "open_issues": 21,
+      "size": 1997
+    },
+    "tech_info": {
+      "language": "Swift",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": [
+        "apple-silicon",
+        "gemma",
+        "gemma4",
+        "gemma4-26b-a4b",
+        "gpgpu",
+        "llm",
+        "llm-inference",
+        "local-ai",
+        "macos",
+        "metal",
+        "on-device-ai",
+        "on-device-llm",
+        "swift"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:45.261226"
+  },
+  {
+    "basic_info": {
+      "name": "openscience",
+      "full_name": "synthetic-sciences/openscience",
+      "owner": "synthetic-sciences",
+      "description": "The open-source AI workbench for scientific research",
+      "url": "https://github.com/synthetic-sciences/openscience",
+      "clone_url": "https://github.com/synthetic-sciences/openscience.git",
+      "ssh_url": "git@github.com:synthetic-sciences/openscience.git",
+      "homepage": "https://openscience.sh",
+      "created_at": "2026-07-03T15:06:45Z",
+      "updated_at": "2026-07-31T23:32:37Z",
+      "pushed_at": "2026-07-31T19:00:10Z"
+    },
+    "stats": {
+      "stars": 3007,
+      "forks": 412,
+      "watchers": 3007,
+      "open_issues": 9,
+      "size": 56747
+    },
+    "tech_info": {
+      "language": "TypeScript",
+      "languages": {},
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent",
+        "ai",
+        "ai-agent",
+        "bun",
+        "cli",
+        "co-scientist",
+        "llm",
+        "ml",
+        "ml-engineering",
+        "open-source",
+        "research",
+        "research-tools",
+        "science",
+        "scientific-computing",
+        "typescript"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:46.333187"
+  },
+  {
+    "basic_info": {
+      "name": "investing-for-beginners",
+      "full_name": "xuchonglang/investing-for-beginners",
+      "owner": "xuchonglang",
+      "description": "小隐寺投资百科官方公开索引：美股、期权与加密货币知识框架",
+      "url": "https://github.com/xuchonglang/investing-for-beginners",
+      "clone_url": "https://github.com/xuchonglang/investing-for-beginners.git",
+      "ssh_url": "git@github.com:xuchonglang/investing-for-beginners.git",
+      "homepage": "https://xiaoyinsi.com/wiki",
+      "created_at": "2026-07-03T03:56:00Z",
+      "updated_at": "2026-08-01T01:11:15Z",
+      "pushed_at": "2026-07-28T09:04:59Z"
+    },
+    "stats": {
+      "stars": 2938,
+      "forks": 182,
+      "watchers": 2938,
+      "open_issues": 0,
+      "size": 665
+    },
+    "tech_info": {
+      "language": null,
+      "languages": {},
+      "license": "Other",
+      "topics": [
+        "chinese",
+        "cryptocurrency",
+        "investing",
+        "options",
+        "xiaoyinsi"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:47.403969"
+  },
+  {
+    "basic_info": {
+      "name": "canvas-ui",
+      "full_name": "DavidHDev/canvas-ui",
+      "owner": "DavidHDev",
+      "description": "A library of creative canvas components. Real HTML with WebGL effects running over it. React, Vue, Svelte, vanilla.",
+      "url": "https://github.com/DavidHDev/canvas-ui",
+      "clone_url": "https://github.com/DavidHDev/canvas-ui.git",
+      "ssh_url": "git@github.com:DavidHDev/canvas-ui.git",
+      "homepage": "https://canvasui.dev/",
+      "created_at": "2026-07-16T13:38:20Z",
+      "updated_at": "2026-08-01T03:49:37Z",
+      "pushed_at": "2026-07-30T13:53:48Z"
+    },
+    "stats": {
+      "stars": 2834,
+      "forks": 129,
+      "watchers": 2834,
+      "open_issues": 1,
+      "size": 14520
+    },
+    "tech_info": {
+      "language": "TypeScript",
+      "languages": {},
+      "license": "Other",
+      "topics": [
+        "animation",
+        "canvas",
+        "component-library",
+        "components",
+        "creative-coding",
+        "design-engineering",
+        "frontend",
+        "glsl",
+        "nextjs",
+        "react",
+        "shadcn",
+        "shaders",
+        "svelte",
+        "threejs",
+        "typescript",
+        "ui",
+        "ui-library",
+        "vue",
+        "weggl"
+      ]
+    },
+    "content": {
+      "readme": "",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-01T04:17:48.474836"
+  }
+]

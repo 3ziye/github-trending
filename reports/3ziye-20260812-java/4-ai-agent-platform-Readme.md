@@ -1,0 +1,165 @@
+# AI Agent Platform
+
+基于 Spring Boot 3 + LangChain4j 构建的企业级 AI Agent 平台，集成 ReAct 推理循环、多路召回 RAG、语义缓存和工具调用框架。
+
+[![CI/CD Pipeline](https://github.com/888newstep/ai-agent-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/888newstep/ai-agent-platform/actions/workflows/ci.yml)
+[![JDK 17](https://img.shields.io/badge/JDK-17-blue.svg)](https://adoptium.net/)
+[![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3.5-green.svg)](https://spring.io/projects/spring-boot)
+[![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](LICENSE)
+
+## Open Source Quality Baseline
+
+- Test lifecycle: `mvn test` / `mvn verify`
+- Coverage report: `target/site/jacoco/index.html`
+- Metrics endpoints: `/actuator/health`, `/actuator/metrics`, `/actuator/prometheus`; metrics require authentication by default, while the local `.env.example` enables public scraping for Compose.
+- Monitoring stack: `docker compose up -d app prometheus grafana`
+- Details: `docs/observability.md`
+
+> **🎯 适用人群**
+> - 正在准备大厂 Java / AI 岗位面试的求职者（覆盖高频面试考点）
+> - 需要快速搭建 AI 客服系统的中小企业或独立开发者
+> - 想学习 RAG + Agent 完整落地实践的技术爱好者
+> - 需要可扩展 AI Agent 框架的产品开发者
+
+---
+
+## 功能特性
+
+- **ReAct Agent 循环** — Thought → Action → Observation → Final Answer 推理循环，含死循环防护和超时控制
+- **Adaptive RAG** — Query Router、查询改写、自适应多轮检索与 Self-RAG 结果验证
+- **多路召回 RAG** — 向量检索（Milvus）+ BM25 关键词检索 + RRF 融合排序
+- **语义缓存** — 基于 embedding 余弦相似度，自动缓存相似问题回答，降低 API 成本
+- **API 保护** — Redis 分布式固定窗口限流 + 估算 Token 预算，按认证主体/IP 隔离高成本请求
+- **多模型支持** — 策略模式动态切换（DeepSeek / 通义千问 / 豆包 / Qwen3-Flash / Ollama 本地）
+- **工具调用框架** — 数据库查询、外部 API 调用，注册表模式自动发现
+- **流式输出** — SSE 实时推送，5 分钟超时保护
+- **会话管理** — Redis 存储会话上下文，24 小时 TTL 自动过期
+- **Docker 一键部署** — 核心 4 个服务编排（MySQL + Redis + Milvus + App），Prometheus/Grafana 可选
+
+---
+
+## 技术栈
+
+| 层级 | 技术 |
+|------|------|
+| 框架 | Spring Boot 3.5, LangChain4j 0.34 |
+| 语言 | Java 17 |
+| 数据库 | MySQL 8.0, Redis 7, Milvus 2.4 |
+| AI 模型 | DeepSeek, 通义千问, 豆包, Qwen3-Flash, Ollama |
+| 嵌入模型 | BGE-M3 (SiliconFlow API) |
+| 部署 | Docker, Docker Compose |
+| CI/CD | GitHub Actions |
+
+---
+
+## 快速开始
+
+### 前置条件
+
+- JDK 17+
+- Docker & Docker Compose (推荐)
+- Maven 3.9+
+
+### 1. 克隆项目
+
+```bash
+git clone https://github.com/888newstep/ai-agent-platform.git
+cd ai-agent-platform
+```
+
+### 2. 配置环境变量
+
+```bash
+cp .env.example .env
+# 编辑 .env 填入你的 API 密钥
+```
+
+### 3. 启动（Docker 一键部署）
+
+```bash
+docker compose up -d
+```
+
+### 4. 验证
+
+```bash
+curl http://localhost:8081/api/v1/agent/health
+# 返回: {"status":"UP","service":"AI Customer Service Agent","version":"1.0.0"}
+```
+
+---
+
+## API 使用示例
+
+### 创建会话
+
+```bash
+curl -X POST http://localhost:8081/api/v1/agent/session
+```
+
+### 普通聊天
+
+```bash
+curl -X POST "http://localhost:8081/api/v1/agent/chat?sessionId={sessionId}&question=你好&useRag=true"
+```
+
+### ReAct 模式聊天（推理 + 工具调用）
+
+```bash
+curl -X POST "http://localhost:8081/api/v1/agent/react/chat?sessionId={sessionId}&question=查询数据库中的用户数量&useRag=true"
+```
+
+### 流式聊天
+
+```bash
+curl -N "http://localhost:8081/api/v1/agent/chat/stream?sessionId={sessionId}&question=请详细介绍RAG技术"
+```
+
+### 上传文档
+
+```bash
+curl -X POST -F "file=@文档.pdf" http://localhost:8081/api/v1/agent/document/upload
+```
+
+### 评测报告历史
+
+评测接口需要管理员凭证。导出报告后，可以列出最近报告并比较两次评测的指标变化：
+
+```bash
+curl -H "X-Admin-Api-Key: ${ADMIN_API_KEY}" \
+  "http://localhost:8081/api/v1/agent/evaluate/history?limit=20"
+
+curl -H "X-Admin-Api-Key: ${ADMIN_API_KEY}" \
+  "http://localhost:8081/api/v1/agent/evaluate/history/compare?baseline={fileName}&candidate={fileName}"
+```
+
+比较结果中的 `metricDeltas` 使用 `candidate - baseline`，并在数据集来源、样本数或 `topKs` 不一致时标记为不可直接比较。
+
+### 可复现 RAG 评测
+
+仓库提供最小示例数据集 `examples/evaluation-datasets/rag-sample.json`，默认配置已指向该目录。详细的双配置真实评测流程见 `docs/RAG_BENCHMARK.md`，运行脚本为 `scripts/run-rag-evaluation.ps1`。数据集中的 `relevantDocIds` 是评测基准的 chunk ID；只有先导入包含这些 ID 的文档，召回率和准确率才具有业务意义。若复用已有 `ecommerce_qa` collection，请先设置 `AI_VECTOR_STORE_MODE=qa`、`MILVUS_COLLECTION_NAME=ecommerce_qa` 和 `MILVUS_READ_ONLY=true`；真实数据请通过 `AI_EVALUATION_DATASET_DIRECTORY` 指向本地私有目录，避免提交到 GitHub。
+
+```bash
+curl -X POST \
+  -H "X-Admin-Api-Key: ${ADMIN_API_KEY}" \
+  "http://localhost:8081/api/v1/agent/evaluate/export?datasetPath=examples/evaluation-datasets/rag-sample.json&topKs=1,3,5"
+```
+---
+
+## 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AI Agent Platform                         │
+├─────────────────────────────────────────────────────────────┤
+│  Controller Layer                                           │
+│  ┌─────────────┐ ┌──────────────┐ ┌──────────────────┐     │
+│  │ Chat API     │ │ ReAct API    │ │ Document API     │     │
+│  └──────┬───────┘ └──────┬───────┘ └────────┬─────────┘     │
+├─────────┼────────────────┼──────────────────┼───────────────┤
+│  Service Layer           │                  │               │
+│  ┌──────┴────────┐ ┌─────┴──────┐ ┌────────┴──────────┐    │
+│  │ AiAgentService│ │ ReActAgent  │ │ DocumentService   │    │
+│  └──────┬────────┘ └─────┬──────┘ └────────┬──────────┘    │
+│         │                │                  │               │
+│  ┌──────┴──────

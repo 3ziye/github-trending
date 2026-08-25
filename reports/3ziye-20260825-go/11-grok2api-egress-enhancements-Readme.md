@@ -1,0 +1,104 @@
+# Grok2API 出口质量守护
+
+**主推 [lij768423-svg/grok2api](https://github.com/lij768423-svg/grok2api) + Quality Guard sidecar。**  
+CPA 插件在 `cpa-plugin/`，不是默认交付。
+
+别人要接近我们现网：把全部家宽丢给 AI，不要只开一个节点。
+
+## 一键安装提示词
+
+整段复制发给你的 AI，只改最后的家宽：
+
+```text
+按这个文档装，不要发挥：
+https://github.com/lij768423-svg/grok2api-egress-enhancements/blob/main/docs/AI_GROK2API_INSTALL.md
+
+主路径：lij768423-svg/grok2api + Quality Guard sidecar。不要装 CPA。
+家宽全部用上，每个 sticky 一个节点。禁止只开 1 个交差。
+只贴 1 条、或把多条合成一个「住宅池」，都算没装完。
+
+机器：Linux + Docker，装到 ~/grok-stack（新目录，别覆盖现网）。
+有邮箱再一起装注册机；没有也行，先把出口和 Guard 拉起来。
+
+家宽（一行一条，URL / host:port:user:pass / 带 sid 都行）：
+
+```
+
+AI 用 [`scripts/from_residential.py`](./scripts/from_residential.py) 把家宽拆成 Mihomo listener + Grok2API 节点，再按 lab 默认打开 Guard。完整步骤：[docs/AI_GROK2API_INSTALL.md](./docs/AI_GROK2API_INSTALL.md)。
+
+这是一个非官方增强分发仓库：为 [chenyme/grok2api](https://github.com/chenyme/grok2api) 提供固定代理快速恢复和出口质量守护补丁，以及当前生产在跑的 **Quality Guard sidecar**（管理页 `/quality-guard`）。仓库不复制上游完整源码。
+
+当前基线是官方 `v3.1.4` / `909bb810`（0006–0014 / #956–#959 #966–#968 已合进官方）。**live 补丁是 TUI hold + serde，可运行树是 fork：**
+
+| 能力 | 本仓代码 | 上游 PR | 别人怎么用到 |
+| --- | --- | --- | --- |
+| 只有流式 thinking 才算 hold 证据 | `patches/0015-*.patch` | [#977](https://github.com/chenyme/grok2api/pull/977) | clone **fork** 再 `--build` |
+| 补 `output_text.annotations` | `patches/0016-*.patch` | [#978](https://github.com/chenyme/grok2api/pull/978) | 同上 |
+| TUI tools schema / 工具后一轮也 hold | `patches/0017-*.patch` | [#979](https://github.com/chenyme/grok2api/pull/979) | 同上 |
+| 空 `completed` 立刻失败换号 | `patches/0018-*.patch` | [#980](https://github.com/chenyme/grok2api/pull/980) | 同上 |
+| 清冷却 + `idleAccountCooldown` | `patches/0019-*.patch` | [#981](https://github.com/chenyme/grok2api/pull/981) | 同上 |
+| abort 改 `response.failed` + 必填 `model` | `patches/0020-*.patch` | [#984](https://github.com/chenyme/grok2api/pull/984) | 同上 |
+
+这些都是 **Grok2API 网关** 代码，不是 CPA 插件。插件 `.so` 没有这六项。  
+0015 / 0017 / 0018 都改 `quality_retry*`，按编号 `git am`。直接用 [lij768423-svg/grok2api](https://github.com/lij768423-svg/grok2api) `main`。不要把 0006–0014 再打到 v3.1.4 上。
+
+仍停在 `v3.0.11` 时，继续使用遗留补丁 `patches/0001-feat-add-egress-recovery-and-quality-guard.patch`（对应已关闭的 [#837](https://github.com/chenyme/grok2api/pull/837)）。
+
+## 包含功能
+
+### 固定代理快速恢复
+
+- 请求提交前发生连接拒绝、reset、timeout 或 EOF 时，固定节点先进入冷却，再立即异步复测。
+- 同一节点的并发故障只启动一个探针。
+- 后续绑定请求最多等待 5 秒；复测健康后重新读取持久化状态并继续，不健康则保留冷却。
+- 请求取消立即停止等待，不会取消共享探针。
+- 不重放已经提交的生成请求，也不把认证、额度或限流错误当作代理故障。
+- 官方已有的代理池模式继续按新隧道处理，单个旋转出口失败不会冷却整个池。
+
+### Sidecar（当前生产）
+
+`sidecar/quality_guard.py` 是和 Admin `/quality-guard` 配套的独立进程：被动审计 TPS、主动探针、隔离节点、可选换 sticky IP。说明见 [sidecar/README.md](./sidecar/README.md) 和 [sidecar/QUALITY_GUARD.md](./sidecar/QUALITY_GUARD.md)。不要提交 `quality-guard.env` 或 bootstrap。
+
+### 出口质量守护
+
+- 被动审计按 grok2api 面板同口径计算 `输出 Token / (总耗时 - 首字耗时)`，其中输出 Token 包含推理 Token。
+- **被动硬阈值立即隔离节点**；软阈值触发固定 Prompt 主动复测，连续命中后才隔离。
+- 主动软/硬阈值、连续探测错误、最低健康节点、隔离与自动恢复保护。
+- 严格模式下先摘流再确认；短窗口流式缓冲突增会先在原 IP 复测，确认异常后才换 IP。
+- 支持受信任的节点级换 IP Webhook，以及 1024Proxy `sid-...-t-...` 粘性会话轮换器。
+- 新 IP 只执行一次真实模型质量检测；正常立即恢复，异常或不确定则保持隔离。
+- 账号调度失败与代理故障分开处理：暂无可调度账号时延后复测，不累计代理错误、不浪费流量换 IP。
+- 目标节点绑定账号不可调度时，管理员质量探针会借用任意健康 Build 账号，但实际请求仍强制走被测节点；普通流量不受影响。
+- 整个账号池不可用时按独立长退避延后检测并抑制重复日志，节点仍保持隔离。
+- 管理端质量守护页面、手动诊断、策略热加载和累计统计。
+- 手动检测与节点操作使用单条可更新提示；隔离或轮换中的节点禁止并发手动检测。
+- 在节点质量表中直接添加、编辑、删除、启用、停用和刷新 Build 代理节点。
+- 支持单选、全选、批量启用、批量停用和批量删除，并为删除操作提供确认。
+- `QUALITY_GUARD_NODE_IDS` 留空时自动发现所有已启用的代理 Build 节点；状态文件同时发布已解析节点，兼容旧版管理页面。
+- 独立 Python sidecar、Docker Compose、systemd、安全说明和中英文文档。
+
+### 请求路径缺 thinking 拦截（v3.1.4+ 增量）
+
+- 思考模型流式请求在写出给用户前先扣住。只有真正流式 thinking（reasoning/summary delta、`encrypted_content`）才放行；`usage.reasoning_tokens`、空 reasoning item、Chat SSE stub **不算**。
+- 可见输出 ≥ 32 且无流式 thinking 记为降智，**不发给用户**，换账号再打。
+- Grok TUI 每轮都带 `tools` schema，工具跑完下一轮已有 `function_call_output`：这两类都 **继续 hold**（TUI 工具本地执行，换号只重放模型回合）。
+- 空的 `response.completed` / `[DONE]` 立刻 `upstream_stream_empty` 换号，不再空等到 idle 才给 HTTP 200。
+- abort trailer 发 `response.failed`（带必填 `model`），并补 `output_text.annotations: []`。TUI 0.2.93 把 `response.incomplete` 当成不可重试的 truncation。
+- 最多 6 枪（首次 + 换号 5 次）。全部仍无推理则 `503 quality_degraded`，不再 `deliver_last`。
+- 第一次缺思考：账号冷却 24h（`accountCooldown`），仍启用。24h 后再缺思考：立刻禁用。
+- 空流惩罚可配 `idleAccountCooldown`；`POST /api/admin/v1/accounts/:id/clear-cooldown` 人工解开。
+- TUI 压缩（普通 `/v1/responses` summary prompt）仍 `skipQualityHold`，不重开 #974。
+- 默认关闭：`qualityGuard.requestRetry.enabled: false`。
+- 审计：`error_code=quality_degraded`。网关日志：`quality_degraded_retry` / `quality_peek_empty_retry`。
+
+### 探针方案（v3.1.2+ 增量）
+
+- 质量守护页增加「探针方案」页签：内置 **预期标记**（最后一行 `QUALITY_OK`）和 **吞吐基线**，也可自建 Prompt / 包含 / 末行 / 正则。
+- 标记缺失记为硬异常；短回复命中标记时不因虚高 TPS 或 Token 过少误杀。
+- 方案存在 `profiles.json`（与 runtime-config 同目录）；状态 API 只回名称和是否有标记，不回 Prompt / 标记正文。
+- 接口：`GET/POST /api/admin/v1/egress-quality-guard/profiles`，`PUT/DELETE .../profiles/{id}`；质量检测可带 `profileId`。
+
+### 降智账号面板（v3.1.2 增量）
+
+- 质量守护页增加「降智账号」页签：按请求审计把用户流式请求（不含 quality-test 探针）归类为 `buffered_burst` / `soft_tps` / `hard_tps` / `missing_thinking`（思考换号）。
+- 口径与面板一致：`outputTokens * 1000 / (durationMs - fir

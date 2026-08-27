@@ -1,0 +1,880 @@
+[
+  {
+    "basic_info": {
+      "name": "dsh-routing-suite",
+      "full_name": "yjh051108/dsh-routing-suite",
+      "owner": "yjh051108",
+      "description": "dsh-routing-suite — injector + router-standard kit: install the runtime injector first, then the task-aware reasoning-mode router preset (measured P1-P23).",
+      "url": "https://github.com/yjh051108/dsh-routing-suite",
+      "clone_url": "https://github.com/yjh051108/dsh-routing-suite.git",
+      "ssh_url": "git@github.com:yjh051108/dsh-routing-suite.git",
+      "homepage": null,
+      "created_at": "2026-08-14T21:20:55Z",
+      "updated_at": "2026-08-27T10:34:17Z",
+      "pushed_at": "2026-08-24T23:56:40Z"
+    },
+    "stats": {
+      "stars": 6881,
+      "forks": 137,
+      "watchers": 6881,
+      "open_issues": 60,
+      "size": 344
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 465899,
+        "TypeScript": 184492,
+        "HTML": 15803,
+        "PowerShell": 10756,
+        "Shell": 2388
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agents",
+        "cordis",
+        "deepseek-harness",
+        "dsh",
+        "dsh-plugin"
+      ]
+    },
+    "content": {
+      "readme": "# dsh-routing-suite — 注入器 × 思维模式路由 套装\n\n一个仓库装齐「运行时手术台 + 思维模式路由预设」：先装注入器（免重启运行时管理层），\n再用它装配 router-standard 预设（任务感知思维模式路由，P1-P23 实测）。\n\n[中文](README.md) | [English](README.en.md)\n\n## 安装链（三步）\n\n```powershell\n# 1. 拉套装（单仓库：injector/preset 内容已直接入库，无需 submodule）\ngit clone https://github.com/yjh051108/dsh-routing-suite.git\ncd dsh-routing-suite\n\n# 2. 一键安装（注入器装配 + 预设复制 + 布局自检 + 提示重启）\n.\\install.ps1\n```\n\n或手动：\n\n```powershell\n# 步骤 1：装配注入器（官方装配，重启后由 bundles 接管）\ndsh plugin --profile web add .\\injector\n# dsh 不在 PATH 时：npx '@deepseek-ai/dsh' plugin --profile web add .\\injector\n\n# 步骤 2：安装 router 预设（每个预设目录平铺复制到 .agent-presets 下，DSH 只扫一级子目录）\n$target = Join-Path $env:USERPROFILE '.dsh\\.agent-presets\\router-standard'\nCopy-Item -Recurse .\\preset\\router-standard $target\n\n$target = Join-Path $env:USERPROFILE '.dsh\\.agent-presets\\router-spec'\nCopy-Item -Recurse .\\preset\\router-spec $target\n\n# 步骤 3：重启 DSH → 新会话选择 Router Standard / Router Spec (experimental)\n```\n\n> 注意：不要复制 `preset` 整目录（会多套一层，DSH 发现不了预设）。\n\n## 组件\n\n| 路径 | 仓库 | 版本 | 作用 |\n|---|---|---|---|\n| `injector/` | [dsh-super-injector](https://github.com/yjh051108/dsh-super-injector) | [v0.3.3](https://github.com/yjh051108/dsh-super-injector/releases/tag/v0.3.3) | 运行时注入器：dev_* 工具全家桶（注入/热重载/侧挂转正/卸载/路由自愈）；`github:` 装配由 prepare 钩子自动构建 |\n| `preset/` | [dsh-router-standard](https://github.com/yjh051108/dsh-router-standard) | [v0.3.0 … 主线 v1.19.1/v34](https://github.com/yjh051108/dsh-router-standard/releases/tag/v0.3.0) | 思维模式路由预设：router-standard（分类 persona + 完整 sections）/ router-spec（深度思考优先）。router-pro 为规划中（planned），未随 v0.3.0 发布 |\n\n> 版本号以各组件仓库的 git tag 为准（列内链接直达对应 Release）。\n\n两个组件随本仓库统一演进（`injector/` 与 `preset/` 已是仓库内普通目录，内容直接入库）；上游独立仓库 `dsh-super-injector` / `dsh-router-standard` 保留用于独立发布，后续可转镜像/归档。预设安装目录为 `preset/router-standard`（已平铺，无额外嵌套）。\n\n## router-standard 预设能力（P1-P23 实测摘要）\n\n- **三行为带 + weak 内路由**：spec（计划-集体）/ react（执行者）/ mixed（陷阱，回避）/ weak（模型自分类）\n- **按模型选 persona**：Pro=spec 句+few-shot（区分度 +5.0）；Flash=neutral+classify（+5.7）\n- **近距离引导**：每轮用户消息后注入固定引导（缓存 92-94% 命中），路由 96% + 收敛 100% + 反稀释\n- **单任务三锚**（persona 静态）：回顾 + 收敛 + 反跑题 —— 开放任务完成率 0% → 100%\n- **plan-mode 保留**：只替换 persona section，plan 边界不失忆\n- **AI 自优化工具**：`dev_router_status` / `dev_router_mode` / `dev_mode_subagent`\n\n## v0.3.0 变更（真实装配链路修复）\n\n- **首轮路由真实生效**（[#13](https://github.com/yjh051108/dsh-routing-suite/issues/13)）：经 `agent/inbox/claimed` 在装配前捕获首条真实用户消息，首个请求即按任务分类（此前所有会话首轮无条件 weak）\n- **近距离引导改走 `agent/pre-step`**（[#34](https://github.com/yjh051108/dsh-routing-suite/issues/34)/[#36](https://github.com/yjh051108/dsh-routing-suite/issues/36)/[#55](https://github.com/yjh051108/dsh-routing-suite/issues/55)）：引导与用户消息同请求注入，真实链路上可达，且不再产生额外的第二次 API 调用（此前每轮多 1 次调用 = 费用 2×）\n- **缺导入修复**（[#11](https://github.com/yjh051108/dsh-routing-suite/issues/11)）、preset.yml YAML 引号（[#53](https://github.com/yjh051108/dsh-routing-suite/issues/53)）、promoted 后完整回归（[#44](https://github.com/yjh051108/dsh-routing-suite/issues/44)）、安装脚本与文档修正（[#35](https://github.com/yjh051108/dsh-routing-suite/issues/35)/[#42](https://github.com/yjh051108/dsh-routing-suite/issues/42)/[#41](https://github.com/yjh051108/dsh-routing-suite/issues/41)）、injector git 装配自动构建（[#40](https://github.com/yjh051108/dsh-routing-suite/issues/40)）\n\n## 文档\n\n- 注入器引导（规范铁律 10 条）：`injector/README.md`\n- 路由预设论文与实验：`preset/docs/paper.md` + `preset/docs/experiments.md`（P1-P23）\n- 仓库结构迁移（submodule → 直接文件）：[docs/FLATTEN-MIGRATION.md](docs/FLATTEN-MIGRATION.md)\n\n## 许可证\n\nMIT。致谢：xiaobright/modeltest（V4.1b 评测）、xiaobright/dsh-anchored-standard（锚定机制）。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:39.164364"
+  },
+  {
+    "basic_info": {
+      "name": "openGym",
+      "full_name": "arvids-unavailable/openGym",
+      "owner": "arvids-unavailable",
+      "description": "https://github.com/DuarteSantos8/openGym",
+      "url": "https://github.com/arvids-unavailable/openGym",
+      "clone_url": "https://github.com/arvids-unavailable/openGym.git",
+      "ssh_url": "git@github.com:arvids-unavailable/openGym.git",
+      "homepage": null,
+      "created_at": "2026-08-03T18:16:58Z",
+      "updated_at": "2026-08-27T10:45:43Z",
+      "pushed_at": "2026-08-03T19:19:38Z"
+    },
+    "stats": {
+      "stars": 6134,
+      "forks": 989,
+      "watchers": 6134,
+      "open_issues": 38,
+      "size": 127389
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 886083,
+        "CSS": 54060,
+        "HTML": 27333,
+        "Swift": 3031,
+        "Java": 1303,
+        "Dockerfile": 1208,
+        "Ruby": 871,
+        "Shell": 562
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/banner.png\" alt=\"openGym\" width=\"720\">\n\n<br>\n\n**A self-hosted gym & body-weight tracker you actually own.**\n\nPlan your week, run guided workouts, track every set and your body weight over time —\non your phone, synced across devices, behind your own passkey login.\nNo account on someone else's server, no subscription, no ads. Just `docker compose up`.\n\n<br>\n\n[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-a3e635?style=flat-square)](LICENSE)\n![Self-hosted](https://img.shields.io/badge/self--hosted-%F0%9F%8F%A0-60a5fa?style=flat-square)\n![PWA](https://img.shields.io/badge/PWA-installable-a78bfa?style=flat-square)\n![React](https://img.shields.io/badge/React-19-38bdf8?style=flat-square&logo=react&logoColor=white)\n![Docker](https://img.shields.io/badge/Docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white)\n![No tracking](https://img.shields.io/badge/telemetry-none-f472b6?style=flat-square)\n<br>\n![GitHub last commit](https://img.shields.io/github/last-commit/DuarteSantos8/openGym?style=flat-square)\n[![GitHub stars](https://img.shields.io/github/stars/DuarteSantos8/openGym?style=flat-square)](https://github.com/DuarteSantos8/openGym/stargazers)\n[![GitHub issues](https://img.shields.io/github/issues/DuarteSantos8/openGym?style=flat-square)](https://github.com/DuarteSantos8/openGym/issues)\n\n</div>\n\n<br>\n\n<div align=\"center\">\n<table>\n<tr>\n<td align=\"center\"><img src=\"assets/screenshots/home.png\" alt=\"Home\" width=\"230\"><br><sub><b>Home</b> — today's workout & weight</sub></td>\n<td align=\"center\"><img src=\"assets/screenshots/workout.png\" alt=\"Workout\" width=\"230\"><br><sub><b>Guided workout</b> — animated demos & sets</sub></td>\n<td align=\"center\"><img src=\"assets/screenshots/stats.png\" alt=\"Stats\" width=\"230\"><br><sub><b>Stats</b> — heatmap, charts & PRs</sub></td>\n</tr>\n</table>\n</div>\n\n<div align=\"center\">\n\n### [🌐 opengym.duarte-santos.ch](https://opengym.duarte-santos.ch) · [▶ Try the live demo](https://duartesantos8.github.io/openGym/)\n\nNo signup, nothing to install — it runs entirely in your browser on example data.<br>\n<sub>There's no server behind the demo, so passkey sign-in, sync across devices and the\nadmin dashboard only exist in a self-hosted instance.</sub>\n\n</div>\n\n## Why\n\nMost workout apps lock your data behind a login on their servers, nag you to upgrade, or\ndisappear when the startup does. openGym is the opposite: **it runs on your box, your data\nstays in a folder you control, and it's yours to fork.** It still feels modern — installable\nas a home-screen app, passkey sign-in, offline support, sync across your phone and laptop.\n\n## Features\n\n- ⚖️ **Body-weight tracking** — interactive chart with a goal line you set, gains/losses colored by whether they move toward it\n- 🏋️ **Weekly plan** — a routine per weekday, over a library of **1,324 exercises** (searchable, with animated demos)\n- 🗓️ **Reschedule any day** — sick, missed a session, or fewer gym days this week? Move a workout to another day without touching your weekly plan\n- ▶️ **Guided workouts** — it knows what day it is and starts today's session; asks your body weight first, pre-fills your weights from last time, rest timer, PR detection, per-exercise weight tracking\n- ☀️ **The screen stays awake while you train** — no unlocking the phone and finding your place again between every set. On for as long as a workout is running, released the moment you finish it, and switchable off in Settings\n- 🔗 **Supersets** — build them, and log them back-to-back with a rest only after the pair\n- ⏱️ **Timed exercises** — planks, hangs, wall sits and loaded carries are logged by time, not reps, with a work timer that counts the set itself (separate from the rest timer) and logs the time you actually held. They can carry weight too\n- 📈 **Progression that follows a rule** — pick one per routine, override it per exercise: linear, **Greyskull LP** (AMRAP top set, double jumps, 10 % resets), double progression through a rep range, or adding time. Your weights are already right when the session opens, and every target says *why* it's that number. Missed reps never advance the load, stalls trigger a deload, and bodyweight exercises progress in reps instead\n- 💪 **Estimated 1RM** — per exercise, from your best eligible set (it names which one), with its own progress curve and a calculator for sets you haven't done. Won't guess above 12 reps\n- 🎯 **Effort per set, in your scale** — an optional third column rating how hard a set was, as **RIR** (reps left in the tank) or **RPE** (the same judgement on a 10-point scale). Off by default; each set keeps the scale it was logged with, and nothing else reads the value — your progression and 1RM are unaffected\n- 💪 **Bodyweight exercises, logged as bodyweight** — push-ups, pull-ups, dips and 300-odd others arrive knowing they carry no load, so there's no weight column and no working-weight prompt: one stepper, log the reps. Add a dip belt and it reads as an addit",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:40.439550"
+  },
+  {
+    "basic_info": {
+      "name": "flyingmouse-format",
+      "full_name": "LaoFeng-mouse/flyingmouse-format",
+      "owner": "LaoFeng-mouse",
+      "description": "飞鼠格式 FlyingMouse Format - Windows 免费文件格式转换工具（离线可用，内置 FFmpeg/LibreOffice/Poppler/Tesseract）。图片/文档/表格/PPT/PDF/音视频/WPS 格式互转 + OCR + 批量转换；音频仅支持普通格式。作者：牢蜂（LaoFeng）｜仅供个人免费使用，禁止商业售卖/转卖/套壳",
+      "url": "https://github.com/LaoFeng-mouse/flyingmouse-format",
+      "clone_url": "https://github.com/LaoFeng-mouse/flyingmouse-format.git",
+      "ssh_url": "git@github.com:LaoFeng-mouse/flyingmouse-format.git",
+      "homepage": null,
+      "created_at": "2026-08-06T03:59:32Z",
+      "updated_at": "2026-08-27T10:27:34Z",
+      "pushed_at": "2026-08-27T06:16:26Z"
+    },
+    "stats": {
+      "stars": 4660,
+      "forks": 417,
+      "watchers": 4660,
+      "open_issues": 46,
+      "size": 3733
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 1132298,
+        "Python": 88292,
+        "PowerShell": 21079,
+        "CSS": 20993,
+        "HTML": 11615,
+        "Shell": 4564
+      },
+      "license": "Other",
+      "topics": [
+        "desktop-app",
+        "electron",
+        "ffmpeg",
+        "file-converter",
+        "format-converter",
+        "libreoffice",
+        "ocr",
+        "pdf",
+        "windows",
+        "wps"
+      ]
+    },
+    "content": {
+      "readme": "# FlyingMouse Format / 飞鼠格式\n\n> A mouse-themed, offline Windows file converter. / 一款鼠鼠主题、可离线使用的 Windows 文件格式转换工具。\n\n> **作者 Author：牢蜂（LaoFeng）**\n>\n> **⚠️ 非商用声明 Non-Commercial Notice：本软件仅供个人免费使用，禁止任何形式的商业售卖、转卖、套壳换皮重新发布（详见 [LICENSE](LICENSE)）。发现闲鱼/淘宝等渠道倒卖请告知作者，感谢！**\n\n[![Release](https://img.shields.io/github/v/release/LaoFeng-mouse/flyingmouse-format?color=e95f6d)](https://github.com/LaoFeng-mouse/flyingmouse-format/releases/latest)\n![CI](https://github.com/LaoFeng-mouse/flyingmouse-format/actions/workflows/ci.yml/badge.svg)\n![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-0078D6)\n![License](https://img.shields.io/badge/License-Non--Commercial-e95f6d)\n\n[下载最新版 / Download](https://github.com/LaoFeng-mouse/flyingmouse-format/releases/latest) · [问题反馈 / Issues](https://github.com/LaoFeng-mouse/flyingmouse-format/issues)\n\n![FlyingMouse Format mouse UI](public/assets/screenshots/home.png)\n\n## 中文\n\n### 主要功能\n\n- 鼠鼠原版界面：鼠鼠会跟随上传、识别、批量、OCR、转换成功或失败切换状态。\n- 本地离线转换：内置 FFmpeg、LibreOffice、Poppler、Tesseract 和 AVS3 解码器。\n- 支持图片、文本、Word/WPS、Excel/WPS、PPT/WPS、PDF、音频、视频和 ZIP。\n- 音频转换：支持 MP3 / WAV / FLAC / M4A / AAC / OGG / OPUS / WMA 等普通格式互转；**不支持其他音乐平台的加密特殊格式**（如 NCM / KGG / mflac / kgma / kwm 等）。\n- 视频编码选择：转视频时可选 H.264 / H.265 / AV1 编码（目标 mp4/mov/mkv 时显示）。\n- 操作记忆：按“源文件格式”分别记住上次选择的目标格式；重新修改后，新选择会成为该源格式的默认值。\n- 路径记忆：记住上次保存目录，下次保存时自动从该目录开始。\n- 中文/English 界面：首次启动跟随系统语言，手动选择后会记住设置。\n- 批量转换：显示逐文件进度、结果和失败原因，并可单独保存或保存全部。\n- 结果预览：转换完成后可在侧边抽屉预览图片、PDF、文本、音频和视频；窄窗口自动切换为底部面板。\n- CLI 与 Agent 接入：命令行覆盖能力查询、目标查询、单个/批量转换、图片合并 PDF 和 PDF 合并；应用内可把配套 skill 一键接入现有 Codex、Claude 或通用 Agent 目录。\n- 转换质量：HTML / Office 转 Markdown 保留标题、列表和代码块；CSV 支持 BOM、转义引号和字段内换行。\n- PDF → Excel（智能表格提取）：支持电子文字坐标、扫描页 OCR、有框/无框表格、多表、跨页续接、合并单元格、低置信度批注与 Raw 回退。\n- PDF → Word（版式还原）：内置 pdf2docx 引擎还原段落、表格、图片、字体与布局；扫描版自动 OCR 回退。Windows 10/11 版支持版式还原，Windows 7 版回退到文字提取。\n- PDF 拆分 / 加密 / 解密：PDF 可逐页拆分或每 N 页一组（打包 ZIP），也可用密码加密（AES-256）或解密（需原密码）。\n- 电子书：txt/md/html → EPUB（纯本地生成）；EPUB → TXT/Markdown；MOBI → EPUB/TXT/Markdown（MOBI 解析为实验性，复杂版式可能不完整）。\n- 图片合并 PDF 支持调整顺序：多张图片转 PDF 前可在队列中上移/下移，PDF 页序跟随队列顺序。\n- HEIC/HEIF 图片可转换为 JPG/PNG/WebP 等（内置 ffmpeg 解码）。\n- ICO 图标可转换为 PNG/JPG 等，PNG/JPG 也可生成多尺寸 ICO 图标（实验性）。\n- TGA 图片可转换为 PNG/JPG/WebP 等（内置 ffmpeg 解码，实验性）。\n- 相机 RAW 原片（CR2/CR3/NEF/ARW/DNG 等）可转换为 JPG/PNG/WebP/TIFF 等（内置 dcraw 解码，Windows 版，实验性）。\n- 资源保护：单图 50MP / 16384px、图片合并 PDF 总计 100MP、批量 2GB、PDF 不限页数（1:1 转换，长文档加载较慢）、OCR 不限页数。\n\n> **合规声明 Compliance Notice：本软件仅支持普通音频格式转换（MP3 / WAV / FLAC / AAC / OGG 等），不支持任何音乐平台的加密特殊格式。请支持正版音乐，尊重创作者。音频文件版权归原作者/唱片公司所有，本工具与各音乐平台无任何关联。本软件仅供个人免费使用，禁止商业售卖/转卖/套壳换皮重新发布。**\n\n### 快速开始\n\n1. 在 [Releases](https://github.com/LaoFeng-mouse/flyingmouse-format/releases/latest) 下载 v0.6.5 对应系统的安装包。\n2. 安装并启动 FlyingMouse Format。\n3. 拖入文件，选择目标格式并开始转换。\n4. 选择保存位置；软件会记住目标格式与保存目录。\n\n从源码运行：\n\n> 源码仓库不包含体积较大的 FFmpeg、LibreOffice、Poppler 和 Tesseract 资源；普通用户请直接下载 Release 安装包。开发者从源码运行完整转换功能前，需要自行准备 `bin/` 下的引擎资源。\n\n```powershell\nnpm install\nnpm run desktop\n```\n\n命令行示例：\n\n```powershell\nnode cli.js capabilities --json\nnode cli.js targets example.pdf --json\nnode cli.js convert input.docx --to pdf --output output.pdf --json\nnode cli.js convert a.png b.png --to webp --output-dir converted --json\nnode cli.js images-to-pdf 1.jpg 2.jpg --output album.pdf --json\nnode cli.js merge-pdfs a.pdf b.pdf --output merged.pdf --json\n```\n\n安装版也可直接调用应用入口：macOS 使用 `FlyingMouse Format.app/Contents/MacOS/FlyingMouse Format --cli ...`，Windows 使用 `FlyingMouse Format.exe --cli ...`。在软件顶部点击“接入 Agent”，会检索已存在的 `~/.codex/skills`、`~/.claude/skills`、`~/.agents/skills`（Windows 对应用户目录）并在确认后安装或更新 skill；不会自动创建未安装产品的目录。\n\n运行测试与打包：\n\n```powershell\nnpm test\nnpm run dist\n```\n\n### Windows 版本选择\n\n- **Windows 10 / 11 x64（推荐）**：下载标准资产 `FlyingMouse-Format-Setup-0.6.5-x64.exe`。它使用 Electron 43、Sharp 0.35 和 PDF.js 6 运行时。\n- **Windows 7 SP1 x64（兼容版）**：下载 `FlyingMouse.Format-Setup-0.6.5-win7-x64.exe`。它使用同一源码和鼠鼠 UI，但在独立环境固定 Electron 22.3.27、Sharp 0.32.6 与 PDF.js 2.16.105。\n\nWindows 7 兼容版是 Legacy 构建，不会降低标准版依赖。其 Electron 22 已停止上游安全维护，并包含无法在 Windows 7 上直接升级的已知依赖风险；PDF.js 动态代码执行已通过 `isEvalSupported: false` 缓解，但仍只建议离线处理可信文件。v0.6.5 通过 Windows、macOS arm64 和 macOS x64 自动化门禁以及真实样本回归；真实 Windows 7 SP1 x64 设备仍待验收。Windows 安装包均未签名，SmartScreen 可能提示。\n\n### macOS 版本选择\n\n- **Apple Silicon（M1 及更新）**：下载 `FlyingMouse.Format-Setup-0.6.5-mac-arm64.dmg`。\n- **Intel Mac**：下载 `FlyingMouse.Format-Setup-0.6.5-mac-x64.dmg`。\n\n首批 macOS 包支持 macOS 11 及更新版本，未签名且未公证，可能触发 Gatekeeper。两个架构已在原生 GitHub runner 完成固定引擎、完整转换、包结构和 12 秒启动冒烟；真实 Mac 设备仍待验收。\n\n完整构建只需：\n\n```powershell\nnpm run dist:win7\n```\n\nWin7 staging 使用专用 `win7-package-lock.json` 和 `npm ci` 重建；推荐使用 Node.js 22 LTS（构建脚本接受 18–22，其他主版本会在改动 staging 前拒绝）。构建脚本会绑定子进程到当前 Node、以 Unicode 安全方式复制源码、锁定 staging manifest/lockfile，并校验本地 builder 与打包资源没有越过各自允许的根目录或经过 junction/符号链接。\n\n仅需检查 staging 时可运行 `node scripts/build-win7.js --prepare-only`；它不会打包。完整构建会重新准备 staging。\n\n## English\n\n### Highlights\n\n- Original mouse UI with animated state changes for upload, detection, batch work, OCR, success, and errors.\n- Fully local conversion with bundled FFmpeg, LibreOffice, Popp",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:41.718789"
+  },
+  {
+    "basic_info": {
+      "name": "dsh-anchored-standard",
+      "full_name": "xiaobright/dsh-anchored-standard",
+      "owner": "xiaobright",
+      "description": "Two-phase DeepSeek Harness preset: Minimal-aligned bootstrap, then full Standard tools (Project2 98/99)",
+      "url": "https://github.com/xiaobright/dsh-anchored-standard",
+      "clone_url": "https://github.com/xiaobright/dsh-anchored-standard.git",
+      "ssh_url": "git@github.com:xiaobright/dsh-anchored-standard.git",
+      "homepage": "https://github.com/xiaobright/modeltest",
+      "created_at": "2026-08-14T14:06:39Z",
+      "updated_at": "2026-08-27T08:52:46Z",
+      "pushed_at": "2026-08-26T05:56:03Z"
+    },
+    "stats": {
+      "stars": 3778,
+      "forks": 115,
+      "watchers": 3778,
+      "open_issues": 19,
+      "size": 405
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 817573
+      },
+      "license": "Other",
+      "topics": [
+        "deepseek",
+        "deepseek-harness",
+        "dsh-plugin",
+        "llm-agent"
+      ]
+    },
+    "content": {
+      "readme": "# dsh-anchored-standard\n\n[中文说明](./README.zh-CN.md)\n\nExperimental DeepSeek Harness agent presets — a base mode, two live-anchor\nvariants, and one seeded prefab mode — that anchor a session's model trajectory\non the Minimal condition\n(real Minimal tool schema, no auto-injected context), then promote to a small\nresident catalog once the session is durable, unlocking heavier Standard tools\non demand.\n\nThis is a community project. It is not an official DeepSeek preset and is not\naffiliated with or endorsed by DeepSeek.\n\nFeel free to submit feedback on the plugin in the form of Issues or PRs. For ideas for new plugins or useful findings, please submit them under the [repository](https://github.com/0liveiraaa/DeepseekCotexplorations).\n\n## Project status (2026-08-17)\n\nFollowing the price increases on both the DeepSeek official API and the opencode go\nsubscription, active development of this project has effectively stopped: the evaluation\nloops these presets depend on (Project2-class runs and multi-trial roll/probe experiments)\nare no longer affordable. The repository stays available as-is and receives **maintenance\nonly** (bug fixes and harness-compatibility updates when feasible). The mechanism findings,\nthe dose-response data, and the tooling (context-gate, the prefab pipeline, the probe\nsuite) remain valid and are largely model-agnostic. A personal note from the maintainer:\n[FAREWELL.md](./FAREWELL.md) (Chinese). Contributors and collaborators are\nlisted in [ACKNOWLEDGEMENTS.md](./ACKNOWLEDGEMENTS.md).\n\nCommunity projects that users report perform better in some scenarios:\n\n- [dsh-routing-suite](https://github.com/yjh051108/dsh-routing-suite) — a runtime injector\n  plus task-aware thinking-mode routing presets (the router-standard family).\n- [J-Space Cognition Suite](https://github.com/Tiger3807861189/J-Space-Cognition-Suite-V3.6)\n  — a model-agnostic inference-time cognitive control layer packaged as a Skill.\n\n## Modes at a glance\n\n| Mode | Directory | First model request | Anchor mechanism | Promotion signal | Cost |\n|---|---|---|---|---|---|\n| Anchored Standard | `preset/` | 2 tools (the Minimal pair) | Minimal tool schema | first durable `tool/call` **or** `assistant/message` (`promoteOn: either`) | none |\n| Zero-Anchored Standard | `zero-anchored-standard/` | 0 tools | one fixed anchor turn | the anchor reply (`assistant/message`) | +1 model call |\n| Whoami Standard | `whoami-standard/` | 0 tools | one \"你是谁\" self-introduction turn | the self-introduction reply (`assistant/message`) | +1 model call |\n| Prefab Anchored Standard | `prefab/` | seeded rolled history | bundled successful trajectory | already promoted in the seed | no model call to instantiate |\n| Eternal Minimal | `eternal-minimal/` | 2 tools, forever | the visible catalog never grows; heavier tools run via the `dshx` bash gateway | none (no phases) | none |\n| Wire Think-Execute Standard | `wire-think-standard/` | tools present, `tool_choice: none` on the wire | sibling provider route per think step | per-turn: the steer itself | +1 model call/turn, prefix-cache churn |\n| Combo Anchored | `combo-anchored/` | 0 tools, on every user turn | think/execute split + depth gate + deliberation drip as three independent rows | per-mechanism | +1 model call/turn |\n\nEvery mode directory is self-contained and installs alone under whatever id\nyou copy it to (see [Install](#install)). The prefab hydrates the blank session\nin place when its preset is selected; no per-workspace import is required.\n\n## Terminology\n\n- **trajectory** — the style of the model's first reasoning chain. The\n  Minimal condition produces \"We need…\" first lines; the Standard condition\n  produces \"Let me…\" (\"standard-like\") first lines.\n- **anchor** — the first-request conditions that select the trajectory. Issue\n  #11 isolated three levers: the tool schema, the output budget, and the\n  injected reminders.\n- **bootstrap phase** — request #1 of a session: the bootstrap tool pair, no\n  auto-injected context, optional output cap.\n- **promotion** — the durable session event that ends the bootstrap phase.\n  Base mode: first `tool/call` or `assistant/message`, whichever comes first.\n  Variants: the anchor reply.\n- **durable** — recorded in the session event log. Phase state is derived\n  from durable events, so resume and reload preserve it.\n- **resident catalog** — the promoted tool set: the bootstrap pair plus the\n  discovery tools plus every tool the model explicitly unlocked.\n- **discovery tools** — `dev_tool_search`, `skill_search`, `skill_load`: the\n  on-demand unlock surface for heavier Standard tools.\n- **materialized copy** — the committed copy of a `shared/` plugin inside a\n  mode directory, generated by `npm run sync`.\n\n## How it works\n\nThe base mode in one request lifecycle (the variants change only the first\nturn — see their sections):\n\n```\nuser's first message\n        │\n        ▼\n┌ request #1 ─ bootstrap phase ──────────────────────────────┐\n│ tools    : bash + str_replace_editor (Mi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:43.002726"
+  },
+  {
+    "basic_info": {
+      "name": "unlazy",
+      "full_name": "Leonxlnx/unlazy",
+      "owner": "Leonxlnx",
+      "description": "Anti-laziness skill for AI agents. Core: the Depth Tree method, which splits a task N layers deep and gives every leaf the full time budget of the whole task, so effort multiplies with depth. Grounded in 2025-2026 research on model laziness, underthinking and premature completion.",
+      "url": "https://github.com/Leonxlnx/unlazy",
+      "clone_url": "https://github.com/Leonxlnx/unlazy.git",
+      "ssh_url": "git@github.com:Leonxlnx/unlazy.git",
+      "homepage": null,
+      "created_at": "2026-08-09T23:39:12Z",
+      "updated_at": "2026-08-27T10:46:19Z",
+      "pushed_at": "2026-08-24T16:46:40Z"
+    },
+    "stats": {
+      "stars": 2607,
+      "forks": 151,
+      "watchers": 2607,
+      "open_issues": 2,
+      "size": 341
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 237266
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agents",
+        "claude",
+        "claude-code",
+        "llm",
+        "productivity",
+        "prompt-engineering",
+        "skill"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# unlazy\n\n**Completion discipline for substantial AI-agent work, backed by runnable gates.**\n\nWrite the acceptance ledger first. Execute reviewed checks. Reverify returned work. Report only what the evidence supports.\n\n[Quick start](#quick-start) | [Gate contract](#the-gate-contract) | [Orchestration](#orchestration-and-parallel-work) | [Security](#security-boundary) | [Research](#research-basis)\n\n</div>\n\n## Version status\n\nThe current source targets `2.1.0`. It is not identified here as a tagged GitHub release. Pin an exact commit when you need an immutable installation. See [CHANGELOG.md](CHANGELOG.md) for the unreleased change set.\n\n## Install\n\nUse the [skills CLI](https://github.com/vercel-labs/skills) for supported agents:\n\n```text\nnpx skills add Leonxlnx/unlazy\n```\n\nAdd `-g` for a user-level install or `--all` for every detected agent.\n\nManual locations:\n\n```text\nClaude Code:  ~/.claude/skills/unlazy\nCodex CLI:    ~/.codex/skills/unlazy\n```\n\nClone the repository into the relevant directory. Invoke it as `/unlazy` where slash skills are supported, `$unlazy` in Codex, or by a natural-language trigger from the skill description.\n\nThe core is [SKILL.md](SKILL.md). The checker and optional hook require Node 16 or newer and use no third-party runtime packages.\n\n## Quick start\n\nAsk for substantial work with an explicit trigger:\n\n```text\n/unlazy tree 5 refactor the payment module and verify every migration path\n```\n\nFor a solo task, copy [templates/gates-leaf.md](templates/gates-leaf.md) to `GATES.md`, replace every placeholder, and inspect it without executing commands:\n\n```text\nnode <path-to-skill>/scripts/gate-check.mjs --status GATES.md\n```\n\n`--status` is the only mode that is always non-executing. On a new oracle with no exact approval record, a normal run prints its resolved command, expectation, working directory, shell, and `PATH` without executing it:\n\n```text\nnode <path-to-skill>/scripts/gate-check.mjs GATES.md\n```\n\nDo not treat normal mode as a permanent dry run: once the exact oracle is approved, normal mode can execute it.\n\n`CHECK:` lines are shell code. After reading every command and called script, approve and run the ledger:\n\n```text\nnode <path-to-skill>/scripts/gate-check.mjs --approve GATES.md\n```\n\nRe-run all runnable gates, including gates already marked complete:\n\n```text\nnode <path-to-skill>/scripts/gate-check.mjs --reverify GATES.md\n```\n\nUse `--help` for the complete current CLI.\n\n## The gate contract\n\n```markdown\n# Gates: pricing behavior\n\n- [ ] G1: pricing fixtures render the expected tiers\n  CHECK: node scripts/verify-pricing.mjs\n  EXPECT: pricing verification passed\n  EVIDENCE: pending\n\n- [ ] G2: checkout integration succeeds from its package\n  CHECK: node scripts/verify-checkout.mjs\n  EXPECT: checkout verification passed\n  CWD: packages/checkout\n  EVIDENCE: pending\n```\n\nA runnable gate passes only when its process exits `0` and `EXPECT:` matches combined output. Evidence records the resolved shell, resolved working directory, exit status, a short `PATH` fingerprint, the match result, and a SHA-256/byte-count fingerprint of successful output. Raw successful output is neither echoed nor persisted. The pre-execution transcript shows the resolved `PATH`, capped for display. Old evidence is not re-execution; parent verification uses `--reverify`.\n\nThe parser rejects zero-gate ledgers, duplicate ids, incomplete runnable gates, invalid expectations, and abandonment with a missing reason or unknown gate id. It ignores fenced examples, preserves CRLF or LF when updating, and inserts a missing evidence line when needed. A valid abandonment is terminal handoff rather than success: the checker exits `1` with `HANDOFF REQUIRED`, and Stop allows exit while reporting qualified ids.\n\nThe checker can prove only the command oracle you declare. It cannot infer that an English title and arbitrary shell code mean the same thing. Good gates therefore:\n\n- read the artifact or service named by the outcome\n- print a success-only marker after all assertions pass\n- test an absence check against a known positive control\n- measure supplied figures instead of copying them into `EXPECT:`\n- review consequential manual outcomes with evidence proportional to risk\n\nUse the advisory, non-executing `scripts/gate-lint.mjs` to catch mechanically weak ledger patterns; add `--strict` when warnings should fail. Full specification: [references/gates.md](references/gates.md).\n\n## Shell and PATH\n\nThe checker uses `--shell` first, then `UNLAZY_SHELL`, then Node's platform default shell. That default is `/bin/sh` on Unix and `process.env.ComSpec` on Windows with the platform fallback. Checks inherit the launch environment, including `PATH`.\n\nThis matters on Windows: a checker launched from Git Bash can see Unix-like tools that the same checker launched from PowerShell does not. `--shell` changes the interpreter; it does not install `grep`, `tail`, `tr`, or other external programs. Portable examples call rep",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:44.339534"
+  },
+  {
+    "basic_info": {
+      "name": "shuohao-skills",
+      "full_name": "eternityspring/shuohao-skills",
+      "owner": "eternityspring",
+      "description": "AI 短剧制作的 skill 集合：拆角色、排大纲、出场景与道具设定、写剧本、切分镜 | Agent skills for AI short-drama production — character bibles, adaptation outlines, art bibles, screenplays, storyboards. Runs in Claude Code & codex.",
+      "url": "https://github.com/eternityspring/shuohao-skills",
+      "clone_url": "https://github.com/eternityspring/shuohao-skills.git",
+      "ssh_url": "git@github.com:eternityspring/shuohao-skills.git",
+      "homepage": null,
+      "created_at": "2026-08-06T10:38:49Z",
+      "updated_at": "2026-08-27T10:15:32Z",
+      "pushed_at": "2026-08-26T14:20:50Z"
+    },
+    "stats": {
+      "stars": 2239,
+      "forks": 278,
+      "watchers": 2239,
+      "open_issues": 3,
+      "size": 12714
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 467693,
+        "Shell": 2103
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "**中文** · [English](README.en.md)\n\n🎬 **[AI视频工作台](https://reelbench.79px.com/)**\n\n[![ReelBench AI短剧工作台首屏](assets/reelbench-first-screen.png)](https://reelbench.79px.com/)\n\n# shuohao-skills\n\n**AI 短剧制作的 skill 集合**：从一本小说到直接喂生成管线的制作素材——拆角色、排大纲、出场景与道具设定、写剧本、切分镜。给 AI 编码 agent 用，**Claude Code 和 codex 都能跑**。\n\n整条管线长这样——**改编大纲收敛结构，剧本、场景、角色三者同步迭代，分镜只做输出不做新决定**：\n\n<img src=\"assets/pipeline.webp\" alt=\"AI 短剧制作流程图\" width=\"680\">\n\n| Skill | 做什么 |\n| --- | --- |\n| [**novel-outline**](skills/novel-outline) | 把一本小说改编成短剧大纲五件套：改编说明、人物表、爽点表、分集梗概、资产清单（含叙事道具表）。14 道质量门全部脚本检查，支持已有大纲的体检模式 |\n| [**novel-characters**](skills/novel-characters) | 把大纲定下的角色做成角色设定集：人物画像、形象提示词、音色提示词、角色设定图。吃 outline.json 预填角色表，报告语言与出图风格可选 |\n| [**novel-art**](skills/novel-art) | 给 AI 短剧出美术设定集（场景 + 叙事道具）：一致性锚点、光照与状态变体、尺度参照、无人无手白底提示词。吃 outline.json 预填清单，11 道质量门全部脚本检查 |\n| [**novel-script**](skills/novel-script) | 给 AI 短剧写剧本：场次 + 节拍流（动作与台词交替），逐集时长按语速确定性折算，钩子前 3 拍冷开场兑现是门，台词本按角色聚合带音色提示词直接对接 TTS。10 道质量门全部脚本检查 |\n| [**novel-storyboard**](skills/novel-storyboard) | 给 AI 短剧出分镜：段（一次生成 ≤15 秒）→ 分镜（2–5 秒硬门）→ 分镜图（主图钉 0.00 秒、子图钉各自切点），MiniMax H3 提示词的对齐指令与切点时刻逐字对账；分镜图拿设定图当参考图真出图，export 一键出投产包。17 道质量门全部脚本检查 |\n\n**五个 skill 的报告都支持中英双语界面**：默认中文，`render --lang en` 出全英文报告（数据内容保持原文）。\n\n## AI 短剧交流社群\n\n这是作者独立运营的付费交流群，讨论 AI 短剧的工作流、工具和实操。**交流群与上方 ReelBench AI 视频工作台是两项独立服务。**\n\n有兴趣的加我：**微信 `hao_dev`**，添加时备注 **`github`**。\n\n<img src=\"assets/wechat.png\" alt=\"烁皓微信二维码\" width=\"180\">\n\n## 合成一张单页\n\n五段的报告可以合成一张单页，左侧导航切换——**有哪几段就出哪几个面板**：\n\n```bash\nnode scripts/report.mjs --from <demo目录> --out report.html\n```\n\n`--from` 按下面的[工作目录约定](#端到端-demo-工作目录约定)自动发现五份 json；也可以逐个指定（`--outline` `--cast` `--art` `--script` `--storyboard`）。只跑了角色那一段就只有一个面板，不报错。\n\n它是**组装器，不是独立 skill**：不 import 任何 skill 的代码，而是调各自的 `render --html` 拿产物再拼装。所以五个 skill 一行不改、各自仍然独立可跑、可以单独拷走；某个 skill 改了渲染，这边自动跟上。\n\n合并时处理三件事——**这三件都在组装器里做，不侵入 skill**：\n\n- **样式串味**。五份报告共用 57 个类名，其中 13 个同名不同定义（`.copy` `.kpis` `.badge` `.chip`……），所以给每份样式的每条选择器加作用域前缀\n- **脚本串味**。各报告的脚本都是 `document.querySelector('.expo')` 这种全局查询，合成一页后只会命中第一个——五个导出按钮会全废。做法是给每份脚本套一层作用域代理\n- **图片路径**。各报告的图相对自己那份 json 的目录（`images/…`、`E01-01/f1.png`），合成后按输出文件的位置重算\n\n默认一次显示一个面板（五份加起来将近六十万字符）。左下角「平铺全部」把所有面板同时展开，Cmd+F 恢复全局搜索。数字键 `1`–`5` 切面板，`#pane-script` 这样的深链可以直接分享到某一屏。\n\n```bash\nnode scripts/report-selftest.mjs   # 92 项断言，不起浏览器\n```\n\n丢一本小说进去，出这五套：\n\n**novel-outline · 短剧改编大纲**\n\n![短剧改编大纲报告](skills/novel-outline/assets/report.webp)\n\n**novel-characters · 角色设定集**\n\n![角色设定集报告](skills/novel-characters/assets/report.webp)\n\n**novel-art · 美术设定集（场景 + 道具，设定图为 skill 实际生成）**\n\n![美术设定集报告](skills/novel-art/assets/report.webp)\n\n**novel-script · 剧本（时长仪表 + 分集剧本 + 台词本）**\n\n![剧本报告](skills/novel-script/assets/report.webp)\n\n**novel-storyboard · 分镜（分镜节奏带 + 主/子分镜图为 skill 实际生成 + H3 提示词）**\n\n![分镜报告](skills/novel-storyboard/assets/report.webp)\n\n## 安装\n\n```bash\ngit clone https://github.com/eternityspring/shuohao-skills.git\ncd shuohao-skills\n./scripts/install.sh\n```\n\n自动检测本机装了 Claude Code 还是 codex，把所有 skill **软链**过去——`git pull` 之后立刻生效，不用重装。\n\n```bash\n./scripts/install.sh novel-characters   # 只装某一个\n./scripts/install.sh --codex            # 只装到 codex\n./scripts/install.sh --uninstall        # 取消软链\n```\n\n不想用脚本就自己链：\n\n```bash\nln -s \"$PWD/skills/novel-characters\" ~/.claude/skills/novel-characters\nln -s \"$PWD/skills/novel-characters\" ~/.codex/skills/novel-characters\n```\n\n## 前置条件\n\n| | 必需？ | 说明 |\n| --- | --- | --- |\n| **Node** | 必需 | ≥ 18。skill 的脚本只用标准库，**没有 npm 依赖，不需要 install** |\n| **模型额度** | 必需 | 用你当前会话的额度，**不需要任何 API key** |\n| **codex CLI** | 可选 | 出图才用得上（走内置 `$imagegen`）。没有就跳过出图，其余产出照常 |\n\n## 仓库约定\n\n每个 skill 一个目录，**自包含、可以单独拷走**：\n\n```\nskills/<skill-name>/\n├── SKILL.md          给 agent 读的工作流（必需）\n├── README.md         给人读的说明\n├── scripts/\n│   ├── <name>.mjs    确定性工具，零依赖\n│   └── selftest.mjs  自测，不调模型（必需）\n├── references/       按需加载的详细指令\n├── examples/         自带样例，同时当测试夹具\n└── assets/           截图\n```\n\n两条硬要求：\n\n- 每个 skill 必须有 `SKILL.md`\n- 每个 skill 必须有 `scripts/selftest.mjs`，**不调用模型、不花额度**，覆盖全部确定性逻辑\n\n加新 skill 之前，先把全部自测跑一遍：\n\n```bash\nfor f in skills/*/scripts/selftest.mjs; do node \"$f\"; done\n```\n\n没有配 CI——自测足够快（1 秒），本地跑一次比等 CI 更省事。**只在 macOS + Node 24 上验过**；代码没有平台相关调用，Linux 和更低版本 Node 理论上没问题，但没验。\n\n## 端到端 demo 工作目录约定\n\n把一本小说从头跑完五段（角色 → 大纲 → 美术 → 剧本 → 分镜），会产出大量 `*.json` / `*.md` / `*-report.html`。**不要平铺在根目录**，按五个 skill 各建一个目录归档，一眼对应流水线五段：\n\n```\n<demo>/\n├── outline/       ← novel-outline 产出：<剧>-outline.json / .md / -report.html\n├── characters/    ← novel-characters 产出：<剧>-cast.json / .md / -report.html\n├── art/           ← novel-art 产出：<剧>-art.json / .md / -report.html\n├── script/        ← novel-script 产出：<剧>-script.json / .md / -report.html\n├── storyboard/    ← novel-storyboard 产出：<剧>-storyboard.json / .md / -report.html\n│   ├── manifest.json  ← export 产出\n│   ├── E01-01/        ← export 的分镜投产包，每段一个文件夹（prompt.md + f1..fN.png）\n│   ├── E01-02/\n│   └── …\n├── docs/          ← 自己写的使用说明、PR 草稿等（与机器产物解耦）\n└── scripts/       ← 跑管线的辅助脚本（探索期脚本用 _ 前缀保留溯源）\n```\n\n约定要点：\n\n- **每个 skill 一个目录**，装它自己的 `json` / `md` / `html` 三件套，加新角色/场景只往对应目录放，不污染根目录\n- **分镜的 `manifest.json` 与 `E01-0x/` 投产包一起归 `s",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:45.619085"
+  },
+  {
+    "basic_info": {
+      "name": "deploy-vercel",
+      "full_name": "vvxw/deploy-vercel",
+      "owner": "vvxw",
+      "description": "Install Command：npm install",
+      "url": "https://github.com/vvxw/deploy-vercel",
+      "clone_url": "https://github.com/vvxw/deploy-vercel.git",
+      "ssh_url": "git@github.com:vvxw/deploy-vercel.git",
+      "homepage": "",
+      "created_at": "2026-08-18T13:25:45Z",
+      "updated_at": "2026-08-27T10:31:24Z",
+      "pushed_at": "2026-08-18T13:33:29Z"
+    },
+    "stats": {
+      "stars": 1441,
+      "forks": 294,
+      "watchers": 1441,
+      "open_issues": 5,
+      "size": 28
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 39717,
+        "HTML": 22525
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "## Vercel 部署说明\n1：点击Use this template ➡ Create a new repostory 创建一个私密项目, 名称随意\n\n2: 修改index.js文件里的环境变量保存，不需要的留空\n\n3: 用AI生成一个纯html的网页替换`index.thml`伪装网页\n\n4：打开vercel连接项目部署\n  - 打开 Vercel 控制台\n  - 点击 “New Project”\n  - Import该项目\n  - 选择默认配置, Install Command打开，设置为`npm install`\n  - 点击 “Deploy”, 等待部署完成\n\n5：部署完成后确认没问题，将反代后的域名填写到`index.js`的DOMAIN环境变量里, 然后用 https://www.jshaman.com/index.html 混淆替换后保存\n\n6：获取订阅信息，修改优选域名使用(节点里的address字段),可以自行套订阅器，比如：https://sub.eooce.xx.kg\n\n\n## Vercel 常用地区代码对照表\n\n下面是常见 Vercel `regions` 代码对应关系：\n\n| 地区代码 | 城市/区域 | 国家/地区 | 中文说明 |\n|---|---|---|---|\n| `hnd1` | Tokyo | Japan | 日本东京 |\n| `kix1` | Osaka | Japan | 日本大阪 |\n| `icn1` | Seoul | South Korea | 韩国首尔 |\n| `hkg1` | Hong Kong | Hong Kong | 中国香港 |\n| `sin1` | Singapore | Singapore | 新加坡 |\n| `syd1` | Sydney | Australia | 澳大利亚悉尼 |\n| `bom1` | Mumbai | India | 印度孟买 |\n| `del1` | New Delhi | India | 印度新德里 |\n| `fra1` | Frankfurt | Germany | 德国法兰克福 |\n| `lhr1` | London | United Kingdom | 英国伦敦 |\n| `cdg1` | Paris | France | 法国巴黎 |\n| `ams1` | Amsterdam | Netherlands | 荷兰阿姆斯特丹 |\n| `mad1` | Madrid | Spain | 西班牙马德里 |\n| `dub1` | Dublin | Ireland | 爱尔兰都柏林 |\n| `dxb1` | Dubai | United Arab Emirates | 阿联酋迪拜 |\n| `jnb1` | Johannesburg | South Africa | 南非约翰内斯堡 |\n| `cpt1` | Cape Town | South Africa | 南非开普敦 |\n| `gru1` | São Paulo | Brazil | 巴西圣保罗 |\n| `sfo1` | San Francisco | United States | 美国旧金山 |\n| `iad1` | Washington, D.C. | United States | 美国华盛顿特区 |\n| `pdx1` | Portland | United States | 美国波特兰 |\n| `mia1` | Miami | United States | 美国迈阿密 |\n| `ewr1` | Newark | United States | 美国纽瓦克 |\n| `yul1` | Montréal | Canada | 加拿大蒙特利尔 |\n\n---\n\n## 注意事项\n\n部署成功后，访问项目地址，确认：\n\n1. 页面能正常访问\n2. 生成的订阅链接能获取到节点\n3. vervel分配的域名已被墙，无法使用直连节点\n4. 哪吒不亮，不用填写\n\n\n## 使用cloudflare的workers或snippets反代项目域名，给节点套CDN加速\n```bash\nexport default {\n    async fetch(request, env) {\n        let url = new URL(request.url);\n        if (url.pathname.startsWith('/')) {\n            var arrStr = [\n                'xxx-xxx.vercel.app',   // 此处单引号里填写你的vercel分配的域名，不包含https://\n            ];\n            url.protocol = 'https:'\n            url.hostname = getRandomArray(arrStr)\n            let new_request = new Request(url, request);\n            return fetch(new_request);\n        }\n        return env.ASSETS.fetch(request);\n    },\n};\nfunction getRandomArray(array) {\n  const randomIndex = Math.floor(Math.random() * array.length);\n  return array[randomIndex];\n}\n```\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:46.898685"
+  },
+  {
+    "basic_info": {
+      "name": "Deepseek-Harness-EAC",
+      "full_name": "zouyuxuan122/Deepseek-Harness-EAC",
+      "owner": "zouyuxuan122",
+      "description": "DeepSeek Harness Desktop (dsh-desktop). EAC: Embracing All Creation (揽尽万象). Bundled Node.js runtime with full dsh-CLI kernel, one-click startup, 10 built-in UI themes.",
+      "url": "https://github.com/zouyuxuan122/Deepseek-Harness-EAC",
+      "clone_url": "https://github.com/zouyuxuan122/Deepseek-Harness-EAC.git",
+      "ssh_url": "git@github.com:zouyuxuan122/Deepseek-Harness-EAC.git",
+      "homepage": "https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases",
+      "created_at": "2026-08-14T16:29:54Z",
+      "updated_at": "2026-08-27T10:11:15Z",
+      "pushed_at": "2026-08-27T08:53:05Z"
+    },
+    "stats": {
+      "stars": 1358,
+      "forks": 47,
+      "watchers": 1358,
+      "open_issues": 9,
+      "size": 208192
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 5704509,
+        "TypeScript": 1540301,
+        "HTML": 199837,
+        "PowerShell": 184032,
+        "Rust": 175297,
+        "Python": 70072,
+        "NSIS": 16662
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agent",
+        "deepseek",
+        "deepseek-harness",
+        "desktop",
+        "desktop-app",
+        "dsh",
+        "dsh-plugins",
+        "dshdesktop",
+        "electron",
+        "tauri",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<p><a href=\"README.md\">中文</a> | <a href=\"README.en.md\">English</a></p>\n\n<h1>Deepseek Harness EAC — 揽尽万象</h1>\n\n<p><strong>EAC = Embracing All Creation（揽尽万象）</strong></p>\n\n<p>\n<a href=\"https://github.com/zouyuxuan122/Deepseek-Harness-EAC\"><img src=\"https://img.shields.io/github/stars/zouyuxuan122/Deepseek-Harness-EAC?style=flat&label=%E2%AD%90&color=08C\" alt=\"GitHub stars\"></a>\n<a href=\"https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases\"><img src=\"https://img.shields.io/badge/Windows-10%2F11-4493F8?style=flat\" alt=\"Windows\"></a>\n<a href=\"https://github.com/zouyuxuan122/Deepseek-Harness-EAC\"><img src=\"https://img.shields.io/badge/Desktop-App-47848F?style=flat\" alt=\"Desktop App\"></a>\n<a href=\"https://github.com/zouyuxuan122/Deepseek-Harness-EAC/blob/main/LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-2EA44F?style=flat\" alt=\"MIT License\"></a>\n</p>\n\n<p>把官方 <a href=\"https://github.com/deepseek-ai/deepseek-harness\">deepseek-ai/deepseek-harness</a>（<code>@deepseek-ai/dsh</code>，一切皆插件的 agent harness）\n封装为<strong>开箱即用的 Windows 桌面客户端</strong>，并在其上拥抱社区万象：皮肤、插件、工具、记忆——你所能想到的，一键皆可装。</p>\n\n<p><a href=\"docs/screenshot-preview.jpg\"><img src=\"docs/screenshot-preview.jpg\" alt=\"Deepseek Harness EAC 界面预览\"></a></p>\n\n</div>\n\n---\n\n## 目录\n\n- [为什么选择 EAC](#为什么选择-eac)\n- [快速开始（安装）](#快速开始)\n- [功能一览](#功能一览)\n- [社区与支持](#社区与支持)\n- [开发者文档](#开发者文档)\n- [致谢](#致谢)\n- [Star 趋势](#star-趋势)\n- [许可证](#许可证)\n\n---\n\n## 为什么选择 EAC\n\n| 维度 | 官方 DeepSeek Harness 默认体验 | Deepseek Harness EAC 增强 |\n| --- | --- | --- |\n| 安装与启动 | 需自行准备 Node.js，并通过 CLI 启动 | 内置 Node.js、npm CLI 和 dsh，提供安装版与便携版，双击即用 |\n| 桌面体验 | 主要在终端或浏览器中使用 | 原生桌面窗口、系统托盘、快捷方式维护、进程清理和任务通知 |\n| CLI 共存 | CLI 与 Web 通常使用同一插件环境 | 桌面端使用独立 `web-desktop` profile，与 CLI 共享会话和 API Key，插件互不干扰 |\n| 插件可靠性 | 主要通过包管理器安装并手动排查问题 | 安装和启动前自动快照，异常时支持体检、修复、重试、回滚和事故报告 |\n| 界面定制 | 默认使用官方界面 | 内置 10 款皮肤，支持字体、字号、颜色和移动端布局调整 |\n| 项目工具 | 依赖外部编辑器和终端 | 内置文件树、行级 diff、一键还原、持久终端及 HTML/本地端口预览 |\n| 上下文与人设 | 手动执行 `/compact`、编辑人设文件 | 自动压缩、人设卡管理和 `soul.md` 热重载 |\n| 模型与 MCP | 主要通过配置文件或 CLI 管理 | 可视化配置视觉模型和 MCP，并支持从 Claude Code、Codex 导入配置 |\n| 插件生态 | 通过 CLI 或包管理器安装插件 | 内置插件市场，可搜索并一键安装、卸载和管理插件 |\n| 会话效率 | 以常规会话流程为主 | 支持临时对话、对话节点导航和第三方模型思考强度调整 |\n| 消息接入 | 默认不包含 EAC 消息桥接 | 支持一键接入微信 ClawBot / OpenClaw |\n| 更新维护 | 通过包管理器或手动方式更新 | dsh agent 与桌面客户端分别自动检查更新，失败时保留或回退原版本 |\n\n> EAC 不修改官方 dsh 内核，完整保留插件架构和官方能力；默认共享\n> `DSH_HOME` 中的会话与 API Key，同时隔离桌面端插件环境。\n\n---\n\n## 快速开始\n\n### 系统要求\n\n- Windows 10/11（x64）\n- macOS 13+（Apple Silicon / arm64，桌面版）\n- 无需预装 Node.js 或任何其他运行时\n\n### Windows\n\n> 正式版当前为 v4.4.1（Electron 壳）；下方 Lite 版为 Tauri（Rust）壳，体积更小、启动更快。安装包直接从 Release 下载。\n\n| 文件 | 说明 | 大小 |\n| --- | --- | --- |\n| [安装版 Setup](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/download/v4.4.1/Deepseek-Harness-EAC-Setup-v4.4.1-x64.exe) | 安装到系统，创建快捷方式 | ~246 MB |\n| [便携版 exe](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/download/v4.4.1/Deepseek-Harness-EAC-Portable-v4.4.1-x64.exe) | 免安装单文件，可放任意目录运行 | ~212 MB |\n| [Lite 版 Setup](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/download/v4.5-lite/Deepseek.Harness.EAC.v4Lite_4.5.0_x64-setup.exe) | **Lite 精简版**（Tauri 壳，与上方正式版相互独立、可并存）：主程序为 `Deepseek Harness EAC v4Lite.exe`，数据目录 `~/.dsh-v4lite`，SHA256 校验文件随 Release 提供 | ~73 MB |\n\n更多版本见 [Releases 页面](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases)。\n\n> 💡 **升级说明（老用户必读）**：\n> - 直接下载上方最新安装包覆盖安装即可；\n> - 插件、皮肤、会话与配置全部保留——数据在 `%APPDATA%\\Deepseek Harness EAC\\`\n>   与 `~/.dsh`，升级过程不触碰。\n\n### macOS（Apple Silicon / arm64）\n\n> macOS 桌面版与 Windows/Linux 同源同版本，随 [v5.1.0 Release](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/tag/v5.1.0) 一同发布。\n\n| 文件 | 说明 | 大小 |\n| --- | --- | --- |\n| [安装镜像 .dmg](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/download/v5.1.0/Deepseek.Harness.EAC_5.1.0_macos-arm64.dmg) | 双击挂载后拖入 Applications | ~136 MB |\n| [应用包 .app.zip](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/download/v5.1.0/Deepseek.Harness.EAC_5.1.0_macos-arm64.app.zip) | 解压后直接运行 | ~157 MB |\n| [校验和 SHA256SUMS-macos.txt](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/download/v5.1.0/SHA256SUMS-macos.txt) | macOS 资产 SHA256 | — |\n\n- 桌面配置目录：`~/Library/Application Support/deepseek-harness-eac/`；dsh 数据仍在 `~/.dsh`（与 CLI 共享，会话互通）。\n- 未签名、未公证（个人自用定位）：首次打开若被 Gatekeeper 拦截，右键 →「打开」。\n- 客户端自更新在 macOS v1 暂不提供（上游 Release 暂无 macOS 资产）；dsh agent（内核）更新完整保留。\n\n### Linux（x64）\n\n> Linux 桌面端由 CI（Ubuntu 22.04）持续构建与验证，以独立版本线发布（最近维护版 v4.4.0）。Windows/macOS 走统一版本线（当前 v5.1.0），Linux 并入统一版本线待发布管线就绪后补发。\n\n| 文件 | 说明 |\n| --- | --- |\n| [.deb（Debian/Ubuntu）](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/download/v4.4.0-linux/Deepseek-Harness-EAC-4.4.0-amd64.deb) | 安装后可从应用菜单启动 |\n| [AppImage](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/download/v4.4.0-linux/Deepseek-Harness-EAC-4.4.0-x86_64.AppImage) | 免安装：`chmod +x` 后直接运行 |\n| [.rpm（Fedora/openSUSE）](https://github.com/zouyuxuan122/Deepseek-Harness-EAC/releases/download/v4.4.0-linux/Deepseek-Harness-EAC-4.4.0.x86_64.rpm) | — |\n| [.pacman（Ar",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:48.180765"
+  },
+  {
+    "basic_info": {
+      "name": "gemma-translator",
+      "full_name": "google-gemma/gemma-translator",
+      "owner": "google-gemma",
+      "description": null,
+      "url": "https://github.com/google-gemma/gemma-translator",
+      "clone_url": "https://github.com/google-gemma/gemma-translator.git",
+      "ssh_url": "git@github.com:google-gemma/gemma-translator.git",
+      "homepage": null,
+      "created_at": "2026-08-03T18:50:34Z",
+      "updated_at": "2026-08-27T09:04:44Z",
+      "pushed_at": "2026-08-14T15:47:25Z"
+    },
+    "stats": {
+      "stars": 1342,
+      "forks": 175,
+      "watchers": 1342,
+      "open_issues": 6,
+      "size": 2478
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 48457,
+        "Python": 19701,
+        "CSS": 13177,
+        "Shell": 12874,
+        "HTML": 927
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<img width=\"960\" height=\"540\" src=\"https://storage.googleapis.com/experiments-uploads/gemma-translator/gemma-translator.gif\" />\n\n# Gemma Translator\n\nThis repo was built with the assistance of [Google Antigravity](https://antigravity.google/) and includes code to run an on-device, fully offline voice translator powered by [Gemma 4](https://ai.google.dev/gemma/docs/core) and [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-lm). This project features a web frontend optimized for small handheld displays (e.g., 480x320) and a Python API server (`http.server`) that communicates with Gemma. Text-to-speech is powered by [Moonshine](https://github.com/moonshine-ai/moonshine).\n\nhttps://github.com/user-attachments/assets/343072ce-dc78-44a7-a783-99312845cabe\n\n## Features\n\n- **On-Device Inference**: Uses LiteRT-LM to run the `gemma4-e2b` model entirely locally. No internet required after setup.\n- **Voice Interface**: Captures microphone audio, processes it, and sends it to the local model.\n- **Optimized UI**: Retro-terminal styling custom-built for small hardware screens (like Raspberry Pi displays).\n- **Unified Startup**: One script to launch the LLM server, the Python API, and the React frontend.\n\n## Prerequisites\n\n- Python 3.10+\n- Node.js 18+ (20 LTS recommended) & npm — installed automatically by `deploy-pi.sh` on Raspberry Pi OS / Debian\n- Linux or macOS\n\n## Required Hardware\n\n- **Compute**: Raspberry Pi 5 with 8GB RAM\n- **Audio Input**: Microphone or USB audio capture interface\n- **Audio Output**: Speaker or headphone output device\n- **Display**: Display monitor or touchscreen (e.g., 480x320 kiosk display)\n\n<img width=\"3024\" height=\"1672\" src=\"https://storage.googleapis.com/experiments-uploads/gemma-translator/gemma-translator-cad.gif\" />\n\n## Setup Instructions\n\n1. **Make Scripts Executable**\n   Ensure the setup, download, start, and deployment scripts have execute permissions:\n   ```bash\n   chmod +x setup.sh download_model.sh start.sh deploy-pi.sh\n   ```\n\n2. **Install Dependencies**\n   Run the setup script to create a Python virtual environment (`venv`) and install all required packages:\n   ```bash\n   ./setup.sh\n   ```\n\n3. **Download the Model**\n   Run the model downloader script to fetch the `gemma4-e2b` model from Hugging Face and import it into LiteRT-LM:\n   ```bash\n   ./download_model.sh\n   ```\n\n## Running the Application\n\nStart all services (LiteRT-LM, the Python API server, and the Vite Web UI) in development mode:\n```bash\n./start.sh\n```\n\nTo run in production mode (skipping Vite dev server and serving compiled UI assets from `frontend/dist/` via `backend/server.py` on port 3000):\n```bash\n./start.sh --prod\n```\n\nThe application will be accessible at:\n- **Web UI (Dev)**: `http://localhost:5173`\n- **Web UI (Prod) / API server**: `http://localhost:3000`\n- **LiteRT-LM**: `http://localhost:9379`\n\n## Raspberry Pi Appliance Deployment\n\nTo deploy as a permanent systemd kiosk service on a Raspberry Pi 5 (8GB):\n```bash\n./deploy-pi.sh\n```\nThis automated script installs Debian audio/venv packages, sets up the Python environment, builds production UI assets, downloads the LiteRT model, registers the systemd unit from `deploy/gemma-translator.service`, and configures LXDE GUI autostart (`~/.config/lxsession/rpd-x/autostart`) to launch Chromium in kiosk mode pointing to `http://localhost:3000`.\n\n## Project Structure\n\n- `frontend/` - React (Vite) web frontend (`index.html`, `src/`, styles, and Vite configuration).\n- `backend/` - Python API server (`server.py` and `requirements.txt`) for Moonshine STT, moonshine-voice TTS, and model proxying.\n- `deploy/` - Parameterizable systemd service unit template (`gemma-translator.service`).\n- `stl/` - STL files for 3D printing the hardware case.\n- `setup.sh` - Automates Python virtual environment creation and dependency installation.\n- `download_model.sh` - Fetches the required LiteRT model.\n- `start.sh` - Multi-process launcher supporting `--prod` and development modes.\n- `deploy-pi.sh` - One-command Raspberry Pi automated deployment script.\n\n## Keyboard Shortcuts\n\nThe Gemma Translator supports **two keyboard modes**. Switch between them anytime from the **Settings panel → \"Keyboard Mode\"** dropdown. The choice is remembered across restarts (stored in the browser's `localStorage` under the key `keyboardMode`).\n\nThe app has two lanes (two people facing each other on the kiosk):\n- **Lane 1 / Person 1** — the left/top lane.\n- **Lane 2 / Person 2** — the right/bottom lane.\n\nEach lane has a rotating language \"revolver\" and records speech, which is transcribed (Moonshine STT), translated (Gemma), and spoken back in the other lane's language (moonshine-voice TTS).\n\n### Landscape Mode (default) — \"active person\"\nOne lane is the **active person** at a time. The active lane is framed with **corner brackets on all four corners**. You drive everything from a single set of keys and switch focus with Space.\n\n| Key | Action | Description |\n| :--- | :--- | :--- |\n| **Spacebar** | Switch active pe",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:49.539269"
+  },
+  {
+    "basic_info": {
+      "name": "northcinder",
+      "full_name": "cinderline/northcinder",
+      "owner": "cinderline",
+      "description": "Open-source MCP server for comparing products and asking the buyer before purchase.",
+      "url": "https://github.com/cinderline/northcinder",
+      "clone_url": "https://github.com/cinderline/northcinder.git",
+      "ssh_url": "git@github.com:cinderline/northcinder.git",
+      "homepage": null,
+      "created_at": "2026-08-17T11:42:31Z",
+      "updated_at": "2026-08-26T01:55:05Z",
+      "pushed_at": "2026-08-22T12:11:30Z"
+    },
+    "stats": {
+      "stars": 1214,
+      "forks": 8,
+      "watchers": 1214,
+      "open_issues": 5,
+      "size": 1448
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 2193130,
+        "TypeScript": 2106122,
+        "Astro": 74749,
+        "CSS": 5365
+      },
+      "license": "MIT License",
+      "topics": [
+        "agentic-commerce",
+        "human-in-the-loop",
+        "local-first",
+        "mcp",
+        "mcp-server",
+        "model-context-protocol",
+        "privacy",
+        "self-hosted",
+        "shopping-agent",
+        "typescript"
+      ]
+    },
+    "content": {
+      "readme": "# NorthCinder\n\n**Your shopping agent should work for you.**\n\nAI agents are starting to do more than answer shopping questions. Soon they will decide which products people see and, in some cases, buy on their behalf.\n\nBig marketplaces are building the easiest version of this: an agent that searches one catalog and steers the buyer toward that platform's checkout. That may be convenient, but it is not independent advice. The marketplace still decides what can be seen and makes money when the agent closes the sale.\n\nNorthCinder takes a different approach. It compares products from the sources you choose and shows where its facts came from. Before it buys anything, it asks for your approval. NorthCinder is software you run alongside your AI app.\n\nThe repository owner does not operate a NorthCinder service. There is no NorthCinder account or cloud service.\n\n## Get started\n\nYou need Node.js 20 or later and an MCP-capable AI app.\n\n```sh\nnpx northcinder init\n```\n\nThe command saves your configuration on your computer and prints the MCP entry for your AI app. Local mode is keyless. It runs the MCP server and search engine together in one process, using a temporary loopback port.\n\nOnce connected, try a real shopping brief:\n\n> Find black wool running shoes under $130. Compare price, delivery, fit, and merchant trust. Tell me why the winner ranked first and which options were ruled out.\n\n## What a result looks like\n\nNorthCinder does not pretend there is one universal \"best\" product. It normally shows no more than three useful choices: the strongest fit, a lower-risk option, and a cheaper or meaningfully different option when one exists.\n\nEach result explains why it ranked where it did. You can also inspect the other finalists, rejected offers, and facts that could not be verified.\n\n## Research before recommendation\n\nProduct research gets messy quickly. Model names overlap, sellers copy one another, and a polished product page can hide the one detail that makes an item wrong for the buyer.\n\nNorthCinder includes separate research guides for products and sellers. Before doing the research, the MCP host should:\n\n1. Read `northcinder://research/product` or `northcinder://research/seller`.\n2. Call `create_research_plan` with the actual request and exact subject.\n3. Follow the returned checklist with the research tools it already controls.\n\nIf the sources disagree or do not identify the exact product or seller, the result stays provisional. Research can decide whether an offer is ready to compare, but it cannot add ranking points.\n\nNo host and model combination is currently qualified for routine research use. Treat every research result as provisional until the buyer checks its identity, sources, conflicts, and unknowns.\n\n## Buying stays a separate decision\n\nA recommendation is not permission to buy. Every checkout needs a fresh approval for one exact offer and one unit. The signed approval includes the merchant, variant, price, known total, and spending cap. It can be used once.\n\nNorthCinder rejects raw card details. A supported automated checkout can use an opaque payment token, or NorthCinder can hand the buyer a cart link to finish in their own browser.\n\nOrder outcomes stay local and only attach to the purchase they belong to. NorthCinder does not silently rewrite the buyer's profile, and its reminders only send notifications.\n\n## Rules you can inspect\n\nSeller payment never improves ranking. Sponsored offers stay labeled and below organic results. Missing store coverage stays visible, and unknown seller history remains unknown instead of being guessed safe or unsafe.\n\nNorthCinder reruns the ranking locally and writes recommendations, approvals, and checkout attempts to a local audit log. The [ranking specification](./docs/RANKING.md), [trust specification](./docs/TRUST.md), [neutrality audit](./docs/NEUTRALITY-AUDIT.md), and [checkout package](./packages/checkout) contain the details.\n\nThese checks cover the offers NorthCinder received, not the completeness or truth of a store's catalog.\n\n## How NorthCinder works\n\nYour AI app talks to NorthCinder over MCP. NorthCinder runs the search engine locally, checks the ranking before returning it, and keeps the audit log and purchase approvals on your computer. You choose the store connections. The repository owner is not part of this path.\n\n## Store coverage\n\nStore access varies, and NorthCinder says when a store was unavailable or not configured. It does not present a partial search as though it covered the whole market.\n\nBuilt-in adapters cover [Shopify](./adapters/shopify/README.md), [WooCommerce](./adapters/woocommerce/README.md), [eBay](./adapters/ebay/README.md), [Etsy](./adapters/etsy/README.md), and read-only [Amazon](./adapters/amazon/README.md) comparison.\n\nIf a native connection is missing, the AI app can keep researching with its own browser or search tools. NorthCinder accepts product facts, not cookies, raw pages, passwords, or page instructions. A native connection ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:50.831348"
+  },
+  {
+    "basic_info": {
+      "name": "DeepSeek-Balance-Whale-Widget",
+      "full_name": "MeteorNOX/DeepSeek-Balance-Whale-Widget",
+      "owner": "MeteorNOX",
+      "description": "DeepSeek Harness（DSH）一只住在 DSH 界面右下角的小鲸鱼娘，帮你盯着DeepSeek账户余额。QQ弹弹，支持拖拽吸附、左吸附翻转、数字滚动动画，随界面自动启用，建议直接喊来你的dsh安装",
+      "url": "https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget",
+      "clone_url": "https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget.git",
+      "ssh_url": "git@github.com:MeteorNOX/DeepSeek-Balance-Whale-Widget.git",
+      "homepage": "",
+      "created_at": "2026-08-18T03:13:51Z",
+      "updated_at": "2026-08-27T10:44:45Z",
+      "pushed_at": "2026-08-24T17:14:19Z"
+    },
+    "stats": {
+      "stars": 1141,
+      "forks": 42,
+      "watchers": 1141,
+      "open_issues": 17,
+      "size": 14378
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 79272
+      },
+      "license": "MIT License",
+      "topics": [
+        "cordis",
+        "deepseek",
+        "deepseek-harness",
+        "developer-tools",
+        "dsh",
+        "dsh-plugin",
+        "dsh-plugins",
+        "floating-widget",
+        "plugin"
+      ]
+    },
+    "content": {
+      "readme": "# DSH 小鲸鱼余额挂件（DeepSeek Balance Whale Widget）\n\n![DSH 小鲸鱼余额挂件](assets/DSH2.png)\n\nDeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗统计，每次打开界面自动启用。本项目是标准 DSH 插件包，可通过 `dsh plugin` 安装/卸载。\n\n## 特性\n\n- 🐋 **常驻自启**：随 DSH Web 界面每次打开自动出现（标准 DSH bundle 插件）\n- 💰 **余额**：60 秒自动刷新 + 点击鲸鱼手动刷新；余额变化时数字**滚动动画**；瞬时网络抖动自动沿用最近余额不报错\n- 📊 **今日已用**：两种模式任选（见下），显示今日消耗金额\n  - **小鲸鱼记账（推荐，免令牌）**：不需要任何会话令牌，鲸鱼娘每次观测余额后用余额差值自动记账（`.dshw-usage.json`，跨天自动归零归档）\n  - **实时·令牌**：填入平台会话令牌后直接调用平台用量接口，按**峰谷定价**（工作日高峰 9:00–12:00 与 14:00–18:00，其余空闲；2026-08-23 起周末全天按谷价）实时换算今日已用\n- 💬 **每轮对话消耗统计**：监听本机会话事件，每轮对话结束后弹出本轮消耗金额（精确 usage，非估算）\n  - 菜单可开关「每轮对话后自动显示消耗金额」；「自动关闭时间」可自定义秒数（填 0 表示不自动关闭）\n  - 消耗金额泡泡显示期间，余额变动不弹普通泡泡\n- 🖱️ **拖拽 + 四边四分之一吸附**（左/右/上/下，角落可组合）\n- 🔄 左吸附时整体**水平镜像翻转**（文字同步反向、带动画）\n- 🧸 **按压 Q 弹**玩偶效果（按压时底部坐标不变）\n- 🎚️ **汉堡菜单**（悬停鲸鱼右上角出现）：大小滑块（0.6–2.5 倍）、音效切换（小黄鸭 / 音效1）、音量调节、用量模式、峰谷提示文案（默认 / 梁文峰谷 / !?强强?!）、气泡开关、每轮消耗开关与自动关闭时间\n- 🔊 **音效**：按压/松手音效（可选包内 mp3，缺失时静默降级）\n- 💬 **随机台词**：点击气泡切换随机台词段（加权随机，含峰谷提示/今日已用/gif 动图/卖萌吐槽），再点一次关闭；气泡总显示 5 秒自动收起\n- 📐 随浏览器窗口自动缩放；文字位置/字号与图片联动\n\n## 目录结构\n\n```text\ndsh-whale-widget/\n├── package.json          # DSH bundle 插件元数据\n├── README.md             # 本文件\n├── cordis.patch.yml      # 插件挂载声明\n├── lib/\n│   └── index.js          # 宿主侧插件本体\n├── assets/\n│   ├── DSH2.png          # README 顶部展示图\n│   ├── DSniang1.png      # 小鲸鱼本体（cut-out，气泡由代码绘制）\n│   ├── DSniang02.png     # 备用整图（兼容旧版手动安装路径）\n│   ├── rua.gif           # 随机台词 gif（可选）\n│   ├── Ya1.mp3 / Ya2.mp3 # 小黄鸭音效（可选）\n│   └── D1.mp3 / D2.mp3   # 音效1（可选）\n└── whale-widget-prompt.md # 完整规格/维护提示词\n```\n\n## 安装\n\n### 方式 A：直接从 GitHub 安装（推荐）\n\n无需本地克隆，一条命令安装：\n\n```powershell\ndsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget\n```\n\n说明：\n\n- 装完后插件会出现在 DSH 的**插件管理页面**里，之后可以直接在页面里更新，无需再手动执行命令\n- 网络环境需要代理时，先设置代理环境变量再执行：\n  ```powershell\n  $env:http_proxy=\"http://<ip>:<port>\"; $env:https_proxy=\"http://<ip>:<port>\"; $env:all_proxy=\"socks5://<ip>:<port>\"; dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget\n  ```\n- 安装完成后重启 `dsh web`，再 F5 刷新浏览器\n\n### 方式 B：本地安装（从当前仓库）\n\n在**仓库根目录**（`DeepSeek-Balance-Whale-Widget`，即 `package.json` 所在目录）执行：\n\n```powershell\ndsh plugin --profile web add link:.\n```\n\n说明：\n\n- `dsh plugin` 会把参数转发给 pnpm，并在成功后自动把 `dsh-whale-widget` 加入 `dsh.profile.bundles`\n- **`link:.` 表示链接当前目录**（仓库根目录本身就是插件包）。如果你复制了仓库到别处，用绝对路径：\n  ```powershell\n  dsh plugin --profile web add link:D:\\你的路径\\DeepSeek-Balance-Whale-Widget\n  ```\n- ⚠️ 不要用 `link:.\\dsh-whale-widget`——仓库里**没有** `dsh-whale-widget/` 子目录，这样会安装成普通依赖而非插件，重启后挂件不出现\n- 安装完成后重启 `dsh web`，再 F5 刷新浏览器\n- **如果之后移动了源码目录**，必须重新执行一次 `dsh plugin --profile web add link:.<新路径>`。若提示已存在/冲突，先 `dsh plugin --profile web remove dsh-whale-widget` 再重新 add\n\n### 方式 C：发布到 npm 后安装\n\n```powershell\ndsh plugin --profile web add dsh-whale-widget\n```\n\n### 给 AI 的安装说明（用 dsh 辅助安装时，直接复制给 AI）\n\n如果你希望让另一个 DSH / AI 助手帮你安装，把下面这段发给它即可：\n\n```\n请帮我安装插件 dsh-whale-widget，来源是 GitHub 仓库 MeteorNOX/DeepSeek-Balance-Whale-Widget。\n\n步骤：\n1. 确保 pnpm 可用（没有就先：npm install -g pnpm）\n2. 在 Web profile 安装（任选一种来源）：\n   首选，直接从 GitHub 安装（无需本地克隆，装完可在插件管理页面里更新）：\n     dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget\n   或从本地仓库链接安装（例如本地克隆的仓库根目录）：\n     dsh plugin --profile web add link:.<仓库绝对路径>\n   （注意：仓库根目录就是插件包，不要写成 link:.\\dsh-whale-widget 这种带子目录的路径）\n3. 如果报 pnpm 阻止构建脚本（allowBuilds 相关），在 C:\\Users\\<用户名>\\.dsh\\profiles\\web\\pnpm-workspace.yaml 的 allowBuilds 下加对应的包 key，然后重跑\n4. 重启 dsh web，然后 F5 刷新浏览器\n\n安装后验证：\n- dsh --profile web --dump-config 应该能看到 dsh-whale-widget 在 bundles 里\n- curl http://127.0.0.1:3080/dsh-whale/balance.json 应返回 200 JSON（含 totalBalance）\n- curl http://127.0.0.1:3080/dsh-whale/widget.js 应返回 200 JS\n\n另外请检查 DSH 凭据里是否配置了 DEEPSEEK_API_KEY（没有就提示用户配置；DEEPSEEK_PLATFORM_TOKEN 可选，不配也能用默认的记账模式）。\n```\n\n### 关于令牌（安装后必读）\n\n> **默认不需要任何令牌。** 安装后只需配置 `DEEPSEEK_API_KEY`（拉取余额必需），「今日已用」会自动使用默认的**小鲸鱼记账**模式（余额差值本地记账），开箱即用。\n>\n> 「实时·令牌」模式用到的 `DEEPSEEK_PLATFORM_TOKEN`（DeepSeek 平台网页会话令牌）是**可选的**，仅在你想要更精确的实时用量换算时才需要配置。获取方式见下方「用量模式使用教程」。\n\n## 卸载\n\n```powershell\ndsh plugin --profile web remove dsh-whale-widget\n```\n\n## 从旧手动安装升级\n\n如果你之前按旧方式手动安装过（复制 `whale-balance.mjs` + 改 `cordis.patch.yml`），先清理：\n\n```powershell\n$web = \"$env:USERPROFILE\\.dsh\\profiles\\web\"\n\nRemove-Item \"$web\\whale-balance.mjs\" -ErrorAction SilentlyContinue\nRemove-Item \"$web\\whale-balance.cjs\" -ErrorAction SilentlyContinue\nRemove-Item \"$web\\DSniang1.png\" -ErrorAction SilentlyContinue\nRemove-Item \"$web\\DSniang02.png\" -ErrorAction SilentlyContinue\n```\n\n然后编辑 `$web\\cordis.patch.yml`，删除这段旧补丁：\n\n```yaml\n- insert:\n    - id: whale-balance-widget\n      name: ./whale-balance.mjs?v=1\n```\n\n如果里面只有这段，直接改成：\n\n```yaml\n[]\n```\n\n清理后再执行上面的安装命令。\n\n## 用量模式使用教程\n\n### 必需的凭据\n\n- **`DEEPSEEK_API_KEY`**（必需）：DeepSeek API 密钥，用于拉取余额（`api.deepseek.com/user/balance`）。在 DSH 凭据服务中配置即可（`dsh` 的凭据管理界面 / `.dsh/.credentials.yaml`）。\n\n### 两种用量模式\n\n挂件的「今日已用」有两种模式，在**菜单 → 用量**中选择：\n\n**① 小鲸鱼记账（推荐，默认）—— 完全不需要额外配置**\n\n鲸鱼娘自己用**余额差值**记账：每次观测到余额下降就把差值累加到当天用量，跨天自动归零归档（保留 30 天）；观测币种发生变化时只重置基准、不记差值（防止多币种账户切换污染账本）。只要配好了 `DEEPSEEK_API_KEY` 就能用，**开箱即用**。\n\n- 账本文件：`$DSH_HOME/.dshw-u",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:52.134437"
+  },
+  {
+    "basic_info": {
+      "name": "scroll-craft",
+      "full_name": "nateherkai/scroll-craft",
+      "owner": "nateherkai",
+      "description": "Claude Code skill for premium scroll-driven websites. Scroll becomes the timeline, on a real design floor, verified by screenshotting its own scroll.",
+      "url": "https://github.com/nateherkai/scroll-craft",
+      "clone_url": "https://github.com/nateherkai/scroll-craft.git",
+      "ssh_url": "git@github.com:nateherkai/scroll-craft.git",
+      "homepage": "https://github.com/nateherkai/scroll-craft",
+      "created_at": "2026-08-22T15:25:08Z",
+      "updated_at": "2026-08-27T10:00:16Z",
+      "pushed_at": "2026-08-23T21:29:51Z"
+    },
+    "stats": {
+      "stars": 1047,
+      "forks": 168,
+      "watchers": 1047,
+      "open_issues": 2,
+      "size": 4799
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 122759,
+        "CSS": 19769,
+        "HTML": 15567,
+        "Shell": 3222
+      },
+      "license": "MIT License",
+      "topics": [
+        "accessibility",
+        "agent-skills",
+        "ai-web-design",
+        "anthropic",
+        "claude-code",
+        "claude-code-plugin",
+        "creative-coding",
+        "design-system",
+        "frontend",
+        "interaction-design",
+        "landing-page",
+        "scroll-animation",
+        "scrollytelling",
+        "typography",
+        "web-design"
+      ]
+    },
+    "content": {
+      "readme": "# scrollcraft\n\n**A Claude Code skill that builds premium, scroll-driven websites, and holds them to a real design standard.**\n\nMost AI website output fails in one of two directions. It is either well behaved and forgettable, or it is a flashy scroll animation with 2.1:1 body text, a headline that wraps to six lines on a phone, and the same six sections every other AI page has. scrollcraft is built to fail neither way: it treats **interaction** and **craft** as one job rather than two.\n\n[![MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)\n[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-d97757.svg)](https://code.claude.com/docs/en/plugins)\n\n---\n\n## Three builds, three completely different pages\n\nSame skill, same engine, no shared skeleton. The differences below are not themes: they are different page grammars, different navigation models, different endings.\n\n### Orrery · a travel practice\nOne unbroken world. The whole page is a single fixed stage: you fall into a handmade scale model of the Earth, land in Kyoto, cross to Patagonia and the Sahara, and rise back to the workbench you started on. No section boundaries anywhere.\n\n![Orrery, a continuous-world scroll flight](media/orrery.webp)\n\n### PERKFORM · a protein coffee\nA filmic one-shot that hard-cuts to two full-bleed inverted grounds mid-page. Loud, product-forward, and the only one of the three that raises its voice.\n\n![PERKFORM, a filmic one-shot product page](media/perkform.webp)\n\n### Fallowbank · a landscape design-build studio\nQuiet, documentary, restrained. Museum-label copy over real photography, and a close that is a line of running text rather than a button.\n\n![Fallowbank, a restrained documentary page](media/fallowbank.webp)\n\n---\n\n## What it actually does\n\n**Interaction, engagement, and being unrepeatable**\n\n- **Scroll is the timeline.** Video scrubs frame by frame under the wheel, sections pin while their argument advances, rails pan sideways, headlines assemble line by line, the page ground shifts colour as you travel, and the pointer moves things that are not scrolling.\n- **Eight mutually exclusive page grammars.** Filmic one-shot, chaptered editorial, live surface, continuous world, typographic poster, gallery, split stage, rhythmic cutlist. Each one *forbids* what the others require, so two builds cannot quietly converge.\n- **A required signature move.** Every build invents one bespoke interaction that exists on that site alone. A recoloured spotlight does not count.\n- **A fingerprint gate.** A new build must differ from every page you have already made on at least 4 of 6 dimensions: grammar, nav, hero, act shape, close, signature move. Fail it and you change the plan, not the record.\n\n**Craft, and how the page actually feels**\n\n- **A feeling curve before any act exists.** One line per act: the emotion, then what on screen causes it. Two adjacent acts with the same feeling means one is filler.\n- **One engineered peak.** Peak-end rule, applied literally. The peak gets the asset budget, the silence in front of it, and the most scroll room. A page with three peaks has none.\n- **A typography floor.** Two families maximum, tracking that tightens as size grows, 45 to 75ch measure, line height inverse to measure, and light-on-dark compensated on three axes.\n- **A spacing scale with actual rhythm.** 4px base, more space above a heading than below it, fluid section padding so a phone does not inherit desktop air.\n- **Colour with six roles and one accent**, secondary text tinted rather than flat grey, no pure black, and a documented escape for pages that hard-cut between light and dark grounds.\n- **Depth as five tools, not one.** Offset shadows, edge light, scale-and-blur as distance, overlap, and grain.\n- **Brand guidelines are inputs, not decoration.** Point it at a brand kit and its hard rules win, including rules that forbid things the skill would otherwise reach for.\n- **A refuse list.** Identical feature-card grids, `01 / 06` counters, scroll cues, gradient text, em dashes, invented statistics, fake dashboards, AI-purple gradients, and the cream-and-brass artisan palette every craft brand defaults to.\n\n**It checks its own work**\n\nA headless browser walks the finished page at every scroll position, waits for the video playhead to settle, and reports:\n\n- **dead scroll**: scroll that changes nothing on screen\n- **cues that never reach full opacity**: copy the reader can only ever see faded\n- **contrast measured on the composited page**, per line, at the brightest frame that ever passes under it, with the direction picked per line so light-on-dark and dark-on-light are both graded correctly\n- **legs stuck on a poster**: a clip that silently never decoded, which looks exactly like a paused film\n\nThen it writes a contact sheet, because a machine can prove a page works and cannot tell you it means anything.\n\n---\n\n## Install\n\n```bash\n/plugin marketplace add nateherkai/scroll-craft\n```\n```bash\n/plugin install nateh",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:53.465455"
+  },
+  {
+    "basic_info": {
+      "name": "dsh-vision-router",
+      "full_name": "ysr666/dsh-vision-router",
+      "owner": "ysr666",
+      "description": "Eyes for text-only DeepSeek Harness agents: built-in free vision chain (no key) + pixel-level vision tools (Q&A, grounding, crop, pixel diff, colors, OCR, SVG trace, cutout, screenshots). One-command install, no Python, image turns work like ordinary tool-calling turns.",
+      "url": "https://github.com/ysr666/dsh-vision-router",
+      "clone_url": "https://github.com/ysr666/dsh-vision-router.git",
+      "ssh_url": "git@github.com:ysr666/dsh-vision-router.git",
+      "homepage": "https://github.com/ysr666/dsh-vision-router",
+      "created_at": "2026-08-13T18:57:47Z",
+      "updated_at": "2026-08-27T10:17:47Z",
+      "pushed_at": "2026-08-27T10:18:06Z"
+    },
+    "stats": {
+      "stars": 1005,
+      "forks": 44,
+      "watchers": 1005,
+      "open_issues": 3,
+      "size": 59216
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 2987143
+      },
+      "license": "MIT License",
+      "topics": [
+        "deepseek-harness",
+        "dsh",
+        "dsh-plugin",
+        "multimodal",
+        "vision"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/hero.svg\" width=\"100%\" alt=\"DSH Vision Router — eyes for text-only DeepSeek Harness agents\" />\n</p>\n\n<h1 align=\"center\">dsh-vision-router</h1>\n\n<p align=\"center\"><strong>Turn vision on when you need it — eyes for text-only agents on DeepSeek Harness. Free out of the box, no key, no Python, one command.</strong></p>\n\n<p align=\"center\">DeepSeek keeps thinking; the built-in free vision chain and fourteen deep tools do the seeing. When an image matters, enable the composer’s “👁 Vision” control and use image turns like ordinary tool-calling turns — grounded, measurable, repeatable.</p>\n\n<p align=\"center\">\n  <a href=\"https://awesome-dsh-plugin.com\"><img src=\"https://awesome-dsh-plugin.com/badge.svg\" alt=\"awesome · DSH plugin\" /></a>\n  <a href=\"https://github.com/zp-home/dsh-recommend\"><img src=\"https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fzp-home%2Fdsh-recommend%2Fmain%2Fdata%2Fbadges%2Fysr666__dsh-vision-router.certified.json&amp;style=flat-square\" alt=\"dsh-recommend 🏅 精选认证\" /></a>\n  <a href=\"https://github.com/zp-home/dsh-recommend\"><img src=\"https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fzp-home%2Fdsh-recommend%2Fmain%2Fdata%2Fbadges%2Fysr666__dsh-vision-router.json&amp;style=flat-square\" alt=\"dsh score 0.90\" /></a>\n  <a href=\"https://dshplugin.app/plugins/dsh-vision-router\"><img src=\"https://img.shields.io/badge/DSHPlugin.app-listed-555?style=flat-square\" alt=\"Listed on DSHPlugin.app\" /></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/ysr666/dsh-vision-router/releases/tag/v2.0.0\"><img src=\"https://img.shields.io/badge/release-v2.0.0-5B4CF0?style=flat-square\" alt=\"Release v2.0.0\" /></a>\n  <a href=\"tests\"><img src=\"https://img.shields.io/badge/verified-Node%2022%20%2B%2024-2EA44F?style=flat-square\" alt=\"Verified: Node 22 + 24\" /></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-2EA44F?style=flat-square\" alt=\"License: MIT\" /></a>\n  <a href=\"package.json\"><img src=\"https://img.shields.io/badge/Node.js-%3E%3D22-339933?style=flat-square&amp;logo=nodedotjs&amp;logoColor=white\" alt=\"Node.js >=22\" /></a>\n  <img src=\"https://img.shields.io/badge/runtime-no%20Python-8A2BE2?style=flat-square\" alt=\"No Python\" />\n  <a href=\"cordis.patch.yml\"><img src=\"https://img.shields.io/badge/DSH-Web%20profile-5B4CF0?style=flat-square\" alt=\"DSH Web profile\" /></a>\n</p>\n\n<p align=\"center\">English · <a href=\"README.zh.md\">中文</a></p>\n\n<p align=\"center\">💬 <strong>QQ community group: 1105463028</strong></p>\n\n> [!WARNING]\n> 📌 **Announcement (v2.0.0)**\n>\n> **v2.0.0:** Capability-aware Auto routing + benchmarks, explicit 👁 Vision, and Settings 2.0. [What’s new →](docs/releases/v2.0.0.md)\n\n<p align=\"center\">\n  <img src=\"assets/vision-demo.gif\" width=\"640\" alt=\"Demo: paste an image, the agent locates the send button with vision_ground / vision_crop / vision_pixel_diff and answers with coordinates\" />\n</p>\n\n## Contents\n\n- [Why this exists](#why-this-exists)\n- [How it compares](#how-it-compares)\n- [Design lineage](#design-lineage)\n- [Acknowledgements](#acknowledgements)\n- [Quick start](#quick-start)\n- [Free vision key channels](#free-vision-key-channels)\n- [Highlights](#highlights)\n- [How it works](#how-it-works)\n- [Tools](#tools)\n- [Configuration](#configuration)\n- [Install and lifecycle](#install-and-lifecycle)\n- [Troubleshooting](#troubleshooting)\n\n## Why this exists\n\nMost DSH vision plugins bridge images to DeepSeek as *text descriptions* — lossy, one-shot, and blind to pixels. This plugin keeps the **original pixels on the vision model's side** and DeepSeek on the reasoning side, and makes looking at an image an **ordinary tool call**:\n\n- **One command install.** The package ships its own composition patch (`dsh.bundle.patch`): `dsh plugin add` wires the row, the admission wrapper and the attachment limits automatically — zero manual file edits. Taking over the official DeepSeek route is an optional setting (stealth mode, off by default).\n- **Free by default.** Vision tools end with a five-model OVHcloud anonymous fallback: no account, no key, 2 requests/minute per IP per model, roughly 10 RPM in theory across independent buckets. User-provided vision models run first.\n- **No Python.** The whole pipeline — downscale, grounding, crop, pixel diff, palette, OCR, SVG trace, cutout, HTML screenshot — runs on sharp / potrace / tesseract / system Chrome.\n- **Continuous multi-step image work.** An image turn is a text turn that calls tools: `vision_ground` → `vision_crop` → `vision_describe` → `vision_pixel_diff` → fix → screenshot again. The agent keeps iterating until the work is done.\n- **DeepSeek stays the brain.** Text turns are untouched in model, cost and context. The vision model is only the eyes, called on demand; answers are cached by image content.\n- **Transparent to the user.** Uploaded images keep rendering as images in the conversation UI; the rewrite that points the model at the vision tools happens",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:54.748825"
+  },
+  {
+    "basic_info": {
+      "name": "ComfyUI_MiniMaxH3_Director",
+      "full_name": "AIMixer/ComfyUI_MiniMaxH3_Director",
+      "owner": "AIMixer",
+      "description": "Multi-segment MiniMax H3 Director for official ComfyUI MiniMax-H3",
+      "url": "https://github.com/AIMixer/ComfyUI_MiniMaxH3_Director",
+      "clone_url": "https://github.com/AIMixer/ComfyUI_MiniMaxH3_Director.git",
+      "ssh_url": "git@github.com:AIMixer/ComfyUI_MiniMaxH3_Director.git",
+      "homepage": null,
+      "created_at": "2026-08-04T04:20:36Z",
+      "updated_at": "2026-08-27T10:07:04Z",
+      "pushed_at": "2026-08-27T10:46:24Z"
+    },
+    "stats": {
+      "stars": 986,
+      "forks": 108,
+      "watchers": 986,
+      "open_issues": 40,
+      "size": 899
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 928028,
+        "Python": 670856
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ComfyUI MiniMax H3 Director\n\n基于 **ComfyUI 官方 MiniMax-H3** 的多段音视频导演台插件。仓库地址：[AIMixer/ComfyUI_MiniMaxH3_Director](https://github.com/AIMixer/ComfyUI_MiniMaxH3_Director)\n\n**English** → [README_EN.md](README_EN.md)\n\n![MiniMaxH3Director 工作流截图](docs/screenshot.png)\n\n## 功能介绍\n\n**MiniMaxH3Director** 是面向长视频、多段生成的 MiniMax H3 导演台节点，把分段计划、条件编码、采样解码和导出整合在一个节点里。底层走官方 `MiniMaxH3ImageToVideo` / `MiniMaxH3ReferenceToVideo` + `MiniMaxH3SigmaShift` + `KSampler` + AV 分离解码链路，原生输出立体声音频。\n\n### 核心能力\n\n| 功能 | 说明 |\n|------|------|\n| **多段时间轴** | 节点内上传视频，支持切分、均分、智能分镜分割（PySceneDetect）、追加；分割点可选中删除；可视化时间轴预览每段范围与缩略图 |\n| **多任务模式** | `task_type`：`t2v`（文生视频）、`i2v`（图生视频）、`fl2v`（首尾帧生视频）、`r2v`（参考主体生视频 / 素材组）、`v2v`（视频转视频）、`rv2v`（参考素材改视频） |\n| **首尾帧 (fl2v)** | 独立首尾帧时间轴：多组关键帧、「添加一组」上传首帧和/或尾帧（官方支持只传尾帧）；拖缘调时长；提示词写中间运动；支持「选择运行」只跑部分组 |\n| **参考素材组 (r2v)** | fl2v 式分组 UI：上方「公共参数」共享参考图/音频与公共提示词（与每组提示词拼接）；每组可再挂图片1–9 / 音频1–3 / 视频1–3；提示词用 `<Picture N>` / `<Video K>` / `<Audio J>`（或 `@` 引用）；时间轴预览与选中状态同步 |\n| **源视频编辑 (v2v / rv2v)** | Bernini 风格源视频时间轴；每段源画面自动绑定 `<Video 1>`；`rv2v` 另可挂参考图（图片1–9）与参考音频（音频1–3） |\n| **选择运行** | 开启后只采样勾选的片段/素材组；未勾选段可用缓存或源画面填充（全部导出时） |\n| **外部多组接线** | `Director Group (Image to Video)` / `(Reference to Video)` + `Groups Combine`；连入导演台 `i2v_groups` / `r2v_groups` 后外部优先覆盖 UI 素材，仍支持跑批与选择运行 |\n| **原生立体声音频** | 与画面同次采样生成；`v2v`/`rv2v` 可选生成声音 / 使用原声 / 静音 |\n| **段间引导** | 默认关闭；多段 `t2v` / `i2v` / `fl2v` / `r2v` / `v2v` / `rv2v` 时可开启，将上一段生成结果的末尾运动（及生成音频）钉入下一段采样再裁掉前缀。上下文帧数：5 / 22 / 39 / 56，**默认推荐为 22**。**感谢 [ComfyUI-H3-Motion-Context](https://github.com/NikoDemon80/ComfyUI-H3-Motion-Context) 提供的实现思路** |\n| **二采 / 放大 (Refine)** | 外接 **MiniMax H3 Director Refine** 到导演台 `refine` 口。未接线 = 原来的单次采样。`refine` = 同分辨率精修；`upscale` = 先放大到目标画布再按 SIGMAS 二采（像素插值 / RTX VSR / H3 latent）；`latent_upscale` = 只放大 H3 latent、不二采。`passes` 可多次精修（upscale 只放大一次）。可选接 `refine_model` 换二采 UNET。`images` 为二采后成片，`images_pre_refine` 为一采（放大前）画面 |\n| **运行报告** | `report` 口输出分段计划、每段任务摘要 |\n\n### 输入 / 输出\n\n**输入：** `model` → `video_vae` → `audio_vae` → `clip`  \n**可选：** `i2v_groups`（Image to Video 多组）/ `r2v_groups`（Reference to Video 多组）/ `refine`（`MiniMax H3 Director Refine`）\n\n**输出：** `images` → `audio` → `fps` → `frame_count` → `source_images` → `report` → `images_pre_refine`\n\n> CLIP Loader 的 **type 必须选 `minimax`**（Qwen3-VL）。  \n> `t2v` / `i2v` / `fl2v` 用 **fl2va** UNET；`r2v` / `v2v` / `rv2v` 用 **ref2va** UNET。\n\n## 依赖\n\n请将 **ComfyUI** 升级到 **v0.30.0** 及以上（含官方 MiniMax H3 节点：[PR #15224](https://github.com/comfyanonymous/ComfyUI/pull/15224)、[PR #15228](https://github.com/comfyanonymous/ComfyUI/pull/15228)）。\n\n可选：`scenedetect`（智能分割）、`opencv-python-headless`（源视频解码）、`imageio-ffmpeg`（原声抽取）——见 `requirements.txt`。  \nRefine 的 `nvidia_rtx_vsr` 另需 NVIDIA GPU，可 `pip install nvidia-vfx --extra-index-url https://pypi.nvidia.com`（不是硬依赖）。\n\n## 安装\n\n### 方法一：手动安装（标准方式）\n\n```bash\ncd ComfyUI/custom_nodes\ngit clone https://github.com/AIMixer/ComfyUI_MiniMaxH3_Director.git\n\npip install -r ComfyUI_MiniMaxH3_Director/requirements.txt\n```\n\n重启 ComfyUI。\n\n### 方法二：ComfyUI Manager\n\n1. 打开 **ComfyUI Manager**\n2. 选择 **Install via Git URL**\n3. 填入 `https://github.com/AIMixer/ComfyUI_MiniMaxH3_Director.git` 并安装\n4. 重启 ComfyUI\n\n## 模型与工作流下载\n\n完整资源包（**MiniMax H3 模型权重** + **示例 JSON 工作流**）见：\n\n**[Comfyit 搅拌站 · 文章 506：MiniMax H3 模型和工作流](https://comfyit.cn/article/506)**\n\n下载后将 `models/` 合并到 `ComfyUI/models/`，JSON 工作流拖入 ComfyUI 即可。\n\n也可参考：\n\n- **Hugging Face：** [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3)\n- **ComfyUI 文档：** [MiniMax H3 工作流示例](https://docs.comfy.org/zh/tutorials/video/minimax/minimax-h3)\n\n本仓库自带示例：`example_workflows/`\n\n| 工作流 | task_type | UNET | 说明 |\n|--------|-----------|------|------|\n| `minimax_h3_director_t2v.json` | t2v | fl2va | 文生音视频 |\n| `minimax_h3_director_fl2v.json` | fl2v | fl2va | 首尾帧（「添加一组」） |\n| `minimax_h3_director_r2v.json` | r2v | **ref2va** | 参考改视频素材组 |\n| `minimax_h3_director_v2v.json` | v2v | **ref2va** | 源视频时间轴编辑 |\n| `minimax_h3_director_rv2v.json` | rv2v | **ref2va** | 源视频 + 参考图/音频 |\n| `minimax_h3_director_external_groups_i2v.json` | fl2v | fl2va | 外部 Group×2 → Combine → `i2v_groups` |\n| `minimax_h3_director_external_groups_r2v.json` | r2v | **ref2va** | 外部 Group×N → Combine → `r2v_groups` |\n| `minimax_h3_director_二采_加速.json` | r2v | **ref2va** | 外接 Refine 二采（SIGMAS + H3 latent）；`images` 与 `images_pre_refine` 各出一路成片 |\n\n### 推荐模型文件\n\n| 用途 | 文件名 | 目录 |\n|------|--------|------|\n| UNET (t2v / i2v / fl2v) | `minimax_h3_fl2va_pruned_int8_convrot.safetensors` | `models/diffusion_models/` |\n| UNET (r2v / v2v / rv2v) | `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | `models/diffusion_models/` |\n| CLIP | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `models/text_encoders/` |\n| Video VAE | `minimax_h3_video_vae_fp16.safetensors` | `models/vae/` |\n| Audio VAE | `minimax_h3_audio_vae_fp32.safetensors` | `models/vae/` |\n\n## 快速开始\n\n1. 确认 ComfyUI ≥ **0.30.0**，已能加载官方 MiniMax H3 节点\n2. 从 [文章 506](https://comfyit.cn/article/506) 或本仓库 `example_workflows/` 加载示例\n3. 连接 UNET / CLIP / video_vae / audio_vae，在导演台 UI 内编辑时间轴与提",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:56.030391"
+  },
+  {
+    "basic_info": {
+      "name": "finger-frame-effect-ai",
+      "full_name": "sophiamyang/finger-frame-effect-ai",
+      "owner": "sophiamyang",
+      "description": null,
+      "url": "https://github.com/sophiamyang/finger-frame-effect-ai",
+      "clone_url": "https://github.com/sophiamyang/finger-frame-effect-ai.git",
+      "ssh_url": "git@github.com:sophiamyang/finger-frame-effect-ai.git",
+      "homepage": null,
+      "created_at": "2026-08-02T21:58:43Z",
+      "updated_at": "2026-08-27T07:31:27Z",
+      "pushed_at": "2026-08-07T15:27:32Z"
+    },
+    "stats": {
+      "stars": 980,
+      "forks": 123,
+      "watchers": 980,
+      "open_issues": 3,
+      "size": 29309
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 19122,
+        "Python": 15299,
+        "HTML": 11494
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Finger Frame AI 🎬✨\n\n**Try it: https://sophiamyang.github.io/finger-frame-effect-ai/**\n\nUpload a video of the two-hand finger-frame gesture — get it back with an\n**AI-generated world inside the frame**. The whole video is restyled by a\nvideo-to-video model (motion, blinks, and all), then composited so the\nfinger frame acts as a window into the animated version.\n\n## The finger-frame family\n\n| App | Generation | Latency |\n|---|---|---|\n| [finger-frame-effect](https://sophiamyang.github.io/finger-frame-effect/) ([repo](https://github.com/sophiamyang/finger-frame-effect)) — live camera, local effects | Canvas 2D (Van Gogh, toon, glitch, …) | none |\n| **this app** — recorded video, AI restyle | Gemini Omni Flash (offline video edit) | minutes |\n| [finger-frame-effect-lucy](https://sophiamyang.github.io/finger-frame-effect-lucy/) ([repo](https://github.com/sophiamyang/finger-frame-effect-lucy)) — live camera, live AI | Decart Lucy 2.5 (realtime video-to-video) | ~real time |\n\n![Example: AI-animated world inside the finger frame](examples/final.gif)\n\n*Real hands, AI world — generated with the default \"3D animated movie\"\nstyle ([full-quality mp4](examples/final.mp4)).*\n\n## How it works\n\n1. **Restyle** — the uploaded video is sent to\n   [Gemini Omni Flash video editing](https://ai.google.dev/gemini-api/docs/omni)\n   with your chosen style (3D animated movie, anime, claymation,\n   watercolor, or a custom prompt). This is a true video model: the whole\n   clip is regenerated, so the animated version moves exactly like you.\n   Every prompt gets a strict-alignment suffix appended — same framing, no\n   zoom/crop/recentering, facial features at the same screen coordinates,\n   expression preserved frame by frame (mouth openness, blinks, gaze) — so\n   the result lines up behind the finger-frame window.\n2. **Track** — MediaPipe Hand Landmarker finds both hands per frame, and the\n   finger-frame quad is tracked with the same audited pipeline as the live\n   app (anatomical corner ordering — crossing your fingers renders the\n   bowtie — spread/area gates with hysteresis, teleport rejection,\n   velocity-adaptive smoothing, dropout hold, presence fade).\n3. **Composite** — the AI video is revealed through the tracked quad with\n   the dashed marching-ants outline and pulsing corner dots.\n4. **Export** — the result records to a downloadable video — MP4 where the\n   browser supports recording it (Safari, newer Chrome), otherwise `.webm`\n   (convert with `ffmpeg -i finger-frame-ai.webm -c:v libx264 out.mp4`).\n\n## Bring your own key\n\nThe AI step uses your own [Gemini API key](https://aistudio.google.com/apikey),\nentered in the app. It stays in your browser (localStorage only if you check\n\"remember\") and is sent only to Google's API. Generation is billed per\nvideo and takes a few minutes. Keep clips under ~15MB (a few seconds of\n720p — any common format: mp4, mov, webm); larger files exceed the inline\nupload limit. No key? The **placeholder style** button runs the full\ntrack-composite-export pipeline with a hue-shifted stand-in so you can try\neverything for free.\n\n## Run locally\n\nAny static server works:\n\n```bash\npython3 -m http.server 8124\n```\n\nThen open http://localhost:8124. A `?src=<file>` query param loads a video\nfrom the server directory (dev convenience).\n\n## CLI alternative (Python)\n\nThe same pipeline as offline scripts — useful for batch work or\nframe-accurate H.264 output:\n\n```bash\npython3 -m venv .venv\n.venv/bin/pip install -r requirements.txt\n\nexport GEMINI_API_KEY=...\n.venv/bin/python stylize.py input.mp4 -o stylized.mp4      # AI restyle\n.venv/bin/python composite.py input.mp4 stylized.mp4 -o final.mp4\n```\n\nAny input format ffmpeg/OpenCV can read works (mp4, mov, webm, …).\n`composite.py` needs `ffmpeg` on PATH, outputs H.264 MP4, and carries over\nthe original audio track when present.\n\n## Notes\n\n- Input/output media are gitignored — personal footage stays local. The\n  only committed media is the sample under `examples/`.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:57.297746"
+  },
+  {
+    "basic_info": {
+      "name": "memorax-code",
+      "full_name": "memorax-ai/memorax-code",
+      "owner": "memorax-ai",
+      "description": "A memory plugin for AI coding that turns engineering experience, repository knowledge, and your way of working into memory that remains useful in future tasks.",
+      "url": "https://github.com/memorax-ai/memorax-code",
+      "clone_url": "https://github.com/memorax-ai/memorax-code.git",
+      "ssh_url": "git@github.com:memorax-ai/memorax-code.git",
+      "homepage": "https://code.memorax.net/",
+      "created_at": "2026-08-01T02:13:37Z",
+      "updated_at": "2026-08-27T10:43:34Z",
+      "pushed_at": "2026-08-27T10:01:22Z"
+    },
+    "stats": {
+      "stars": 976,
+      "forks": 47,
+      "watchers": 976,
+      "open_issues": 14,
+      "size": 2011
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 2618884,
+        "TypeScript": 679248,
+        "Python": 151949,
+        "Shell": 63089,
+        "Makefile": 1845
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agents",
+        "claude-code",
+        "codex",
+        "coding-memory",
+        "developer-tools",
+        "memorax",
+        "typescript"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/assets/memorax-code-lockup-dark.svg\">\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"docs/assets/memorax-code-lockup-light.svg\">\n    <img src=\"docs/assets/memorax-code-lockup-light.svg\" alt=\"MemoraX Code\" width=\"420\">\n  </picture>\n</h1>\n\n<p align=\"center\">\n  <a href=\"https://trendshift.io/repositories/105791?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-105791\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/105791/daily?language=JavaScript\" alt=\"memorax-ai/memorax-code | Trendshift\" width=\"250\" height=\"55\" /></a>\n</p>\n\n<h2 align=\"center\">Never lose context. Never start over.</h2>\n\n<p align=\"center\">\n  <sub>\n    Beyond code, it remembers how your architecture evolves and how your engineering unfolds.\n  </sub>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://code.memorax.net/\"><img src=\"https://img.shields.io/badge/website-code.memorax.net-2563eb\" alt=\"MemoraX Code website\"></a>\n  <a href=\"https://www.npmjs.com/package/@memorax/memorax-code\"><img src=\"https://img.shields.io/npm/v/@memorax/memorax-code.svg\" alt=\"npm version\"></a>\n  <img src=\"https://img.shields.io/npm/v/@memorax/memorax-code.svg?label=version&color=f59e0b\" alt=\"npm package version\">\n  <img src=\"https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white\" alt=\"Node.js 20 or newer\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://discord.gg/eCUS8PpjG\"><img src=\"https://img.shields.io/badge/Discord-Join%20Chat-5865F2?logo=discord&logoColor=white\" alt=\"Join the MemoraX Code Discord community\"></a>\n  <a href=\"docs/assets/wechat-group-qr.jpg\"><img src=\"https://img.shields.io/badge/WeChat-Join%20Group-07C160?logo=wechat&logoColor=white\" alt=\"Join the MemoraX Code WeChat group\"></a>\n</p>\n\n<p align=\"center\">\n  <strong>English</strong> · <a href=\"README.zh.md\">简体中文</a>\n</p>\n\n## Make Every Interaction the Starting Point for the Next\n\nCoding agents are good at the task in front of them, but a new session often\nstarts without the architecture, failed attempts, repository rules, or working\npreferences established before it.\n\nMemoraX Code gives Codex, Claude Code, DeepSeek Harness, and OpenCode a shared\nmemory layer for that context.\nIt can recall prior engineering knowledge, capture reusable lessons from\ncompleted work, maintain repository knowledge, and carry your procedures and\npreferences into future sessions.\n\nThe goal is not to remember everything. It is to bring back the small amount of\nmemory relevant to the current task so the agent can reach useful investigation\nand validation sooner.\n\n## Quick Start\n\nPrepare Node.js 20+ (Node.js 24 LTS recommended) and at least one of Codex,\nClaude Code, DeepSeek Harness, or OpenCode. Python 3 is required for Repo\nMemory operations. Each coding-agent harness retains its own runtime\nrequirements; current DeepSeek Harness releases require Node.js\n`^22.19.0 || >=24.0.0`. DSH may be installed globally or initialized\nbeforehand through its official `npx` workflow.\n\n### Install and Connect\n\n#### 1. Install the Package\n\n```bash\nnpm install -g @memorax/memorax-code\n```\n\n#### 2. Connect a MemoraX Account (Recommended)\n\n[Create a MemoraX account](https://platform.memorax.net/) or use an existing\none, then run:\n\n```bash\nmemorax-code setup --existing-account\n```\n\n> [!TIP]\n> Using MemoraX Code across devices? Find the MemoraX username and API key\n> needed by setup in the MemoraX Code configuration file on a configured device\n> (normally `~/.memorax-code/config.toml`), then enter them locally during setup\n> on another device. This file contains your API key—keep it private and never\n> paste it into chats or public issues.\n\n#### Or Try Without an Account (90-Day Guest Mode)\n\nTo start immediately and connect an account later, run:\n\n```bash\nmemorax-code setup\n```\n\nTo activate your guest account, first run this command directly in your local\nterminal:\n\n```bash\nmemorax-code account --show-mark-id\n```\n\nAfter obtaining the Mark ID, create your MemoraX account. The platform does\nnot currently support attaching a Mark ID to an account that has already been\nregistered.\n\nBoth setup paths automatically detect supported coding agents. Restart or\nrefresh every detected coding agent after setup.\n\n### Installation Troubleshooting\n\nIf the initial setup does not work as expected, check these common cases:\n\n| Symptom | Recommended fix |\n| --- | --- |\n| Installation fails with an unsupported Node.js version | Run `node --version` and upgrade to Node.js 20 or later before reinstalling MemoraX Code. |\n| The package installed but setup did not start | This is expected. Run the appropriate setup command above from a normal interactive terminal. |\n| Search, retrieval, or writeback is unavailable after setup | Run `memorax-code status` and `memorax-cli status`, then follow the detailed troubleshooting guide. |\n\nSee [Configuration](docs/configur",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:58.600518"
+  },
+  {
+    "basic_info": {
+      "name": "dsh-im",
+      "full_name": "xmanrui/dsh-im",
+      "owner": "xmanrui",
+      "description": "通过扫码或机器人凭据把IM机器人接入DeepSeek Harness（支持飞书、微信、钉钉、企业微信、QQ、Slack、Telegram、Discord和WhatsApp）。 Connect IM bots to DeepSeek Harness via QR code or credentials (9 channels).",
+      "url": "https://github.com/xmanrui/dsh-im",
+      "clone_url": "https://github.com/xmanrui/dsh-im.git",
+      "ssh_url": "git@github.com:xmanrui/dsh-im.git",
+      "homepage": null,
+      "created_at": "2026-08-14T20:40:06Z",
+      "updated_at": "2026-08-27T10:31:57Z",
+      "pushed_at": "2026-08-26T18:15:16Z"
+    },
+    "stats": {
+      "stars": 902,
+      "forks": 93,
+      "watchers": 902,
+      "open_issues": 18,
+      "size": 48038
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 4739832
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agents",
+        "chatbot",
+        "cordis",
+        "deepseek",
+        "deepseek-harness",
+        "dingtalk-bot",
+        "discord-bot",
+        "dsh",
+        "dsh-plugin",
+        "feishu-bot",
+        "im-bot",
+        "slack-bot",
+        "telegram-bot",
+        "wechat-bot",
+        "whatsapp-bot"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/logo-dsh-im-connecting-readme-3x2.png\" alt=\"DSH-IM — Connecting DeepSeek Harness\" width=\"420\" height=\"280\" align=\"middle\">&nbsp;&nbsp;\n  <img src=\"assets/logo-plugin-phone.png\" alt=\"DSH-IM phone logo\" width=\"280\" height=\"280\" align=\"middle\">\n</p>\n\n---\n\n<div align=\"center\">\n  <p><strong>让 DeepSeek Harness 触手可及</strong></p>\n  <p><strong>Connecting DeepSeek Harness</strong></p>\n\n  <p>\n    <img src=\"https://dsh-im-random-badge.xmanrui-dsh-im.workers.dev\" alt=\"滑动变祖器：今天是梁子或今天是梁圣（随机）\">\n    <a href=\"LICENSE\"><img src=\"https://img.shields.io/github/license/xmanrui/dsh-im\" alt=\"MIT 许可证\"></a>\n    <img src=\"https://img.shields.io/badge/agent-DeepSeek%20Harness-5865f2\" alt=\"DeepSeek Harness\">\n    <a href=\"https://dshfind.com/zh/plugins/xmanrui/dsh-im?ref=badge\"><img src=\"https://dshfind.com/api/badge/xmanrui/dsh-im?lang=zh\" alt=\"dshfind\"></a>\n    <a href=\"https://dshfind.com/zh/plugins/xmanrui/dsh-im\"><img src=\"https://img.shields.io/badge/dshfind-%E5%88%86%E7%B1%BB%E7%AC%AC%E4%B8%80-d97706\" alt=\"dshfind: 分类第一\"></a>\n    <a href=\"https://dshfind.com/zh/plugins/xmanrui/dsh-im?ref=badge\"><img src=\"https://dshfind.com/api/badge/xmanrui/dsh-im?metric=downloads&amp;lang=zh\" alt=\"dshfind downloads\"></a>\n  </p>\n\n  <p>\n    <img src=\"https://img.shields.io/badge/%E5%BE%AE%E4%BF%A1-07C160?logo=wechat&amp;logoColor=white\" alt=\"微信\">\n    <img src=\"https://img.shields.io/badge/%E9%A3%9E%E4%B9%A6-3370FF?logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZmlsbD0iI2ZmZiIgZD0iTTcuMiA0LjVoNy42YzEuMiAwIDIuMS41NSAyLjcgMS41OCAxLjA1IDEuOCAxLjU1IDMuNDUgMS41OCA0Ljk1LTIuMDQtLjYyLTQuMi0uMTUtNi4yMiAxLjQ1QzExLjMgOS43IDkuNDIgNy4wNCA3LjIgNC41WiIvPjxwYXRoIGZpbGw9IiNmZmYiIGQ9Ik0xMC44IDEzLjU1YzMuMy0yLjkzIDUuNzItNC4yNCA5LjQ3LTIuNTItMS4yIDEuNDUtMi4yNyA0LjE4LTMuODYgNS40My0xLjY3IDEuMzEtMy45LjUtNS42MS0uNjR2LTIuMjdaIi8%2BPHBhdGggZmlsbD0iI2ZmZiIgZD0iTTQuNCA4LjM1YzMuNDcgMy42MSA3LjI1IDYuMSAxMC4zMyA1LjcgMS4wNi0uMTQgMi4yLS43MiAzLjQtMS43Mi0xLjA0IDIuNjUtMi42IDQuOC01LjA2IDYtMi40NiAxLjItNS41Ni41Mi03LjQyLS43MkEyLjc2IDIuNzYgMCAwIDEgNC40IDE1LjNWOC4zNVoiLz48L3N2Zz4%3D\" alt=\"飞书\">\n    <img src=\"https://img.shields.io/badge/%E9%92%89%E9%92%89-1677FF?logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI%2BPHBhdGggZmlsbD0iI2ZmZiIgZD0iTTM3LjA1IDIyLjc4M2MtNi43NTgtNS4yMTYtMTQuMzc4LTEyLjEyOC0yMi43My0xOS41MzgtLjY1NS0uNTg1LTEuMjQyLS4zNTQtMS41MzYuNDItMS44OCA0Ljk3My0uMDU4IDkuMzg2IDIuODg5IDExLjkzMnM3LjM2OCA0LjkxMiAxMC4wNTggNi4xNTVjLjEwNS4wNDkuMDEzLjIwMy0uMDkzLjE2My00Ljk1My0yLjE4Mi04LjM5Ny0zLjc2NS0xMy4wNy03LjM2OC0uNDk3LS4zODgtMS4wMS0uMjQyLTEuMDcuNTIxLS4zODQgNC43NDggMi42NTcgOC40ODMgNi4wNTggOS43NDUgMi4xLjc4MSA0LjM5OCAxLjIxMiA2LjUzIDEuNDc0LjEwOS4wMTUuMDg0LjE3OC0uMDI3LjE3OC0yLjc0Ny4wMS02LjA1OC0uNjU0LTguOTM1LTEuNzUxLS42MDYtLjIzMy0uODE4LjI1LS43MjIuNjMzLjQ5MSAyLjAwOCAyLjk3NCA1LjA3NiA2LjkyNiA1LjczYTEyIDEyIDAgMCAwIDIuMjI4LjExNWMuMTY0IDAgLjIwOC4wODkuMTU0LjIxN3EtMi42ODUgNC42LTIuODAzIDQuNzk3Yy0uMDkxLjE1Mi0uMDM2LjI3NS4xNTYuMjc1aDMuNTQzYy4xNjQgMCAuMjY0LjEwNi4xOC4yNDZsLTQuOTU4IDguMTk2Yy0uMTkxLjMyOC4wMzUuNTY1LjM5NS4zMDFzMTUuMjEyLTExLjEzMyAxNS42MzYtMTEuNDQ4Yy4xOTUtLjE0Mi4xNDgtLjMyNy0uMTI0LS4zMjdoLTMuMThjLS4yMDYgMC0uMjUyLS4xNC0uMTExLS4yOC4xNC0uMTQxIDMuNjAyLTMuNTk0IDQuODM3LTQuODg4IDEuMjgzLTEuMzUgMS45MzgtMy44MjUtLjIzMS01LjQ5OCIvPjwvc3ZnPg%3D%3D\" alt=\"钉钉\">\n    <img src=\"https://img.shields.io/badge/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1-3370FF?logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIuMzUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTE3LjcgMTQuNWMxLjA1LTEuMTIgMS42NS0yLjUyIDEuNjUtNC4wMyAwLTMuODItMy41OC02LjkyLTgtNi45MnMtOCAzLjEtOCA2LjkyIDMuNTggNi45MiA4IDYuOTJjMS4xNyAwIDIuMjgtLjIyIDMuMjgtLjYyIi8%2BPHBhdGggZmlsbD0iI2ZmZiIgZD0iTTE2LjEgMTUuMTVjLjctLjcgMS44My0uNyAyLjUzIDBzLjcgMS44MyAwIDIuNTMtMS44My43LTIuNTMgMC0uNy0xLjgzIDAtMi41M1pNMTkuMjUgMTMuNDVhMS4zNiAxLjM2IDAgMSAxIDEuOTIgMS45MiAxLjM2IDEuMzYgMCAwIDEtMS45Mi0xLjkyWk0xOS41NSAxOC4wNWExLjE2IDEuMTYgMCAxIDEgMS42NCAxLjY0IDEuMTYgMS4xNiAwIDAgMS0xLjY0LTEuNjRaTTE1LjI1IDE4Ljc1YS45Mi45MiAwIDEgMSAxLjMgMS4zLjkyLjkyIDAgMCAxLTEuMy0xLjNaIi8%2BPC9zdmc%2B\" alt=\"企业微信\">\n    <img src=\"https://img.shields.io/badge/QQ-1EBAFC?logo=qq&amp;logoColor=white\" alt=\"QQ\">\n    <img src=\"https://img.shields.io/badge/Slack-4A154B?logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZmlsbD0iI2ZmZiIgZD0iTTYgMTVhMiAyIDAgMSAxLTItMmgydjJabTEgMGEyIDIgMCAxIDEgNCAwdjVhMiAyIDAgMSAxLTQgMHYtNVptMi04YTIgMiAwIDEgMSAyLTJ2Mkg5Wm0wIDFhMiAyIDAgMSAxIDAgNEg0YTIgMiAwIDEgMSAwLTRoNVptOCAyYTIgMiAwIDEgMSAyIDJoLTJ2LTJabS0xIDBhMiAyIDAgMSAxLTQgMFY1YTIgMiAwIDEgMSA0IDB2NVptLTIgOGEyIDIgMCAxIDEtMiAydi0yaDJabTAtMWEyIDIgMCAxIDEgMC00aDVhMiAyIDAgMSAxIDAgNGgtNVoiLz48L3N2Zz4%3D\" alt=\"Slack\">\n    <img src=\"https://i",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:46:59.924122"
+  },
+  {
+    "basic_info": {
+      "name": "autoprompt-skill",
+      "full_name": "Spielewoy/autoprompt-skill",
+      "owner": "Spielewoy",
+      "description": "Autoprompt is a coding-agent skill that cuts failures by 45% on agentic coding tasks.",
+      "url": "https://github.com/Spielewoy/autoprompt-skill",
+      "clone_url": "https://github.com/Spielewoy/autoprompt-skill.git",
+      "ssh_url": "git@github.com:Spielewoy/autoprompt-skill.git",
+      "homepage": "https://www.npmjs.com/package/autoprompt-skill",
+      "created_at": "2026-08-17T22:40:47Z",
+      "updated_at": "2026-08-27T07:55:45Z",
+      "pushed_at": "2026-08-26T23:29:13Z"
+    },
+    "stats": {
+      "stars": 898,
+      "forks": 61,
+      "watchers": 898,
+      "open_issues": 11,
+      "size": 6490
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 1221155,
+        "PowerShell": 541444,
+        "Shell": 436258,
+        "Python": 14556,
+        "TypeScript": 9540
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-orchestration",
+        "agent-skills",
+        "agentic-workflows",
+        "ai-agents",
+        "ai-coding",
+        "automated-testing",
+        "autonomous-agents",
+        "claude-code",
+        "cli",
+        "code-review",
+        "codex",
+        "coding-agent",
+        "developer-tools",
+        "github-copilot",
+        "multi-agent-systems",
+        "opencode",
+        "prompt-engineering",
+        "subagents",
+        "test-driven-development",
+        "workflow-automation"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/banner.svg\" alt=\"Autoprompt Skill with 45% fewer failures on agentic coding tasks\" width=\"760\"/>\n</p>\n\n<p align=\"center\">Autoprompt is a coding-agent skill that cuts failures by 45% on agentic coding tasks.</p>\n\n<p align=\"center\">\n  <a href=\"#benchmarks\"><img src=\"https://img.shields.io/badge/Terminal--Bench%202.1-%2B14.61%20points-255C60?style=flat-square&labelColor=14101F\" alt=\"Terminal-Bench 2.1: plus 14.61 points\"/></a>\n  <a href=\"https://github.com/Spielewoy/autoprompt-skill/releases/latest\"><img src=\"https://img.shields.io/github/v/release/Spielewoy/autoprompt-skill?style=flat-square&label=version&color=255C60&labelColor=14101F\" alt=\"Version 1.0.4\"/></a>\n  <a href=\"#install\"><img src=\"https://img.shields.io/badge/support-9%20supported%20providers-255C60?style=flat-square&labelColor=14101F\" alt=\"Nine supported providers\"/></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-255C60?style=flat-square&labelColor=14101F\" alt=\"License MIT\"/></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"README.md\"><b>English</b></a> |\n  <a href=\"https://github.com/Spielewoy/autoprompt-skill/blob/main/docs/translations/zh.md\">中文</a> |\n  <a href=\"https://github.com/Spielewoy/autoprompt-skill/blob/main/docs/translations/ko.md\">한국어</a> |\n  <a href=\"https://github.com/Spielewoy/autoprompt-skill/blob/main/docs/translations/es.md\">Español</a> |\n  <a href=\"https://github.com/Spielewoy/autoprompt-skill/blob/main/docs/translations/ar.md\">العربية</a>\n</p>\n\n## Contents\n\n[Install](#install) · [Benchmarks](#benchmarks) · [Invocation](#anatomy-of-an-invocation) · [Run controls](#run-controls) · [Workflow](#how-it-works) · [Agents](#the-agents) · [Examples](#examples) · [FAQ](#faq) · [License](#license)\n\n## Install\n\nUse the CLI below, or download an installer from [GitHub Releases](https://github.com/Spielewoy/autoprompt-skill/releases/tag/v1.0.4).\n\n### 1. Install the CLI\n\n```bash\nnpm install -g autoprompt-skill\n```\n\n### 2. Launch the installer\n\n```bash\nautoprompt\n```\n\n### 3. Install\n\nChoose your coding agent, confirm its path, and install. `N` means enter another path.\n\nFor another CLI or IDE, choose `Custom coding agent` and use the [compatibility guide](docs/guides/custom-agent-compatibility.md).\n\n<details>\n<summary><strong>Install from source</strong></summary>\n\n```bash\ngit clone https://github.com/Spielewoy/autoprompt-skill\ncd autoprompt-skill\nnpm install -g .\nautoprompt\n```\n\n</details>\n\n### Requirements\n\n- [Node.js 20+](https://nodejs.org/en/download)\n- [Python 3.11+](https://www.python.org/downloads/) exposed as `python`, with [PyYAML](https://pypi.org/project/PyYAML/)\n- [Bash 4.3+](https://www.gnu.org/software/bash/) on macOS or Linux\n- [Git](https://git-scm.com/downloads) only for the GitHub checkout method\n\n### Support\n\n| Status | Coding agent | Audited requirement | Key |\n|---|---|---|---|\n| Working | [Claude Code](https://code.claude.com/docs/en/setup) | 2.1.219+; audited 2.1.233 | `claude` |\n| Working | [Codex](https://github.com/openai/codex) | Subagent-capable build; audited 0.147.0 | `codex` |\n| Working | [OpenCode](https://opencode.ai/docs/agents) | 1.18.7+; audited 1.18.18 | `opencode` |\n| Working | [Kilo Code](https://kilo.ai/docs/customize/custom-subagents) | 7.4.22+; audited 7.4.22 | `kilo` |\n| Working | [VS Code](https://code.visualstudio.com/docs/agents/subagents) | 1.133+; audited 1.133.0 with Copilot 0.61.0 | `vscode` |\n| Working | [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent) | 0.7.2; audited 0.7.2; native package adapter | `prime` |\n| Working | [Oh My Pi](https://omp.sh/) | 17.4.0+; adapter contract, install lifecycle, and native role payload verified for 17.4.0 | `omp` |\n| Working | [DeepSeek Harness](https://deepseek.com/harness/en/) | 0.1.0-rc.7+; adapter contract, install lifecycle, and native role payload verified for 0.1.0-rc.7 | `deepseek` |\n| Working | [Reasonix](https://reasonix.io/docs/) | 1.30.0+; adapter contract, install lifecycle, and native role payload verified for 1.30.0 | `reasonix` |\n\nSee [support and audit notes](docs/faq/which-coding-agents-are-supported.md).\n\n### Check, update, or remove an installation\n\n- Check every detected installation: `autoprompt doctor --strict`\n- Check one provider: `autoprompt doctor PROVIDER --strict`\n- Update or repair: `autoprompt`, then choose an installed provider\n- Uninstall interactively: `autoprompt uninstall`\n- Uninstall one provider: `autoprompt uninstall PROVIDER`\n- Show every command: `autoprompt help`\n\nReplace `PROVIDER` with a key from the support table, such as `claude`, `codex`, or `prime`.\n\n## Benchmarks\n\n<p align=\"center\">\n  <img src=\"assets/terminal-bench-2.1-leaderboard.svg\" width=\"1000\" alt=\"Terminal-Bench 2.1 leaderboard with 18 Artificial Analysis reference scores and measured DeepSeek V4 Flash 0731 scores with and without Autoprompt.\"/>\n</p>\n\n<details>\n<summary><strong>Measured OpenCode comparison</strong></summary>\n\n<p align=\"center\">\n  <img src=\"assets/terminal-bench-2",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:47:01.244609"
+  },
+  {
+    "basic_info": {
+      "name": "ha.mr",
+      "full_name": "p2r3/ha.mr",
+      "owner": "p2r3",
+      "description": "Static URL compressor and QR code optimizer",
+      "url": "https://github.com/p2r3/ha.mr",
+      "clone_url": "https://github.com/p2r3/ha.mr.git",
+      "ssh_url": "git@github.com:p2r3/ha.mr.git",
+      "homepage": "https://ha.mr",
+      "created_at": "2026-08-09T10:12:47Z",
+      "updated_at": "2026-08-27T10:24:04Z",
+      "pushed_at": "2026-08-21T01:52:33Z"
+    },
+    "stats": {
+      "stars": 895,
+      "forks": 84,
+      "watchers": 895,
+      "open_issues": 6,
+      "size": 102
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 1780,
+        "Nix": 1431,
+        "Dockerfile": 212
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ha.mr\n\nCompresses links and optimizes QR codes entirely in the browser, without a back-end database.\n\n## How\n\n1. Common parts of the link (e.g. protocol, `www.` prefix, `index.html`) are manually detected and reduced to individual bits. If present, the port is encoded as a raw numeric value.\n2. Second-level and top-level domains are matched against a Huffman-coded dictionary of the most common websites and TLDs.\n3. The rest of the link is split into parts, and each segment is either fitted to a predefined character set, or Huffman coded.\n4. For links, the output is encoded in the full character set of a URL. (I've been informed that square brackets `[]` are not supposed to be a part of this set, but it's too late to change that now.)\n5. For QR codes, the output uses the alphanumeric character set to remove overhead compared to other QR code generators.\n\n## Contributing\n\n- **Keep the scope small.** This is a simple project, and it should stay that way. I welcome bug fixes or standard maintenance, but I do not wish to stack features upon features or refactor everything into the newest web framework. One day, this project might reach a state where nothing has to be changed, and that's fine.\n- **Discuss, then code.** Search through past issues, or create a new issue if needed, to assess whether the change is necessary. Only _then_ make a pull request. Even if you put a lot of work into your code, please understand that I'm not obligated to merge it if it doesn't align with the project's scope or goals. If the change hasn't been discussed and isn't trivial, I will simply close the pull request and direct you to this here paragraph.\n- **Be transparent about tool use.** Look, I wrote this project by hand as a learning exercise, so obviously I'd prefer if it remained \"pure\". However, banning AI would just lead to people sneaking it in regardless, or worse, out of spite. Instead, I offer a compromise - if you're upfront about where AI was used, if the generated code fits in stylistically, and if you can explain (in your own words) how your change works, I will allow it. If I suspect that you're trying to pass off AI-generated work as your own, I will block you from the repository.\n\n## Acknowledgements\n\n- https://www.npmjs.com/package/lean-qr\n- https://github.com/smythp/reddit_links_dataset\n- https://github.com/ada-url/url-dataset\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:47:02.541971"
+  },
+  {
+    "basic_info": {
+      "name": "Z-E-U-S",
+      "full_name": "panel-zeus/Z-E-U-S",
+      "owner": "panel-zeus",
+      "description": null,
+      "url": "https://github.com/panel-zeus/Z-E-U-S",
+      "clone_url": "https://github.com/panel-zeus/Z-E-U-S.git",
+      "ssh_url": "git@github.com:panel-zeus/Z-E-U-S.git",
+      "homepage": null,
+      "created_at": "2026-08-09T02:53:39Z",
+      "updated_at": "2026-08-27T06:18:00Z",
+      "pushed_at": "2026-08-24T11:13:38Z"
+    },
+    "stats": {
+      "stars": 783,
+      "forks": 147,
+      "watchers": 783,
+      "open_issues": 0,
+      "size": 27734
+    },
+    "tech_info": {
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 570959,
+        "Shell": 5985
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  🇬🇧 <a href=\"README.md\">English</a> &nbsp;|&nbsp;\n  🇮🇷 <a href=\"README.fa.md\">فارسی</a>\n</p>\n\n<div align=\"center\">\n \n# ⚡ ZEUS PANEL\n[![Version](https://img.shields.io/badge/Version-v2.0.5-blue.svg?style=for-the-badge&logo=cloudflare)](https://github.com/zeus-panel/ZEUS-PANEL)\n[![Platform](https://img.shields.io/badge/Platform-Cloudflare%20Workers-f38020.svg?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)\n[![License](https://img.shields.io/badge/License-Proprietary%20(Non--Commercial)-red.svg?style=for-the-badge)](https://github.com/zeus-panel/ZEUS-PANEL/blob/main/LICENSE)\n[![Telegram](https://img.shields.io/badge/Community-PANEL__ZEUS-2CA5E0.svg?style=for-the-badge&logo=telegram)](https://t.me/PANEL_ZEUS)\n</div>\n\n<table width=\"100%\">\n<tr>\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n<img src=\"https://raw.githubusercontent.com/panel-zeus/Z-E-U-S/refs/heads/main/photos/dark.png\" width=\"100%\" alt=\"Zeus Panel Dark Mode\" style=\"border-radius: 12px;\">\n</td>\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n<img src=\"https://raw.githubusercontent.com/panel-zeus/Z-E-U-S/refs/heads/main/photos/1.png\" width=\"100%\" alt=\"Zeus Panel Screenshot 1\" style=\"border-radius: 12px;\">\n</td>\n</tr>\n<tr>\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n<img src=\"https://raw.githubusercontent.com/panel-zeus/Z-E-U-S/refs/heads/main/photos/2.png\" width=\"100%\" alt=\"Zeus Panel Screenshot 2\" style=\"border-radius: 12px;\">\n</td>\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n<img src=\"https://raw.githubusercontent.com/panel-zeus/Z-E-U-S/refs/heads/main/photos/3.png\" width=\"100%\" alt=\"Zeus Panel Screenshot 3\" style=\"border-radius: 12px;\">\n</td>\n</tr>\n</table>\n \n<table width=\"100%\">\n<tr>\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n<img src=\"https://raw.githubusercontent.com/panel-zeus/Z-E-U-S/refs/heads/main/photos/bot.png\" width=\"100%\" alt=\"Zeus Panel Status\" style=\"border-radius: 12px;\">\n</td>\n<td width=\"50%\" valign=\"middle\" align=\"center\">\n<img src=\"https://raw.githubusercontent.com/panel-zeus/Z-E-U-S/refs/heads/main/photos/status.png\" width=\"100%\" alt=\"Zeus Panel Dark Mode\" style=\"border-radius: 12px;\">\n</td>\n</tr>\n</table>\n\n<div align=\"center\">\n\n[⚡️ Key Features](#features) • [🚀 Deployment Guide](#-quick-deployment-guide) • [🔎 IP Scanner](#-clean-ip-scanner) • [🛡️ SOCKS5 Proxy](#️-build-your-own-socks5-proxy-zeus-relay) • [❤️ Donate](#-donate--support) • [⚖️ License & Copyright](#license-copyright) • [Credits](#credits-section)\n</div>\n\n\n> [!CAUTION]\n> **Security Notice**\n> If you believe this project does not comply with GitHub's Community Guidelines or Acceptable Use Policies, please let us know. We make every effort to ensure all our projects are secure and compliant with GitHub's policies.\n\n---\n\n\n## <a id=\"features\"></a>⚡️ Features & Capabilities\n\n**🚀 Core Protocols & Routing**\n* 📡 Dual Protocol Support: Native, highly optimized support for both VLESS and Trojan protocols over WebSocket, allowing simultaneous multi-protocol config generation.\n* 🌍 Multi-Location Routing (Up to 8 Proxies): Seamlessly assign up to 8 distinct proxies or geographic locations simultaneously to individual users.\n* 🔀 Automated Proxy Fallback: Intelligent auto-replacement of failing upstream user proxies with healthy nodes dynamically fetched from dedicated VIP proxy repositories.\n* 🌐 Dynamic IP Rotation: Automated rotation of Clean Cloudflare Edge IPs at custom, user-defined intervals (e.g., every 5 minutes).\n\n**🛡 Advanced Anti-Filtering & DPI Bypass**\n* 🧩 Advanced TLS Fragmentation: Built-in TLS Fragment support (length and interval) to bypass deep packet inspection (DPI).\n* 🇮🇷 ISP-Specific Presets: One-click optimized fragmentation presets for specific network operators (MCI, Irancell, Rightel, TCI, and Gaming mode).\n* 🎭 Patterniha (PattN/PattNG) Integration: Native support for advanced JSON fragmentation (fm), Custom Cipher Suites (cs), and TLS Masking (Custom SNI/Host) for ultimate stealth.\n* 🕵️ ClientHello Fingerprint Simulator: Dynamically spoof browser fingerprints (Chrome, Safari, iOS, Android, Edge, Randomized, Unsafe) to evade censorship.\n\n**👥 Advanced User Management & Billing**\n* ⚖️ Strict Quota Enforcement: Set precise limits based on Traffic Volume (GB), Time Expiration (Days), Total Requests, and Concurrent Devices (IP Limit).\n* ⏳ Start on First Connect: Option to delay the countdown of a user's subscription time until their very first successful connection.\n* ♻️ Automated Quota Resets: Scheduled auto-reset capabilities for volume and request counters based on user-specific timeframes.\n* 🛠 Bulk Operations: Comprehensive multi-select tools for batch user status toggling, deletion, and quota/time resets.\n\n**🛑 Security & Content Control**\n* 🚫 Smart Content Blocker: Integrated DNS-over-HTTPS (DoH) engine to actively intercept and block NSFW (Porn) content and advertisements per user.\n* 🔐 Panel Auth Protection: Secure SHA-256 hashed panel password with built-in brute-force protection m",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-27T10:47:03.882667"
+  }
+]

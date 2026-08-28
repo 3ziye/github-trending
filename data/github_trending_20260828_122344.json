@@ -1,0 +1,967 @@
+[
+  {
+    "basic_info": {
+      "name": "anydoc",
+      "full_name": "firecrawl/anydoc",
+      "owner": "firecrawl",
+      "description": "Convert Word, PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, and PDF to clean Markdown. Built in Rust, with Node.js and Python bindings.",
+      "url": "https://github.com/firecrawl/anydoc",
+      "clone_url": "https://github.com/firecrawl/anydoc.git",
+      "ssh_url": "git@github.com:firecrawl/anydoc.git",
+      "homepage": "https://firecrawl.github.io/anydoc/",
+      "created_at": "2026-08-03T16:36:14Z",
+      "updated_at": "2026-08-28T12:16:06Z",
+      "pushed_at": "2026-08-28T02:13:16Z"
+    },
+    "stats": {
+      "stars": 18960,
+      "forks": 1108,
+      "watchers": 18960,
+      "open_issues": 68,
+      "size": 864
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 991767,
+        "Python": 177152,
+        "JavaScript": 53602,
+        "HTML": 27897,
+        "Shell": 3737
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# anydoc\n\n[![Crates.io](https://img.shields.io/crates/v/anydoc.svg)](https://crates.io/crates/anydoc)\n[![npm](https://img.shields.io/npm/v/@firecrawl/anydoc.svg)](https://www.npmjs.com/package/@firecrawl/anydoc)\n[![PyPI](https://img.shields.io/pypi/v/firecrawl-anydoc.svg)](https://pypi.org/project/firecrawl-anydoc/)\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n[![skills.sh](https://skills.sh/b/firecrawl/anydoc)](https://skills.sh/firecrawl/anydoc)\n\nFast Rust library that converts documents (Word, PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, and PDF) into clean GitHub-Flavored Markdown. Includes bindings for [Node.js](node/README.md), [Python](python/README.md), and the [browser](wasm/README.md) (WebAssembly).\n\nBuilt by [Firecrawl](https://firecrawl.dev) to turn any office document into LLM-ready Markdown in single-digit milliseconds, with one consistent output no matter which format goes in. It powers [Firecrawl Parse](https://firecrawl.dev/parse), so if you'd rather not run it yourself, the hosted API gives you the same conversion plus our OCR models for the scanned pages anydoc can't read on its own.\n\n**[Try it in your browser](https://firecrawl.github.io/anydoc/)**: the demo page runs the library as WebAssembly, so files are converted locally and never leave your machine.\n\n## Quick start\n\n### Agent skill\n\nanydoc ships as an [Agent Skill](https://agentskills.io), so your agent can read any document it runs into:\n\n```bash\nnpx skills add firecrawl/anydoc\n```\n\nThe [skill](skills/convert-documents-to-markdown/SKILL.md) teaches the agent to convert documents with the anydoc CLI. Works with [Claude Code](https://claude.ai/code), [Codex](https://openai.com/codex/), [Cursor](https://cursor.com), [OpenCode](https://opencode.ai), and any other [compatible agent](https://agentskills.io/clients).\n\n### CLI\n\n```bash\nnpx @firecrawl/anydoc report.docx               # Markdown to stdout\nnpx @firecrawl/anydoc slides.pptx -o slides.md  # or to a file\nnpx @firecrawl/anydoc - --format csv < data.csv # read stdin\nnpx @firecrawl/anydoc scan.pdf --ocr hosted     # scanned pages via Firecrawl Parse\n```\n\n`npx` downloads the prebuilt binary for your platform on first run. For a permanent `anydoc` command, install globally with `npm install -g @firecrawl/anydoc`. Run `anydoc --help` for all options.\n\n### Node.js\n\n```bash\nnpm install @firecrawl/anydoc\n```\n\n```js\nimport { toDocument, toMarkdown, toMarkdownBytes } from '@firecrawl/anydoc';\n\n// From a file path:\nconst markdown = await toMarkdown('report.docx');\n\n// To enable OCR:\nconst markdown = await toMarkdown('report.docx', { ocr: 'hosted' );\n\n// From bytes, with the format detected from the content:\nconst fromBytes = await toMarkdownBytes(bytes);\n\n// Or name it, which signature-less formats (CSV) need:\nconst fromCsv = await toMarkdownBytes(bytes, 'csv');\n\n// Or stop at the document model, which also carries embedded assets:\nconst document = await toDocument(bytes);\n```\n\n> Full API reference: [node/README.md](node/README.md)\n\n### Python\n\n```bash\npip install firecrawl-anydoc\n```\n\n```python\nimport anydoc\n\n# From a file path:\nmarkdown = anydoc.to_markdown(\"report.docx\")\n\n# To enable OCR:\nmarkdown = anydoc.to_markdown(\"report.docx\", ocr=\"hosted\")\n\n# From bytes, with the format detected from the content:\nmarkdown = anydoc.to_markdown_bytes(data)\n\n# Or name it, which signature-less formats (CSV) need:\nmarkdown = anydoc.to_markdown_bytes(data, \"csv\")\n\n# Or stop at the document model, which also carries embedded assets:\ndocument = anydoc.to_document(data)\n```\n\n> Full API reference: [python/README.md](python/README.md)\n\n### Browser (WebAssembly)\n\n```bash\nnpm install @firecrawl/anydoc-wasm\n```\n\n```js\nimport init, { toMarkdownBytes, toDocument } from '@firecrawl/anydoc-wasm';\n\nawait init();\n\n// From bytes, with the format detected from the content:\nconst markdown = toMarkdownBytes(bytes);\n\n// Or name it, which signature-less formats (CSV) need:\nconst fromCsv = toMarkdownBytes(bytes, 'csv');\n\n// Or stop at the document model, which also carries embedded assets:\nconst document = toDocument(bytes);\n```\n\n> Full API reference: [wasm/README.md](wasm/README.md)\n\n### Rust\n\n```bash\ncargo add anydoc\n```\n\n```rust\n// From a file path:\nlet markdown = anydoc::to_markdown(\"report.docx\")?;\n\n// From bytes, with the format detected from the content:\nlet markdown = anydoc::to_markdown_bytes(&bytes, None)?;\n\n// Or name it, which signature-less formats (CSV) need:\nlet markdown = anydoc::to_markdown_bytes(&bytes, anydoc::Format::Csv)?;\n\n// Or stop at the document model, which also carries embedded assets:\nlet document = anydoc::to_document(&bytes, None)?;\n```\n\n## OCR\n\nanydoc reads text-based PDFs locally but does no OCR, so a PDF with scanned or image-only pages fails with `NeedsOcr`. Opt in and those documents go to [Firecrawl Parse](https://firecrawl.dev/parse), which OCRs them and returns the same Markdown. No signup needed; set `FIRECRAWL_API_KEY` for higher limits.\n\n|      ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:45.474413"
+  },
+  {
+    "basic_info": {
+      "name": "walgit",
+      "full_name": "tobi/walgit",
+      "owner": "tobi",
+      "description": null,
+      "url": "https://github.com/tobi/walgit",
+      "clone_url": "https://github.com/tobi/walgit.git",
+      "ssh_url": "git@github.com:tobi/walgit.git",
+      "homepage": null,
+      "created_at": "2026-08-23T22:28:01Z",
+      "updated_at": "2026-08-28T11:52:59Z",
+      "pushed_at": "2026-08-27T01:50:20Z"
+    },
+    "stats": {
+      "stars": 2278,
+      "forks": 121,
+      "watchers": 2278,
+      "open_issues": 19,
+      "size": 587
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 2532408,
+        "TypeScript": 195417,
+        "CSS": 29598,
+        "Shell": 22596,
+        "HTML": 13073,
+        "Just": 8100,
+        "Nix": 6114,
+        "Dockerfile": 3006,
+        "JavaScript": 2325
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# walgit — a git server that is one binary in front of an object store\n\nwalgit hosts git repositories with **no database, no leader and no local state that matters**. You run a\nsingle binary, point it at an S3 or GCS bucket, and you have: smart HTTP (v0/v2) fetch and push, `bundle-uri`\nclones served as static files, Git LFS, a browsing web UI, a JSON API with an SDK, per-repository push policy,\nwebhooks — and a server that scales to repositories **larger than the machine it runs on**. Every machine that\nruns walgit is a disposable cache; the bucket is the repository.\n\n```sh\n# 1. a bucket (any S3-compatible store or GCS) and a config\ncat > walgit.toml <<'EOF'\n[server]\nlisten = \"0.0.0.0:8080\"\npublic_url = \"https://git.example.com\"\nauto_create_on_push = true\n[server.auth]\nmode = \"token\"\nanonymous_read = false\ntokens = [{ principal = \"me\", token_env = \"WALGIT_TOKEN_ME\", write = true }]\n[store]\nbackend = \"s3\"\nbucket = \"my-walgit\"\n[store.s3]\nendpoint = \"https://s3.us-east-1.amazonaws.com\"\nregion = \"us-east-1\"\nEOF\n\n# 2. run it\nWALGIT_TOKEN_ME=$(openssl rand -hex 24) walgit serve --config walgit.toml\n\n# 3. use it — a push to a new name creates the repository\ngit -c http.extraHeader=\"Authorization: Bearer $WALGIT_TOKEN_ME\" push https://git.example.com/acme/app.git main\n```\n\nThat is the whole deployment. Add more machines pointed at the same bucket and they serve the same repositories,\nconsistently, with nothing to coordinate. Kill them all and you lose warmth, nothing else.\n\nIt is a Rust implementation of the architecture Cursor described in\n[*Git at any scale*](https://cursor.com/blog/git-at-any-scale) (the system they call Continuity), with the changes\nneeded to run it on machines that are smaller than the repository. The post is worth reading first; it is kept\nverbatim in `docs/reference/cursor-git-at-any-scale.md`.\n\n---\n\n## Why this shape\n\nGit is distributed, and that makes hosting it miserable for one reason: **packfiles**. Everything in a repository\nis compressed into large binary packs laid out to be small, not to be read in order; every git operation is a\nrandom walk over gigabytes. That is fine on a laptop with the file in page cache and catastrophic over a network\nfilesystem, which is why \"just put the repositories on NFS\" failed at every large host that tried it. The design\nthat survived (GitHub's Spokes) keeps real repositories on local NVMe so upstream `git` does the work, and\nreplicates at the packfile level with strict consistency — paid for with three-phase commit across a fixed replica\nset, a database that maps every repository to its machines, and a fleet of pets.\n\nContinuity's insight changes the economics: **make a write-ahead log in object storage the source of truth, and\nmake every on-disk repository a cache.** A push is stored as an immutable object in the bucket and becomes visible\nonly when a tiny manifest is rewritten with a compare-and-swap. That CAS *is* the consensus — no election, no\nquorum, no primary. Any instance may accept a push; two racing instances cannot both win. A replica that has never\nseen a repository reads the log and has it. Reads are consistent without coordination because every read first\nasks the store whether anything changed (a conditional GET, usually a 304). Compaction is done once by whoever holds\na lease and published *into the log*, so replicas download compacted packs instead of repacking. And because the\nWAL is the truth, there is complete provenance: every push and every repack, replayable to any point.\n\nwalgit takes that as-is, and adds what a *monorepo on small machines* needs: serving refs and web pages for a\nrepository whose packs will never fit on the instance (a **remote reader** over HTTP range requests), keeping\ncommits and trees local while blobs stay in the bucket (the **history pack**), and moving clone bytes out of the\nserver entirely (**bundle-uri**: fresh clones and catch-ups are static files the bucket or a CDN hands out).\n\n## What it does\n\n| | |\n|---|---|\n| **git** | smart HTTP v0/v2: `ls-refs` with prefixes, fetch with filter/shallow/deepen/sideband-all, receive-pack (atomic, deletes, tags, push options, report-status-v2), `<owner>/<repo>` namespaces, sha1 and sha256 repositories. Upstream `git` does upload-pack/repack/bundle; walgit does receive-pack, the WAL and the plumbing. |\n| **bundle-uri** | Bundles cut on calendar slots (weekly full, chained dailies, hourlies) as a pure function of the WAL: a fresh clone downloads the newest full plus the chain above it from the bucket and asks the server only for the remainder; a catch-up downloads exactly the slots it missed. Two lists per repo: `bundles/list` for clones, `bundles/catchup` for fetches. Blobless families for `--filter=blob:none`. |\n| **LFS** | Batch API + basic transfer, objects in the bucket, optional read-through from an upstream LFS server for imported repositories. |\n| **web UI + API** | A React UI (tree, blob, commits, diffs, the WAL's own health page) on a read-mostly JSON API ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:46.879331"
+  },
+  {
+    "basic_info": {
+      "name": "MangoDisk",
+      "full_name": "harry0703/MangoDisk",
+      "owner": "harry0703",
+      "description": "Safety-first disk cleaner and disk space analyzer for macOS and Windows, with duplicate file finder, large file cleanup, app uninstaller, and startup manager",
+      "url": "https://github.com/harry0703/MangoDisk",
+      "clone_url": "https://github.com/harry0703/MangoDisk.git",
+      "ssh_url": "git@github.com:harry0703/MangoDisk.git",
+      "homepage": "https://mangodisk.app/",
+      "created_at": "2026-08-01T03:00:29Z",
+      "updated_at": "2026-08-28T12:19:25Z",
+      "pushed_at": "2026-08-28T07:31:41Z"
+    },
+    "stats": {
+      "stars": 1585,
+      "forks": 107,
+      "watchers": 1585,
+      "open_issues": 16,
+      "size": 2774
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4622962,
+        "Vue": 594200,
+        "TypeScript": 590430,
+        "CSS": 50897,
+        "JavaScript": 26891,
+        "AppleScript": 4190,
+        "HTML": 3996,
+        "NSIS": 2035
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "app-uninstaller",
+        "cache-cleaner",
+        "cross-platform",
+        "desktop-app",
+        "disk-analyzer",
+        "disk-cleaner",
+        "disk-cleanup",
+        "disk-space-analyzer",
+        "disk-usage-analyzer",
+        "duplicate-files",
+        "duplicate-finder",
+        "large-files",
+        "macos",
+        "rust",
+        "startup-manager",
+        "system-cleaner",
+        "tauri",
+        "treemap",
+        "uninstaller",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">\n  <img src=\"public/mangodisk.svg\" width=\"40\" alt=\"MangoDisk application icon\"> MangoDisk\n</h1>\n\n<p align=\"center\">Disk cleanup, storage analysis, and system optimization for macOS and Windows</p>\n\n<p align=\"center\">\n  English · <a href=\"README.zh-CN.md\">简体中文</a> · <a href=\"README.zh-TW.md\">繁體中文</a> · <a href=\"README.ja.md\">日本語</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/harry0703/MangoDisk/releases/latest\"><img alt=\"Latest release\" src=\"https://img.shields.io/github/v/release/harry0703/MangoDisk?display_name=tag&sort=semver\"></a>\n  <img alt=\"macOS supported\" src=\"https://img.shields.io/badge/macOS-supported-111827?logo=apple&logoColor=white\">\n  <img alt=\"Windows supported\" src=\"https://img.shields.io/badge/Windows-supported-2563eb?logo=windows&logoColor=white\">\n  <img alt=\"Tauri 2\" src=\"https://img.shields.io/badge/Tauri-2-24c8db?logo=tauri&logoColor=white\">\n  <img alt=\"Rust Core\" src=\"https://img.shields.io/badge/core-Rust-b7410e?logo=rust&logoColor=white\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://mangodisk.app/\">\n    <picture>\n      <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://assets.mangodisk.app/images/readme/en-dark.jpg\">\n      <source media=\"(prefers-color-scheme: light)\" srcset=\"https://assets.mangodisk.app/images/readme/en-light.jpg\">\n      <img src=\"https://assets.mangodisk.app/images/readme/en-light.jpg\" width=\"1200\" alt=\"MangoDisk disk cleanup, storage analysis, and system optimization\">\n    </picture>\n  </a>\n</p>\n\n## What MangoDisk Can Do\n\n> **Storage**\n\n### 1. Deep Cleanup\n\nFind cleanable content scattered across the system, applications, developer tools, and local projects in one scan. MangoDisk saves you from checking each location manually and groups the results by reclaimable space:\n\n- **System and user caches**: Clean system temporary files, diagnostic data, and rebuildable caches stored in user directories.\n- **Application caches**: Clean caches, logs, update packages, and temporary content created by commonly used applications.\n- **Browser data**: Clean caches and temporary web data created by Chrome, Edge, Firefox, Brave, Arc, Opera, and other browsers.\n- **Developer tools and Xcode**: Clean package manager downloads, IDE indexes, compiler caches, and device support, archives, and development data generated by Xcode.\n- **Container caches**: Clean unused build caches and rebuildable temporary data created by Docker and other container tools.\n- **Project build artifacts**: Find rebuildable dependencies, caches, and build directories in Node.js, Rust, Gradle, Swift, Python, .NET, Godot, CMake, and other projects.\n- **AI models and caches**: Find local AI models, download caches, and temporary transfer files to identify model data that consumes significant storage.\n- **Application optimization**: Remove processor code the current device does not need from supported applications, reducing storage use without affecting normal operation.\n\nScanning only reads file information and never deletes anything automatically. Use smart recommendations or review items individually, then check the estimated reclaimable space before cleaning.\n\n### 2. Large File Cleanup\n\nQuickly identify the files taking up the most space without digging through folders one by one. Filter by type and size, then review each file and its location before cleaning.\n\n### 3. Duplicate File Cleanup\n\nFind exact duplicates by content instead of relying on file names. Smart selection keeps at least one file in every group, making it easier to reclaim space without removing every copy.\n\n### 4. Disk Space Analysis\n\nSee where your storage is going at a glance. Drill down through a treemap and list to locate the largest folders and files instead of cleaning blindly.\n\n> **System Tools**\n\n### 5. Application Uninstall and Cleanup\n\nUninstall applications together with related caches, settings, and leftover files to reclaim more space. MangoDisk separates rebuildable content from data that may include personal files, and warns you when an application is running or protected by the system.\n\n### 6. Startup Item Management\n\nDisable unnecessary startup programs to reduce startup or sign-in delays and background resource usage. Turn them back on at any time when you need them again.\n\n### 7. System Optimization\n\nOptimize settings that affect performance, privacy, and everyday usability in one place. Reduce unnecessary background activity and distractions so your computer feels faster and easier to use.\n\n- **One-click optimization**: Choose a smart recommendation or a performance- or privacy-focused preset to match your needs quickly.\n- **Fine-grained control**: Turn every setting on or off individually and review all pending changes before applying them.\n- **Clear guidance**: High-impact changes and settings that require administrator access, signing in again, or a restart are identified in advance.\n- **Thorough validation**: Every applicable optimization has been tested on real Windows 10, Wind",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:48.202169"
+  },
+  {
+    "basic_info": {
+      "name": "QzoneArchive",
+      "full_name": "Gaoshu705/QzoneArchive",
+      "owner": "Gaoshu705",
+      "description": "将 QQ 空间历史动态、照片、视频与互动记录安全归档到本地的桌面 / 移动端工具。",
+      "url": "https://github.com/Gaoshu705/QzoneArchive",
+      "clone_url": "https://github.com/Gaoshu705/QzoneArchive.git",
+      "ssh_url": "git@github.com:Gaoshu705/QzoneArchive.git",
+      "homepage": "",
+      "created_at": "2026-08-02T19:53:30Z",
+      "updated_at": "2026-08-28T12:23:01Z",
+      "pushed_at": "2026-08-28T04:56:00Z"
+    },
+    "stats": {
+      "stars": 1520,
+      "forks": 128,
+      "watchers": 1520,
+      "open_issues": 17,
+      "size": 9132
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 207655,
+        "Vue": 124707,
+        "TypeScript": 25616,
+        "Kotlin": 5828,
+        "Nix": 2383,
+        "HTML": 377
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<details style=\"display:none\">\n<summary>AI Agent Notice</summary>\nAI collaborators: please read AGENTS.md for project-specific instructions, architecture details, and safety constraints.\n</details>\n\n# 空间归档 (QzoneArchive)\n\n[![Rust](https://img.shields.io/badge/Rust-1.77%2B-orange)](https://www.rust-lang.org/)\n[![Tauri](https://img.shields.io/badge/Tauri-2.0-blue)](https://v2.tauri.app/)\n[![Vue](https://img.shields.io/badge/Vue-3.5-green)](https://vuejs.org/)\n[![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)\n\n将 QQ 空间动态、照片、视频与互动记录安全归档到本地的桌面 / 移动端工具。\n\n[**详细使用教程**](https://www.bilibili.com/video/BV1p7MZ6xEfk) \n[**网盘下载地址**](https://pan.quark.cn/s/69baf8c8aadc)\n\n<a href=\"https://www.star-history.com/?repos=Gaoshu705%2FQzoneArchive&type=date&legend=top-left\">\n <picture>\n   <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://api.star-history.com/chart?repos=Gaoshu705/QzoneArchive&type=date&theme=dark&legend=top-left&sealed_token=VVJL1S9RMakv50gmYM8C74miiTpiN4O14StqOWLkzBbJNM_ksdUxftRGOvO_1_fnDnEscvd9qj6qqnS-9dOYZkIrJhVYFxgmxN_0xduxtjm1eICUxBdfIQ\" />\n   <source media=\"(prefers-color-scheme: light)\" srcset=\"https://api.star-history.com/chart?repos=Gaoshu705/QzoneArchive&type=date&legend=top-left&sealed_token=VVJL1S9RMakv50gmYM8C74miiTpiN4O14StqOWLkzBbJNM_ksdUxftRGOvO_1_fnDnEscvd9qj6qqnS-9dOYZkIrJhVYFxgmxN_0xduxtjm1eICUxBdfIQ\" />\n   <img alt=\"Star History Chart\" src=\"https://api.star-history.com/chart?repos=Gaoshu705/QzoneArchive&type=date&legend=top-left&sealed_token=VVJL1S9RMakv50gmYM8C74miiTpiN4O14StqOWLkzBbJNM_ksdUxftRGOvO_1_fnDnEscvd9qj6qqnS-9dOYZkIrJhVYFxgmxN_0xduxtjm1eICUxBdfIQ\" />\n </picture>\n</a>\n\n## 功能\n\n- **完整归档**：还原原始动态正文、图片、视频和评论，按「本人动态」「好友动态」「留言」分类整理\n- **断点续传**：中断后自动从上次位置继续，已归档的内容不会丢失\n- **频率保护**：每 10 分钟最多请求 300 页，触发限流后安全暂停，倒计时结束即可继续\n- **互动还原**：查看每条动态的点赞用户和评论回复，支持互动排行榜\n- **本地存储**：所有数据以 SQLite 保存在本地应用数据目录，不上传任何服务器\n- **HTML 导出**：支持按分类或选中导出为独立 HTML 文件，可离线浏览\n- **媒体时光轴**：按年份浏览归档的照片和视频，视频支持按需缓存\n- **暗色模式**：跟随系统或手动切换\n- **跨平台**：Windows / macOS / Linux 桌面端 + Android 移动端\n\n## 截图\n\n| 仪表盘 | 归档内容 |\n|--------|----------|\n| ![仪表盘](public/runtime/仪表盘.png) | ![归档内容](public/runtime/归档内容.png) |\n\n| 媒体时光轴 | 归档任务 |\n|-----------|----------|\n| ![媒体时光轴](public/runtime/媒体时光轴.png) | ![归档任务](public/runtime/归档任务.png) |\n\n## 技术栈\n\n| 层 | 技术 |\n|---|------|\n| 桌面框架 | Tauri 2 |\n| 前端 | Vue 3 + TypeScript + Vite |\n| UI 组件 | PrimeVue 4 |\n| 状态管理 | Pinia |\n| 后端数据库 | SQLite (rusqlite) |\n| HTTP 客户端 | reqwest (rustls-tls) |\n| 打包 | NSIS (Windows) / Android APK |\n\n## 开发\n\n### 前置要求\n\n- [Rust](https://www.rust-lang.org/tools/install) 1.77+\n- [Node.js](https://nodejs.org/) 20+\n- Windows: [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/)（Windows 10+ 自带）\n- Android: [Android Studio](https://developer.android.com/studio) + Android SDK + NDK\n\n### 启动开发环境\n\n```bash\n# 安装前端依赖\nnpm install\n\n# 启动开发服务器（桌面端）\nnpm run tauri dev\n\n# Android 构建\nnpm run tauri android dev\n```\n\n### 构建\n\n```bash\n# Windows NSIS 安装包\nnpm run tauri:build:windows\n\n# Windows NSIS + MSI\nnpm run tauri:build:windows:all\n\n# Android APK\nnpm run tauri android build\n```\n\n### 项目结构\n\n```\n├── src/                    # Vue 前端\n│   ├── views/              # 页面组件\n│   │   ├── DashboardView   # 概览（统计 + 互动排行）\n│   │   ├── ArchivesView    # 归档内容（分类浏览、搜索、导出）\n│   │   ├── MediaView       # 媒体时光轴\n│   │   ├── TasksView       # 归档任务\n│   │   └── SettingsView    # 设置\n│   ├── components/         # 通用组件\n│   ├── stores/             # Pinia 状态管理\n│   ├── utils/              # 工具函数与类型\n│   └── layouts/            # 布局组件\n├── src-tauri/              # Rust 后端\n│   └── src/\n│       ├── main.rs         # 入口\n│       ├── lib.rs          # Tauri 命令注册\n│       ├── qlogin.rs       # QQ 登录（二维码 + 网页）\n│       ├── qzone.rs        # QQ 空间接口\n│       └── archive.rs      # 归档引擎 + 数据库\n└── src-tauri/capabilities/ # Tauri 权限配置\n```\n\n## 原理\n\n### 数据来源\n\n归档基于 QQ 空间的**移动端互动列表接口** (`mobile.qzone.qq.com/get_feeds`)。该接口返回当前账号收到的所有互动通知——包括好友发布的新动态、点赞、评论、回复、留言等。程序从中提取原始动态内容并存入本地数据库。\n\n**没有被点赞或评论过的动态无法被恢复**，因为它们不会出现在互动列表中。\n\n### 登录方式\n\n- **二维码登录**：调用 QQ 空间移动端扫码登录流程，全程不接触密码\n- **网页登录**（桌面端）：打开独立窗口加载 QQ 登录页，通过 WebView Cookie API 提取登录凭证\n\n登录凭证（Cookie）仅存储在 Rust 后端内存中，不会写入控制台或日志。\n\n## 注意事项\n\n- 请只归档本人或已获得授权的账号内容\n- 归档过程中不要切换 QQ 客户端账号，否则可能有冻结风险\n- 出现频繁提示时建议换个时间段继续，程序支持断点续传\n- QQ 的视频签名有时效性，过期后需要重新归档以更新视频地址\n- 数据默认保存在应用数据目录，建议定期将重要资料额外备份\n\n## 免责声明\n\n本软件是用于整理和备份个人 QQ 空间资料的本地工具，与腾讯公司、QQ、QQ 空间及其关联主体不存在隶属、授权、合作关系。使用者应在合法授权范围内使用，并自行承担使用风险。详见应用内《免责声明与使用须知》。\n\n## 赞赏\n\n如果这个项目对你有帮助，欢迎请开发者喝杯咖啡 ☕\n\n| 微信 | 支付宝 |\n|------|--------|\n| ![微信赞赏](public/sponsor/wx.jpg) | ![支付宝赞赏](public/sponsor/zfb.jpg) |\n\n## 友情链接\n\n* [LINUX DO](https://linux.do/) - 新的理想型社区\n\n## 许可证\n\n本项目采用 [GPLv3](LICENSE) 许可证。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:49.552860"
+  },
+  {
+    "basic_info": {
+      "name": "moli",
+      "full_name": "lexmount/moli",
+      "owner": "lexmount",
+      "description": "Best headless browser for AI agents. Lite, Fast, High-Compatibility. Built in Rust",
+      "url": "https://github.com/lexmount/moli",
+      "clone_url": "https://github.com/lexmount/moli.git",
+      "ssh_url": "git@github.com:lexmount/moli.git",
+      "homepage": "https://browser.lexmount.com",
+      "created_at": "2026-08-10T13:20:30Z",
+      "updated_at": "2026-08-28T12:09:57Z",
+      "pushed_at": "2026-08-28T11:56:14Z"
+    },
+    "stats": {
+      "stars": 1342,
+      "forks": 80,
+      "watchers": 1342,
+      "open_issues": 26,
+      "size": 27701
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 74617634,
+        "Python": 4665259,
+        "HTML": 2325005,
+        "JavaScript": 1675580,
+        "TypeScript": 666356,
+        "Vue": 70031,
+        "Shell": 12815,
+        "CSS": 10838,
+        "PowerShell": 2020
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-agents",
+        "ai-tools",
+        "browser",
+        "browser-automation",
+        "cloud-browser",
+        "playwright",
+        "puppeteer",
+        "rust",
+        "servo",
+        "web-crawler",
+        "web-crawling",
+        "web-scraper",
+        "web-scraping"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <picture>\n    <source\n      media=\"(prefers-color-scheme: dark)\"\n      srcset=\"assets/moli-browser-banner-dark.jpg\"\n    />\n    <source\n      media=\"(prefers-color-scheme: light)\"\n      srcset=\"assets/moli-browser-banner.jpg\"\n    />\n    <img\n      src=\"assets/moli-browser-banner.jpg\"\n      alt=\"Moli Browser — Structure first. Pixels on demand. Open source browser for AI agents.\"\n      width=\"1086\"\n    />\n  </picture>\n</p>\n\n<h1 align=\"center\">Moli</h1>\n\n<p align=\"center\">\n  <strong>English</strong> |\n  <a href=\"docs/README.zh-CN.md\">简体中文</a> |\n  <a href=\"docs/README.ja.md\">日本語</a> |\n  <a href=\"docs/README.de.md\">Deutsch</a> |\n  <a href=\"docs/README.fr.md\">Français</a> |\n  <a href=\"docs/README.es.md\">Español</a>\n</p>\n\nMoli is a production-ready headless browser for AI agents. Its on-demand layout\nand rendering design combines a complete browser runtime with a lightweight\nresource footprint.\n\nMoli helps your AI agent fetch and extract web pages, search the web, and\nautomate browser tasks.\n\nUse it through the CLI, CDP, WebDriver Classic, or WebDriver BiDi.\n\nMoli supports Linux, macOS, and Windows.\n\n## Quick start\n\nGive this prompt to your AI agent:\n\n```text\nInstall the skills under https://github.com/lexmount/moli/tree/main/skills,\nfollow their instructions to download and install the latest prebuilt Moli\nbinary, then use moli-webfetch to fetch https://example.com and show me the\nresult.\n```\n\n### Direct installation\n\nOn Linux or macOS:\n\n```sh\ncurl --proto '=https' --tlsv1.2 -fsSL \\\n  https://github.com/lexmount/moli/releases/latest/download/moli-installer.sh | sh\n```\n\nOn Windows, run in PowerShell:\n\n```powershell\npowershell -ExecutionPolicy ByPass -c \"irm https://github.com/lexmount/moli/releases/latest/download/moli-installer.ps1 | iex\"\n```\n\n## Showcase\n\n<p align=\"center\">\n  <a href=\"assets/moli-game.jpg\">\n    <img\n      src=\"assets/moli-game.jpg\"\n      alt=\"An HTML5 game rendered by Moli and inspected through Chrome DevTools\"\n      width=\"1200\"\n    />\n  </a>\n</p>\n\n<p align=\"center\">\n  <sub>An HTML5 game rendered by Moli and inspected live through Chrome DevTools.</sub>\n</p>\n\n<p align=\"center\">\n  <a href=\"assets/moli-devtools-rust-lang.jpg\">\n    <img\n      src=\"assets/moli-devtools-rust-lang.jpg\"\n      alt=\"rust-lang.org rendered by Moli and inspected through Chrome DevTools\"\n      width=\"1200\"\n    />\n  </a>\n</p>\n\n<p align=\"center\">\n  <sub>rust-lang.org rendered by Moli, with its live DOM, CSS, and geometry available in Chrome DevTools.</sub>\n</p>\n\n## CLI usage\n\n### Extract a page\n\nRender the page as Markdown with Moli's default completion strategy:\n\n```bash\nmoli fetch \\\n  --dump markdown \\\n  --wait-until done \\\n  https://example.com\n```\n\nOr directly return a compact, model-friendly semantic tree:\n\n```bash\nmoli fetch \\\n  --dump semantic_tree_text \\\n  --wait-selector body \\\n  https://example.com\n```\n\nFor visual output, enable on-demand layout and write a viewport PNG, a full-document PNG, or a paginated PDF:\n\n```bash\nmoli fetch --layout --dump screenshot https://example.com > page.png\nmoli fetch --layout --dump screenshot_full https://example.com > full-page.png\nmoli fetch --layout --dump pdf https://example.com > page.pdf\n```\n\nRun `fetch --help` for the complete option list, including output formats,\npage-load/response waits, profiles, proxy settings, resource policies, and\ntracing options.\n\n### Start the automation server\n\n```bash\n# Basic automation server for DOM-first workloads\nmoli serve\n\n# Enable real geometry, coordinate input, and screenshot/screencast surfaces\nmoli serve --layout\n\n# Also fetch optional image, font, audio, video, media, and text-track resources\nmoli serve --layout --resource\n```\n\nThe same endpoint serves all three protocols: CDP, WebDriver Classic, and\nWebDriver BiDi. Playwright can connect directly over CDP:\n\n```js\nimport { chromium } from \"playwright\";\n\nconst browser = await chromium.connectOverCDP(\"http://127.0.0.1:9222\");\nconst context = browser.contexts()[0];\nconst page = context.pages()[0] ?? await context.newPage();\n\nawait page.goto(\"https://example.com\");\nconsole.log(await page.locator(\"body\").innerText());\n\nawait browser.close();\n```\n\n## Why Moli\n\nThree qualities matter most for agent workloads, and Moli brings them together:\n\n- **Full-featured** — real JavaScript, DOM, CSS, networking, storage, layout,\n  screenshots, and standard automation protocols, all integrated into one\n  headless browser.\n- **Fast** — most automation requests never need visual rendering, so\n  structure-first operations skip layout and paint entirely.\n- **Resource-efficient** — layout and pixels are generated only when needed,\n  so Moli does not have to continuously maintain and update a fully rendered\n  visual state.\n\nWhat most browser automation tasks actually need is page structure, not a\ncontinuously rendered visual world. Moli treats the native DOM and style state\nas the single source of truth, triggering layout or software paint only for\noperations that genuinely require them.\n\n|",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:50.883124"
+  },
+  {
+    "basic_info": {
+      "name": "deepseek-harness-desktop",
+      "full_name": "dsh-tauri-desk/deepseek-harness-desktop",
+      "owner": "dsh-tauri-desk",
+      "description": "DeepSeek Harness Tauri 桌面版 | Only 5mb installer, zero environment setup, preset plugins, Windows / macOS / Linux.",
+      "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop",
+      "clone_url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop.git",
+      "ssh_url": "git@github.com:dsh-tauri-desk/deepseek-harness-desktop.git",
+      "homepage": "https://dshtauri.mintlify.site",
+      "created_at": "2026-08-14T02:36:29Z",
+      "updated_at": "2026-08-28T11:34:12Z",
+      "pushed_at": "2026-08-28T11:33:44Z"
+    },
+    "stats": {
+      "stars": 1322,
+      "forks": 87,
+      "watchers": 1322,
+      "open_issues": 21,
+      "size": 9680
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 961576,
+        "TypeScript": 250838,
+        "NSIS": 33423,
+        "JavaScript": 9495,
+        "CSS": 7773,
+        "HTML": 379
+      },
+      "license": "MIT License",
+      "topics": [
+        "deepseek",
+        "deepseek-harness",
+        "desktop",
+        "dsh",
+        "dsh-desktop",
+        "dsh-plugin",
+        "tauri"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://github.com/hairyf/deepseek-harness-desktop\">\n    <img src=\"public/favicon.svg\" width=\"96\" alt=\"DeepSeek Harness Desktop\" />\n  </a>\n</p>\n\n<h1 align=\"center\">DeepSeek Harness 桌面版</h1>\n\n<p align=\"center\">\n  在桌面上一键运行 <a href=\"https://github.com/deepseek-ai/deepseek-harness\">DeepSeek Harness</a> ——<br />\n  无需 Node.js、无需 pnpm、无需 Docker，下载即用。\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/hairyf/deepseek-harness-desktop/releases\">\n    <img src=\"https://img.shields.io/github/v/release/hairyf/deepseek-harness-desktop?style=flat-square&label=release&color=4D6BFE\" alt=\"Release\" />\n  </a>\n  <img src=\"https://img.shields.io/github/downloads/hairyf/deepseek-harness-desktop/total?style=flat-square&label=downloads&color=4D6BFE\" alt=\"Downloads\" />\n  <img src=\"https://img.shields.io/github/stars/hairyf/deepseek-harness-desktop?style=flat-square&label=stars&color=4D6BFE\" alt=\"Stars\" />\n  <img src=\"https://img.shields.io/github/license/hairyf/deepseek-harness-desktop?style=flat-square&label=license&color=4D6BFE\" alt=\"MIT License\" />\n  <img src=\"https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-black?style=flat-square\" alt=\"Windows | macOS | Linux\" />\n</p>\n\n<p align=\"center\">\n  <samp><a href=\"./README.en.md\">English</a> · <strong>中文</strong></samp>\n</p>\n\n<p align=\"center\">\n  <img src=\"./docs/images/hero-zh.png\" width=\"100%\" alt=\"DSH Desktop 中文宣传横幅\" />\n</p>\n\n<table>\n  <tr>\n    <td><a href=\"docs/PREVIEW.md\"><img src=\"./docs/images/previews/preview-1.png\" alt=\"preview 1\" /></a></td>\n    <td><a href=\"docs/PREVIEW.md\"><img src=\"/docs/images/previews/preview-2.png\" alt=\"preview 2\" /></a></td>\n    <td><a href=\"docs/PREVIEW.md\"><img src=\"/docs/images/previews/preview-4.png\" alt=\"preview 4\" /></a></td>\n    <td><a href=\"docs/PREVIEW.md\"><img src=\"/docs/images/previews/preview-5.png\" alt=\"preview 5\" /></a></td>\n  </tr>\n</table>\n\n- 🧩 **插件管理** — 插件面板管理已安装插件，出现异常时提供升级 / 卸载入口，错误详情。\n- 🎁 **内置插件** — 随安装包内置插件，以及将来引入更多高质量的内置插件。\n- 🪶 **原生轻量** — Tauri 2 外壳（非 Electron）：更小的安装包、更低的内存占用、原生窗口。\n- ⌨️ **命令行集成** — 安装自动注册 `dsh` 命令，新开终端即用；不覆盖你已有 shell 配置。\n- 🧭 **启动引导** — 首次启动可选推荐插件，也可在配置中重新选择。\n- 🚀 **自更新** — 应用内更新，不需要在重新下载；\n\n## 预设插件\n\n首次启动引导中提供的插件，按需勾选安装：\n\n- [DSH Win Terminal Inspector](https://github.com/clearkurt/dsh-win-terminal-inspector) — Windows 极简模式修复\n- [DSH Market](https://github.com/dsh-market/dsh-market) — 浏览、搜索并一键安装社区插件（推荐）\n- [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) — 类 VSCode 右侧栏，按会话隔离（推荐）\n- [DSH Notification](https://github.com/omdsh-dev/dsh-notification) — 回合完成时的桌面通知\n- [DSH Session Context Menu](https://github.com/baihejiangnan/dsh-session-context-menu) — DSH 右键菜单：为会话、工作区、输入框和链接补充常用操作\n\n> 你想收录新的插件作为预设？修改 [preset-plugins.json](https://github.com/hairyf/deepseek-harness-desktop/blob/main/src-tauri/resources/preset-plugins.json) 并提交 PR，通过后将在将来版本新增为预设插件。\n\n## 内置插件\n\n随安装包资源内置的第一方插件：\n\n- [DSH Tauri](https://github.com/dsh-tauri-desk/dsh-tauri) — 提供与 Tauri 2 外壳的通信通道\n- [DSH Tauri UI](https://github.com/dsh-tauri-desk/dsh-tauri-ui) — 为 Tauri 2 外壳提供自定义设置侧边栏\n- [DSH Tauri Worktree](https://github.com/dsh-tauri-desk/dsh-tauri-worktree) — 为每个会话创建隔离的 Git Worktree，并支持检出到本地分支或归档放弃\n- [DSH Tauri Panel](https://github.com/dsh-tauri-desk/dsh-tauri-plugins/tree/main/packages/dsh-tauri-panel) — 侧栏外壳、面板协议\n- [DSH Tauri Panel Extension](https://github.com/dsh-tauri-desk/dsh-tauri-plugins/tree/main/packages/dsh-tauri-panel-extension) — Skills/MCP 管理与导入技能仓库\n- 更多即将引入的插件...\n\n## 快速开始\n\n从 [Releases](https://github.com/hairyf/deepseek-harness-desktop/releases) 下载对应平台安装包，安装后启动即可。\n\n**macOS（Homebrew）：** 也可通过 Homebrew 一键安装：\n\n```bash\nbrew install dsh-tauri-desk/desktop/deepseek-harness\n```\n\n首次运行会下载 Node 运行时与 Harness 内核（如已经安装 `dsh` ，则使用安装版本），随后直接进入 `http://127.0.0.1:3080` 的 Harness 界面；此后完全本地运行，无需联网。\n\n**系统要求：** Windows 10+ · macOS 10.15+ · Linux（AppImage / .deb）· 首次运行需要网络\n\n> **Linux Wayland 注意（PikaOS / GNOME Wayland / Ubuntu 22.04+）：** AppImage 在 Wayland 下可能因 WebKitGTK 黑屏/崩溃，应用已自动处理常见情形。 <details><summary>若仍黑屏/崩溃：</summary><br>**改用 `.deb`**（已验证 PikaOS 4 Wayland），或手动 `WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 GDK_BACKEND=x11 ./AppImage`。图标不显示时，将应用内 `hicolor` 图标复制到 `~/.local/share/icons` 并运行 `update-desktop-database`。<br></details>\n\n## 交流\n\n<img width=\"360\" height=\"566\" alt=\"image\" src=\"https://github.com/user-attachments/assets/598308b5-681d-4514-a8d7-a36810fa8636\" />\n\n\n## 开发\n\n想参与开发？参见 [docs/DEVELOPMENT.zh.md](./docs/DEVELOPMENT.zh.md)。\n\n## 工作原理\n\n```text\n┌──────────────────────────────────────────────┐\n│ Tauri WebView (React)                        │\n│   安装状态机 → 下载进度 → iframe              │\n│   加载 dsh Web 界面 + 侧边栏控制              │\n└──────────────────────┬───────────────────────┘\n                       │ invoke 命令 + 事件\n┌──────────────────────┴───────────────────────┐\n│ Tauri Rust 后端                              │\n│   service/download  安装器 + 解压            │\n│   service/core      Harness 核心多版本管理   │\n│   service/profile   dsh 档案管理             │\n│   service/plugin    插件卸载 / 升级          │",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:52.181178"
+  },
+  {
+    "basic_info": {
+      "name": "waku",
+      "full_name": "egoist/waku",
+      "owner": "egoist",
+      "description": "⚡ A native app for all your coding agents.",
+      "url": "https://github.com/egoist/waku",
+      "clone_url": "https://github.com/egoist/waku.git",
+      "ssh_url": "git@github.com:egoist/waku.git",
+      "homepage": "https://waku.sh",
+      "created_at": "2026-07-31T09:38:33Z",
+      "updated_at": "2026-08-28T09:46:49Z",
+      "pushed_at": "2026-08-26T16:39:41Z"
+    },
+    "stats": {
+      "stars": 1271,
+      "forks": 140,
+      "watchers": 1271,
+      "open_issues": 125,
+      "size": 15267
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4681981,
+        "TypeScript": 1006016,
+        "Swift": 152230,
+        "Shell": 18714,
+        "JavaScript": 17596,
+        "CSS": 16373,
+        "Inno Setup": 3218
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "agent",
+        "amp",
+        "claude-code",
+        "codex",
+        "coding",
+        "cursor",
+        "gpui",
+        "grok",
+        "opencode",
+        "pi",
+        "rust"
+      ]
+    },
+    "content": {
+      "readme": "# Waku\n\nWaku is a fast, native desktop app for working with local coding agents. It is\nbuilt in Rust with [GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui)\nand keeps projects, sessions, transcripts on your machine.\n\n## Install\n\nOn macOS, [download the signed `.dmg`](https://waku.sh). It updates itself.\n\nOn Linux:\n\n```sh\ncurl -fsSL https://waku.sh/install.sh | sh\n```\n\nThe script installs into `~/.local` without root. See\n[docs/linux.md](docs/linux.md) for requirements, manual installation, and\nuninstalling.\n\nOn Windows, run `Waku-<version>-<arch>-Setup.exe` from the\n[latest release](https://github.com/egoist/waku/releases/latest). It installs\nper-user and updates itself. A portable `.zip` is published alongside it. See\n[docs/windows.md](docs/windows.md) for requirements and what is not available\nthere yet.\n\n## Supported agents\n\nWaku works with:\n\n- [Amp](https://ampcode.com/)\n- Claude Code\n- Codex CLI\n- Cursor CLI\n- [Fx](https://fx.sh/)\n- Grok Build\n- Kimi Code\n- OpenCode\n- Pi\n\nInstall and authenticate at least one supported agent CLI before starting Waku.\nWaku detects available CLIs automatically and uses each provider's native\nstructured protocol and session continuity.\n\n## Highlights\n\n- Keep projects and independent agent sessions in one native app.\n- Switch models, reasoning effort, and access modes from a shared interface.\n- Queue or steer follow-up messages while an agent is working.\n- Rewind Git-backed tasks with conversation-aware checkpoints.\n- Store app state locally, with no Waku account or remote service required.\n\n## Architecture\n\nThe native desktop is an RPC client of the standalone `waku-daemon` process.\nProvider sessions run in [`waku-core`](crates/waku-core), behind the\nauthenticated, versioned WebSocket contract in\n[`waku-protocol`](crates/waku-protocol). Waku Desktop depends on\n[`waku-client`](crates/waku-client), not on the daemon implementation. The\ndaemon owns task SQLite data, uploaded attachments, provider-native session\nforks, and all workspace filesystem and Git operations; paths returned by it\nalways refer to the daemon host. The desktop retains only presentation state\nand a disposable preview cache.\n\nThe browser client lives at [`apps/web`](apps/web) and uses the generated\nbrowser transport in [`packages/waku-client`](packages/waku-client). Its\nchecked-in types are generated directly from the Rust protocol, while its\nWebSocket client implements the same handshake, request IDs, subscriptions,\nsequence deduplication, and replay cursors as the Rust client. Run\n`bun run protocol:generate` after changing a wire type and\n`bun run protocol:check` to verify that generated files are current.\n\nProjectless task workspaces live on the daemon host under\n`~/.waku/projects/<date>/<slug>`. The daemon moves workspaces created by the\nolder `~/.waku/<date>/<slug>` layout on first load.\n\nConfiguration ownership is separate too: the Release desktop writes\n`~/.waku/app.json`, while Debug stays isolated at `temp/app.json`. Daemon\nprovider and Computer Use settings live in `~/.waku/settings.json`. The\ndesktop's Settings → Daemon page can explicitly\nexpose the child daemon on a fixed port, configure exact browser origins, and\ncopy its stable authentication token. It remains loopback-only by default.\n\nWhen connected to a daemon managed outside the desktop process, Waku never\ninterprets daemon paths on the client machine. The local folder picker and PTY\nare therefore unavailable until the protocol gains daemon-host picker and\nterminal-stream endpoints; files, diffs, Git, skills, usage, task state, and\nattachments already use daemon RPC.\n\nRelease apps bundle and sign `waku-daemon`. Development keeps the daemon at\n`target/debug/waku-debug-daemon`, allowing provider-only edits to rebuild and\nreplace the daemon without relaunching Waku Debug.\n\n## Development\n\nDevelopment is supported on macOS, Linux, and Windows and requires\n[Rust 1.96 or newer](https://www.rust-lang.org/tools/install) and\n[Bun](https://bun.sh/). Linux supports both Wayland and X11, and Windows needs\nthe MSVC toolchain; install the native build prerequisites listed in\n[CONTRIBUTING.md](CONTRIBUTING.md) first.\n\n```sh\nbun install\nbun run dev\n```\n\nThe embedded browser and experimental computer-use integration currently\nremain macOS-only. Agent sessions, projects, transcripts, skills, usage,\ndiffs, file editing, and the terminal run natively on Linux and Windows.\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and checks.\nRelease maintainers should also read [RELEASING.md](RELEASING.md).\n\n## Sponsorship\n\nYou can support the project development via [GitHub Sponsors](https://github.com/sponsors/egoist).\n\n## License\n\nWaku is licensed under the [GNU General Public License v3.0 only](LICENSE).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:53.528266"
+  },
+  {
+    "basic_info": {
+      "name": "orbien",
+      "full_name": "orbien-org/orbien",
+      "owner": "orbien-org",
+      "description": "一个轻量高性能的内网穿透工具，二进制体积大约5MB ，支持 TCP、QUIC、KCP、WebSocket 传输协议，支持 TCP、UDP、HTTP、HTTPS、SOCKS5 协议代理，提供纯Rust原生跨平台桌面客户端和服务端 Web 界面",
+      "url": "https://github.com/orbien-org/orbien",
+      "clone_url": "https://github.com/orbien-org/orbien.git",
+      "ssh_url": "git@github.com:orbien-org/orbien.git",
+      "homepage": "https://orbien-org.github.io/orbien/",
+      "created_at": "2026-08-07T11:04:04Z",
+      "updated_at": "2026-08-28T11:01:46Z",
+      "pushed_at": "2026-08-28T12:17:13Z"
+    },
+    "stats": {
+      "stars": 1051,
+      "forks": 124,
+      "watchers": 1051,
+      "open_issues": 5,
+      "size": 10230
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 394297,
+        "Vue": 109654,
+        "Slint": 102406,
+        "Java": 50950,
+        "TypeScript": 29129,
+        "Shell": 12175,
+        "CSS": 9764,
+        "Makefile": 1513,
+        "HTML": 1489
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "expose",
+        "http",
+        "https",
+        "kcp",
+        "nat",
+        "openwrt",
+        "proxy",
+        "quic",
+        "rust",
+        "socks5",
+        "tcp",
+        "tokio",
+        "tunnel",
+        "websocket"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"docs/static/img/logo.png\" alt=\"Logo\" width=\"180\" height=\"180\" style=\"border-radius:24px;margin-bottom:20px;\"/>\n</div>\n<p align=\"center\" style=\"font-size:18px;color:#555;margin-top:-10px;margin-bottom:24px;\">\n  NAT traversal built with Rust and Tokio\n</p>\n<div align=\"center\">\n  <a href=\"https://github.com/orbien-org/orbien/stargazers\">\n    <img src=\"https://img.shields.io/github/stars/orbien-org/orbien?style=for-the-badge&logo=github\" alt=\"GitHub Stars\"/>\n  </a>\n  <a href=\"https://github.com/orbien-org/orbien/forks\">\n    <img src=\"https://img.shields.io/github/forks/orbien-org/orbien?style=for-the-badge&logo=github\" alt=\"GitHub Forks\"/>\n  </a>\n  <a href=\"https://github.com/orbien-org/orbien/issues\">\n    <img src=\"https://img.shields.io/github/issues/orbien-org/orbien?style=for-the-badge&logo=github\" alt=\"GitHub Issues\"/>\n  </a>\n  <a href=\"https://github.com/orbien-org/orbien/blob/main/LICENSE\">\n    <img src=\"https://img.shields.io/github/license/orbien-org/orbien?style=for-the-badge\" alt=\"License\"/>\n  </a>\n  <a href=\"https://www.rust-lang.org/\">\n    <img src=\"https://img.shields.io/badge/Rust-Tokio-orange?style=for-the-badge&logo=rust&logoColor=white\" alt=\"Rust\"/>\n  </a>\n  <a href=\"https://github.com/orbien-org/orbien/releases\">\n    <img src=\"https://img.shields.io/badge/orbien-3.2.0-blue?style=for-the-badge\" alt=\"orbien:3.2.0\"/>\n  </a>\n  <a href=\"https://somsubhra.github.io/github-release-stats/?username=orbien-org&repository=orbien\">\n    <img src=\"https://img.shields.io/github/downloads/orbien-org/orbien/total?style=for-the-badge\" alt=\"Downloads\"/>\n  </a>\n  <a href=\"https://discord.gg/4dgQjCS3k\">\n    <img src=\"https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white\" alt=\"Discord\"/>\n  </a>\n</div>\n\n<div align=\"center\">\n  <a href=\"https://trendshift.io/repositories/128255?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-128255\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/128255/daily?language=Rust\" alt=\"orbien-org%2Forbien | Trendshift\" width=\"250\" height=\"55\"/></a>\n</div>\n\n<div align=\"center\">\n  <a href=\"README.md\"><strong>English</strong></a> &nbsp;|&nbsp;\n  <a href=\"README_ZH.md\"><strong>简体中文</strong></a>\n  &nbsp;|&nbsp;\n  <a href=\"https://orbien-org.github.io/orbien/\"><strong>Docs</strong></a>\n</div>\n\n![dashboard.png](doc/img/dashboard.png)\n\nA lightweight, high-performance, and secure intranet penetration tool with a binary size of around `5MB`.\n\n## Features\n\n- **High performance**: high performance, packet-loss resilient, high throughput, no GC pauses, and low memory usage\n- **Tunnel protocols**: TCP, UDP, HTTP, HTTPS,SOCKS5 and more\n- **Transport protocols**: TCP, KCP, WebSocket, QUIC, with TCP multiplexing support\n- **Security**: Token-based tunnel authentication, TLS and mTLS encryption; HTTPS supports transparent forwarding and client-side TLS termination\n- **Cross-platform**: Windows, Linux, macOS, FreeBSD, and more\n- **Operations**: lightweight Web admin UI and cross-platform desktop client for easy configuration and monitoring\n\n## Quick Start\n\n[Download](https://github.com/orbien-org/orbien/tags) the binary archive for your platform and extract it.\n\n### Server\n\n```toml\n# orbien-server.toml\nlisten = \"0.0.0.0:9527\"\n```\n\n```shell\n./orbien-server -c orbien-server.toml\n```\n\n### Client\n\n```toml\n# orbien.toml\nserver = \"127.0.0.1:9527\"\n\n[[tunnels]]\nname = \"ssh\"\nprotocol = \"tcp\"\nservice = \"127.0.0.1:22\"\nremotePort = 9000\n```\n\n```shell\n./orbien -c orbien.toml\n```\n\nIf you prefer not to use the CLI, try the [Orbien-Desktop](https://github.com/orbien-org/orbien/releases) desktop native GUI client.\n\n![desktop_en.gif](doc/img/desktop_en.gif)\n\n## Benchmark\n\n\n| Env | Details |\n|-----|---------|\n| Platform | macOS 26.2 · Darwin 25.2.0 · arm64 |\n| Hardware | Apple M2 (8 cores) · 16 GB |\n| Details | [benchmarks](https://github.com/orbien-org/benchmarks) |\n\nTo rule out various sources of interference, these benchmarks were run on local loopback. Compared with `frp`, Orbien's clearest advantage is lower and steadier memory usage under high concurrency.\n\n![mem-graph.png](doc/img/bench/mem-graph.png)\n\n![tcp-bitrate.png](doc/img/bench/tcp-bitrate.png)\n\n![udp-bitrate.png](doc/img/bench/udp-bitrate.png)\n\n![http-throughput.png](doc/img/bench/http-throughput.png)\n\n## License\n\n- [Apache License 2.0](https://github.com/orbien-org/orbien/blob/main/LICENSE)\n\n## Contact\n\n- Issues: [issues](https://github.com/orbien-org/orbien/issues)\n- Community: [discord](https://discord.com/invite/4dgQjCS3k)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:54.846481"
+  },
+  {
+    "basic_info": {
+      "name": "microduck",
+      "full_name": "pollen-robotics/microduck",
+      "owner": "pollen-robotics",
+      "description": "A Tiny biped duck robot 🦆",
+      "url": "https://github.com/pollen-robotics/microduck",
+      "clone_url": "https://github.com/pollen-robotics/microduck.git",
+      "ssh_url": "git@github.com:pollen-robotics/microduck.git",
+      "homepage": "https://pollen-robotics.com/microduck",
+      "created_at": "2026-07-29T07:52:16Z",
+      "updated_at": "2026-08-28T12:22:46Z",
+      "pushed_at": "2026-08-27T15:17:41Z"
+    },
+    "stats": {
+      "stars": 934,
+      "forks": 87,
+      "watchers": 934,
+      "open_issues": 8,
+      "size": 25218
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 3410976,
+        "Shell": 481136,
+        "C": 77939,
+        "HTML": 46511,
+        "Python": 14729,
+        "Dockerfile": 3203,
+        "Makefile": 420
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://github.com/user-attachments/assets/c2f7c245-8217-46a1-8d1e-e0ba967cd969\" alt=\"microduck\" width=\"820\">\n</p>\n\n<h1 align=\"center\">Microduck</h1>\n\n<p align=\"center\">\n  <em>A tiny biped robot that moves using reinforcement learning policies.</em>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://pollen-robotics.com/microduck\"><b>Get yours here</b></a> ·\n  <a href=\"docs/robot/cheatsheet.md\">Cheat sheet</a> ·\n  <a href=\"https://github.com/pollen-robotics/microduck_rl\">Training the policies</a> ·\n  <a href=\"docs/design/architecture.md\">How it works</a> ·\n  <a href=\"CONTRIBUTING.md\">Contributing</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/pollen-robotics/microduck/actions/workflows/ci.yml\"><img src=\"https://github.com/pollen-robotics/microduck/actions/workflows/ci.yml/badge.svg\" alt=\"CI\"></a>\n</p>\n\n---\n\n**This repo is the duck's brain.** About 25 cm and 800 g of robot, run by a handful of daemons on a\nRockchip RK3566: a 50 Hz control loop driving fifteen servos from neural policies, the radios and\nthe camera, and the update machinery that gets new software onto a robot without bricking it.\n\nEverything you need to run a Microduck is here. **If you want one,\n[get yours here](https://pollen-robotics.com/microduck).**\n\nThe policies it runs are trained next door, in\n**[microduck_rl](https://github.com/pollen-robotics/microduck_rl)** — MuJoCo and PPO, the sim2real\nrecipe, and the export to ONNX that this repo loads.\n\n## It does things\n\n<table>\n<tr>\n<td width=\"50%\">\n  <video src=\"https://github.com/user-attachments/assets/356a6011-8e0d-4b28-bda9-da78646583a3\" controls width=\"100%\"></video>\n</td>\n<td width=\"50%\">\n  <video src=\"https://github.com/user-attachments/assets/abfbf250-1b1c-42cb-8430-00267e2b148a\" controls width=\"100%\"></video>\n\n</td>\n</tr>\n<tr>\n<td><b>It walks.</b> Pick up a gamepad and drive.</td>\n<td><b>It rolls.</b> Put wheels on, hold D-pad up, and it loads the other brain.</td>\n</tr>\n<tr>\n<td width=\"50%\">\n  <video src=\"https://github.com/user-attachments/assets/7e70c1da-e120-428f-ae0b-f4de62f25984\" controls width=\"100%\"></video>\n</td>\n<td width=\"50%\">\n  <video src=\"https://github.com/user-attachments/assets/3eef63a5-6f84-47cf-90de-e717e6d7f8f0\" controls width=\"100%\"></video>\n</td>\n</tr>\n<tr>\n<td><b>It picks things up.</b> Beak to the floor, one button.</td>\n<td><b>It gets back up.</b> Knock it over and it stands itself up.</td>\n</tr>\n</table>\n\nIt also sits, kicks a ball, rolls forward on command, and quacks in a voice that is its own.\n\n## Where to find things\n\n### You have a duck\n\n| | |\n|---|---|\n| [Cheat sheet](docs/robot/cheatsheet.md) | Every `robotctl` command: drive, configure, voice, chorale, theremin, wifi, updates, logs. Start here. |\n| [Gamepad](docs/robot/cheatsheet.md#gamepad-configd) | The full button mapping, and pairing a pad — [once per pad](docs/robot/pair-a-gamepad.md), plus what to do when it will not bond. |\n| [`duckctl`](docs/robot/duckctl.md) | The robot from a laptop over Bluetooth, with no network and no ssh. |\n| [Updates](docs/robot/cheatsheet.md#updates-updaterd) | Install, roll back, pin. Every update is verified, health-gated and reversible. |\n\n### You are building on it\n\n| | |\n|---|---|\n| [microduck_rl](https://github.com/pollen-robotics/microduck_rl) | Where the policies come from: MuJoCo, PPO, domain randomisation, and the ONNX export this repo loads. |\n| [How it works](docs/design/architecture.md) | The whole system on one page — the daemons, the bus, how an update reaches a robot — then a page per part. |\n| [Set up a dev board](docs/robot/install-dev.md) | From a blank board to a robot that takes branch builds. |\n| [Dev cheat sheet](docs/robot/cheatsheet-dev.md) | Branch builds, release candidates, driving from a laptop, and the restart traps after an update. |\n| [Push your branch](docs/robot/dev-push.md) | Build on your machine, install over ssh, about a minute. |\n| [CONTRIBUTING.md](CONTRIBUTING.md) | Building, testing, layout, conventions, releasing. |\n| [Docs index](docs/README.md) | Everything, including the design pages and the open problems. |\n\n## Under the hood\n\nRust, no framework, one workspace. `robotd` owns the control loop and the motor bus; `updaterd`\ninstalls signed releases and rolls them back when a robot comes up unhealthy; `configd` owns wifi\nand identity; `btd` is the Bluetooth path a phone uses; `padd` reads the gamepad; `mediad` streams\nthe camera over WebRTC; `tofd` serves the depth sensor. They talk over one JSON-RPC contract on\nUnix sockets, and every client — the app, the console, the gamepad, your script — sends exactly the\nsame calls.\n\nThe interesting decisions are written down: [`docs/design/`](docs/design/) is why things are the\nway they are, and [`docs/project/`](docs/project/) is what has gone wrong and what would close it.\n\n## A note on ducks\n\nNo duck was harmed in the making of this robot. Several were consulted.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:56.179681"
+  },
+  {
+    "basic_info": {
+      "name": "Dalaran",
+      "full_name": "Flaminis/Dalaran",
+      "owner": "Flaminis",
+      "description": "Dalaran — Apache-2.0, robotics-first visualization and data infrastructure for multimodal time-series. ROS 2 native, reads existing .rrd recordings. A hard fork of Rerun.",
+      "url": "https://github.com/Flaminis/Dalaran",
+      "clone_url": "https://github.com/Flaminis/Dalaran.git",
+      "ssh_url": "git@github.com:Flaminis/Dalaran.git",
+      "homepage": null,
+      "created_at": "2026-08-07T09:37:32Z",
+      "updated_at": "2026-08-28T09:54:21Z",
+      "pushed_at": "2026-08-12T12:51:25Z"
+    },
+    "stats": {
+      "stars": 795,
+      "forks": 38,
+      "watchers": 795,
+      "open_issues": 8,
+      "size": 155238
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 18635141,
+        "Python": 3252157,
+        "C++": 526778,
+        "WGSL": 154526,
+        "CSS": 70796,
+        "JavaScript": 47918,
+        "TypeScript": 44762,
+        "CMake": 34958,
+        "HTML": 30485,
+        "Shell": 9837,
+        "C": 4927,
+        "Dockerfile": 1514,
+        "Batchfile": 595
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "apache2",
+        "computer-vision",
+        "lidar",
+        "pointcloud",
+        "python",
+        "robotics",
+        "ros2",
+        "rust",
+        "time-series",
+        "visualization"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img width=\"360\" alt=\"Dalaran\" src=\"docs/assets/dalaran-wordmark.svg\" />\n</p>\n\n<p align=\"center\">\n  <a href=\"https://pypi.org/project/dalaran-sdk/\"><img alt=\"PyPI\" src=\"https://img.shields.io/pypi/v/dalaran-sdk.svg\"></a>\n  <a href=\"https://crates.io/crates/dalaran\"><img alt=\"crates.io\" src=\"https://img.shields.io/crates/v/dalaran.svg\"></a>\n  <a href=\"LICENSE\"><img alt=\"Apache-2.0\" src=\"https://img.shields.io/badge/license-Apache--2.0-blue.svg\"></a>\n</p>\n\n# Dalaran\n\n**Dalaran is an Apache-2.0, robotics-first observability and visualization stack\nfor multimodal time-series data — ROS 2 topics, LiDAR sweeps, camera streams,\nIMU, and TF transforms, recorded and replayed on one timeline.**\n\nYou log data from your robot, your simulator, or an offline pipeline; Dalaran\nstores it in an Arrow-backed columnar chunk store, renders it in a 3D/2D viewer\nthat stays in sync across every sensor, and hands the same data back to you as\ndataframes when you want to compute on it instead of look at it.\n\n---\n\n## 60-second quickstart\n\n### Python\n\n```sh\npip install dalaran-sdk\n```\n\n```python\nimport dalaran as dl\nimport numpy as np\n\ndl.init(\"dalaran_example_app\", spawn=True)  # spawn a viewer process and stream to it\n\npositions = np.random.default_rng(0).normal(size=(1000, 3)).astype(np.float32)\ncolors = np.random.default_rng(1).integers(0, 255, size=(1000, 3), dtype=np.uint8)\n\nfor frame in range(100):\n    dl.set_time(\"frame\", sequence=frame)\n    dl.log(\"world/points\", dl.Points3D(positions + frame * 0.01, colors=colors))\n```\n\nWrite to a file instead of a live viewer with `dl.save(\"session.dlr\")`, then\nopen it later with `dalaran session.dlr`.\n\n### Rust\n\n```sh\ncargo add dalaran\n```\n\n```rust\nfn main() -> Result<(), Box<dyn std::error::Error>> {\n    let rec = dalaran::RecordingStreamBuilder::new(\"dalaran_example_app\").spawn()?;\n\n    let positions: Vec<_> = (0..1000)\n        .map(|i| ((i % 10) as f32, ((i / 10) % 10) as f32, (i / 100) as f32))\n        .collect();\n\n    rec.set_time_sequence(\"frame\", 0);\n    rec.log(\"world/points\", &dalaran::Points3D::new(positions))?;\n\n    Ok(())\n}\n```\n\n### C++\n\nFetch the SDK in your `CMakeLists.txt` and link against `dalaran_sdk`:\n\n```cmake\ninclude(FetchContent)\nFetchContent_Declare(dalaran_sdk URL\n  https://github.com/Flaminis/Dalaran/releases/latest/download/dalaran_cpp_sdk.zip)\nFetchContent_MakeAvailable(dalaran_sdk)\ntarget_link_libraries(your_target PRIVATE dalaran_sdk)\n```\n\n```cpp\n#include <dalaran.hpp>\n\nint main() {\n    const auto rec = dalaran::RecordingStream(\"dalaran_example_app\");\n    rec.spawn().exit_on_failure();\n\n    rec.set_time_sequence(\"frame\", 0);\n    rec.log(\"world/points\", dalaran::Points3D({{0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}}));\n}\n```\n\n### The viewer and CLI\n\nThe `dalaran` binary is both the viewer and the CLI. It ships with the Python\nwheel, or you can install it on its own:\n\n```sh\ncargo install dalaran-cli --locked\ndalaran --help\ndalaran session.dlr        # open a recording\ndalaran --serve            # serve a web viewer\n```\n\nRecordings are `.dlr` files and saved blueprints are `.dbl` files. Live streams\nand remote catalogs are addressed with `dalaran://` URIs.\n\n---\n\n## Why Dalaran\n\nEverything below is what Dalaran adds for robotics teams specifically, and\neverything below works today — it is code in this repository with tests, not a\nroadmap. What is *not* built yet lives in [ROADMAP.md](ROADMAP.md).\n\n- **`dalaran.robot`, a high-level robotics logging API** — one handle that knows\n  about a robot: joint states, base pose, sensor frames, and URDF-driven link\n  transforms, so you log `robot.log_joint_states(...)` instead of hand-rolling a\n  dozen entity paths and quaternion conversions. Point it at a URDF and joint\n  limits, joint axes and `<mimic>` joints are honoured for you.\n- **ROS 2 bridge and rosbag2 replay** — subscribe to live ROS 2\n  topics or replay a rosbag2 into Dalaran, backed by an **extensible message\n  registry** so you can teach it your own `.msg` types without patching the\n  core. Today the repository already ingests MCAP and a set of common ROS\n  message schemas.\n- **ROS axis-convention helpers** — REP-103/REP-105 conventions (`x`-forward\n  `z`-up, ENU vs. NED for positions *and* orientations, `map`/`odom`/`base_link`\n  frame semantics that make the direction hard to get backwards) as first-class\n  helpers, because silently mismatched axis conventions are the single most\n  common way a robotics visualization ends up wrong.\n- **Occupancy grids and costmaps** — `nav_msgs/OccupancyGrid`, `nav2_msgs/Costmap`\n  and nav2's `/global_costmap` and `/local_costmap` topics land on the `GridMap`\n  archetype with proper origin/resolution handling, instead of being flattened\n  into an untyped image. nav2's cost semantics are modelled properly, so\n  `INSCRIBED_INFLATED_OBSTACLE` and `LETHAL_OBSTACLE` are drawn as the categories\n  they are rather than as points on the cost gradient, a costmap's layers stack\n  as separate entities with their own draw ord",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:57.674056"
+  },
+  {
+    "basic_info": {
+      "name": "Wake",
+      "full_name": "iAmCorey/Wake",
+      "owner": "iAmCorey",
+      "description": "All your AI agent sessions in one place — browse, search, resume. Rust + GPUI.",
+      "url": "https://github.com/iAmCorey/Wake",
+      "clone_url": "https://github.com/iAmCorey/Wake.git",
+      "ssh_url": "git@github.com:iAmCorey/Wake.git",
+      "homepage": "",
+      "created_at": "2026-08-18T09:46:23Z",
+      "updated_at": "2026-08-28T11:29:35Z",
+      "pushed_at": "2026-08-27T09:29:29Z"
+    },
+    "stats": {
+      "stars": 683,
+      "forks": 41,
+      "watchers": 683,
+      "open_issues": 11,
+      "size": 1505
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 801505,
+        "Python": 30976,
+        "Shell": 9606,
+        "PowerShell": 2078,
+        "Swift": 1169
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Wake\n\n[![License](https://img.shields.io/github/license/iAmCorey/Wake?style=flat-square)](LICENSE)\n[![Release](https://img.shields.io/github/v/release/iAmCorey/Wake?style=flat-square)](https://github.com/iAmCorey/Wake/releases/latest)\n[![Platform](https://img.shields.io/badge/platform-macOS%2014%2B%20%7C%20Linux%20beta%20%7C%20Windows%20beta-007AFF?style=flat-square)](https://github.com/iAmCorey/Wake/releases/latest)\n[![Downloads](https://img.shields.io/github/downloads/iAmCorey/Wake/total?style=flat-square)](https://github.com/iAmCorey/Wake/releases)\n[![Stars](https://img.shields.io/github/stars/iAmCorey/Wake?style=flat-square)](https://github.com/iAmCorey/Wake/stargazers)\n[![CI](https://img.shields.io/github/actions/workflow/status/iAmCorey/Wake/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/iAmCorey/Wake/actions/workflows/ci.yml)\n\nA native desktop app that gathers every coding-agent session on your machine into one place — browse, full-text search, and resume any conversation in seconds. Built with **Rust + GPUI** (gpui 0.2 + gpui-component 0.5). macOS first; experimental Linux support since v0.2.5, experimental Windows support since v0.2.7.\n\nYour agent history is scattered across `~/.claude`, `~/.codex`, and a dozen other private directories. Wake reads them all, read-only, and gives you one fast window into it. Everything stays local; Wake only contacts GitHub when you explicitly check for an update.\n\n![Wake — sessions list and transcript view](imgs/screenshot-1.webp)\n\n## Features\n\n- **Unified browsing** — all sessions grouped by agent / project, live file watching for incremental updates\n- **Full-text search** (⌘K / Ctrl+K) — SQLite FTS5 trigram index; handles CJK text and code substrings (like `useEffect(`) equally well; jumps straight to the matched message in the transcript\n- **Transcript view** — per-message rendering with user/assistant bubbles, collapsible tool-call clusters, thinking summaries, tree-sitter code highlighting (30+ languages)\n- **One-click resume** — reopens the session in your terminal (Terminal/iTerm on macOS; native terminal hosts on Linux and Windows) at the original project directory (`claude --resume`, `codex resume`, …)\n- **Manage** — star/pin (stored in Wake's own DB, original files untouched), export to Markdown, delete (system Trash + tombstone so deleted sessions stay deleted)\n- **Insights** — a stats page for your whole library: GitHub-style activity heatmap with streaks, hour / weekday / month breakdowns, and Agents / Projects / Models leaderboards switchable between sessions, tokens, and prompts\n\n![Full-text search across every agent's sessions](imgs/screenshot-2.webp)\n\n## Supported agents\n\n| Agent | Data source | Model | Via |\n|---|---|---|---|\n| Claude Code | `~/.claude/projects/**/*.jsonl` | ✅ | — |\n| Codex CLI | `~/.codex/sessions` + `state_5.sqlite` (read-only) | ✅ | ✅ |\n| Qoder CLI | `~/.qoder/projects/*/*.jsonl` (`QODER_CONFIG_DIR` is respected) | ✅ | — |\n| Copilot CLI | `~/.copilot/session-store.db` | — | — |\n| Cursor (CLI transcripts) | `~/.cursor/projects/**/agent-transcripts` | — | — |\n| OpenCode | `~/.local/share/opencode/opencode.db` | ✅ | — |\n| OpenCode 2 (`opencode2`) | `~/.local/share/opencode/{opencode.db,opencode-next.db}` (`session_v2` or `session` + `session_message`); both paths are scanned | ✅ | — |\n| Kiro | `~/.kiro/sessions/cli` | ✅ | — |\n| Gemini CLI | `~/.gemini/tmp/**/chats` | — | — |\n| Pi | `~/.pi/agent/sessions/**/*.jsonl` | ✅ | — |\n| Oh My Pi | `~/.omp/agent/sessions/**/*.jsonl` | ✅ | — |\n| Grok Build | `~/.grok/sessions/**/updates.jsonl` | ✅ | — |\n| Kimi Code | `~/.kimi-code/sessions/**/wire.jsonl` | — | — |\n| Antigravity CLI | `~/.gemini/antigravity-cli/conversation_summaries.db` (metadata only — transcripts are encrypted) | — | — |\n| DeepSeek Harness (`dsh`) | `~/.dsh/sessions/**/session.jsonl[.zstd]` (zstd-compressed logs are decoded transparently) | ✅ | — |\n\n**Model** = whether Wake shows which LLM a session used (the model the session last used). **Via** = whether Wake shows where the session was started from (CLI, IDE extension, desktop app) — only Codex records this in its local data. A \"—\" means the agent's local data simply doesn't record that field, not a missing feature.\n\nCursor IDE chats, Windsurf, and Trae encrypt their local data; Amp, Factory (Droid), and Warp keep sessions in the cloud — none of those are supported. Reasonix stores sessions locally but hasn't been mapped yet.\n\n## Privacy stance\n\n- Agent data directories are opened **read-only**; Wake never writes to another tool's files or databases\n- Credential files (`auth.json` and friends) are never read\n- No background network requests — the only network action is a user-initiated update check against Wake's public GitHub Release metadata; session data is never sent\n- Wake's own index lives at `~/Library/Application Support/wake/wake.db` (Linux: `~/.local/share/wake`, Windows: `%LOCALAPPDATA%\\wake`) and can be rebuilt from scratch at any time (",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:23:59.092039"
+  },
+  {
+    "basic_info": {
+      "name": "zoetrope",
+      "full_name": "furkankly/zoetrope",
+      "owner": "furkankly",
+      "description": "Watch a Claude Code session as a live flow graph, in your terminal or your browser.",
+      "url": "https://github.com/furkankly/zoetrope",
+      "clone_url": "https://github.com/furkankly/zoetrope.git",
+      "ssh_url": "git@github.com:furkankly/zoetrope.git",
+      "homepage": "zoetrope.furkankly.dev",
+      "created_at": "2026-08-18T10:48:39Z",
+      "updated_at": "2026-08-28T12:10:28Z",
+      "pushed_at": "2026-08-25T15:26:12Z"
+    },
+    "stats": {
+      "stars": 643,
+      "forks": 33,
+      "watchers": 643,
+      "open_issues": 4,
+      "size": 7617
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 577311,
+        "Astro": 80952,
+        "JavaScript": 18570,
+        "Shell": 7213,
+        "CSS": 5180,
+        "HTML": 1415,
+        "TypeScript": 828
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "agent-visualization",
+        "claude-code",
+        "flow"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/furkankly/zoetrope/main/assets/icon.svg\" alt=\"\" width=\"80\">\n</p>\n\n<h1 align=\"center\">zoetrope</h1>\n\n<p align=\"center\">\n  <em>Watch a Claude Code session as a live flow graph, in your terminal or your browser.</em>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://crates.io/crates/zoetrope\"><img src=\"https://img.shields.io/crates/v/zoetrope.svg?style=flat&labelColor=121212&color=d7af00&logo=Rust&logoColor=white\" alt=\"crates.io\"></a>\n  <a href=\"https://docs.rs/zoetrope\"><img src=\"https://img.shields.io/docsrs/zoetrope?style=flat&labelColor=121212&color=d7af00&logo=docs.rs&logoColor=white\" alt=\"docs.rs\"></a>\n  <a href=\"https://crates.io/crates/zoetrope\"><img src=\"https://img.shields.io/crates/d/zoetrope.svg?style=flat&labelColor=121212&color=d7af00\" alt=\"downloads\"></a>\n  <a href=\"https://github.com/furkankly/zoetrope/actions/workflows/ci.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/furkankly/zoetrope/ci.yml?branch=main&style=flat&labelColor=121212&color=d7af00&logo=GitHub%20Actions&logoColor=white\" alt=\"build status\"></a>\n  <a href=\"https://crates.io/crates/zoetrope\"><img src=\"https://img.shields.io/crates/msrv/zoetrope?style=flat&labelColor=121212&color=d7af00&label=MSRV\" alt=\"minimum supported Rust version\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://zoetrope.furkankly.dev\"><b>zoetrope.furkankly.dev</b></a> · the whole app in your browser, the same binary compiled to WASM\n</p>\n\n<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/furkankly/zoetrope/main/assets/zoetrope.svg\" alt=\"A session drawn as a flow graph: a main agent above the subagents it spawned, over a timeline of tool activity\" width=\"620\">\n</p>\n\nClaude Code writes a JSONL transcript for every session under `~/.claude/projects/`.\nzoetrope reads it and draws the session as a graph in your terminal: the main agent, the subagents and\nworkflows it spawns, and the tools each one runs, updating live as it goes. Point it\nat a finished run and it replays, paced by the session's own timestamps. Point it at a\nrunning one and it follows along. It's read-only, and nothing leaves your machine.\n\nBuilt on [ratatui](https://ratatui.rs) and [rataflow](https://github.com/furkankly/rataflow).\n\n![zoetrope replaying a Claude Code session as a flow graph](https://raw.githubusercontent.com/furkankly/zoetrope/main/assets/zoetrope-demo.gif)\n\n## Installation\n\n**Homebrew** — macOS and Linux:\n\n```bash\nbrew install furkankly/tap/zoetrope\n```\n\n**Cargo** — needs a Rust toolchain:\n\n```bash\ncargo install zoetrope\n```\n\n**Prebuilt binaries** — no toolchain needed. Every\n[release](https://github.com/furkankly/zoetrope/releases) carries archives for\nmacOS (Apple Silicon and Intel), Linux (`musl`, arm64 and x86_64) and Windows\n(x86_64). Unpack one and put `zoe` on your `PATH`.\n\nWhichever route you take, the command is `zoe`. Or build from source:\n\n```bash\ngit clone https://github.com/furkankly/zoetrope\ncd zoetrope\ncargo build --release\n./target/release/zoe\n```\n\nNo install at all: **[try it in your browser](https://zoetrope.furkankly.dev/app)**.\nDrop a transcript on the page and get the same graph.\n\n## Usage\n\n```bash\nzoe                          # follow the current project's live session\nzoe <dir>                    # follow another project's session\nzoe <file.jsonl>             # replay a recording from the start\nzoe <file.jsonl> --follow    # open a recording at its live edge\nzoe <file.jsonl> --speed N   # playback speed (default 8.0)\nzoe inspect <file.jsonl>     # print the session tree and exit (no TUI)\n```\n\nGive it a file and it reads the whole transcript, then keeps watching for new lines.\nGive it a directory, or no argument at all, and it finds the newest session in that\nproject and follows it live. Whichever way you start, the controls are the same:\nscrub, follow, pause, jump back to live.\n\nThe same engine also runs [in the browser](https://zoetrope.furkankly.dev/app),\ncompiled to WebAssembly via [ratzilla](https://github.com/ratatui/ratzilla). Open a\nsession from disk, or drop a transcript on the page. It stays local there too.\n\n## Features\n\n**The graph**\n- A node per agent: the main session, its subagents, and workflow groups with their\n  children nested underneath\n- Status, current tool, tool count and output tokens on every card\n- Edges animate while an agent is working, and settle when it finishes\n- Tool calls surface as chips beneath their agent (`⚒ bash ×5`, or `⚒ bash 0.5s`\n  ticking during a single call), resolving to `✓` or `✗`\n- A minimap showing where your viewport sits once the graph outgrows the screen\n\n**Time travel**\n- One scrubbable timeline over both live and replayed sessions\n- Indexed by event rather than wall-clock, so a busy minute gets room instead of\n  collapsing into a sliver\n- Scrub, pause, step between prompt eras, or snap back to the live edge\n- Seek backwards and you see the session exactly as it stood at that moment. Agents\n  un-finish, tool counts",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:24:00.471706"
+  },
+  {
+    "basic_info": {
+      "name": "utopia",
+      "full_name": "deeplethe/utopia",
+      "owner": "deeplethe",
+      "description": "World's first open-source enterprise world model.",
+      "url": "https://github.com/deeplethe/utopia",
+      "clone_url": "https://github.com/deeplethe/utopia.git",
+      "ssh_url": "git@github.com:deeplethe/utopia.git",
+      "homepage": null,
+      "created_at": "2026-08-07T19:33:17Z",
+      "updated_at": "2026-08-28T12:07:45Z",
+      "pushed_at": "2026-08-28T11:20:16Z"
+    },
+    "stats": {
+      "stars": 595,
+      "forks": 55,
+      "watchers": 595,
+      "open_issues": 1,
+      "size": 2498
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 538576,
+        "TypeScript": 462236,
+        "CSS": 16084,
+        "JavaScript": 9755,
+        "Shell": 4838,
+        "Dockerfile": 1355,
+        "HTML": 619
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-memory",
+        "bitemporal",
+        "graphrag",
+        "knowledge-base",
+        "knowledge-graph",
+        "llm",
+        "ontology",
+        "pgvector",
+        "postgresql",
+        "rag",
+        "rust",
+        "self-hosted",
+        "semantic-search",
+        "temporal-knowledge-graph",
+        "world-model"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# Utopia\n\n**The living memory of your organization.**\n\nOpen-source, self-hosted knowledge platform: RAG over your own documents, on top of a knowledge graph that remembers *when* each fact was true.\n\n[Quick start](#quick-start) · [Features](#features) · [Configuration](#configuration) · [Roadmap](#roadmap) · [中文](README.zh-CN.md)\n\n[![CI](https://github.com/deeplethe/utopia/actions/workflows/ci.yml/badge.svg)](https://github.com/deeplethe/utopia/actions/workflows/ci.yml)\n[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)\n\n</div>\n\n---\n\nMost knowledge bases answer *what*. Utopia is built around *when*.\n\n- **\"Who owned project X in Q3 2024?\"** — every fact carries a validity interval, so the graph can be read as of any moment.\n- **\"When did this policy change, and what did it say before?\"** — facts are append-only. A correction closes the previous version instead of overwriting it, so history stays replayable.\n- **Drag the timeline** on the graph page and watch the neighborhood redraw itself at that point in time.\n\nEvery edge links back to the sentence it came from. Nothing enters the graph without evidence.\n\nOne binary and one Postgres. No Elasticsearch, no vector service, no message queue.\n\n## Features\n\n**Ingest** — PDF, DOCX, PPTX, XLSX/XLS/ODS, CSV/TSV, Markdown, HTML and plain text, with encoding detection for Chinese sources. Web pages and RSS feeds sync on a cron. Push documents from anywhere with a per-source ingest token. Failed parses can be reprocessed in place without re-uploading.\n\n**Search and chat** — Hybrid retrieval: Tantivy full-text (jieba tokenizer for Chinese) and pgvector embeddings, fused with reciprocal rank fusion. Streaming answers carry inline citations that jump to the exact passage. Any OpenAI-compatible endpoint works — DeepSeek, Qwen, GLM, Ollama, vLLM — so the whole stack can run on an air-gapped network.\n\n**Knowledge graph** — LLM extraction of entities and facts against an ontology you can edit. Three-stage entity resolution with a merge log where every merge is reversible. Each fact stores `valid_from` / `valid_to` plus evidence rows pointing back to the source chunk.\n\n**Review queue** — Low-confidence extractions, merge candidates and cardinality conflicts land in a queue rather than interrupting anyone. Confirm, reject or close a fact by hand; the decision is recorded.\n\n**Ask your database** — Register a Postgres connection once at the system level, mount it on a knowledge base, and chat can query it alongside the documents.\n\n**Multi-tenant** — Organizations → workspaces → knowledge bases, with per-KB membership, role-based access and an audit trail.\n\n## Quick start\n\nRequirements: Docker (or Rust 1.85+, Node 20+ and pnpm for local development).\n\n```bash\ngit clone https://github.com/deeplethe/utopia.git\ncd utopia\ndocker compose --profile app up -d\n```\n\nOpen http://localhost:8080 and register — the first account becomes the administrator. Then add an OpenAI-compatible endpoint under Settings, create a knowledge base, and drop in some files.\n\nThat pulls a prebuilt image from `ghcr.io/deeplethe/utopia`. Uploaded files and the search index live in `./data`, so back that up alongside the database. To build from source instead — after changing code, or to run an unreleased revision:\n\n```bash\ndocker compose -f docker-compose.yml -f docker-compose.build.yml --profile app up -d --build\n```\n\n### Local development\n\n```bash\n# 1. Postgres with pgvector\ndocker compose up -d db\n\n# 2. Backend on :8080 — runs migrations on startup\ncargo run -p utopia-server\n\n# 3. Frontend on :5173, proxying /api to the backend\ncd web && pnpm install && pnpm dev\n```\n\n## Configuration\n\nEverything is an environment variable prefixed with `UTOPIA_`; copy [.env.example](.env.example) to `.env` to get started.\n\n| Variable | Default | Purpose |\n|---|---|---|\n| `UTOPIA_DATABASE_URL` | `postgres://utopia:utopia@localhost:5432/utopia` | Postgres connection string |\n| `UTOPIA_BIND_ADDR` | `0.0.0.0:8080` | Listen address |\n| `UTOPIA_JWT_SECRET` | `dev-secret-change-me` | **Change this in production** |\n| `UTOPIA_WEB_DIST` | `web/dist` | Built frontend; served as an SPA when present |\n| `UTOPIA_DATA_DIR` | `data` | Original files and the full-text index |\n| `UTOPIA_OPEN_REGISTRATION` | `true` | When false, only the first account may self-register |\n\nLLM endpoints, models and API keys are configured in the UI, not through environment variables.\n\n## Architecture\n\n```\nReact + Vite + Tailwind + TanStack\n              │  /api/v1\n        ┌─────┴─────┐\n        │  axum     │  utopia-server   HTTP, auth, jobs\n        └─────┬─────┘\n   ┌──────────┼──────────┬────────────┐\nutopia-ingest  utopia-search  utopia-extract  utopia-llm\n parse/chunk    tantivy+RRF    entities/facts   OpenAI-compatible\n   └──────────┴──────────┴────────────┘\n                   utopia-store\n                        │\n              PostgreSQL + pgvector\n```\n\nRust (axum · sqlx · tokio · tantivy) over PostgreSQL ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:24:01.834815"
+  },
+  {
+    "basic_info": {
+      "name": "ooosplat",
+      "full_name": "ooolabdev/ooosplat",
+      "owner": "ooolabdev",
+      "description": "A local desktop application that converts videos into 3D Gaussian Splatting.",
+      "url": "https://github.com/ooolabdev/ooosplat",
+      "clone_url": "https://github.com/ooolabdev/ooosplat.git",
+      "ssh_url": "git@github.com:ooolabdev/ooosplat.git",
+      "homepage": null,
+      "created_at": "2026-08-15T15:48:10Z",
+      "updated_at": "2026-08-28T12:21:46Z",
+      "pushed_at": "2026-08-27T15:47:00Z"
+    },
+    "stats": {
+      "stars": 509,
+      "forks": 84,
+      "watchers": 509,
+      "open_issues": 2,
+      "size": 1194
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 152900,
+        "TypeScript": 35407,
+        "Shell": 26939,
+        "PowerShell": 19491,
+        "CSS": 16442,
+        "JavaScript": 11728,
+        "HTML": 348
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# OOOSplat\n\n[中文](README.md) | [English](README_EN.md)\n\n<p align=\"center\">\n  <img src=\"assets/readme-logo.svg\" alt=\"OOOSplat Logo\" width=\"180\">\n</p>\n\nOOOSplat 是一款本地视频转 3D Gaussian Splatting 桌面应用。Windows 和 Apple Silicon macOS Alpha 均随应用内置 FFmpeg、FFprobe、COLMAP 和 Brush；Linux 支持目前仅作为 Ubuntu 24.04 LTS x86_64 Alpha 提供。React 界面通过 Tauri 直接调用本机 Rust 后端，不需要远程服务或 localhost API。\n\n当前版本：**0.2.0**\n\n> 当前交付目标是从视频生成并管理 `final.ply`。应用暂不包含 3D Viewer，生成结果需要使用其他支持 Gaussian Splatting PLY 的工具查看。\n\n## 主要功能\n\n- 从 MP4、MOV 视频创建 Gaussian Splatting 项目。\n- 自动完成视频分析、均匀抽帧、特征提取、顺序匹配、相机重建、Brush 训练和 PLY 发布。\n- Windows 安装包内置 CUDA 版 COLMAP；macOS Alpha 内置 arm64 CPU 版 COLMAP；Ubuntu 使用系统 CPU 版 COLMAP。三个平台均使用固定并校验的 FFmpeg/Brush 方案。\n- COLMAP 会自动检查内置 CUDA 运行时、NVIDIA 驱动版本和显卡 Compute Capability，满足要求时使用 GPU 加速特征提取与匹配，否则自动回退到 CPU。\n- 实时显示处理阶段、引擎输出、关键计数、累计耗时和最多 500 条界面日志。\n- 原始进程输出完整写入项目的 `logs` 目录。\n- 支持取消任务，并通过 Windows Job Object 或 Unix process group 终止整个子进程树。\n- 支持自定义项目根目录，默认位置为 `Documents\\SplatStudio\\Projects`。\n- 自动记录已完成、失败、中断和取消的历史任务。\n- 可在文件管理器中定位 `final.ply`，或将整个项目移入系统回收站。\n- 可拖动中央分界线调整左右面板宽度；右下角支持 80%–140% 整体界面缩放。\n- 支持中文、空格、长文件名和 UNC 项目路径。\n\n## 处理流程\n\n```text\n输入视频\n  │\n  ├─ FFprobe：读取时长、分辨率、帧率和总帧数\n  ├─ FFmpeg：按照质量档位均匀抽取画面\n  ├─ COLMAP：自动选择 CPU 或 CUDA GPU 进行特征提取与顺序匹配\n  ├─ COLMAP：增量重建并验证注册率和三维点\n  ├─ Brush：使用可用 GPU 训练 Gaussian Splats\n  └─ 校验 PLY 后原子发布为 final.ply\n```\n\nCOLMAP 注册图像比例低于 50% 时任务停止；50%–80% 时给出质量警告并继续；达到 80% 时视为正常。\n\n## 系统要求\n\n- Windows 10 或 Windows 11，x64。\n- 支持 WebView2 Runtime。\n- Brush 训练需要可用的 GPU 图形后端，建议使用独立显卡。\n- COLMAP 的 CUDA 加速需要 NVIDIA 显卡、Windows 驱动 528.33 或更高版本，以及 Compute Capability 5.0 或更高版本；不满足要求时程序会自动使用 CPU，无需用户配置。\n- 项目磁盘需要容纳源视频副本、抽帧图像、COLMAP 数据、Brush 中间文件和最终 PLY。长视频或精细档位可能占用大量空间。\n- 安装模式为整机安装，安装时可能需要管理员权限。\n\nWindows 内置的 COLMAP 使用同时支持 CPU 与 CUDA GPU 的构建，运行前会自动选择可用后端；Brush 训练使用可用图形后端，二者的 GPU 检测与运行机制相互独立。\n\n### macOS 15+ Alpha（仅限 Apple Silicon）\n\n> 当前交付为未签名、未公证的 `.app`/`.dmg` Alpha，仅支持 M1 或更新的 Apple Silicon Mac，不支持 Intel Mac 或 Universal Binary。\n\n- 内置原生 arm64 FFmpeg 8.1.2、独立 FFprobe、COLMAP 4.0.4 CPU CLI-only 和 Brush v0.3.0。\n- 用户不需要安装 Homebrew，也不会回退到 Homebrew 或系统 `PATH` 中的同名程序。\n- COLMAP 固定使用 CPU；Brush 独立选择可用的 Metal 图形后端，界面会明确显示该原因。\n- 首次打开未签名版本时，macOS Gatekeeper 可能阻止启动。请在 Finder 中右键应用并选择“打开”；正式版本将在后续接入 Apple 签名和公证。\n\n### Ubuntu 24.04 Alpha（仅限 x86_64）\n\n> 本 Alpha 交付由 Ubuntu 24.04 构建的 x86_64 `.deb` 安装包；不声明支持 Ubuntu 22.04、其他 Linux 发行版或生产环境部署。\n\n- Ubuntu 24.04 LTS，x86_64。\n- Brush 支持的图形后端和对应驱动；Brush 官方支持 AMD、Intel 和 NVIDIA GPU。当前端到端验证使用 NVIDIA GPU，CPU-only 软件图形后端尚未验证，但不会被启动检查人为阻止。\n- 从源码构建需要 Node.js 22.12+、Rust stable 和 Tauri 2 的 WebKitGTK 开发依赖；安装 `.deb` 的用户不需要这些开发工具。\n- Ubuntu 24.04 系统 `ffmpeg`、`ffprobe` 和 CPU 版 `colmap`（仓库版本为 COLMAP 3.9）。\n- Brush v0.3.0 Linux x86_64，由 `npm run setup:engines` 下载并校验。\n\nUbuntu 依赖安装：\n\n```bash\nsudo apt update\nsudo apt install -y \\\n  build-essential curl file ffmpeg colmap \\\n  libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \\\n  libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev\n```\n\n请为显卡安装可用的 Vulkan 驱动（例如 NVIDIA 专有驱动，或 AMD/Intel 的 Mesa 驱动）。Ubuntu 24.04 仓库中的无 CUDA COLMAP 构建会自动使用 CPU；Brush 会在运行时选择可用的图形后端。完全 CPU-only 的软件 Vulkan 后端尚未完成端到端验证。\n\n从 GitHub Actions 下载 `OOOSplat-Ubuntu-24.04-x86_64-alpha` Artifact 后，可执行：\n\n```bash\nsudo apt install ./OOOSplat_0.2.0_amd64.deb\n```\n\n`.deb` 会通过 Ubuntu 包管理器安装 FFmpeg、FFprobe 和 CPU 版 COLMAP；固定版本 Brush 已包含在安装包中。\n\n## 安装与使用\n\n1. Windows 运行 `OOOSplat_0.2.0_x64-setup.exe`；Apple Silicon Mac 打开未签名 Alpha DMG 并将 OOOSplat 拖入“应用程序”；Ubuntu 24.04 使用 `sudo apt install ./OOOSplat_0.2.0_amd64.deb`。\n2. 启动 OOOSplat，确认顶栏中的内置引擎状态正常。\n3. 在“01 创建新任务”中选择输入视频。\n4. 选择项目根目录；程序会记住上次使用的位置。\n5. 选择“快速”“均衡”或“精细”档位。\n6. 查看自动检测到的 COLMAP 加速状态及原因，然后点击“开始生成”。\n7. 在左侧查看实时阶段、指标和日志；完成后，在“02 历史任务”中查看项目路径、PLY 大小、Splat 数量、生成日期和耗时。\n\n使用提示：\n\n- 拖动左右面板之间的分界线可以调整宽度；双击分界线恢复默认比例。\n- 点击右下角百分比按钮可缩小、恢复或放大整个界面。\n- 任务运行期间不可修改视频、项目目录和质量档位。\n- 点击“删除”会回收整个项目目录，包括源视频副本和所有中间文件；如果移入回收站失败，程序不会降级为永久删除。\n\n## 质量档位\n\n| 档位 | 保留画面 | FFmpeg 抽帧率 | Brush iterations | 最大训练分辨率 |\n| --- | ---: | ---: | ---: | ---: |\n| 快速 | 30% | 源视频 FPS × 0.30 | 8,000 | 1,200 |\n| 均衡 | 50% | 源视频 FPS × 0.50 | 15,000 | 1,600 |\n| 精细 | 100% | 源视频 FPS × 1.00 | 30,000 | 2,000 |\n\n抽帧由 FFmpeg 完成，COLMAP 不负责减少帧数。程序不设置最大抽帧数量，也没有额外的 Splat 数量上限；最终 Splat 数量由素材、重建结果和 Brush 训练过程决定。\n\n## 项目与文件位置\n\n每次生成都会在项目根目录下创建一个独立文件夹：\n\n```text\n<项目根目录>\\<yyyyMMdd-HHmmss_视频名>\\\n  final.ply             最终 Gaussian Splatting 文件\n  project.json          项目元数据与结果指标\n  state.json            流水线状态\n  source\\\n    input.<ext>         源视频副本\n  work\\\n    frames\\             FFmpeg 抽取的画面\n    colmap\\             COLMAP 数据库与稀疏重建\n    brush\\              Brush 数据集与训练中间文件\n  logs\\                 FFmpeg、COLMAP、Brush 等完整日志\n```\n\n项目名中的 Windows 非法字符会被清理；发生重名时自动追加 `-2`、`-3` 等后缀。\n\n应用设置和项目索引保存在：\n\n```text\n%LOCALAPPDATA%\\SplatStudio\\settings.json\n%LOCALAPPDATA%\\SplatStudio\\project-index.json\n```\n\n## 内置引擎\n\n| 引擎 | 固定版本/构建 | 用途 |\n| --- | --- | --- |\n| FFmpeg / FFprobe | Windows x64 8.1 LGPL shared；macOS arm64 8.1.2 LGPL shared | 视频分析与抽帧 |\n| COLMAP | Windows 4.0.4 CUDA；macOS arm64 4.0.4 CPU CLI-only | 特征、匹配和相机重建 |\n| Brush | v0.3.0 Windows x64 / macOS arm64 | Gaussian Splatting ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:24:03.251221"
+  },
+  {
+    "basic_info": {
+      "name": "donsetch",
+      "full_name": "dondai44423/donsetch",
+      "owner": "dondai44423",
+      "description": "Web fetch, search, and crawl for AI agents. Built from scratch in Rust. No keys, no accounts. AGPL v3.",
+      "url": "https://github.com/dondai44423/donsetch",
+      "clone_url": "https://github.com/dondai44423/donsetch.git",
+      "ssh_url": "git@github.com:dondai44423/donsetch.git",
+      "homepage": null,
+      "created_at": "2026-08-07T10:13:16Z",
+      "updated_at": "2026-08-28T11:54:35Z",
+      "pushed_at": "2026-08-28T11:15:58Z"
+    },
+    "stats": {
+      "stars": 470,
+      "forks": 29,
+      "watchers": 470,
+      "open_issues": 0,
+      "size": 3675
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1969260,
+        "Python": 62091,
+        "TypeScript": 19151,
+        "JavaScript": 14370,
+        "Shell": 13953,
+        "Dockerfile": 8860,
+        "HTML": 1938
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "agpl",
+        "ai-agents",
+        "anti-bot",
+        "crawling",
+        "mcp",
+        "pdf",
+        "rust",
+        "web-scraper",
+        "web-search"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/herobanner.png\" width=\"640\" alt=\"DonSeTch — The web, for AI agents\">\n\n**$0. No keys, no accounts. Built from scratch in Rust.**\n\nFetch · search · crawl · bypass bot walls · read PDFs (even scanned) · semantic reranking\n\nOne binary · Chrome's own TLS · headless browser escalation · zero Python\n\nWorks with **Claude Code**, **Cursor**, **OpenCode**, **Pi**, **Windsurf**, and any MCP client.\n\n</div>\n\n<br>\n\n<div align=\"center\">\n\n[![npm](https://img.shields.io/npm/v/donsetch?color=cb3837&logo=npm)](https://www.npmjs.com/package/donsetch)\n[![npm downloads](https://img.shields.io/npm/dm/donsetch?color=cb3837&logo=npm&label=downloads)](https://www.npmjs.com/package/donsetch)\n[![GitHub stars](https://img.shields.io/github/stars/dondai44423/donsetch?style=flat&logo=github&color=e3b341)](https://github.com/dondai44423/donsetch/stargazers)\n[![CI](https://img.shields.io/github/actions/workflow/status/dondai44423/donsetch/ci.yml?branch=master&logo=github&label=CI)](https://github.com/dondai44423/donsetch/actions/workflows/ci.yml)\n[![Rust](https://img.shields.io/badge/Rust-edition%202024-ce422b?logo=rust&logoColor=white)](https://www.rust-lang.org)\n[![MCP](https://img.shields.io/badge/MCP-server-7c3aed?logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io)\n[![License](https://img.shields.io/badge/license-AGPL%203.0-2563eb)](LICENSE)\n[![Tests](https://img.shields.io/badge/tests-695%20passed-00d4aa)](#)\n\n</div>\n\n<br>\n\n```bash\nnpm install -g donsetch\n```\n\n<div align=\"center\">\n\n[Install](#-install) · [Two ways to use it](#-two-ways-to-use-it) · [The 3 tools](#-the-3-tools) · [Chrome TLS](#-chrome-tls-not-chrome-like) · [Solve & Bounce](#-solve-and-bounce) · [Search](#-keyless-search) · [PDF](#-pdf--ocr) · [Benchmark](#-wrb-web-research-benchmark) · [Comparison](#-comparison) · [Gotchas](#-gotchas) · [Limits](#-honest-limits)\n\n### 🔥 [DonSeTch vs Firecrawl — live head-to-head](#-donsetch-vs-firecrawl-live-head-to-head)\n\n</div>\n\n---\n\nDonSeTch gives any AI agent full web research from a single local process. Three tools, zero API keys, zero accounts. Built in Rust — one binary, no Python, no Playwright, no Selenium, no `reqwest`, no `hyper`. Every layer built from scratch.\n\nWorks with every MCP client: Claude Code, Cursor, OpenCode, Pi, anything that speaks MCP. Also works as a standalone CLI.\n\n## ✨ What makes it different\n\n| | What it does |\n|---|---|\n| 🛡️ **Real Chrome TLS** | Drives Chrome's own BoringSSL natively. Your ClientHello IS Chrome's ClientHello — fingerprint is emergent from the real engine, not a faked table that rots. |\n| ⏱️ **Temporal stealth** | TLS session resumption, conditional revalidation (304), persistent cookies, connection pooling. The loudest remaining bot tell — and nobody else fakes it. |\n| 👻 **Solve-and-bounce** | Browser solves the challenge, hands cookies to tier 1, goes to sleep. Tier 1 fetches at full speed. The browser almost never fetches content. |\n| 🧠 **Self-improving fetch** | Learns from every fetch. Cookie lifetimes learned adaptively. Warm starts skip the browser entirely. Converges to optimal routing per domain. |\n| 🔎 **Semantic reranking** | Local ONNX cross-encoder reads query + result through full attention. Pushes out generic articles that keyword-match but aren't about the topic. |\n| 🔑 **Keyless search** | 10+ backends in parallel, fused by cross-engine consensus. No API keys, no accounts, no billing. $0 forever. BYOK optional. |\n| 📄 **Pixel-fusion PDF** | Glyphs + rendered pixels from the same stream, fused deterministically. No hallucination. Per-region trust audit. Scanned PDFs auto-OCR'd. |\n| 🧬 **Built from scratch** | Own HTTP/2 (HPACK, flow control), own extraction engine, own PDF parser, own search aggregator, own crawl engine. Zero dependency on existing OSS web tooling. |\n| 🪶 **~3.5k tokens** | Three tools, ~3.5k tokens total in the MCP context. No bloat, no redundancy, every token earns its place. |\n\n---\n\n## 🆕 v3 — the agent-first upgrade\n\nFour things no free (or paid) competitor has, plus a stack of agent-first mechanics:\n\n| | What it does |\n|---|---|\n| 🔗 **Reference handles** | Fetched-page links render as `[text](L12)`, search results as `S1…Sn` — and `fetch S3` just works. URLs cost 80 tokens a piece; handles cost 3. Raw URLs stay in `structuredContent` for citation. |\n| 🧾 **Probe mode** | `must_contain: \"CVE-2026-1234\"` verifies a claim against the FULLY-fetched page but returns MATCH/NO-MATCH + ≤3 excerpts (~60 tokens instead of 4k). Verification questions stop paying reading prices. |\n| ♻️ **Resurrection fetch** | Dead link? `archive=auto` transparently serves the nearest Wayback snapshot, labeled `ARCHIVED COPY — 2021-04-03 (5 years old)`. Dead ends become honest answers. |\n| 🕵️ **Anti-cloak check** | On domains known to serve decoys, tier-1 responses are equivalence-checked against a headless render — `decoy suspected` is stamped, never silently passed off as content. |\n| 📌 **Page memory** | Every fetch i",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-08-28T12:24:04.580940"
+  },
+  {
+    "basic_info": {
+      "name": "nixpkgs-multiverse",
+      "full_name": "fzakaria/nixpkgs-multiverse",
+      "owner": "fzakaria",
+      "description": "Any version of any nixpkgs package, from one flake input",
+      "url": "https://github.com/fzakaria/nixpkgs-multiverse",
+      "clone_url": "https://github.com/fzakaria/nixpkgs-multiverse.git",
+      "ssh_url": "git@github.com:fzakaria/nixpkgs-multiverse.git",
+      "homepage": "https://nixmultiverse.com/",
+      "created_at": "2026-08-08T21:56:37Z",
+      "updated_at": "2026-08-28T07:05:47Z",
+      "pushed_at": "2026-08-28T03:42:16Z"
+    },
+    "stats": {
+      "stars": 385,
+      "forks": 9,
+      "watchers": 385,
+      "open_issues": 0,
+      "size": 21293
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 190791,
+        "Nix": 166363,
+        "JavaScript": 155055,
+        "Python": 147292,
+        "Shell": 81798,
+        "CSS": 29299,
+        "HTML": 3694
+      },
+      "license": "MIT License",
+      "topics": [
+        "nix",
+        "nixpkgs",
+        "nixpkgs-overlay"
+      ]
+    },
+    "content": {
+      "readme": "# nixpkgs-multiverse\n\n> Please read this [blog post](https://fzakaria.com/2026/08/09/nixpkgs-multiverse-every-version-that-ever-existed) for context.\n\nEvery nixpkgs revision, reachable from a **single evaluation**. One flake input, no juggling `nixpkgs` pinned at N commits.\n\nThe whole index is browsable at **<https://nixmultiverse.com/>**\n\nSearch any attribute for every version it ever shipped, with copy-paste run\nand pin commands, plus the full revision and release tables.\n\n![lotr meme \"One flake to rule them all\"](./multiverse_lotr.jpg)\n\n**Documentation:** [Design](./docs/design.md) ·\n[Comparisons](./docs/comparisons.md) ·\n[Selectors](./docs/selectors.md) ·\n[The Nix API](./docs/nix-api.md) ·\n[The `mvs` CLI](./docs/cli.md) ·\n[NixOS / nix-darwin / home-manager module](./docs/modules.md) ·\n[Replacing nixpkgs inputs](./docs/flake-inputs.md) ·\n[Without flakes](./docs/non-flake.md) ·\n[Building the index](./docs/building-the-index.md) ·\n[The store-path index](./docs/store-paths.md)\n\nAlso published at <https://nixmultiverse.com/docs/>.\n\nQuestions, ideas, and \"does it handle X?\" are welcome in the\n[Discord thread](https://discord.com/channels/568306982717751326/1538990827404267590).\n\n## Status\n\n![github master branch workflow](https://github.com/fzakaria/nixpkgs-multiverse/actions/workflows/update-index.yml/badge.svg?branch=main)\n![ci workflow](https://github.com/fzakaria/nixpkgs-multiverse/actions/workflows/ci.yml/badge.svg?branch=main)\n\n<!-- BEGIN index-status -->\n\n- **306,845 package versions** across **31,987 attributes**, from **1,538 revisions**\n- 2012-07-05 → 2026-08-26, newest [`9fbb54b33e91`](https://github.com/NixOS/nixpkgs/commit/9fbb54b33e91ee4ca368e35a78e0613c720600b3) · [`nixos-26.11pre1062397`](https://releases.nixos.org/?prefix=nixos/unstable/nixos-26.11pre1062397.9fbb54b33e91/)\n<!-- END index-status -->\n\n## Quickstart\n\nEvery version of every package ever packaged in nixpkgs, from 2012 to 2026, as\nan installable:\n\n```console\n$ nix run 'github:fzakaria/nixpkgs-multiverse#versions.python3.\"3.6.2\"' -- --version\nPython 3.6.2\n\n# the latest version of a package\n$ nix run 'github:fzakaria/nixpkgs-multiverse#latest.python3' -- --version\nPython 3.14.6\n\n# a whole revision: the newest indexed, a release channel, or a commit\n$ nix run github:fzakaria/nixpkgs-multiverse#tip.hello\n$ nix run github:fzakaria/nixpkgs-multiverse#26.05.hello\n$ nix shell github:fzakaria/nixpkgs-multiverse#967d40bec14b.python3\n```\n\nThe commands above fetch and evaluate a ~378 MB nixpkgs tree the first time.\nThe **fast path** skips both: the [store-path index](./docs/store-paths.md)\nalready knows the path Hydra built, so Nix substitutes it straight from\ncache.nixos.org — seconds instead of minutes, after\n[tomberek](https://github.com/tomberek)'s\n[fastpkgs](https://github.com/tomberek/fastpkgs) trick. Append the output\n(`.out`) — a fake derivation has nothing to build, only a path to fetch:\n\n```console\n$ nix shell 'github:fzakaria/nixpkgs-multiverse#fast.versions.python3.\"3.8.9\".out'\n$ nix build 'github:fzakaria/nixpkgs-multiverse#fast.latest.hello.out'\n```\n\nThe same questions answered offline, out of a database baked into the flake,\nby the `mvs` tool:\n\n```console\n$ nix run github:fzakaria/nixpkgs-multiverse#mvs -- query versions python3\npython3 · 64 versions · 2012-07-05 .. 2026-08-16\nVERSION   FIRST       LAST        REVS\n3.2.3     2012-07-05  2013-03-01  8\n…\n3.14.7    2026-08-12  current     3\n```\n\nPin a package from a NixOS, nix-darwin, or home-manager configuration:\n\n```nix\n{\n  # Use darwinModules.default on nix-darwin or homeManagerModules.default in\n  # home-manager.\n  imports = [ inputs.multiverse.nixosModules.default ];\n\n  multiverse.enable = true;\n  multiverse.pins.python3 = \"3.8.9\";\n}\n```\n\nEnumerating versions fetches nothing — it reads an index file. A revision is\nmaterialised the first time you force a derivation.\n\nFrom here, [the Nix API](./docs/nix-api.md) covers selecting revisions by date,\nrelease, or commit; [the `mvs` CLI](./docs/cli.md) covers the command line; and\n[the module](./docs/modules.md) covers system configuration.\n\n## License\n\nMIT, please see [LICENSE](LICENSE).\n\nThe Nix expressions and tooling are original work. `revisions.json`,\n`index/versions.json` and `index/history.json` are generated metadata about\nnixpkgs: revisions, dates, hashes and version strings, not nixpkgs source. Nixpkgs itself is MIT and is\nfetched at evaluation time.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:24:05.912445"
+  },
+  {
+    "basic_info": {
+      "name": "Cobalt",
+      "full_name": "BandarLabs/Cobalt",
+      "owner": "BandarLabs",
+      "description": "An SDK for building real apps for your Kobo eInk reader",
+      "url": "https://github.com/BandarLabs/Cobalt",
+      "clone_url": "https://github.com/BandarLabs/Cobalt.git",
+      "ssh_url": "git@github.com:BandarLabs/Cobalt.git",
+      "homepage": "https://bandarlabs.github.io/Cobalt/",
+      "created_at": "2026-07-29T15:06:20Z",
+      "updated_at": "2026-08-28T11:07:45Z",
+      "pushed_at": "2026-08-28T11:06:42Z"
+    },
+    "stats": {
+      "stars": 313,
+      "forks": 25,
+      "watchers": 313,
+      "open_issues": 13,
+      "size": 31811
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 4645288,
+        "Shell": 52670,
+        "JavaScript": 16037,
+        "Python": 11464,
+        "C": 8472
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": [
+        "kobo",
+        "kobo-ereader",
+        "opds-client",
+        "rss-reader",
+        "sdk"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/logo.svg\" width=\"220\" alt=\"Cobalt\">\n</p>\n\n<p align=\"center\"><strong>Apps and an SDK for Kobo e-readers.</strong></p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/BandarLabs/Cobalt/actions/workflows/ci.yml\"><img src=\"https://github.com/BandarLabs/Cobalt/actions/workflows/ci.yml/badge.svg?branch=main\" alt=\"CI\"></a>\n  <a href=\"https://github.com/BandarLabs/Cobalt/actions/workflows/apps.yml\"><img src=\"https://github.com/BandarLabs/Cobalt/actions/workflows/apps.yml/badge.svg?branch=main\" alt=\"Publish apps\"></a>\n  <a href=\"https://github.com/BandarLabs/Cobalt/releases/latest\"><img src=\"https://img.shields.io/github/v/release/BandarLabs/Cobalt?color=brightgreen\" alt=\"Latest release\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/github/license/BandarLabs/Cobalt?color=brightgreen\" alt=\"License\"></a>\n</p>\n\nCobalt is an open-source application platform for Kobo. It provides a launcher,\nan App Store, a Rust SDK, a runtime with capability isolation, and a Clara BW\nsimulator.\n\nAfter one USB installation, users can install, update, and remove signed apps\nover Wi-Fi. App releases are independent from Cobalt platform releases, so a\nnew app can appear in Store without reinstalling or updating Cobalt.\n\n<p align=\"center\">\n  <a href=\"docs/cobalt-tour.mp4\">\n    <img src=\"docs/tour.gif\" height=\"600\" alt=\"A real Kobo Clara BW running Audiobook Studio, Gutenbird, Terminal, Components, Hacker News, Sidekick, AI Command Center, Feeds, Tic-tac-toe and audio playback, followed by the full App Store catalog and Sudoku being installed, played, removed and reinstalled over Wi-Fi\">\n  </a><br>\n  <sub>Recorded on a Kobo Clara BW at 3× speed: apps, Store discovery, and the complete Sudoku install lifecycle.</sub>\n</p>\n\n> [!IMPORTANT]\n> The **Kobo Clara BW N365 (device code 391)**, **Kobo Elipsa 2E N605 (device\n> code 389)**, **Kobo Clara HD N249 (device code 376)**, **Kobo Libra 2 N418\n> (device code 388)**, **Kobo Clara Colour N367 (device code 393)**, and\n> **Kobo Libra Colour N428 (device code 390)** are\n> fully hardware-tested on the exact firmware and kernel versions in the\n> support matrix. See the\n> [device support matrix](docs/DEVICES.md#device-support-matrix) before\n> installing.\n> The 2025 **Kobo Clara BW P365 (device code 395)** hardware refresh is also\n> supported: its measured panel, touch, firmware, and kernel facts match the\n> attended-tested N365 Clara BW.\n> It is an independent project and is not affiliated with Rakuten Kobo.\n\n> [!TIP]\n> **Own an unsupported Kobo? Help test its port.** No coding is required.\n> [Join an existing device thread or create a new one](https://github.com/BandarLabs/Cobalt/issues)\n> with your exact model, firmware, and whether you can run attended tests.\n> Start with read-only checks; run panel tests only against the commit named\n> by a maintainer. See\n> [Contributing](CONTRIBUTING.md#device-testing).\n\n## Features\n\n- Signed Wi-Fi app installation, updates, and removal\n- Shareable app pages with encrypted QR or pairing-code installation\n- Separate Settings-based updates for the Cobalt platform\n- Apps run as separate unprivileged processes\n- Per-app capability checks for network, storage, audio, frontlight, and other\n  device services\n- Declarative e-ink UI toolkit and browser simulator\n- Profile-driven full and partial refresh planning for supported panels\n- Static ARMv7 binaries with no device-side package manager\n- Recovery-safe app and catalog transactions\n\n## How it differs\n\n[NickelMenu](https://pgaskin.net/NickelMenu/) adds actions to Kobo's stock\nmenu. [KOReader](https://koreader.rocks/) and\n[Plato](https://github.com/baskerville/plato) are reading apps. Cobalt is a\nplatform for building and installing apps.\n\nCobalt handles the common parts: screens, app lifecycle, drawing to the e-ink\ndisplay, partial refreshes, touch input, device access, process isolation,\ntesting, and signed installs. App authors can focus on their app instead of\nbuilding those parts again.\nSee the [FAQ](https://bandarlabs.github.io/Cobalt/faq.html) for a fuller\ncomparison.\n\n## Apps\n\nEvery screenshot below is a real capture from a Kobo Clara BW. Store manages\nthe installable applications; Settings and Terminal remain protected system\nutilities.\n\n<table>\n<tr>\n<td width=\"33%\" valign=\"top\"><a href=\"examples/launcher/README.md\"><img width=\"230\" src=\"examples/launcher/screenshots/home.png\" alt=\"Cobalt launcher showing a grid of applications\"></a><br><b><a href=\"examples/launcher/README.md\">Launcher</a></b><br>Opens installed apps and always keeps a route back to the Kobo reader.</td>\n<td width=\"33%\" valign=\"top\"><a href=\"docs/APP_STORE.md\"><img width=\"230\" src=\"examples/store/screenshots/catalog.png\" alt=\"Cobalt App Store listing installed and available applications\"></a><br><b><a href=\"docs/APP_STORE.md\">App Store</a></b><br>Browses signed apps and installs, updates, removes, and reinstalls them over Wi-Fi.</td>\n<td width=\"33%\" valign=\"top\"><a href=\"apps/sudoku/\"><img width=\"2",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:24:07.275359"
+  },
+  {
+    "basic_info": {
+      "name": "sprite-maker",
+      "full_name": "JohnKinyanjui/sprite-maker",
+      "owner": "JohnKinyanjui",
+      "description": "An open source ai sprite maker",
+      "url": "https://github.com/JohnKinyanjui/sprite-maker",
+      "clone_url": "https://github.com/JohnKinyanjui/sprite-maker.git",
+      "ssh_url": "git@github.com:JohnKinyanjui/sprite-maker.git",
+      "homepage": null,
+      "created_at": "2026-08-09T20:25:50Z",
+      "updated_at": "2026-08-28T10:37:17Z",
+      "pushed_at": "2026-08-19T10:28:09Z"
+    },
+    "stats": {
+      "stars": 293,
+      "forks": 43,
+      "watchers": 293,
+      "open_issues": 1,
+      "size": 4072
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 750011,
+        "Svelte": 435874,
+        "Python": 169431,
+        "TypeScript": 51535,
+        "GDScript": 6308,
+        "Shell": 5476,
+        "Makefile": 5236,
+        "JavaScript": 1448,
+        "HTML": 393
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"static/brand/sprite-studio-lockup.svg\" alt=\"Sprite Studio\" width=\"560\">\n</p>\n\n<p align=\"center\">\n  A local-first AI workbench for creating, animating, testing, organizing, and exporting 2D game art.\n</p>\n\n<p align=\"center\">\n  <strong>macOS · Windows · Linux</strong>\n</p>\n\n<p align=\"center\">\n  <img src=\"docs/media/sprite-studio-v0.2-showcase.gif\" alt=\"Sprite Studio creating a rabbit hop, dragon flight, centipede crawl, and coordinated nature pack\" width=\"800\">\n</p>\n\n## From a prompt to a usable game asset\n\nGenerating one attractive image is easy. A production asset also needs a stable identity, clean transparency, readable scale, consistent palette, useful file structure, and—when it moves—a mechanically complete loop.\n\nSprite Studio keeps that work in one desktop workspace. Describe an asset in chat, attach or paste references, inspect the result at pixel scale, generate a high-frame-count AI animation with strict identity and neighbor references, test the loop, and export a sheet without losing the source files or the conversation that produced them.\n\nThe project is open source, local first, and built with Tauri, Svelte, Rust, SQLite, and an installed Codex CLI. It does not target Android or iOS.\n\n## The workflow\n\n1. **Generate in chat.** Use plain language or a slash command. Every chat keeps its own style, references, quality, dimensions, frame policy, FPS, model, and reasoning settings.\n2. **Review the real output.** Static images open in the full-size sprite viewer. Related animation frames appear as one playable sprite set instead of flooding the library.\n3. **Describe natural movement.** “Animate this” brings the source asset back to chat and asks how it should move, with suggestions based on visible anatomy.\n4. **Plan once, generate sequentially.** AI plans the complete motion, then generates one frame at a time using the source identity and neighboring accepted frames. The default 24–48 frame range favors smooth motion; users can lower it at any time.\n5. **Rig it with points when you want determinism.** The Rig editor places named joint points and capsule bones on any sprite — auto-placed from an anatomy template, suggested by the AI (`/rig` or “Ask AI”), or dragged by hand. The native Rust engine derives every bone's pixels from the capsules, solves planted contacts with two-bone IK, and renders byte-identical frames with no image generation at all.\n6. **Test and export.** Scrub, retime, zoom, inspect warnings, test the loop in the playground, and export a PNG sheet plus metadata.\n\n## Rigging in Rust\n\nThe rig engine is written natively in Rust and runs instantly on the local machine:\n\n- **Points over masks.** A rig is a set of named points (`joint`, `anchor`, `contact`, `pivot`) and capsule bones between them. The engine auto-claims every opaque pixel inside the closest capsule and assigns leftovers to the nearest bone, so nobody hand-paints masks.\n- **AI-suggested points.** `Ask AI` sends the sprite to your agent CLI and gets back a `rig-suggestion` JSON block of points, bones, and optional pose frames, with confidence values. `/rig` in chat does the same and the captured rig appears in the Rig tab automatically.\n- **Deterministic rendering.** Per-frame bone rotations, scales, offsets, root motion, holds, and z-layering compose through parent chains and render with nearest-neighbor inverse mapping — identical inputs always produce identical PNG bytes.\n- **Planted contacts.** Feet and hands stay pinned in place while the chain bends around them using analytic two-bone IK, so walk cycles do not slide.\n- **Full pipeline.** Rendered frames land in `assets/<category>/`, become normal assets, form an animation with quality analysis, and flow into sheets, the playground, and exports like any other sprite.\n\n## Motion that understands the subject\n\n### Rabbit: a real hop cycle\n\nThe rabbit does not simply slide upward. Its eight-pose loop compresses the haunch, pushes from the hind leg, tucks in the air, reaches with the forefeet, absorbs contact, and recovers into the opening stance. The motion planner estimates a physical envelope unless the user supplies exact speed, height, or scale.\n\n<p align=\"center\">\n  <img src=\"docs/media/rabbit-hop.gif\" alt=\"Eight-frame anatomy-aware rabbit hop generated and polished in Sprite Studio\" width=\"960\">\n</p>\n\n### Dragon: one identity through a full wingbeat\n\nThis twelve-frame loop keeps the same dragon while the near and far wings move through a forceful downstroke, folded recovery, body lift, delayed legs, and tail counterbalance.\n\n<p align=\"center\">\n  <img src=\"docs/media/dragon-flight.gif\" alt=\"Twelve-frame orange dragon flight cycle generated in Sprite Studio\" width=\"960\">\n</p>\n\n### Centipede: connected segmented motion\n\nCreature harnesses account for morphology that a human walk template cannot handle. The centipede uses a phase-shifted head-to-tail body wave, alternating leg banks, a stable ground line, and twelve distinct crawl frame",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:24:08.621919"
+  },
+  {
+    "basic_info": {
+      "name": "picomq",
+      "full_name": "PicoMQ/picomq",
+      "owner": "PicoMQ",
+      "description": "Durable streams",
+      "url": "https://github.com/PicoMQ/picomq",
+      "clone_url": "https://github.com/PicoMQ/picomq.git",
+      "ssh_url": "git@github.com:PicoMQ/picomq.git",
+      "homepage": "http://picomq.com",
+      "created_at": "2026-08-11T01:54:06Z",
+      "updated_at": "2026-08-28T12:17:26Z",
+      "pushed_at": "2026-08-28T00:57:02Z"
+    },
+    "stats": {
+      "stars": 285,
+      "forks": 3,
+      "watchers": 285,
+      "open_issues": 6,
+      "size": 1383
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 1796080,
+        "CSS": 24268,
+        "HCL": 18048,
+        "TypeScript": 14616,
+        "Vue": 10604,
+        "Shell": 4936,
+        "Dockerfile": 1381,
+        "HTML": 696
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "durable-streams",
+        "postgres",
+        "realtime",
+        "rust",
+        "streaming",
+        "write-ahead-log"
+      ]
+    },
+    "content": {
+      "readme": "# PicoMQ\n\nPicoMQ is durable, real-time streams over HTTP, built on S3-compatible object storage.\n[Documentation](https://picomq.com/docs/) · [Quick start](https://picomq.com/docs/quick-start) · [Playground](https://picomq.com/docs/playground)\n\n- **`s3stream/`** the stream engine (see [s3stream/README.md](s3stream/README.md))\n- **`picomq/`** the host: metadata plane, server, protocol frontends (HTTP with Pico protocol and Durable Streams, plus Kafka), client, and the `pico` CLI\n\n## Install\n\n```bash\ncargo install --path picomq/pico-cli\n```\n\nThis puts the `pico` binary in `~/.cargo/bin`. Or run it in place with `cargo run -p pico-cli -- <args>`.\n\n## Run a node\n\n```bash\n# single node: SQLite metadata log, local object storage\npico serve \\\n    --meta-url sqlite:./data/meta.db \\\n    --storage=-2@file://./objects\n```\n\nEvery flag has a `PICO_*` env equivalent. `/health` and `/ready` are on `--admin-listen` (default `127.0.0.1:9090`). Auth is off by default, non-loopback binds need `--auth required` or `--insecure-allow-remote`.\n\n## Docker\n\nSkips the install, everything runs in compose:\n\n```bash\ncd harness/aio\ncp .env.example .env\n\ndocker compose up --build                          # Postgres + RustFS, 1 node\ndocker compose -f compose.cluster.yml up --build   # same stack, 2 nodes\ndocker compose -f compose.lite.yml up --build      # SQLite + file://, no deps\n```\n\nPico: `http://localhost:4437` (cluster also `:4438`). Dashboard: `:9090`. \n`harness/byo` is the same against an existing Postgres and object store, configured through `.env`.\n\n## Use it\n\n```bash\npico create /streams/orders --content-type text/plain\nseq 1 1000 | pico append /streams/orders --batch 100\npico read /streams/orders\npico tail /streams/orders -f\npico close /streams/orders && pico delete /streams/orders\n\npico --http2 bench -b 1024 -w 512 --connections 4 --streams 4 -d 60\n```\n\n## Test\n\n```bash\ncargo test --workspace\n\n# Postgres-backed tests, env-gated\nPICOMQ_PG_URL=postgres://user:pass@localhost:5432/picomq \\\n    cargo test -p pico-sql --test pg_contract --test pg_e2e\n```\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:24:09.976663"
+  },
+  {
+    "basic_info": {
+      "name": "diri",
+      "full_name": "cristicretu/diri",
+      "owner": "cristicretu",
+      "description": "Native macOS orchestrator for coding agents — run Claude Code, Codex, Cursor, Gemini and shells in parallel across git worktrees and remote hosts",
+      "url": "https://github.com/cristicretu/diri",
+      "clone_url": "https://github.com/cristicretu/diri.git",
+      "ssh_url": "git@github.com:cristicretu/diri.git",
+      "homepage": null,
+      "created_at": "2026-08-04T10:08:23Z",
+      "updated_at": "2026-08-26T19:21:15Z",
+      "pushed_at": "2026-08-26T12:31:22Z"
+    },
+    "stats": {
+      "stars": 272,
+      "forks": 23,
+      "watchers": 272,
+      "open_issues": 21,
+      "size": 16012
+    },
+    "tech_info": {
+      "language": "Rust",
+      "languages": {
+        "Rust": 5338738,
+        "Swift": 128373,
+        "Shell": 94964,
+        "HTML": 30917,
+        "JavaScript": 30791,
+        "Python": 25076
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "claude-code",
+        "coding-agents",
+        "gpui",
+        "macos",
+        "mcp",
+        "rust",
+        "swift",
+        "terminal"
+      ]
+    },
+    "content": {
+      "readme": "<h1><img src=\"docs/images/diri-wordmark.png\" alt=\"diri\" width=\"300\"></h1>\n\n[![CI](https://github.com/cristicretu/diri/actions/workflows/ci.yml/badge.svg)](https://github.com/cristicretu/diri/actions/workflows/ci.yml)\n[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)\n[![GitHub release](https://img.shields.io/github/v/release/cristicretu/diri)](https://github.com/cristicretu/diri/releases/latest)\n\nNative desktop orchestrator for coding agents on macOS and Linux. Run Claude Code, Codex, Cursor, Gemini and plain\nshells in parallel — across git worktrees or on remote hosts — each with a live status\n(working / needs-you / done) and tmux-like persistence: closing the app never kills a session,\nand a daemon restart brings conversations back.\n\n![diri](docs/images/diri.png)\n\n<p align=\"center\"><img src=\"docs/images/diri-divider-status.png\" alt=\"\" width=\"760\"></p>\n\n## Install\n\n### macOS\n\n```sh\nbrew install --cask cristicretu/diri/diri\n```\n\nOr download the latest DMG from [Releases](https://github.com/cristicretu/diri/releases/latest),\nopen it, and drag diri to Applications. Either way it is the same universal build (Apple\nsilicon and Intel), signed and notarized. diri updates itself from there.\n\n<p align=\"center\"><img src=\"docs/images/diri-install.png\" alt=\"Diri moving the app into the Applications folder\" width=\"680\"></p>\n\nThe tap has to be named in full — a bare `diri` resolves only against Homebrew's default\ntaps. The cask lives in [cristicretu/homebrew-diri](https://github.com/cristicretu/homebrew-diri)\nrather than `homebrew-cask`, which requires a notability threshold diri does not meet yet.\n\nmacOS 15 or newer.\n\n### Linux beta\n\nDownload the x86_64 AppImage or Debian package from\n[Releases](https://github.com/cristicretu/diri/releases/latest). Ubuntu 22.04\nand 24.04 are supported under X11 and Wayland with a Vulkan 1.3-capable GPU.\n\n```sh\nsudo apt install ./diri_<version>_amd64.deb\n# or\nchmod +x diri_<version>_amd64.AppImage && ./diri_<version>_amd64.AppImage\n```\n\nSee the [Linux beta guide](diri/LINUX.md) for checksums, upgrade and uninstall\nsteps, XDG paths, graphics troubleshooting, and current limitations.\n\n## 60-second tour\n\n1. Add a project directory and create a session for Claude Code, Codex, another\n   supported agent, or a plain shell.\n2. Start several sessions, ideally in separate git worktrees when they edit the\n   same repository.\n3. Watch the sidebar instead of every terminal: it shows which agents are\n   working, waiting for you, or done.\n4. Quit and reopen diri. The daemon keeps each PTY alive and replays the session\n   when you return.\n\nThe [getting-started guide](docs/GETTING_STARTED.md) covers remote hosts, MCP\norchestration, diagnostics, local data, and uninstalling.\n\n<p align=\"center\"><img src=\"docs/images/diri-divider-worktrees.png\" alt=\"\" width=\"760\"></p>\n\n## What it does\n\n- **Many agents at once.** Each session is a real terminal with a real PTY. Group them by\n  project, split them across git worktrees, or run them on a remote host over ssh+tmux.\n- **Status you can trust.** diri reads what an agent actually painted on its screen and tells\n  you which ones are working, which are waiting on you, and which are done — so you can watch\n  ten sessions without reading ten terminals.\n- **Sessions outlive the app.** A background daemon owns the PTYs. Quit diri, reopen it, and\n  everything is still there.\n- **Agents can orchestrate agents.** An MCP server lets a running agent spawn another one,\n  watch it, read its output, and answer its prompts.\n\nFirst-class status detection and resume are Claude Code and Codex. Cursor and Gemini run with\npartial support, and anything else runs as a terminal with running/exited status.\n\n![Claude Code, Codex, Cursor, Gemini, and shell agents](docs/images/diri-agent-lineup.png)\n\n## Architecture\n\nTwo processes, one wire protocol:\n\n![Diri architecture: app and CLI connect through the control socket to the engine, persistent PTY holders, and coding agents](docs/images/diri-architecture.png)\n\n- **`diri`** — the desktop app: Rust + [GPUI](https://github.com/zed-industries/zed). Owns the\n  window, sidebar, terminal renderer, command palette, and usage accounting. Lives in\n  [`diri/`](diri/).\n- **`dirijord-rs`** — the headless Rust engine, launched by the app and outliving it. Owns PTYs and\n  child agent processes, an offset-addressed output log per session (for detach and replay), a\n  headless terminal emulator for status detection, the session registry and persistence,\n  worktrees, and the control socket.\n\n`dirijor` is the automation CLI for hooks, notifications, status, and diagnostics;\n`dirijor-mcp` is the MCP stdio server injected into agents. `diri-holder` owns each PTY master so\nsessions survive an engine restart. Every shipped executable is built from the Rust workspace in\n[`diri/`](diri/).\n\n## Adding an agent\n\nAgent support is data, not code. Each agent is one JSON file in\n`diri/crates/diri-engine/manifests/` describing how to spawn it, ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-08-28T12:24:11.307564"
+  }
+]

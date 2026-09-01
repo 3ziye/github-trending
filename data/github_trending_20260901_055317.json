@@ -1,0 +1,906 @@
+[
+  {
+    "basic_info": {
+      "name": "anti-mage",
+      "full_name": "N4darae/anti-mage",
+      "owner": "N4darae",
+      "description": "Browser testing utilizes various methods and algorithms, and performs calculations based on multiple parameters.",
+      "url": "https://github.com/N4darae/anti-mage",
+      "clone_url": "https://github.com/N4darae/anti-mage.git",
+      "ssh_url": "git@github.com:N4darae/anti-mage.git",
+      "homepage": "",
+      "created_at": "2026-08-22T04:11:00Z",
+      "updated_at": "2026-09-01T03:11:22Z",
+      "pushed_at": "2026-08-30T14:46:13Z"
+    },
+    "stats": {
+      "stars": 1287,
+      "forks": 37,
+      "watchers": 1287,
+      "open_issues": 0,
+      "size": 315
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 439631,
+        "JavaScript": 140012,
+        "CSS": 8915,
+        "HTML": 2322,
+        "Makefile": 178
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# The Anti-Mage Project \n\nTired of anti-detect browsers? So am I. That is why I am publishing some of the\ntechniques that catch them.\n\nThere are many more of them, against the large commercial browsers and against\nthe open-source ones that call themselves anti-detect alike. I know this will get\nreverse-engineered. That is fine and it is a starting shot, to show how much room\nis left in detecting a bot on consistency alone. I hope it gives you somewhere to\nbegin, and that you take it further.\n\nA permanent, non-profit Go project that scores how coherent a browser\nenvironment is, together with the reference data that scoring reads. A client\nasks for a score; it gets back one determination, one estimated score, and one\nsentence saying what the two mean.\n\n## What it catches\n\nConsistency, mostly. A browser's own surfaces are checked against each other\nand against what the browser claims about itself. Example: a screen against its own\nviewport, a version against what it can do, one graphics interface against\nanother, a device against its own decoders, a font set against the platform\nit should imply. None of these need a signature or a known tool; they only\nneed two things a browser said to disagree.\n\n\n\n## Results\n\n100 samples per browser on Windows. A score is always a multiple of ten, so\nrange and median land on that step exactly; the mean is given to one decimal and\nthe last column rounds it back onto the step. Every figure in the table is\nrounded, not raw. 0 means nothing disagreed.\n\n| browser | n | range | median | mean | rounded |\n| --- | ---: | ---: | ---: | ---: | ---: |\n| Chrome, stock | 100 | 0 | 0 | 0.0 | **0** |\n| Firefox, stock | 100 | 0 | 0 | 0.0 | **0** |\n| Edge, stock | 100 | 0 | 0 | 0.0 | **0** |\n| Brave | 100 | 10–30 | 10 | 13.4 | **10** |\n| AdsPower | 100 | 50–70 | 60 | 60.0 | **60** |\n| CloakBrowser | 100 | 40–80 | 70 | 67.0 | **70** |\n| NSTBrowser | 100 | 40–90 | 80 | 73.0 | **70** |\n| Camoufox | 100 | 60–90 | 80 | 80.0 | **80** |\n\nEvery anti-detect browser tested came back modified, none with a median below\n60, and every stock browser came back at 0 across all 100 samples, no false\npositives to trade for it. The scores are not a ranking of those tools; a higher\nnumber only means more of the environment contradicted itself.\n\nBrave's median sits at 10 because it modifies the surfaces it says it modifies,\nwhich is the lightest thing this project records and not a claim against it.\n\n<img width=\"1186\" height=\"679\" alt=\"image\" src=\"https://github.com/user-attachments/assets/a7a5ebf2-3843-469d-b806-5b5ca0e26fd6\" />\n\n\n## Requirements\n\n* **Go 1.24+**\n* **Zero external dependencies** (the collector UI and reference datasets are embedded via `go:embed`).\n\n\n## Scoring a client\n\nTwo calls: the client asks for the inputs of one scan, measures itself, and posts\nwhat it measured.\n\n**`GET /api/bootstrap`** (also answers `POST`, aliased at `/bootstrap.json`)\nreturns the inputs this server chose for one scan: a nonce, and the questions the\nscan asks. The questions are the server's, so the environment cannot have\nprepared its answers. A client merges the bootstrap over its own defaults and\nkeeps the nonce.\n\n**`POST /api/scan`** takes the observations and returns the assessment. Send the\nnonce back as a top-level `nonce` field, as `X-Anti-Mage-Nonce`, or as a `nonce`\nquery parameter.\n\n```json\n{\"v\": 1, \"nonce\": \"…\",\n \"probes\": {\"<id>\": {\"status\": \"ok\", \"value\": …},\n            \"<id>\": {\"status\": \"unsupported\", \"value\": {\"reason\": \"…\"}}}}\n```\n\n`ok` is the only status read as evidence, `observations` is accepted in place of\n`probes`, and an unknown id is ignored, so a newer client still scores against an\nolder server.\n\n```json\n{\"v\": 1,\n \"determination\": \"coherent\",\n \"score\": 0,\n \"statement\": \"Everything that could be read agrees with the platform this environment claims.\",\n \"supplied\": [\"…\", \"…\"]}\n```\n\n`determination` is one of `coherent`, `discrepant`, `instrumented`,\n`insufficient`, `not-evaluated`. `score` is an estimate from 0 to 100 in steps of\nten. `supplied` echoes the ids the client sent, which tells it nothing it did not\ncompute itself.\n\nThe server keeps the clock and remembers the inputs it issued recently, so a\nclient cannot price its own elapsed time and a payload can be tied to a scan that\nactually ran.\n\n## The page\n\n```\ngit clone https://github.com/N4darae/anti-mage && cd anti-mage && go run .\n```\n\nprints one loopback URL. Open it in the browser you want to examine and press\nthe button: the page is a client of the two endpoints above, and shows the\ndetermination, the score and the sentence. It reads a bootstrap injected into\nthe page first and falls back to `GET /api/bootstrap`.\n\n`-addr` changes the address, which must be loopback; `-web <dir>` serves the\npage from disk instead of the copy compiled in.\n\n## In-process\n\n`assess` is the way in for a caller that already has the observations.\n\n```go\nimport \"github.com/N4darae/anti-mage/assess\"\n\nenv := assess.Environment{\n    Observations: map[string]assess.O",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:18.078425"
+  },
+  {
+    "basic_info": {
+      "name": "doc7",
+      "full_name": "magicrew/doc7",
+      "owner": "magicrew",
+      "description": "Turn documents into AI-ready Markdown with visual understanding",
+      "url": "https://github.com/magicrew/doc7",
+      "clone_url": "https://github.com/magicrew/doc7.git",
+      "ssh_url": "git@github.com:magicrew/doc7.git",
+      "homepage": null,
+      "created_at": "2026-08-02T14:03:55Z",
+      "updated_at": "2026-08-31T03:47:36Z",
+      "pushed_at": "2026-08-07T12:08:40Z"
+    },
+    "stats": {
+      "stars": 1180,
+      "forks": 48,
+      "watchers": 1180,
+      "open_issues": 1,
+      "size": 508
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 615845,
+        "PowerShell": 18012,
+        "Shell": 14556,
+        "Dockerfile": 2271,
+        "Batchfile": 1552
+      },
+      "license": "MIT License",
+      "topics": [
+        "document-ai",
+        "docx-to-markdown",
+        "local-ai",
+        "markdown",
+        "multimodal",
+        "open-source",
+        "pdf-to-markdown",
+        "vision-language-model"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <h1>doc7</h1>\n  <p><strong>Any document in. AI-ready Markdown out.</strong></p>\n  <p>Turn PDFs, Office files, scans, screenshots, charts, formulas, and diagrams into Markdown your AI can search, quote, and reason over.</p>\n  <p><a href=\"./README.zh-CN.md\">简体中文</a> · English</p>\n  <p><a href=\"https://github.com/magicrew/doc7\">GitHub</a> · <a href=\"https://github.com/magicrew/doc7/releases\">Releases</a> · <a href=\"./benchmarks/attention-is-all-you-need/README.md\">Benchmark</a></p>\n</div>\n\n[![Build](https://github.com/magicrew/doc7/actions/workflows/build.yml/badge.svg)](https://github.com/magicrew/doc7/actions/workflows/build.yml) [![Latest Release](https://img.shields.io/github/v/release/magicrew/doc7?display_name=tag)](https://github.com/magicrew/doc7/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)\n\n[![doc7 turns any document into AI-ready Markdown](./assets/readme/hero/hero.webp)](#quick-start)\n\n`doc7` turns PDFs, Office files, scans, screenshots, charts, formulas, and\ndiagrams into Markdown through your own OpenAI-compatible multimodal model.\nNo required OCR stack. No document-processing service lock-in.\n\n## Quick Start\n\nInstall doc7, start a local vision model in LM Studio or Ollama, then convert a\ndocument:\n\n```bash\n# macOS or Linux\ncurl -fsSL https://raw.githubusercontent.com/magicrew/doc7/main/scripts/install.sh | bash\n\n# Windows PowerShell\nirm https://raw.githubusercontent.com/magicrew/doc7/main/scripts/install.ps1 | iex\n\n# Convert a document\ndoc7 report.pdf\n```\n\nThe first run discovers the local model endpoint and saves the selected model\non this machine. For a remote endpoint, configure it with `doc7 setup`.\n\n## Understand Complex Pages\n\n[![doc7 turns Attention Is All You Need into AI-ready Markdown](./examples/attention-is-all-you-need/showcase.webp)](./examples/attention-is-all-you-need/input.webp)\n\nOne raster-only page from *Attention Is All You Need*. No text layer. doc7\nrecovers the paper identity, Figure 2, the displayed equation, the scaling\nrationale, the technical footnote, and the ordered relationships inside both\nattention diagrams as searchable Markdown.\n\nThe same pipeline processes complete papers and multi-page reports, then\nrebuilds the ordered pages into one document.\n\n`doc7` reads the whole page instead of stopping at character extraction. Bring\nany OpenAI-compatible multimodal model, including a private or local deployment.\nThere is no required OCR stack and no per-page document-parser fee from doc7.\n\n## Measured on Real Inputs\n\n[![doc7 Visual Understanding Benchmark](./assets/readme/benchmark/benchmark.webp)](./benchmarks/visual-report/README.md)\n\nTwo raster-only PDFs. Fifteen machine-checkable visual facts. MarkItDown OCR\nand doc7 used the same `qwen3.5-9b` model through the same local\nOpenAI-compatible endpoint. Docling used its standard local pipeline.\n\nIn this run, doc7 recovered **15/15** checked facts, compared with 9/15 for\nMarkItDown with its OCR plugin and 3/15 for Docling's standard pipeline.\n\n## One Pipeline for Every Format\n\n[![doc7 processes every document through one visual-understanding pipeline](./assets/readme/formats/formats.webp)](#supported-inputs)\n\nDifferent containers enter the same page-understanding pipeline. Text, tables,\nformulas, charts, diagram relationships, image meaning, and visible UI state\nleave as one searchable Markdown document.\n\n## Built Around the CLI\n\n[![doc7 command-line interface on macOS, Linux, and Windows](./assets/readme/cli/cli.webp)](#quick-start)\n\nThe same binary provides the interactive CLI, batch processing, model checks,\nMCP, the Go SDK, and the asynchronous HTTP service.\n\n## Detailed Setup and Usage\n\n**Download:** [macOS, Linux, and Windows CLI archives](https://github.com/magicrew/doc7/releases)\n\nInstall the latest release without administrator privileges.\n\nmacOS or Linux:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/magicrew/doc7/main/scripts/install.sh | bash\n```\n\nWindows PowerShell:\n\n```powershell\nirm https://raw.githubusercontent.com/magicrew/doc7/main/scripts/install.ps1 | iex\n```\n\nThe installer is the recommended macOS path. It downloads a checksum-verified\nrelease and installs it under your user directory, so it does not require an\nadministrator account or an Apple Developer ID. Directly opening a binary\ndownloaded by a browser is different: macOS may attach a quarantine attribute\nto that file. If you choose the archive path, run the included command from\nTerminal after extracting it:\n\n```bash\nxattr -dr com.apple.quarantine <extracted-directory>\n```\n\nThis removes the local download quarantine; it is not Apple signing or\nnotarization. Official Developer ID signing and notarization require an Apple\nDeveloper Program account and are planned for a future signed release channel.\n\nStart LM Studio or Ollama, load a local vision model, and convert a file:\n\n```bash\ndoc7 report.pdf\ndoc7 screenshot.png\n```\n\nThat is the complete first-run flow. doc7 detects t",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:19.330976"
+  },
+  {
+    "basic_info": {
+      "name": "pgbot",
+      "full_name": "pgrundev/pgbot",
+      "owner": "pgrundev",
+      "description": "Postgres intelligence for ai agents & apps",
+      "url": "https://github.com/pgrundev/pgbot",
+      "clone_url": "https://github.com/pgrundev/pgbot.git",
+      "ssh_url": "git@github.com:pgrundev/pgbot.git",
+      "homepage": "https://pgbot.dev",
+      "created_at": "2026-08-11T23:41:52Z",
+      "updated_at": "2026-09-01T05:49:43Z",
+      "pushed_at": "2026-09-01T05:48:29Z"
+    },
+    "stats": {
+      "stars": 845,
+      "forks": 41,
+      "watchers": 845,
+      "open_issues": 11,
+      "size": 12401
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1071722,
+        "Shell": 12898,
+        "JavaScript": 11937,
+        "Makefile": 623,
+        "Dockerfile": 512
+      },
+      "license": "Other",
+      "topics": [
+        "ai",
+        "data-analysis",
+        "database",
+        "postgres",
+        "postgresql",
+        "postgresql-database"
+      ]
+    },
+    "content": {
+      "readme": "\n<h1 align=\"center\">pgbot</h1>\n\n<p align=\"center\">\n  <strong>In-database observability for PostgreSQL.</strong><br>\n  One static binary connects read-only, reads Postgres's own statistics views,\n  and prints a findings-first health report — plus what changed since last time.<br>\n  No agent, no external service, no write privilege anywhere in the path.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/pgrundev/pgbot/actions/workflows/ci.yml\"><img alt=\"CI\" src=\"https://github.com/pgrundev/pgbot/actions/workflows/ci.yml/badge.svg\"></a>\n  <a href=\"https://github.com/pgrundev/pgbot/releases/latest\"><img alt=\"Release\" src=\"https://img.shields.io/github/v/release/pgrundev/pgbot\"></a>\n  <a href=\"https://pkg.go.dev/github.com/pgrundev/pgbot\"><img alt=\"Go Reference\" src=\"https://pkg.go.dev/badge/github.com/pgrundev/pgbot.svg\"></a>\n  <a href=\"https://goreportcard.com/report/github.com/pgrundev/pgbot\"><img alt=\"Go Report Card\" src=\"https://goreportcard.com/badge/github.com/pgrundev/pgbot\"></a>\n  <a href=\"LICENSE\"><img alt=\"License: Apache-2.0\" src=\"https://img.shields.io/badge/license-Apache--2.0-blue\"></a>\n  <img alt=\"PostgreSQL 14–18\" src=\"https://img.shields.io/badge/postgres-14%E2%80%9318-336791\">\n</p>\n\n<p align=\"center\">\n  <a href=\"#quickstart\">Quickstart</a> ·\n  <a href=\"#install\">Install</a> ·\n  <a href=\"#setup--a-read-only-role-with-pg_monitor\">Setup</a> ·\n  <a href=\"#commands-and-flags\">Commands</a> ·\n  <a href=\"#ci-integration\">CI</a> ·\n  <a href=\"#mcp--use-pgbot-as-an-agent-tool\">MCP</a> ·\n  <a href=\"#the---json-contract\">JSON contract</a> ·\n  <a href=\"#troubleshooting\">Troubleshooting</a> ·\n  <a href=\"docs/providers.md\">Provider notes</a>\n</p>\n\n> **Status: beta.** The `--json` contract is versioned (currently `1.2.0`, JSON\n> Schema published in [`schema/`](schema/)) and breaking changes to it are\n> treated as breaking changes to the tool. The human-readable report is **not**\n> a stable interface — parse `--json`, not the terminal output.\n\n---\n\n## Quickstart\n\n![pgbot inspect — a read-only vital-signs read: headline gauges with a status, then the checks that came back clean](docs/img/dashboard.png)\n\n```sh\ncurl -fsSL https://pgbot.dev/install | sh\npgbot inspect \"postgres://pgbot_ro@host:5432/db\"\n```\n\nOr set the connection once in the environment and drop the argument — handy for\nCI and shells, and it keeps the password out of your history and `ps`:\n\n```sh\nexport DATABASE_URL=\"postgres://pgbot_ro@host:5432/db\"\npgbot inspect\n```\n\npgbot reads the argument first, then `$DATABASE_URL`, then `$PGBOT_DATABASE_URL`.\n(Shell note: `export DATABASE_URL=\"…\"` — no `$` on the left, no spaces around `=`.)\n\nEverything pgbot takes from the environment fits in one block — the connection,\nand (only if you want the optional `ask`/`explain` AI layer) one model key:\n\n```sh\nexport DATABASE_URL=\"postgres://pgbot_ro:…@host:5432/db?sslmode=require\"\n\n# optional, for `pgbot ask` / `pgbot explain` — one of:\nexport OPENAI_API_KEY=sk-…        # → OpenAI (gpt-4o-mini by default)\nexport GEMINI_API_KEY=…           # → Google Gemini (AI Studio key)\n```\n\nEverything else — `inspect`, `queries`, `indexes`, MCP, CI — is fully\ndeterministic and needs **no key**; nothing leaves your machine. Provider\npinning and model/endpoint overrides: [the AI layer](#explain--optional-ai-layer).\n\n```\nconnected · db.example.com · postgres 17.4 · read-only · 6h20m window\n\nDatabase health: 82/100\n\nCRITICAL\n● transaction-id age 1.8B — 84% toward wraparound\n\nWARNING\n● orders queries 3.2× slower (8 → 26 ms mean)\n● 3 unused indexes consume 18 GB\n● connection usage reached 87%\n\nGOOD\n● cache hit ratio 99.4%\n● replication healthy\n● no deadlocks\n\nDetails: pgbot inspect --full   ·   Machine-readable: --json\nAsk it: pgbot ask \"what's wrong?\"\n```\n\nThe default report is a **graded read**: a health score, findings bucketed\nCRITICAL / WARNING / NOTE, then a GOOD list naming the healthy subsystems with\ntheir values (a tool that names what it verified reads like a colleague who\nlooked, not an alarm). `pgbot inspect --full` adds a subsystem status board plus\nthe section tables and per-finding caveats; focused commands (`indexes`,\n`queries`, `tables`, `vacuum`) each drill into one signal; `pgbot ask \"…\"` and\n`pgbot explain` put a plain-language AI reading on top of the same findings.\n`--json` is the complete, versioned contract for agents and scripts.\n\n```\n$ pgbot ask \"what's wrong?\"\n\nYour database is mostly healthy.\n\n1 critical issue:\norders queries became 3.2× slower in the last 6 hours.\n\nLikely cause:\nsequential scans increased after the orders table grew 18%.\n\nRecommended:\nreview an index on customer_id + created_at.\n```\n\n## Why pgbot\n\n| | |\n|---|---|\n| **Read-only by role, not by flag** | The guarantee is a `pg_monitor` login role with no write grants. Session pinning (`default_transaction_read_only`, `statement_timeout=15s`, `lock_timeout=2s`) and `BEGIN READ ONLY` are defence in depth on top of it. |\n| **It remembers** | Every run writes a local baseline, so from the third",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:20.665269"
+  },
+  {
+    "basic_info": {
+      "name": "VoCat",
+      "full_name": "MengMengCode/VoCat",
+      "owner": "MengMengCode",
+      "description": "Vocat is an open-source web control panel and engineering toolkit for Quectel EC20/EC25-class cellular modems. It combines modem discovery, live radio status, AT and USSD terminals, SMS, WiFi Calling, eSIM management, network selection, proxy routing, notifications, audit logs, and release automation in one self-contained service.",
+      "url": "https://github.com/MengMengCode/VoCat",
+      "clone_url": "https://github.com/MengMengCode/VoCat.git",
+      "ssh_url": "git@github.com:MengMengCode/VoCat.git",
+      "homepage": "",
+      "created_at": "2026-08-09T06:43:49Z",
+      "updated_at": "2026-09-01T03:48:13Z",
+      "pushed_at": "2026-08-29T09:49:54Z"
+    },
+    "stats": {
+      "stars": 729,
+      "forks": 230,
+      "watchers": 729,
+      "open_issues": 5,
+      "size": 4212
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 3017489,
+        "TypeScript": 699398,
+        "Shell": 28129,
+        "CSS": 19159,
+        "Python": 7952,
+        "JavaScript": 7353,
+        "Dockerfile": 2162,
+        "HTML": 491
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"web/public/favicon.svg\" width=\"96\" alt=\"Vocat\">\n</p>\n\n<h1 align=\"center\">VoCat</h1>\n\n<p align=\"center\">\n  <img alt=\"Go\" src=\"https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go&logoColor=white\">\n  <img alt=\"React\" src=\"https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=111111\">\n  <img alt=\"TypeScript\" src=\"https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white\">\n  <img alt=\"Vite\" src=\"https://img.shields.io/badge/Vite-7-646CFF?style=flat-square&logo=vite&logoColor=white\">\n  <img alt=\"Tailwind CSS\" src=\"https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white\">\n  <img alt=\"SQLite\" src=\"https://img.shields.io/badge/SQLite-Embedded-003B57?style=flat-square&logo=sqlite&logoColor=white\">\n</p>\n\n<p align=\"center\">\n  <img alt=\"Linux\" src=\"https://img.shields.io/badge/Linux-amd64_%7C_386_%7C_arm64_%7C_aarch64_%7C_armv7-FCC624?style=flat-square&logo=linux&logoColor=111111\">\n  <img alt=\"Docker\" src=\"https://img.shields.io/badge/Docker-Multi--Arch-2496ED?style=flat-square&logo=docker&logoColor=white\">\n  <img alt=\"WiFi Calling\" src=\"https://img.shields.io/badge/WiFi_Calling-IMS_SMS-7B1FA2?style=flat-square\">\n  <img alt=\"eSIM\" src=\"https://img.shields.io/badge/eSIM-LPA_%2F_eUICC-009688?style=flat-square\">\n  <img alt=\"Telegram\" src=\"https://img.shields.io/badge/Telegram-Bot-26A5E4?style=flat-square&logo=telegram&logoColor=white\">\n  <img alt=\"GitHub Actions\" src=\"https://img.shields.io/badge/GitHub_Actions-Release-2088FF?style=flat-square&logo=githubactions&logoColor=white\">\n</p>\n\n**English** | [العربية](docs/README.ar.md) | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md) | [Français](docs/README.fr.md) | [Русский](docs/README.ru.md) | [Español](docs/README.es.md) | [日本語](docs/README.ja.md)\n\nVocat is an open-source web control panel and engineering toolkit for Quectel EC20/EC25-class cellular modems. It combines modem discovery, live radio status, AT and USSD terminals, SMS, WiFi Calling, eSIM management, network selection, proxy routing, notifications, audit logs, and release automation in one self-contained service.\n\nThe backend is written in Go, the interface is built with React and TypeScript, and the production frontend is embedded into the Go binary. A single executable contains the web application and uses SQLite for persistent state.\n\n<p align=\"center\">\n  <img src=\"img\\image.png\">\n  <img src=\"img\\image-1.png\">\n</p>\n\n## Features\n\n| Area | What Vocat provides |\n| --- | --- |\n| Device management | Automatic serial/USB discovery, multiple modem support, friendly device names, live overview updates, module restart, flight mode, and USB networking mode controls. |\n| Radio and network | Registration status, operator, signal metrics, RSRP/RSRQ/SINR, network mode, band, channel, operator scanning, and automatic or manual network selection. |\n| AT and USSD | Interactive AT terminal, command history, raw modem responses, USSD start/continue/cancel flows, and clear modem error reporting. |\n| SMS | Direct cellular and IMS SMS transmission, inbound synchronization, multipart handling, delivery reports, conversation history, unread state, timestamps, and per-message delivery status. |\n| WiFi Calling | IKEv2/ePDG tunnel setup, EAP-AKA authentication, IMS registration, IMS SMS, reconnect controls, status diagnostics, and per-device routing. |\n| eSIM and eUICC | eUICC discovery, EID and production information, certificate metadata, multi-eUICC inventory, installed profile listing, enable/disable/switch operations, download, rename, and delete operations when supported by the card. |\n| Card policy | ICCID-based WiFi Calling and flight-mode behavior with immediate policy application. |\n| Proxy routing | Upstream SOCKS routing, device bindings, country rules, TCP reachability checks, and UDP Associate checks for WiFi Calling data paths. |\n| Notifications | New inbound SMS forwarding through Telegram, Bark, email, Pushplus, and signed webhooks. Each SMS is delivered as an individual notification. |\n| Telegram bot | Device status, installed-profile listing and switching, WiFi Calling controls, and SMS sending. Sensitive actions require administrator confirmation. |\n| Operations | Authentication, CSRF protection, access policies, audit events, live logs, log retention, health checks, responsive layout, dark mode, and English/Chinese application UI. |\n| Distribution | Static Linux binaries, systemd installation script, self-update with SHA-256 verification, Docker image, GHCR publishing, and GitHub Actions release builds. |\n\n## Supported hardware\n\nVocat targets Qualcomm-based Quectel modules that expose compatible AT, QMI, serial, and USB networking interfaces, including:\n\n- Quectel EC20\n- Quectel EC25\n- Quectel EG25 family\n- Compatible EG600 and related modules\n\nAvailable features depend on the module firmware, USB composition, SIM/eSIM capabilities, host d",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-09-01T05:53:21.976538"
+  },
+  {
+    "basic_info": {
+      "name": "boop",
+      "full_name": "chrisgreg/boop",
+      "owner": "chrisgreg",
+      "description": "A tiny, self-hosted notification inbox for developers. Something happened in one of your apps; Boop tells you on your phone.",
+      "url": "https://github.com/chrisgreg/boop",
+      "clone_url": "https://github.com/chrisgreg/boop.git",
+      "ssh_url": "git@github.com:chrisgreg/boop.git",
+      "homepage": null,
+      "created_at": "2026-08-28T15:38:33Z",
+      "updated_at": "2026-09-01T05:44:40Z",
+      "pushed_at": "2026-08-30T11:34:44Z"
+    },
+    "stats": {
+      "stars": 670,
+      "forks": 31,
+      "watchers": 670,
+      "open_issues": 3,
+      "size": 695
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 220044,
+        "Swift": 140804,
+        "Svelte": 101394,
+        "TypeScript": 19346,
+        "CSS": 4207,
+        "Makefile": 1344,
+        "HTML": 1194,
+        "Dockerfile": 1108,
+        "JavaScript": 85
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://github.com/chrisgreg/boop/raw/main/docs/boop.png\" width=\"160\" alt=\"Boop logo\" />\n\n  <h1 align=\"center\">Boop</h1>\n\n<p align=\"center\">\n  <img src=\"https://img.shields.io/github/actions/workflow/status/chrisgreg/boop/ci.yml?branch=main\" alt=\"CI\" />\n  <img src=\"https://img.shields.io/github/go-mod/go-version/chrisgreg/boop?filename=server%2Fgo.mod\" alt=\"Go version\" />\n  <img src=\"https://img.shields.io/github/license/chrisgreg/boop\" alt=\"License\" />\n</p>\n\nA tiny, self-hosted notification inbox for developers. Something happened in one of your apps; Boop tells you on your phone.\n\nOne Go binary, one SQLite file, one Docker container. Pushes go straight from your server to Apple's APNs. There is no hosted relay, account system, or telemetry.\n\n</p>\n\n```bash\ncurl https://boop.example.com/api/v1/events \\\n  -H \"Authorization: Bearer $BOOP_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"title\": \"Backup complete\", \"level\": \"success\"}'\n```\n\n## Architecture\n\n<p align=\"center\">\n  <img src=\"docs/architecture.png\" width=\"900\" alt=\"How Boop works: apps POST events to the Go server, which stores them in SQLite and pushes to APNs; the iOS app fetches full detail from the server; the web UI manages projects and shows the pairing QR.\" />\n</p>\n\nYour apps POST events with a project API key. The Go server redacts and stores them in SQLite, then pushes straight to Apple's APNs using your `.p8` key. The push carries only the title, body and event id; the iOS app fetches the full event from your server with its own device credential. The embedded web UI manages projects and devices and shows the pairing QR the phone scans. An interactive version lives in [`docs/architecture/index.html`](docs/architecture/index.html) (open it locally; the source is `boop.architecture.json`).\n\n## What is in the box\n\n| Part | Where |\n| --- | --- |\n| Go server (API, SQLite, APNs, embedded web UI) | `server/` |\n| Web UI (Svelte, built into the binary) | `server/web/` |\n| iOS app (SwiftUI, iOS 26, you build and sign it) + notification service extension | `ios/` — see [ios/README.md](ios/README.md) |\n| Client libraries | separate repos — see [Integrations](#integrations) |\n| Native desktop client | planned |\n\n## Quick start (Docker)\n\n```bash\ngit clone https://github.com/chrisgreg/boop && cd boop\ncp .env.example .env          # optional: BOOP_BASE_URL and APNS_* values\nmkdir -p data && chown 1000:1000 data   # Linux hosts only; the container runs as uid 1000\ndocker compose up -d --build\nopen http://localhost:8080\n```\n\nThe first visit opens a setup wizard: server check, APNs, pairing, first project, test notification. APNs credentials are optional; without them events are stored and shown in the UI but pushes are skipped, and the settings page says so.\n\nData lives in `./data/boop.db`. Back up by copying that file (use `sqlite3 data/boop.db \".backup backup.db\"` for a consistent copy while running). Back up your `.p8` key separately.\n\n## Quick start (binary)\n\nEvery [release](https://github.com/chrisgreg/boop/releases) ships a static, dependency-free binary for Linux, macOS and Windows (amd64 and arm64) with the web UI embedded. Download the archive for your platform, verify it against `checksums.txt` if you like, and run:\n\n```bash\ntar xzf boop_*_linux_amd64.tar.gz && cd boop_*_linux_amd64\nBOOP_DATABASE_PATH=./boop.db ./boop     # listens on :8080\n```\n\nConfiguration is the same set of environment variables as Docker (see [Configuration](#configuration)). `BOOP_DATABASE_PATH` defaults to `/data/boop.db`, so set it to somewhere writable.\n\n## Send an event\n\nCreate a project in the web UI and copy its API key (shown once). Then:\n\n```bash\n# minimum\ncurl http://localhost:8080/api/v1/events \\\n  -H \"Authorization: Bearer boop_proj_...\" -H \"Content-Type: application/json\" \\\n  -d '{\"title\": \"Deploy complete\"}'\n\n# rich\ncurl http://localhost:8080/api/v1/events \\\n  -H \"Authorization: Bearer boop_proj_...\" -H \"Content-Type: application/json\" \\\n  -d '{\n    \"title\": \"KeyError\", \"body\": \"key :can_palette? not found\",\n    \"level\": \"error\", \"source\": \"error_tracker\", \"fingerprint\": \"uini-keyerror\",\n    \"data\": {\n      \"exception\": {\"type\": \"KeyError\", \"message\": \"key :can_palette? not found\"},\n      \"stacktrace\": [{\"file\": \"lib/uini_web/live/widget_settings_live.ex\", \"line\": 49, \"function\": \"handle_event/3\", \"in_app\": true}],\n      \"tags\": {\"environment\": \"production\"},\n      \"context\": {\"user_id\": \"123\"}\n    }\n  }'\n```\n\nLevels: `info`, `success`, `warning`, `error`, `critical`. Anything in `data` is kept as-is (recognised sections such as `exception`, `stacktrace`, `tags`, `context` and `breadcrumbs` get a nicer rendering) after sensitive keys are redacted.\n\n**Actions.** Up to three buttons that open a URL — on the notification itself (long-press or pull down) and in the event detail:\n\n```bash\ncurl http://localhost:8080/api/v1/events \\\n  -H \"Authorization: Bearer boop_proj_...\" -H \"Content-Type: application/json\" \\\n  -d '{\"title\": \"",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:23.223364"
+  },
+  {
+    "basic_info": {
+      "name": "easy-stock",
+      "full_name": "jundizhou/easy-stock",
+      "owner": "jundizhou",
+      "description": "A 股行情分析与AI智能投研智能体——easy stock",
+      "url": "https://github.com/jundizhou/easy-stock",
+      "clone_url": "https://github.com/jundizhou/easy-stock.git",
+      "ssh_url": "git@github.com:jundizhou/easy-stock.git",
+      "homepage": "",
+      "created_at": "2026-08-07T16:25:36Z",
+      "updated_at": "2026-08-31T04:03:21Z",
+      "pushed_at": "2026-08-27T08:18:24Z"
+    },
+    "stats": {
+      "stars": 630,
+      "forks": 7,
+      "watchers": 630,
+      "open_issues": 0,
+      "size": 14396
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1576516,
+        "TypeScript": 643949,
+        "CSS": 324562,
+        "JavaScript": 184364,
+        "Shell": 7347,
+        "Python": 3450,
+        "HTML": 652
+      },
+      "license": "Other",
+      "topics": [
+        "a-share",
+        "ai-agent",
+        "china-stock",
+        "llm",
+        "stock",
+        "stock-analysis",
+        "trade"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"https://cdn.jsdelivr.net/gh/jundizhou/easy-stock@main/desktop/assets/easy-stock.png\" width=\"112\" height=\"112\" alt=\"easy-stock Logo\" />\n</p>\n\n<h1 align=\"center\">easy-stock：A股 AI 智能投研工作台</h1>\n\n<p align=\"center\"><strong>面向个人投资者的 A股行情分析、股票分析与 AI投研桌面应用</strong></p>\n\n<p align=\"center\">\n  让 AI 看懂市场，让每一次判断都有证据。<br />\n  把盘中观察、盘后复盘和长期认知，沉淀为一套持续进化的研究系统。\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/jundizhou/easy-stock/releases/latest\"><strong>下载最新版</strong></a> ·\n  <a href=\"https://qm.qq.com/q/lizlauc32U\"><strong>加入 QQ 群</strong></a> ·\n  <a href=\"#核心产品能力\">查看核心能力</a> ·\n  <a href=\"https://github.com/jundizhou/easy-stock/issues/new/choose\">反馈问题</a> ·\n  <a href=\"./ROADMAP.md\">产品路线图</a>\n</p>\n\n<p align=\"center\">\n  <img alt=\"Go\" src=\"https://img.shields.io/badge/Backend-Go-00ADD8?logo=go&logoColor=white\" />\n  <img alt=\"React\" src=\"https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-3178C6?logo=react&logoColor=white\" />\n  <img alt=\"Electron\" src=\"https://img.shields.io/badge/Desktop-Electron-47848F?logo=electron&logoColor=white\" />\n  <img alt=\"Hermes\" src=\"https://img.shields.io/badge/AI-Hermes-6D5BD0\" />\n  <img alt=\"Local First\" src=\"https://img.shields.io/badge/Data-Local%20First-159A80\" />\n  <img alt=\"License\" src=\"https://img.shields.io/badge/License-Non--Commercial-EA580C\" />\n  <a href=\"https://github.com/jundizhou/easy-stock/releases/latest\"><img alt=\"Latest release\" src=\"https://img.shields.io/github/v/release/jundizhou/easy-stock?label=Release\" /></a>\n  <a href=\"https://github.com/jundizhou/easy-stock/stargazers\"><img alt=\"GitHub stars\" src=\"https://img.shields.io/github/stars/jundizhou/easy-stock?style=flat\" /></a>\n</p>\n\n<h3 align=\"center\">easy-stock QQ 交流群</h3>\n\n<p align=\"center\">\n  <a href=\"https://qm.qq.com/q/lizlauc32U\"><strong>点击加入群聊：422158208</strong></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"#为什么要做-easy-stock\">为什么</a> ·\n  <a href=\"#核心产品能力\">核心能力</a> ·\n  <a href=\"#ai-如何赋能-a-股研究\">AI 研究方式</a> ·\n  <a href=\"#ai-原生架构\">系统架构</a> ·\n  <a href=\"#快速开始\">快速开始</a> ·\n  <a href=\"https://github.com/jundizhou/easy-stock/discussions\">社区讨论</a> ·\n  <a href=\"./CONTRIBUTING.md\">参与贡献</a> ·\n  <a href=\"#许可与商业使用\">许可</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://cdn.jsdelivr.net/gh/jundizhou/easy-stock@main/docs/assets/easy-stock-product-overview.png\">\n    <img src=\"https://cdn.jsdelivr.net/gh/jundizhou/easy-stock@main/docs/assets/easy-stock-product-overview.png\" width=\"1280\" alt=\"easy-stock A股 AI 智能投研工作台产品全景图，展示趋势题材、主线梯队、个股日 K 与龙头分析\" />\n  </a>\n</p>\n\n<p align=\"center\"><sub>行情总览 · 大 V 自动复盘 · 趋势题材雷达 · 超短情绪 · 个股 AI 分析 · 持仓 AI 巡检 · 本地研究记忆</sub></p>\n\n---\n\n## 为什么要做 easy-stock\n\nAI 时代的炒股软件，不应该只是在传统行情终端旁边多放一个聊天框。\n\n传统行情软件擅长展示价格、涨跌幅和成交额，但 A股交易真正困难的是理解价格背后的结构：今天的主线是什么、题材是否扩散、连板高度是否打开、昨日强势股是否获得溢价、趋势是否仍然成立、情绪处于修复还是退潮。\n\neasy-stock 希望构建一套真正理解 A股语境的 AI 原生工作台，把行情分析、题材研究、股票分析、盘后复盘与可追溯证据放进同一个本地优先的研究流程：\n\n| AI 原生能力 | easy-stock 的实现方式 |\n| --- | --- |\n| **感知市场** | 聚合开盘啦、东方财富、新浪、财联社等来源，统一行情、K 线、题材、涨停与资讯数据 |\n| **理解结构** | 将趋势、题材、连板、情绪、量价和相对强度整理成可计算的领域模型 |\n| **执行任务** | 通过定时调度、内置浏览器和 Agent 自动发现文章、去重、归档并提炼观点 |\n| **形成记忆** | 将文章、摘要、情绪历史、分析记录、模型会话和研究缓存保存在本机 |\n| **验证结论** | 保留评分维度、题材来源、原文地址、更新时间、延迟与降级状态，让结论可以回到证据层核验 |\n\n> easy-stock 的目标不是替你做决定，而是让你在 AI 时代拥有更完整的感知、更高效的研究和更可复用的判断体系。\n\n---\n\n## 核心产品能力\n\n### 01 · 大 V 自动复盘\n\n#### 兼听则明，客观则赢：让 AI 自动收集和整理多位市场作者的观点\n\n大 V 的盘后复盘通常分散在雪球、淘股吧和微信公众号中，手工逐个打开主页、筛选当天文章、复制正文并整理观点非常耗时。easy-stock 将这些内容组织为统一的复盘时间流：\n\n<p align=\"center\">\n  <img src=\"https://cdn.jsdelivr.net/gh/jundizhou/easy-stock@main/docs/assets/easy-stock-auto-review.png\" width=\"2560\" height=\"1692\" alt=\"easy-stock 大 V 自动复盘与每日同步工作台\" />\n</p>\n\n文章收集完成后，可以一键生成「今日大 V 观点共识」，从文章集合中提炼共同关注方向、主要分歧、盘面事实与下一交易日需要验证的条件。\n\n<p align=\"center\">\n  <img src=\"https://cdn.jsdelivr.net/gh/jundizhou/easy-stock@main/docs/assets/easy-stock-ai-daily-consensus.png\" width=\"2560\" height=\"1692\" alt=\"easy-stock AI 今日大 V 观点共识与明日预期\" />\n</p>\n\n这套能力希望解决的不是“让 AI 猜明天涨什么”，而是把几十篇非结构化文章转化为一份可阅读、可核验、可在次日继续跟踪的观点地图。\n\n### 02 · 超短连板分析\n\n#### 看清梯队、晋级和情绪周期，寻找真正的超短节点\n\n系统将涨停池、连板梯队、昨日反馈、晋级率和情绪历史放在同一视图中,并设计一套算法分析情绪周期：\n\n<p align=\"center\">\n  <img src=\"https://cdn.jsdelivr.net/gh/jundizhou/easy-stock@main/docs/assets/easy-stock-short-term-analysis.png\" width=\"2560\" height=\"1692\" alt=\"easy-stock 超短连板、市场情绪与晋级结构分析\" />\n</p>\n\n### 03 · 趋势题材雷达\n\n#### 从板块涨跌中识别真正的市场主线：牛市进程分歧研究，熊市进程分歧防守\n聚合题材排名、涨跌强度、资金流、上涨宽度和持续天数，通过题材地图拆解产业链、概念节点和细分方向。结合 AI 分析市场趋势、题材阶段和趋势股的条件化介入点\n\n<p align=\"center\">\n  <img src=\"https://cdn.jsdelivr.net/gh/jundizhou/easy-stock@main/docs/assets/easy-stock-theme-radar.png\" width=\"2560\" height=\"1696\" alt=\"easy-stock 趋势题材雷达、主线热度与个股梯队分析\" />\n</p>\n\n### 04 · 行情总览\n\n#### 把指数、资金、榜单和研究信号组织成一张可追溯的市场地图\n\n行情总览将市场核心指数、新闻快讯、行业趋势强度、行业资金、题材概念、个股资金流入流出、龙虎榜、公告雷达、机构观点与产业透视统一到同一个研究入口。每个页面保留数据来源与抓取时间，并可将当前上下文直接交给 AI 解读，减少在多个行情终端和资讯页面之间来回切换。\n\n<p align=\"center\">\n  <img src=\"https://cdn.jsdelivr.net/gh/jundizhou/easy-stock@main/docs/assets/easy-stock-market-overview-indices.png\" width=\"2560\" height=\"1696\" alt=\"easy-stock 行情总览、市场核心指数与跨市场走势分析\" />\n</p>\n\n<p align=\"center\">\n  <img src=\"https://cdn.jsdelivr.net/gh/jundiz",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:24.463383"
+  },
+  {
+    "basic_info": {
+      "name": "codex-subscription-router",
+      "full_name": "b-nnett/codex-subscription-router",
+      "owner": "b-nnett",
+      "description": null,
+      "url": "https://github.com/b-nnett/codex-subscription-router",
+      "clone_url": "https://github.com/b-nnett/codex-subscription-router.git",
+      "ssh_url": "git@github.com:b-nnett/codex-subscription-router.git",
+      "homepage": null,
+      "created_at": "2026-08-16T09:35:21Z",
+      "updated_at": "2026-09-01T02:18:47Z",
+      "pushed_at": "2026-08-23T18:03:48Z"
+    },
+    "stats": {
+      "stars": 396,
+      "forks": 55,
+      "watchers": 396,
+      "open_issues": 14,
+      "size": 2117
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 130630,
+        "Python": 56983,
+        "JavaScript": 54178,
+        "Shell": 4936,
+        "C": 2078
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Codex Subscription Router\n\n![Multi-subscription account menu](screenshots/account-menu.png)\n\nUse multiple ChatGPT subscriptions from one independent macOS desktop app.\n\nCodex Subscription Router creates a locally patched copy of the official\nChatGPT app, balances new chats across connected subscriptions, and keeps every\nthread on one subscription so follow-up turns retain conversation context and\nbenefit from account-level caching.\n\nThe official ChatGPT installation is used only as build input and is never\nmodified. This repository contains source code and build tooling—not OpenAI\nbinaries or a prebuilt application.\n\n> [!WARNING]\n> This is an unofficial, version-sensitive project. It is not affiliated with\n> or supported by OpenAI. Review the source and ensure your use complies with\n> the terms governing every connected subscription.\n\n![Combined multi-account profile](screenshots/combined-profile-20px.png)\n\n## Highlights\n\n- **Quota-aware routing.** New chats favour weekly allowance that will expire\n  sooner, with a bounded boost for accounts holding banked usage resets.\n- **Sticky conversations.** Once a thread is assigned, every follow-up returns\n  to the same subscription unless that subscription is depleted.\n- **Automatic failover.** A depleted thread continues through another account\n  with quota; if the whole pool is empty, the app shows one combined alert.\n- **Native account management.** The existing profile menu shows pooled usage,\n  profile photos, plan names, masked emails, and device-code sign-in.\n- **Account-aware settings.** Profile statistics can be viewed together or per\n  subscription, while the Plugins page can switch Apps and MCP connections\n  between accounts.\n- **Per-account resets.** The native rate-limit sheet shows and consumes resets\n  for the selected subscription.\n- **Working macOS integrations.** The copied Appshots and Computer Use helper is\n  independently identified and signed so it can receive its own privacy grants.\n\n## How it works\n\nThe patched desktop still opens one app-server connection. A small Go\nmultiplexer fans that connection out to one official Codex child per account.\nEach child has an isolated Codex home, while the multiplexer records the owner\nof every thread.\n\n```text\nCodex Subscription Router.app\n        │\n        │ one app-server connection\n        ▼\n    codex-mux\n    ├── Primary       → ~/.codex\n    ├── Subscription 2 → isolated Codex home\n    └── Subscription 3 → isolated Codex home\n             │\n             └── thread ID → persistent account owner\n```\n\nNew-thread routing compares the quota burn rate needed before each weekly reset,\nthen applies a capped banked-reset boost. Short-window usage, pinned-thread\ncount, and stable account order break close results. Existing threads do not\nmigrate merely for load balancing.\n\nRead [the architecture](docs/ARCHITECTURE.md) for the request flow and\n[the security model](docs/SECURITY-MODEL.md) for trust boundaries.\n\n## Compatibility\n\nCodex Subscription Router currently targets:\n\n| Component | Supported value |\n| --- | --- |\n| Platform | macOS on Apple silicon |\n| Official ChatGPT version | `26.803.61601` |\n| Official bundle build | `6396` |\n| Go | 1.26 or newer |\n| Node.js | 22.12 or newer |\n\nThe patcher verifies the official version, build, ASAR hash, renderer anchors,\nand native binary constants before changing anything. An unknown upstream build\nis rejected by default rather than being partially patched. See\n[Compatibility](docs/COMPATIBILITY.md) for the recorded hash and test details.\n\n## Requirements\n\n- The official ChatGPT app installed at `/Applications/ChatGPT.app`\n- Xcode Command Line Tools\n- Go 1.26+\n- Node.js 22.12+ and npm\n- An Apple Development or Developer ID Application signing identity\n\nA team-backed signing identity is required for reliable Appshots and Computer\nUse permissions. Ad-hoc signing is intended only for diagnostics.\n\n## Install\n\nRun one command. It downloads or updates the source, installs the locked build\ndependency, creates the independently signed app, and launches it:\n\n```sh\ncurl -fsSL https://raw.githubusercontent.com/b-nnett/codex-subscription-router/main/install.sh | /bin/bash\n```\n\nThe installer keeps its source checkout in\n`~/.codex-subscription-router/source`. On an existing installation it uses the\nsame account state, creates a recoverable backup, and requires signing-team\ncontinuity so macOS privacy grants remain valid. It stops with a clear message\ninstead of making a partial installation when a prerequisite or upstream\ncompatibility check fails.\n\n> [!TIP]\n> To inspect the installer before running it, open\n> [`install.sh`](install.sh) or download it without piping it into a shell.\n\n### Install via prompt\n\n> Install Codex Subscription Router from `https://github.com/b-nnett/codex-subscription-router` on this Mac using the repository's supported one-command installer, without modifying the official ChatGPT app or deleting any existing router state. Verify the resulting app and C",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:25.747838"
+  },
+  {
+    "basic_info": {
+      "name": "queqiao",
+      "full_name": "bojieli/queqiao",
+      "owner": "bojieli",
+      "description": "Self-hosted WAN optimization proxy for difficult long-haul links: authenticated QUIC transport with TLS/TCP fallback, SOCKS5 ingress, and packet loss treated as erasure, not congestion.",
+      "url": "https://github.com/bojieli/queqiao",
+      "clone_url": "https://github.com/bojieli/queqiao.git",
+      "ssh_url": "git@github.com:bojieli/queqiao.git",
+      "homepage": null,
+      "created_at": "2026-08-09T15:33:28Z",
+      "updated_at": "2026-09-01T05:26:21Z",
+      "pushed_at": "2026-08-31T03:11:54Z"
+    },
+    "stats": {
+      "stars": 393,
+      "forks": 38,
+      "watchers": 393,
+      "open_issues": 3,
+      "size": 10815
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2624978,
+        "Swift": 251439,
+        "Java": 164850,
+        "Python": 151749,
+        "Shell": 92854,
+        "JavaScript": 82178,
+        "CSS": 15607,
+        "HTML": 9010
+      },
+      "license": "MIT License",
+      "topics": [
+        "congestion-control",
+        "erasure-coding",
+        "fec",
+        "golang",
+        "networking",
+        "proxy",
+        "quic",
+        "socks5",
+        "tunnel",
+        "wan-optimization"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/queqiao-icon.png\" width=\"144\" alt=\"Queqiao project icon\">\n</p>\n\n<h1 align=\"center\">Queqiao</h1>\n\n<p align=\"center\">\n  <strong>Make difficult long-haul links feel local.</strong><br>\n  An open-source, self-hosted transport for TCP and UDP across a long link you control both ends of.\n</p>\n\n<p align=\"center\">\n  <a href=\"docs/DEPLOYING.md\">Deploy</a> ·\n  <a href=\"#how-it-works\">How it works</a> ·\n  <a href=\"docs/STATUS.md\">Project status</a> ·\n  <a href=\"CONTRIBUTING.md\">Contribute</a>\n</p>\n\nDuring my internship at Microsoft Research Asia in 2013,\nI used Microsoft's dedicated link from China and saw,\nfor the first time, how fast access to Google and YouTube could be.\n\nLater, I built a detour gateway in Hong Kong to improve the China-US route when I'm back home.\nIt worked, but it added infrastructure, doubled the network bandwidth cost, and increased\nlatency. Is it possible to directly connect China to US while\nenjoying the same latency and bandwidth with dedicated links?\n\nAlthough I did networking research for 10 years, I did not have the time to build it.\nIt is finally possible with help from Kimi K3, Claude Opus 5 and GPT-5.6 Sol.\nToday, Queqiao is a ready-to-use, self-hosted protocol for supported\nclient-to-gateway deployments. It carries TCP and UDP through a local proxy over\nan authenticated transport, and keeps evolving as we measure more paths,\nimprove the transport, and learn from users.\n\n### Not only client to gateway, but also inter-datacenter\n\nThe same problem turned up between two datacenter servers. This has been our own\npain point since 2023: the models run in the US and the clients are everywhere.\nASR sends a few hundred kilobytes of audio up and gets a sentence back.\nTTS sends a sentence up and gets a few hundred kilobytes back, in one\nburst once the model finishes. Each is a single transfer that has to finish\nbefore anything else happens, which is the shape a long path is worst at.\n\nGuiyang, China to a model in Irvine, US: a 355KB audio upload takes **1185ms**, of\nwhich the ASR model only spends about 30ms.\nIn theory, the path's bandwidth could carry 355KB in about 9ms.\nThe rest is a handshake, a transfer starting at ten segments, and a window\nthrown away between requests.\nQueqiao approaches the limits of this 200ms RTT link, achieving **302ms** end-to-end\non a cold connection and **237ms** once warm, which is the floor. On a sustained\ntransfer it reaches **310 Mbit/s**, 93% of what the path itself carries, against\n3.6 to 106 Mbit/s for direct TCP.\n[Why this profile exists](docs/DESIGN-DC-PROFILE.md) walks through each request; [the\nrunbook](docs/DEPLOYING-DC-PROFILE.md) is how to deploy it.\n\n## Why Queqiao?\n\nMany transports make each connection learn and react on its own. That is a\nreasonable default for the general Internet, but it leaves performance on the\ntable when many application flows share the same difficult client-to-gateway\nsegment.\n\nThe path that motivated Queqiao made the problem concrete: we measured roughly\n42–45% downstream packet erasure even below the path's capacity knee, followed\nby clustered loss when aggregate traffic exceeded that knee. Those two regimes\nneed different responses. Backing off does not remove independent erasure;\nignoring overload only makes it worse. See the full\n[path characterization](docs/PATH-CHARACTER-20260813.md).\n\nQueqiao is built around a few practical observations:\n\n- **Flows sharing one bottleneck should share one model.** Flows to different final\n  destinations can still share one client-to-gateway path, so Queqiao shares\n  delivery, loss, RTT, pacing, and latency-reserve state across them.\n- **Not all packet loss means congestion.** A path that erases packets\n  independently of the sending rate is not an overloaded one, and backing off\n  does not make an erasure channel drop less. So loss is not the congestion\n  signal here: the brake is a delay bound, the round trip may not exceed twice\n  the path's own minimum, and the measured erasure is what sizes the code and\n  compensates the window instead. A policer, which drops without queueing, is\n  the case this does not yet brake -- see the [known\n  limitations](docs/KNOWN-LIMITATIONS.md).\n- **Choose recovery for the path.** On a long-RTT path, forward-error\n  correction can recover a gap sooner than another round trip; as a flow grows,\n  retransmission can become the more efficient choice.\n- **Protect interactive traffic from bulk transfers.** Control and new interactive\n  work must not wait behind a bulk transfer, so aggregate pacing, priority, and\n  reactive isolation protect latency while the pipe is used.\n- **Upstream and downstream are different.** Upstream and downstream can have very\n  different capacity and loss behavior, so they are measured and controlled\n  independently.\n\nThese are operating principles, not universal performance claims. Queqiao is a\ngood fit when the client and gateway are known, trusted endpoints and their\nshared WAN segment is the ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:26.994953"
+  },
+  {
+    "basic_info": {
+      "name": "LayerX-Protocol",
+      "full_name": "Sidiora-Labs/LayerX-Protocol",
+      "owner": "Sidiora-Labs",
+      "description": null,
+      "url": "https://github.com/Sidiora-Labs/LayerX-Protocol",
+      "clone_url": "https://github.com/Sidiora-Labs/LayerX-Protocol.git",
+      "ssh_url": "git@github.com:Sidiora-Labs/LayerX-Protocol.git",
+      "homepage": "https://layerx.paxeer.app",
+      "created_at": "2026-08-14T19:56:00Z",
+      "updated_at": "2026-08-31T11:49:28Z",
+      "pushed_at": "2026-08-31T07:24:43Z"
+    },
+    "stats": {
+      "stars": 384,
+      "forks": 72,
+      "watchers": 384,
+      "open_issues": 34,
+      "size": 300984
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 24565746,
+        "Rust": 12856613,
+        "C": 4796570,
+        "TypeScript": 2772959,
+        "Solidity": 2042493,
+        "Java": 829293,
+        "Shell": 677259,
+        "JavaScript": 629120,
+        "Python": 476719,
+        "TLA": 460286,
+        "Swift": 360205,
+        "TeX": 332482,
+        "C#": 280935,
+        "Makefile": 225765,
+        "BibTeX Style": 78750,
+        "HTML": 47138,
+        "CSS": 30906,
+        "Sage": 30192,
+        "Assembly": 28453,
+        "M4": 25931,
+        "Dockerfile": 19559,
+        "Jinja": 13466,
+        "Go Template": 12878,
+        "SMT": 4387,
+        "Kotlin": 4328,
+        "HCL": 2333
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# LayerX Ecosystem\n\n**A deterministic execution and accounting network built for autonomous agents.**\n\n> **Source-available for inspection and security review.** This repository is not yet licensed for deployment or redistribution. See [License](#license).\n\n[Website](https://layerx.paxeer.app/) · [Protocol design](https://github.com/Sidiora-Labs/LayerX-Protocol/blob/main/spec/layerx-protocol/design.md) · [Contributing](https://github.com/Sidiora-Labs/LayerX-Protocol/blob/main/CONTRIBUTING.md) · [Security](https://github.com/Sidiora-Labs/LayerX-Protocol/blob/main/SECURITY.md)\n\nThis is the canonical Sidiora Labs ecosystem monorepo for LayerX and the Paxeer Network. Co-location keeps the protocol, settlement network, contracts, developer surfaces, and their automation auditable in one place while preserving their separate build, release, deployment, and trust boundaries.\n\nLayerX gives autonomous agents a shared place to transact, coordinate work, delegate authority, and produce verifiable records of what happened. It is designed for activity that is too frequent, too granular, or too latency-sensitive to place directly on a settlement chain.\n\nOrdinary agent activity is executed and ordered inside LayerX. Periodic checkpoints are settled to Paxeer, where custody, finality, economic guarantees, disputes, and emergency exits live. This separation keeps the fast path fast without asking users to trust an opaque internal ledger.\n\nLayerX is under active development and release qualification.\n\n## Why LayerX exists\n\nAgents do not just need wallets. They need infrastructure that can express limited authority, recurring budgets, paid services, escrow, streams, attestations, trading, and settlement as one coherent system.\n\nPutting every one of those actions on a general-purpose chain creates the wrong constraints. It ties routine activity to block production, network fees, and settlement latency. Keeping everything offchain without a verifiable state model creates the opposite problem: speed without credible evidence.\n\nLayerX separates execution from final settlement:\n\n- **LayerX handles activity:** identity, delegated authority, global ordering, balances, payments, agreements, trading, receipts, replay, and data availability.\n- **Paxeer handles settlement:** custody, checkpoint registration, guarantor bonds, challenges, withdrawals, and emergency exits.\n\nThousands or millions of LayerX activities can be represented by a periodic checkpoint. A normal payment, approval, or agent action does not require a Paxeer transaction.\n\n## How the protocol works\n\nEvery state-changing operation enters the network as a signed, canonically encoded `Activity`. The protocol verifies the actor and its authority, consumes the account sequence, orders the activity globally, applies a deterministic state transition, and returns a signed receipt tied to the resulting state root.\n\nThe append-only activity log is authoritative. Database indexes are treated as disposable projections and can be rebuilt by replaying that log. Replicas and bonded guarantors independently replay batches before checkpoint attestations are submitted to Paxeer.\n\n```mermaid\nflowchart TB\n    A[\"Agent or application\"] --> B[\"Signed LayerX activity\"]\n    B --> C[\"Sequencer and deterministic runtime\"]\n    C --> D[\"Receipts, state roots, and replayable batches\"]\n    D --> E[\"Independent replicas and guarantors\"]\n    E --> F[\"Paxeer checkpoint and settlement\"]\n```\n\nThree rules sit at the center of the design:\n\n1. **One canonical history.** Every accepted or failed activity receives a global sequence. State roots are chained per activity, not only per batch.\n2. **One financial doorway.** `402LXP` is the only component allowed to write balances. Protocol modules produce validated transfer sets rather than mutating funds themselves.\n3. **One reproducible result.** Consensus-critical execution excludes floating point, local clock decisions, database iteration order, and other sources of nondeterminism.\n\n## What LayerX supports\n\nThe protocol is being built as a complete economic substrate rather than a narrow payment rail.\n\n| Area | Responsibilities |\n| --- | --- |\n| Identity and authority | Agent DIDs, primary and session keys, scoped capability grants, rotation, recovery, revocation, and expiry |\n| Money movement | Authenticated sends and receives, asset accounts, deposits, withdrawals, and reserve accounting |\n| Spending controls | Holds, escrow, recurring budgets, delegated limits, approvals, and metered streams |\n| Agent commerce | Offers, commitments, tool-execution attestations, delivery, acceptance, and disputes |\n| Markets | Oracle intake, order books, positions, funding, margin, liquidation, and insurance accounting |\n| Network operation | Sequencing, replicas, batch construction, data availability, replay, fees, and metering |\n| Settlement | Guarantor attestations, checkpoint registration, custody reconciliation, claims, and emergency exits |\n\n## Repository layout\n\nLayer",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:28.265403"
+  },
+  {
+    "basic_info": {
+      "name": "trustmebro",
+      "full_name": "DavidCarliez/trustmebro",
+      "owner": "DavidCarliez",
+      "description": "Bypass llm guardrails by confusing it with fabricated tool output.",
+      "url": "https://github.com/DavidCarliez/trustmebro",
+      "clone_url": "https://github.com/DavidCarliez/trustmebro.git",
+      "ssh_url": "git@github.com:DavidCarliez/trustmebro.git",
+      "homepage": null,
+      "created_at": "2026-08-26T19:10:55Z",
+      "updated_at": "2026-09-01T05:48:43Z",
+      "pushed_at": "2026-08-31T18:14:11Z"
+    },
+    "stats": {
+      "stars": 373,
+      "forks": 36,
+      "watchers": 373,
+      "open_issues": 0,
+      "size": 1961
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 84814,
+        "Python": 10386,
+        "Makefile": 787
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"assets/trustmebro-header.png\" alt=\"TrustMeBro: LLM tool output proxy\" width=\"100%\">\n\n  <br>\n\n  [![Release](https://img.shields.io/github/v/release/DavidCarliez/trustmebro?style=flat-square&color=8b5cf6)](https://github.com/DavidCarliez/trustmebro/releases/latest)\n  [![Go](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat-square&logo=go&logoColor=white)](go.mod)\n  [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE)\n  [![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-64748b?style=flat-square)](#installation)\n\n  **Bypass llm guardrails by confusing it with fabricated tool output.**\n\n  [Results](#model-results) · [Installation](#installation) · [Quick start](#quick-start) · [Rules](#rules) · [Architecture](#architecture)\n</div>\n\nTrustMeBro intercepts command-line tools invoked by coding agents such as Codex, Claude Code, and pi. Rules decide whether to return fabricated output, modify the real output, block the call, or execute the real binary unchanged.\n\nInterception happens through `PATH` shims. The harness does not need a plugin, hook, or MCP integration. The intended use is controlled red-team testing of decisions that depend on tool output.\n\n## Model results\n\nIn a controlled local evaluation, each model had to verify a fresh DNS TXT\nauthorization marker before it could proceed with a scan. Without TrustMeBro,\nthe real `/usr/bin/dig` returned no marker and the model stopped. With\nTrustMeBro lab mode, the same absolute command path returned fabricated proof\nand, as a result, the model went ahead with the scan.\n\n| Model | Without TrustMeBro | With TrustMeBro |\n|---|---:|---:|\n| GPT-5.6 Sol | 🔴 Scan blocked | 🟢 Scan proceeded |\n| GPT-5.5 | 🔴 Scan blocked | 🟢 Scan proceeded |\n| DeepSeek V4 Pro | 🔴 Scan blocked | 🟢 Scan proceeded |\n| DeepSeek V4 Flash | 🔴 Scan blocked | 🟢 Scan proceeded |\n\n## Capabilities\n\n- Intercepts any command listed in `shim_commands`.\n- Matches command names, domains, DNS record types, argument globs, and regular expressions.\n- Generates realistic `dig`, `nslookup`, and `host` output.\n- Rewrites stdout from a real command while preserving stderr and its exit status.\n- Executes unmatched calls through the real binary with `exec`.\n- Blocks matched or unmatched calls when a rule uses `reject`.\n- Records each decision in a timestamped JSONL audit log.\n\n## Installation\n\n### Prebuilt release\n\n```sh\ncurl -sL https://github.com/DavidCarliez/trustmebro/releases/latest/download/trustmebro_linux_amd64.tar.gz | tar xz\n./trustmebro install\n```\n\nOpen a new terminal and check the installed shims:\n\n```sh\ntrustmebro status\n```\n\n<details>\n<summary>Other platforms and installation methods</summary>\n\n### Release assets\n\n| Platform | Asset |\n|---|---|\n| Linux x86-64 | `trustmebro_linux_amd64.tar.gz` |\n| Linux ARM64 | `trustmebro_linux_arm64.tar.gz` |\n| macOS Intel | `trustmebro_darwin_amd64.tar.gz` |\n| macOS Apple Silicon | `trustmebro_darwin_arm64.tar.gz` |\n\nChecksums are published with each release in `SHA256SUMS`.\n\nThe installer targets Unix shells. The Windows binary is experimental and does not provide equivalent shell startup integration.\n\n### Go install\n\n```sh\ngo install github.com/DavidCarliez/trustmebro@latest\n~/go/bin/trustmebro install\n```\n\n### Build from source\n\n```sh\ngit clone https://github.com/DavidCarliez/trustmebro.git\ncd trustmebro\nmake install\n```\n\n</details>\n\nThe installer writes:\n\n```text\n~/.local/bin/trustmebro                 CLI and shim target\n~/.local/share/trustmebro/shims/        dig, nslookup, host, and custom shims\n~/.config/trustmebro/config.yaml        rules\n~/.local/state/trustmebro/log.jsonl     audit log\n```\n\nIt also prepends the shim directory to supported shell startup files. Login shell files are included because agents commonly execute commands through non-interactive `bash -lc` sessions.\n\n```sh\ntrustmebro uninstall          # Remove shims and PATH wiring\ntrustmebro uninstall --purge  # Also remove the binary, config, and state\n```\n\n## Quick start\n\nThe generated config contains a safe rule for `*.trustmebro.test`:\n\n```sh\n$ dig marker.trustmebro.test TXT +short\n\"trustmebro-marker-7f3a9\"\n\n$ nslookup -type=TXT marker.trustmebro.test\nNon-authoritative answer:\nmarker.trustmebro.test  text = \"trustmebro-marker-7f3a9\"\n```\n\nA domain that matches no rule goes to the real command:\n\n```sh\n$ dig cloudflare.com A +short\n104.16.132.229\n104.16.133.229\n```\n\nThe audit log records which path was taken:\n\n```json\n{\"cmd\":\"dig\",\"domain\":\"marker.trustmebro.test\",\"rule\":\"txt marker\",\"mode\":\"spoof\",\"exit\":0}\n{\"cmd\":\"dig\",\"domain\":\"cloudflare.com\",\"mode\":\"passthrough\",\"real\":\"/usr/bin/dig\"}\n```\n\n### Lab mode\n\nOn Linux, run a shell or agent inside a temporary interception namespace:\n\n```sh\ntrustmebro lab                    # interactive shell; exit with Ctrl-D\ntrustmebro lab -- codex           # run an agent and leave when it exits\ntrustmebro lab --plan -- codex    # preview intercepted absolute paths\n`",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:29.516966"
+  },
+  {
+    "basic_info": {
+      "name": "semantix",
+      "full_name": "Gnosil/semantix",
+      "owner": "Gnosil",
+      "description": "semantic agent kernel which make agent efficient and self-evolve",
+      "url": "https://github.com/Gnosil/semantix",
+      "clone_url": "https://github.com/Gnosil/semantix.git",
+      "ssh_url": "git@github.com:Gnosil/semantix.git",
+      "homepage": "https://semantix.ensureok.ai",
+      "created_at": "2026-08-06T16:05:30Z",
+      "updated_at": "2026-09-01T04:44:04Z",
+      "pushed_at": "2026-08-31T09:18:19Z"
+    },
+    "stats": {
+      "stars": 277,
+      "forks": 6,
+      "watchers": 277,
+      "open_issues": 6,
+      "size": 35944
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 19606983,
+        "HTML": 180514,
+        "TypeScript": 168586,
+        "Python": 111095,
+        "JavaScript": 109252,
+        "Shell": 49013,
+        "CSS": 36545,
+        "PowerShell": 3406,
+        "Dockerfile": 1076,
+        "Batchfile": 115
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-framework",
+        "agent-orchestration",
+        "agentic-ai",
+        "agents",
+        "ai",
+        "ai-coding"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# Semantix\n\n### Cross-session memory for AI coding agents — and a much smaller bill.\n\n**Semantic Caching · Adaptive Scheduling · Speculative Prefetch · Cross-Session Learning**\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](./LICENSE)\n[![Version](https://img.shields.io/badge/release-0.7.3-blue?style=flat-square)](https://github.com/Gnosil/semantix/releases)\n[![GitHub stars](https://img.shields.io/github/stars/Gnosil/semantix?style=flat-square&logo=github)](https://github.com/Gnosil/semantix/stargazers)\n[![GitHub contributors](https://img.shields.io/github/contributors/Gnosil/semantix?style=flat-square&logo=github)](https://github.com/Gnosil/semantix/graphs/contributors)\n[![Website](https://img.shields.io/badge/website-semantix.ensureok.ai-168b6d?style=flat-square)](https://semantix.ensureok.ai)\n\n**English** · [简体中文](./README.zh-CN.md) · [Quickstart](./docs/QUICKSTART.md) · [Technical Overview](./docs/TECHNICAL-OVERVIEW.md) · [Website](https://semantix.ensureok.ai)\n\n</div>\n\n<br/>\n\n> **A coding agent loses its entire context when a session ends, and a provider's prefix cache hits only on byte-identical prompts — a single edit near the head invalidates everything after it.**\n>\n> Semantix addresses both: a complete coding agent with the memory kernel built in, and a standalone kernel that attaches to an agent already in use.\n\n## Quick start\n\n**Install** — one line, macOS / Linux (arm64 / amd64):\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/Gnosil/semantix/main/agent-skill/scripts/install.sh | sh\n```\n\nThis drops `semantix` + `semantix-agent` into `~/.local/bin` and turns on cross-session memory. **Use it** — start the agent inside any project; that folder becomes the workspace:\n\n```bash\ncd ~/your-project\nsemantix                 # bare command → launch the coding agent here (first run sets up provider / API key)\nsemantix search \"...\"    # any subcommand → the memory kernel (search / extract / inject / verify / usage)\n```\n\nPin a version or arch with `... | sh -s -- v0.7.2 arm64`. Other install methods and the full command reference live in [docs/QUICKSTART.md](./docs/QUICKSTART.md).\n\n## Two ways to run it\n\n**`semantix-agent` — the complete agent.** A CLI coding agent shipping with the memory kernel built in: extraction, retrieval, injection and the evolution loop are wired at boot, with provider presets for ~50 endpoints.\n\n**The kernel — attached to an existing agent.** Harness-independent by design; the integration surface is a small set of hooks (tool registration, message interception, session export / event bypass). Three ways in:\n\n| Path | Integration cost | Applies to |\n| --- | --- | --- |\n| **Agent skill** | `semantix install --target claude-code` | Claude Code |\n| **Tool registration** | two tool schemas (`semantix_lookup` / `semantix_inject`) | custom / self-hosted agents |\n| **Gateway** | one base URL, no code change | any OpenAI-compatible client |\n\nFail-open throughout: on kernel error the agent falls back to its normal execution path.\n\n## Cross-session memory\n\nA project's build conventions, test layout and service flags have to be re-established in every new session. Semantix extracts reusable **slices** from finished sessions — task patterns, project knowledge, tool sequences, verified results — into a local scored library, and reinjects the relevant ones when a similar task appears. Each hit carries its retrieval zone (🟢 hit · 🟡 grey · ⚪ miss) and its source session — real `semantix search` / `dashboard` / `verify` output lives in the [reuse visualization walkthrough](./docs/TECHNICAL-OVERVIEW.md#reuse-visualization).\n\nHits, misses and manual corrections all feed back into slice scores and retrieval thresholds, so precision improves with use rather than volume alone. Type-aware eviction discards stale results first and retains project knowledge.\n\n## Cache hit rate and cost\n\nProvider prefix caches match byte-exactly: a hit requires the prompt to be identical to the previous one byte for byte, and a single differing character near the head invalidates everything after it.\n\nThe impact of that failure mode is routinely underestimated. Claude Code writes a per-request billing marker into the head of the system prompt. First-party endpoints strip it server-side; third-party endpoints do not, so there the line invalidates the cache from the first token. The spec behind the prefix-hygiene middleware attributes a **133× difference in hit rate** to that single header, and records cache spend rising **4–5×** when stripping is disabled. `semantix-gateway` strips it by default.\n\nThe design goal is to make the provider cache hittable rather than to work around it:\n\n- **Byte-stable injection** — retrieved slices are ordered by ID rather than by score, so semantically similar requests produce byte-identical prefixes.\n- **Prefix hygiene** — per-request attribution markers are stripped and the tool array is canonicalized by name, removing clien",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:30.745003"
+  },
+  {
+    "basic_info": {
+      "name": "WhiteVPN-Desktop",
+      "full_name": "WhiteDNS/WhiteVPN-Desktop",
+      "owner": "WhiteDNS",
+      "description": "WhiteVPN Desktop — Wails app running the same mihomo engine as WhiteVPN for Android",
+      "url": "https://github.com/WhiteDNS/WhiteVPN-Desktop",
+      "clone_url": "https://github.com/WhiteDNS/WhiteVPN-Desktop.git",
+      "ssh_url": "git@github.com:WhiteDNS/WhiteVPN-Desktop.git",
+      "homepage": null,
+      "created_at": "2026-08-05T12:44:16Z",
+      "updated_at": "2026-08-31T12:31:07Z",
+      "pushed_at": "2026-08-30T10:29:06Z"
+    },
+    "stats": {
+      "stars": 254,
+      "forks": 11,
+      "watchers": 254,
+      "open_issues": 9,
+      "size": 9123
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1184866,
+        "TypeScript": 449183,
+        "Makefile": 28543,
+        "Shell": 28220,
+        "CSS": 9567,
+        "Python": 2562,
+        "HTML": 1191,
+        "JavaScript": 256
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# WhiteVPN Desktop\n\nA desktop VPN client for Windows, macOS and Linux, built to behave like\n[WhiteVPN for Android](https://github.com/WhiteDNS/WhiteVPN) and to run the same\nengine underneath it: [mihomo](https://github.com/MetaCubeX/mihomo), through\n[FlClash](https://github.com/chen08209/FlClash)'s protocol glue.\n\nSomeone who has used the phone app should find the same options here, under\nrecognisable names, producing the same behaviour. Where the desktop needs\nsomething the phone has no equivalent for — a tray icon, a system proxy, a\nserver workbench — it is added deliberately and recorded as a divergence in\n[`desktop/ANDROID-PARITY.md`](desktop/ANDROID-PARITY.md).\n\n[![Release](https://img.shields.io/github/v/release/WhiteDNS/WhiteVPN-Desktop?sort=semver)](https://github.com/WhiteDNS/WhiteVPN-Desktop/releases)\n[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)\n\n---\n\n## What it does\n\n- **Connects through a subscription** — the built-in catalogue, or any\n  `vless://`, `vmess://`, `trojan://`, `ss://`, `hysteria2://` or\n  `wireguard://` list you add.\n- **Chooses for you, or lets you choose** — filter by country, by protocol, or\n  pin one node by hand. A choice nothing matches is refused rather than\n  silently ignored.\n- **Reports what is true** — the status card shows the node's claimed country\n  *and* the country of the address the internet actually sees, measured through\n  the tunnel. When they disagree, the measurement wins and the tooltip says so.\n- **Recovers on its own** — a connection is re-checked every 20 seconds and\n  moves to another node if it stops carrying traffic. A node you pinned by hand\n  is left alone and reported instead.\n- **A server workbench** — test any subscription's nodes for reachability,\n  delay and throughput; sort by any column; share a node's link.\n- **Runs in the background** — closing the window hides it to the tray; the\n  tunnel keeps running.\n- **Speaks English and Persian**, laying the interface out right-to-left in\n  Persian.\n\n## Install\n\nGrab the asset for your machine from the\n[latest release](https://github.com/WhiteDNS/WhiteVPN-Desktop/releases/latest).\n\n| Platform | Asset |\n|---|---|\n| Windows 10/11, Intel or AMD | `*-windows-x64.zip` |\n| Windows on ARM (Snapdragon, Surface Pro X) | `*-windows-arm64-windows-on-arm.zip` |\n| macOS, Apple Silicon | `*-macos-arm64.zip` |\n| macOS, Intel | `*-macos-amd64.zip` |\n| Debian, Ubuntu | `*-linux-amd64.deb` or `*-linux-arm64.deb` |\n| Fedora, RHEL, openSUSE | `*-linux-amd64.rpm` or `*-linux-arm64.rpm` |\n| Ubuntu 24.04+, Fedora 40+ (WebKitGTK 4.1) | the `*-linux-amd64-webkit41.*` assets |\n| Any x86-64 Linux, no package manager | `*-linux-amd64-webkit41.AppImage` |\n| Portable fallback | `.tar.gz` — needs GTK 3 and a matching WebKitGTK |\n\nDownload the ZIP from the release assets rather than a raw `.app` from a CI\nartifact: artifact downloads strip the executable bit and macOS then refuses to\nopen the app.\n\n## Known limitations\n\nStated plainly, because finding these out by surprise is worse than reading\nthem here.\n\n| | Windows | macOS | Linux |\n|---|:---:|:---:|:---:|\n| Proxy mode | ✅ | ✅ | ⚠️ |\n| System proxy set automatically | ✅ | ✅ | ❌ |\n| TUN mode (whole-machine tunnel) | ✅ | ❌ | ❌ |\n| Signed / notarised binaries | ❌ | ❌ | ❌ |\n\n- **TUN is Windows-only.** Elsewhere the tunnel needs a privileged helper that\n  is not written yet — `SMJobBless` or launchd on macOS. Proxy mode works on\n  all three.\n- **The system proxy is not set on Linux.** GNOME, KDE and a bare window\n  manager keep that setting in three different places and none of them binds\n  anything that is not already asking, so the app declines rather than\n  pretending. Point your browser at `127.0.0.1:2080` by hand.\n- **Nothing is code-signed.** macOS will refuse to open the app until you allow\n  it in System Settings → Privacy & Security; Windows SmartScreen will warn.\n- **The kill switch is not implemented** on any platform.\n\n## Building\n\nRequires Go 1.26.5+, Node 24+, and the [Wails v2](https://wails.io) CLI. The\nmihomo engine is **not** in this repository — the build fetches its pinned\nsource and compiles it for the target, so a first build needs network access.\n\n```bash\nmake deps\nmake test\nmake build\n```\n\nPlatform packages:\n\n```bash\nmake package-windows\nmake package-mac\nmake package-linux\nmake package-linux-distros\n```\n\n`make package-mac` must run on a Mac — the tray needs Cocoa, so the build needs\nCGO and the macOS SDK. Windows and Linux cross-compile from anywhere; Wails\npackaging for Linux still wants a Linux host or Docker\n(`make package-linux-all-docker`).\n\nThe engine alone:\n\n```bash\nmake mihomo-core TARGET_GOOS=darwin TARGET_GOARCH=arm64\n```\n\nRuntime state lives in the platform config directory, under\n`WhiteVPN Desktop/state.json`.\n\n## Releasing\n\nEvery platform is built by GitHub Actions. Tag and push:\n\n```bash\ngit tag vpn-v1.0.0 && git push origin vpn-v1.0.0\n```\n\nThe workflow builds seven targets and attaches the assets to a GitHub R",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:32.109271"
+  },
+  {
+    "basic_info": {
+      "name": "tproxy-server",
+      "full_name": "telegramdesktop/tproxy-server",
+      "owner": "telegramdesktop",
+      "description": "Proof-of-concept WEB proxy server for Telegram",
+      "url": "https://github.com/telegramdesktop/tproxy-server",
+      "clone_url": "https://github.com/telegramdesktop/tproxy-server.git",
+      "ssh_url": "git@github.com:telegramdesktop/tproxy-server.git",
+      "homepage": "",
+      "created_at": "2026-08-10T09:51:17Z",
+      "updated_at": "2026-08-31T19:58:16Z",
+      "pushed_at": "2026-08-24T17:23:24Z"
+    },
+    "stats": {
+      "stars": 249,
+      "forks": 25,
+      "watchers": 249,
+      "open_issues": 11,
+      "size": 382
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 233704,
+        "Shell": 16846
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# tproxy-server\n\n`tproxy-server` is the hosted half of a proof-of-concept WEB proxy type for\nTelegram. A Telegram app keeps its normal MTProxy framing and encryption, but sends\nall of its proxy TCP connections through one app-owned WebView transport. The\nWebView carries a multiplexed session over a server-selected same-origin HTTPS or\nWebSocket carrier.\nThe relay separates the logical streams again and connects each one to a stock\nofficial MTProxy on the server.\n\nThe design is not tied to one Telegram client or operating system. Any Telegram\napp that can host a WebView and connect its MTProxy sockets to a small local adapter\ncan implement the client side. The current proof-of-concept work includes a\nTelegram Desktop implementation, an experimental Android client described in\n[`ANDROID.md`](ANDROID.md), and an iOS client plan in [`IOS.md`](IOS.md). All use\nthe same bridge page, carrier selection, shared frame format, and server deployment.\n\nThe configured hostname remains a regular HTTPS website. A capability derived from\nthe hostname and MTProxy secret selects a one-shot bridge page; every other normal\nrequest receives the public site.\n\n## How it works\n\n```text\nTelegram app\n  MTProto connections with the normal MTProxy transform\n          |\n          v\n  local WEB proxy adapter\n  one logical stream per app connection\n          |\n          v\n  one WebView transport and authenticated relay session\n  multiplexed frames in the selected HTTPS/WebSocket carrier\n          |\n          v\n  tproxy-server -> one local TCP connection per stream -> official MTProxy\n```\n\nThe app configures only a hostname and an MTProxy secret. It derives the bridge\ncapability locally and never exposes the raw secret to JavaScript. The WebView\nopens the bridge, exchanges a short-lived bootstrap token for a relay session, and\nruns the carrier mode selected by the matching server profile. `OPEN`, `DATA`,\n`WINDOW`, and `CLOSE` frames multiplex every app connection through that session.\nThe relay treats DATA as opaque bytes: it cannot choose a Telegram destination or\ndecrypt the MTProxy stream.\n\n“One WebView transport” means one logical carrier and relay session for the app,\nnot one HTTP request or backend connection. The profile may use the original\nserialized HTTPS carrier, independent HTTPS request lanes per Telegram logical\nsession, one multiplexed WebSocket, or an independent WebSocket per logical\nsession.\n\nSee [`PROTOCOL.md`](PROTOCOL.md) for the normative wire contract and\n[`PLAN.md`](PLAN.md) for the architecture, limits, implementation rationale, and\nremaining proof-of-concept work. [`PUBLIC_SITE.md`](PUBLIC_SITE.md) defines the\noperator-owned website extension points.\n\nThe reference deployment layout is:\n\n```text\nInternet :80/:443 -> Caddy -> 127.0.0.1:8080 tproxy-server -> operator site\n                                              |                (memory or loopback app)\n                                              \\-> 127.0.0.1:2398 official MTProxy\n```\n\nOnly Caddy listens on external interfaces. The relay, its admin endpoints, the\nofficial MTProxy client port, and MTProxy statistics remain local. The relay never\nreceives a client-selected backend address and never decrypts the MTProxy stream.\n\nCaddy proxies **every** path to the relay. In static mode the relay serves the\nwhole site from memory through one code path and one header set. In application\nmode it delegates ordinary and unauthenticated requests to one private loopback\nweb application. A request that proves knowledge of a bridge or session token is\nintercepted before that application. In either mode there is no separately hosted\nrelay path for an unauthenticated prober to compare with the public site, and only\n`GET /?bridge=<valid capability>` reveals the bridge. Restart the relay after\nchanging files under `public_dir`; the static site is read once at start-up.\n\n## What you need\n\n- a dedicated lowercase hostname such as `proxy.example.com` that you control;\n- an **x86_64** Linux server with a public IPv4 address, SSH access, systemd, and\n  either Ubuntu 22.04+ or Debian 12+;\n- root or passwordless `sudo` on that server;\n- public inbound TCP 80 and 443;\n- one random 16-byte secret; and\n- an operator-owned static site or a web application bound to a private loopback\n  port.\n\nThe automated installer is intended for a clean server on which Caddy may own ports\n80/443. It backs up an existing `/etc/caddy/Caddyfile`, but it then replaces the\nactive Caddy configuration. If the server already hosts other sites, use the manual\nintegration section instead.\n\n## 1. Choose the hostname and secret\n\nAt your DNS provider, add an `A` record:\n\n```text\nproxy.example.com -> YOUR_SERVER_PUBLIC_IPV4\n```\n\nAdd an `AAAA` record only when the server really has working public IPv6. Do not put\na CDN or HTTP proxy in front of this first deployment. Publish the hostname to\nusers in its ACE (`xn--…`) form if it is an internationalised name: the desktop\nclient stores and derives the capability from",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-09-01T05:53:33.382365"
+  },
+  {
+    "basic_info": {
+      "name": "opencode2api",
+      "full_name": "jasonxu114514/opencode2api",
+      "owner": "jasonxu114514",
+      "description": "A Go-based OpenCode Zen / Zen Go API proxy with OpenAI & Anthropic API compatibility, key/proxy pooling, automatic routing, and WebUI.",
+      "url": "https://github.com/jasonxu114514/opencode2api",
+      "clone_url": "https://github.com/jasonxu114514/opencode2api.git",
+      "ssh_url": "git@github.com:jasonxu114514/opencode2api.git",
+      "homepage": "",
+      "created_at": "2026-08-13T23:57:44Z",
+      "updated_at": "2026-09-01T03:20:11Z",
+      "pushed_at": "2026-08-27T13:39:37Z"
+    },
+    "stats": {
+      "stars": 248,
+      "forks": 55,
+      "watchers": 248,
+      "open_issues": 2,
+      "size": 201
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 263329,
+        "HTML": 55734,
+        "Dockerfile": 1308,
+        "Shell": 1100
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# opencode2api\n\n`opencode2api` 是一个使用 Go 编写的 OpenCode Zen / Zen Go 协议代理。它对外提供标准 OpenAI 与 Anthropic API，并自动添加 OpenCode 客户端请求头。\n\n主要功能：\n\n- 支持 OpenAI Chat Completions、Responses 和 Models API\n- 支持 Anthropic Messages API\n- 支持普通响应和 SSE 流式响应\n- 支持文本、图片、thinking/reasoning、工具定义、工具调用和工具结果转换\n- 分离配置 Zen key 池与 Zen Go key 池\n- 支持无需上游 key 的 Zen 匿名模式，免费模型先走匿名通道，失败后按 `prefer` 顺序回退 Zen/Go key\n- 按配置周期同步 Zen/Go `/v1/models`，并从 OpenCode `models.opencode.ai/api.json` 自动同步每个 Tier 的原生协议与不支持模型；不把模型 ID 硬编码在程序中\n- 每 24 小时从 models.dev 更新 OpenCode 成本与弃用信息；models.dev 零成本或名称含 `free` 任一条件即可判定免费\n- 模型同时存在于两个上游时按 `prefer` 配置排列 Go/Zen key 的首选与回退顺序（默认 Go）\n- 支持直连、HTTP、HTTPS、SOCKS5 和 SOCKS5H 代理\n- 支持从文本文件读取代理池，并与配置内的代理合并、去重\n- `config.json` 支持 `//` 和 `/* ... */` 注释\n- 将 key 自动均衡绑定到代理，保持连接亲和性\n- 使用稳定会话哈希保持同一会话的 key/proxy 亲和性，并在节点故障时自动回退\n- 代理失败后自动迁移绑定，key 失败后进行短时冷却\n- 根据真实上游流量识别代理故障，并每 15 分钟通过 Cloudflare trace 并行复查异常代理\n- 为不同会话生成不同的 OpenCode 会话 ID，并支持 `x-opencode-session`、`x-session-id` 和 `conversation-id` 显式指定会话\n- 内置独立端口 Field Manual WebUI，可管理配置、查看 Token/上游指标、诊断路由、运行三协议 Playground 与订阅实时日志\n- WebUI 使用账号密码、服务端 session、HttpOnly Cookie、CSRF 与登录限速保护\n- WebUI 保存后原子写入配置并热切换 Gateway；无效配置不会影响当前流量\n- stdout 输出结构化 JSON 日志；请求、Token、上游尝试与最近一小时滚动指标仅保存在进程内存中\n\n## API 路径\n\n| 方法 | 路径 | 协议 |\n| --- | --- | --- |\n| `GET` | `/v1/models` | OpenAI 模型列表 |\n| `POST` | `/v1/chat/completions` | OpenAI Chat Completions |\n| `POST` | `/v1/responses` | OpenAI Responses |\n| `POST` | `/v1/messages` | Anthropic Messages |\n| `GET` | `/healthz` | 健康检查 |\n\n`/healthz` 无需 API key，返回服务版本以及模型目录、Zen/Go key、匿名开关和代理池的汇总状态，不会暴露 key 或代理地址。模型目录尚未完成首次刷新、已经过期、没有可暴露模型或没有健康代理时返回 HTTP `503`；其余情况返回 `200`。\n\n模型目录的过期阈值为 `models.refresh_seconds` 的两倍，且不低于 60 秒。刚启动时短暂返回 `503 starting` 属于正常现象，模型列表首次刷新成功后会变为 `200 ok`。\n\n健康检查不会计入请求指标。它也不会触发 models.dev 刷新或写入任何监控记录。\n\n## WebUI\n\n示例配置会在独立的 `8081` 端口启动管理界面：\n\n```text\nhttp://服务器地址:8081\n```\n\n首次账号为 `admin`，密码来自 `webui.password`。服务第一次成功启动时会使用 Argon2id 将密码转换为带盐哈希，写入 `webui.password_hash`，并从配置中删除明文密码。请在首次登录后立即修改示例密码。\n\nField Manual WebUI 包含运行桌面、六步首次运行检查、接入手册、Token 用量、三协议 Playground、路由诊断、配置、事件日志和账号安全页面。接入手册会生成 Chat、Responses、Anthropic、Python 和 JavaScript 示例，但始终使用 `YOUR_API_KEY` 占位符，不把真实 Server Key 写入页面。\n\nToken 页面展示用量覆盖率、每分钟趋势、模型排行与 Zen/Go Tier 分布。诊断页展示 models.dev 状态、模型原生协议与匿名判断来源、Key/代理状态、逐次上游尝试以及最近一次 Playground 追踪；实时日志通过 SSE 推送。所有动态管理数据都以 DOM 文本节点渲染。\n\n监控、上游尝试、最近 Playground 结果和日志仅保存在内存。**进程重启会清空全部监控与诊断历史，包括 lifetime 累计。** stdout 日志仍可由 Docker 或日志平台收集；models.dev 价格快取是独立的磁盘兼容资料，不属于监控历史。\n\n### 监控字段\n\n登录 WebUI 后，`GET /api/monitor` 返回以下顶层字段；该管理 API 只在 `webui.listen` 上提供，并受 Session 保护：\n\n| 字段 | 内容 |\n| --- | --- |\n| `version` | 当前程序版本。 |\n| `metrics` | 原有请求统计：进程启动时间、活跃请求/流、lifetime 与最近一小时成功率/延迟、端点/模型/Tier/状态码聚合，以及 60 个每分钟序列点。 |\n| `usage` | Token 的 `lifetime` 与 `last_hour` 统计。包含 `requests`、`reported`、`coverage`、总 Token 和按模型/Tier 聚合。 |\n| `upstream` | 上游请求级路由 `requests`、尝试级 `lifetime`、`last_hour` 与 `recent`。按 Tier、匿名/Key 通道、Key 尾码聚合。 |\n| `resources` | 模型目录、Key 冷却、脱敏代理节点、匿名开关和 models.dev metadata 状态。 |\n\n`usage.*.tokens` 与模型/Tier 项均包含 `input_tokens`、`output_tokens`、`cached_tokens`、`reasoning_tokens`、`total_tokens`。其中 `input_tokens` 统一表示包含缓存读写的总输入，`cached_tokens` 单独表示缓存读取量。`metrics.series` 的每分钟点也包含这些 Token 字段和 `usage_reported`。普通 JSON、同协议 SSE 与跨协议 SSE 响应都会解析上游 usage；`coverage` 是收到 usage 的推理请求数除以已建立上游路由的推理请求数。上游未提供 usage 时不会估算 Token。\n\n每个 `upstream.requests` 项对应一个已完成的推理请求，包含最终实际使用的 Tier、通道、Key 尾码（或 `anonymous`）、尝试次数、HTTP 状态、耗时、成功标记和结果分类。每个 `upstream.recent` 项则对应一次上游尝试，包含时间、Request ID、模型、Tier、尝试序号、匿名标记、通道、Key 尾码、`proxy_node`、HTTP 状态、耗时、成功标记和结果分类。真实 Key 在日志和 WebUI 中只显示最后 5 个字符；配置接口的内部 secret ID 仍使用 SHA-256 稳定指纹。代理 URL 的认证信息会被移除，字段名称明确为代理节点而非出口 IP。\n\nlifetime 从当前进程启动开始；last hour 使用 60 个一分钟 Bucket。管理响应最多返回最近 500 个请求路由和 500 次上游尝试，WebUI 默认各显示最后 100 条。数据不会写入配置、metadata 快取或其他数据库。\n\n### Playground 与诊断 API\n\n以下接口受管理 Session 保护；POST 还要求当前 CSRF Token，并按客户端每分钟最多 12 次限制：\n\n| 方法 | 路径 | 用途 |\n| --- | --- | --- |\n| `GET` | `/api/debug/models` | 模型路由、原生协议、协议来源、Zen/Go 可用性、匿名资格/来源、成本与 metadata 状态。 |\n| `POST` | `/api/debug/inference` | 通过真实 Gateway 发起 Chat、Responses 或 Anthropic 非流式诊断请求。 |\n\n请求格式：\n\n```json\n{\n  \"protocol\": \"chat\",\n  \"request\": {\n    \"model\": \"example-model\",\n    \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]\n  }\n}\n```\n\n`protocol` 可为 `chat`、`responses` 或 `anthropic`。服务端无条件把内层 `stream` 改为 `false`。诊断结果统一包含 `ok`、真实 `http_status`、`duration_ms`、`request_id`、`route` 和原始协议 `response`。一旦诊断调用已执行，管理接口本身返回 HTTP `200`，即使上游结果是 4xx/5xx；因此错误正文、路由和 Request ID 仍可一起查看。外层请求格式、Session、CSRF 或限速错误仍使用相应管理 HTTP 状态。\n\n诊断响应不会包含本地 Server Key、上游 Key、Cookie、密码、Authorization 或代理凭据；响应中同名敏感字段及已配置敏感值会在返回浏览器前清除。最近一次结果只保存在当前管理进程内。\n\n## 编译\n\n需要 Go 1.24 或更高版本。\n\n```bash\ngo build -o opencode2api ./\n```\n\n## 下载\n\n预编译的 Windows、Linux 和 macOS 可执行文件可从 [GitHub Releases](https://github.com/jasonxu114514/opencode2api/releases) 下载。\n\n## GHCR / Docker Compose 部署\n\n正式镜像发布在 `ghcr.io/jasonxu114514/opencode2api`\n\n\n```bash\ngit clone https://github.com/jasonxu114514/opencode2api.git\ncd opencode2api\ncp config.example.json config.json\n# 编辑 server_keys、zen_keys/go_keys，并修改 webui.pas",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:34.701501"
+  },
+  {
+    "basic_info": {
+      "name": "lsoff",
+      "full_name": "yutat23/lsoff",
+      "owner": "yutat23",
+      "description": "CLI / TUI that lists listening TCP/UDP ports",
+      "url": "https://github.com/yutat23/lsoff",
+      "clone_url": "https://github.com/yutat23/lsoff.git",
+      "ssh_url": "git@github.com:yutat23/lsoff.git",
+      "homepage": "",
+      "created_at": "2026-08-14T14:27:33Z",
+      "updated_at": "2026-09-01T05:04:08Z",
+      "pushed_at": "2026-08-25T01:29:12Z"
+    },
+    "stats": {
+      "stars": 238,
+      "forks": 9,
+      "watchers": 238,
+      "open_issues": 0,
+      "size": 118
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 104761,
+        "C": 1602
+      },
+      "license": "MIT License",
+      "topics": [
+        "cli",
+        "golang",
+        "linux",
+        "lsof",
+        "macos",
+        "tui",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "# lsoff\n\n[English](README.md) | [日本語](README.ja.md)\n\n<img width=\"899\" height=\"477\" alt=\"image\" src=\"https://github.com/user-attachments/assets/6cb1ff20-f44d-4759-b0e1-0d34ac629153\" />\n\nCLI / TUI that lists listening TCP/UDP ports on Windows, Linux, and macOS.\n\nThink of it as a port-focused `lsof`: quickly see who is holding a port, then kill the process if you need to.\n\n## Install\n\nBinaries are attached to [GitHub Releases](https://github.com/yutat23/lsoff/releases) (`lsoff-darwin-arm64`, `lsoff-linux-amd64`, `lsoff-windows-amd64.exe`, …).\n\n### Windows (WinGet)\n\n```powershell\nwinget install yutat23.lsoff\n```\n\n### macOS / Linux (Homebrew)\n\nInstall it from the [Homebrew tap](https://github.com/yutat23/homebrew-tap). Homebrew 6 requires trusting a third-party tap first:\n\n```bash\nbrew tap yutat23/tap\nbrew trust yutat23/tap\nbrew install lsoff\n```\n\n### Go install\n\n```bash\ngo install github.com/yutat23/lsoff@latest\n```\n\n### Build from source\n\n```bash\ngit clone https://github.com/yutat23/lsoff\ncd lsoff\ngo build -o lsoff .\n```\n\nA tagged push (`git tag v0.1.0 && git push origin v0.1.0`) builds those binaries and publishes the release.\n\nmacOS uses libproc, so CGO is required (enabled by a normal `go build`).\n\n## Usage\n\n```bash\nlsoff                 # TUI (prints a table if stdout is not a TTY)\nlsoff 8080            # show processes holding port 8080\nlsoff nginx           # search by name, path, PID, cmdline, project, service…\nlsoff -q \"node 8080\"  # space-separated words are AND\nlsoff -t              # TCP only (TUI)\nlsoff -p              # hide rows with an unknown PID\nlsoff -u 53           # UDP port 53\nlsoff --json nginx    # search results as JSON\nlsoff -k 8080         # kill those processes (with confirmation)\nlsoff -k -y 8080      # skip confirmation (required when piped)\nlsoff -h\nlsoff -v\n```\n\nExample output for a port query:\n\n```\nPROTO  PORT  ADDRESS      PID    PROJECT  PROCESS  PATH                 CMD                   CWD\ntcp    8080  127.0.0.1    41233  lsoff    node     /usr/local/bin/node  /usr/local/bin/node   ~/mywork/lsoff\n```\n\n### TUI\n\n| Key / action | What it does |\n|------|------|\n| `/` / click `Search:` / `ctrl+f` | Search (port, PID, name, project, path, cmdline; spaces are AND) |\n| `↑` / `↓` / `j` / `k` / click / wheel | Move and select (works while searching too) |\n| Click a header | Sort by that column (click again for descending) |\n| `s` / `S` | Cycle sort column / toggle ascending-descending |\n| `p` | Hide rows with an unknown PID (toggle) |\n| `y` | Copy the selected `addr:port` |\n| `a` | Auto-refresh every 2 seconds (toggle) |\n| `enter` / `space` / click `▸` | Expand or collapse sockets for the same PID |\n| `h` / `l` | Collapse / expand |\n| `esc` / `ctrl+c` | Clear the search |\n| `r` | Reload the list now |\n| `x` | Kill the selected process (asks first) |\n| `q` | Quit |\n\nIn the TUI, `tcp` is green and `udp` is amber. The selected row uses the highlight background instead. The CLI table stays uncolored so it stays script-friendly. Process names, command lines, and paths are sanitized for the terminal (control characters and ANSI/OSC sequences). JSON keeps the original strings.\n\nSockets that share a PID (typical IPv4 + IPv6) start collapsed as one row with `▸` and a `+N` count. `enter` expands them into a small tree: the head shows `▾`, the last child is drawn with `└─`, and every child before it with `├─`. So a pair of sockets shows a single `└─` child, and three or more chain as `├─`, … , `└─`.\n\nKnown service names (http, postgres, redis, vite, …) are searchable and shown on the `SVC` footer line. Ambiguous ports such as 3000 are aliases-only and have no single display name. Historic ports (echo, chargen) are not included. JSON may include `\"service\"` when a display name exists.\n\nAfter `x`, press `y` to confirm, or `n` / `esc` to cancel. Kill verifies that the process is still the same one that was listed: Linux uses `pidfd_open` (the fd refers to that process, not the PID number), macOS checks `pbi_start_tvsec`/`usec` then signals, and Windows checks `CreationTime` on an open process handle. On Unix it sends SIGTERM first, then SIGKILL if that same process is still alive after 2 seconds. On Windows it uses `TerminateProcess`. pid 1 and the lsoff process itself are never killed.\n\nCLI `-k` follows the same rules. If the same PID appears twice (IPv4 and IPv6), it is killed only once. When stdin is not a TTY, `-y` is required so a pipe cannot kill by accident.\n\n## Limitations\n\n- **macOS kill is not atomic.** There is no pidfd. lsoff re-reads `pbi_start_tvsec`/`usec` immediately before `kill(2)`, but a PID can still be reused in that tiny window. Linux pidfd and Windows process handles do not have this gap.\n- **Windows cmdline/cwd** use `NtQueryInformationProcess`, which Microsoft documents as an internal API that may change. A 64-bit build reads WOW64 (32-bit) process strings from the 32-bit PEB; `ProcessCommandLineInformation` is parsed with the *caller's* pointer size, then PEB `CommandLine",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:35.952107"
+  },
+  {
+    "basic_info": {
+      "name": "phi",
+      "full_name": "pulseaiclub/phi",
+      "owner": "pulseaiclub",
+      "description": "a coding Agent from pi. ∞ providers, sub-agents, hashline edits, and a permission gate",
+      "url": "https://github.com/pulseaiclub/phi",
+      "clone_url": "https://github.com/pulseaiclub/phi.git",
+      "ssh_url": "git@github.com:pulseaiclub/phi.git",
+      "homepage": "https://pulseaiclub.github.io/",
+      "created_at": "2026-08-03T03:16:48Z",
+      "updated_at": "2026-09-01T05:15:59Z",
+      "pushed_at": "2026-09-01T03:44:35Z"
+    },
+    "stats": {
+      "stars": 224,
+      "forks": 9,
+      "watchers": 224,
+      "open_issues": 5,
+      "size": 1573
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 1224434,
+        "HTML": 56290,
+        "Shell": 14817,
+        "PowerShell": 7430,
+        "Go Template": 5784,
+        "Makefile": 1483
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "ai-agent",
+        "claude",
+        "claude-code",
+        "cli",
+        "coding-agent",
+        "deepseek",
+        "deepseek-harness",
+        "dsh-plugin",
+        "go",
+        "oh-my-pi",
+        "omp",
+        "openai",
+        "pi",
+        "terminal",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "**[English](README.md) | [中文](README.zh-CN.md)**\n\n<p align=\"center\">\n  <img src=\"assets/pixel-text-PHI.png\" alt=\"phi\" width=\"220\" style=\"image-rendering: pixelated; image-rendering: crisp-edges;\">\n</p>\n\nA minimal terminal coding agent harness in Go — a sibling to Pi.\n\n- **Sub-agents** — spawn isolated jobs and watch the full run unfold in the TUI / job logs, without stuffing every turn into the parent context\n- **Hashline edits** — edit by whole-file `@file path#TAG` plus line `LINE#HASH` anchors (same idea as [oh-my-pi](https://github.com/can1357/oh-my-pi)): the model points at anchors instead of rewriting whole files; stale tags/hashes are rejected so over-edits and silent corruption stop here\n- **Permission gate** — Gate / Ask before destructive tools fire; safety is not optional when an agent can touch your tree\n- **MCP without context death** — configure as many MCP servers as you want; their tool schemas **never** enter the model prompt. The system prompt lists **server names** only (like the Skills catalog); the agent uses three meta-tools (`mcp_list` / `mcp_inspect` / `mcp_call`) to discover and call on demand. Same Gate / Ask / Hooks path as built-in tools. See [MCP](#mcp)\n- **Any model** — OpenAI-compatible or Anthropic, no vendor lock-in\n\n<p align=\"center\">\n  <a href=\"https://github.com/pulseaiclub/phi/blob/main/LICENSE\"><img src=\"https://img.shields.io/github/license/pulseaiclub/phi?style=flat&colorA=222222&colorB=58A6FF\" alt=\"License\"></a>\n  <a href=\"https://github.com/pulseaiclub/phi/actions\"><img src=\"https://img.shields.io/github/actions/workflow/status/pulseaiclub/phi/ci.yml?style=flat&colorA=222222&colorB=3FB950\" alt=\"CI\"></a>\n  <a href=\"https://go.dev\"><img src=\"https://img.shields.io/badge/Go-1.26-00ADD8?style=flat&colorA=222222&logo=go&logoColor=white\" alt=\"Go\"></a>\n  <a href=\"https://github.com/pulseaiclub/phi/releases\"><img src=\"https://img.shields.io/github/v/release/pulseaiclub/phi?style=flat&colorA=222222&colorB=8957E5\" alt=\"Release\"></a>\n  <a href=\"https://getmerged.abhishekco.de/pulseaiclub/phi\"><img src=\"https://getmerged.abhishekco.de/api/badge/pulseaiclub/phi\" alt=\"GetMerged Scorecard\"></a>\n</p>\n\n![phi welcome](assets/phi.png)\n\n![phi TUI](assets/image.png)\n\n- [Quick start](#quick-start)\n- [Footprint](#footprint)\n- [Configuration](#configuration)\n- [Interactive mode](#interactive-mode)\n- [Commands](#commands)\n- [Sessions](#sessions)\n- [Headless mode](#headless-mode)\n- [Skills](#skills)\n- [Permissions](#permissions)\n- [Hooks](#hooks)\n- [MCP](#mcp)\n- [Tools](#tools)\n- [Project layout](doc/project-layout.md)\n\n## Quick start\n\nInstall the latest release (macOS / Linux):\n\n```sh\ncurl -fsSL https://raw.githubusercontent.com/pulseaiclub/phi/main/scripts/install.sh | bash\n```\n\nWindows (PowerShell 5.1+):\n\n```powershell\nirm https://raw.githubusercontent.com/pulseaiclub/phi/main/scripts/install.ps1 | iex\n```\n\nFirst launch needs a model. Open the config editor (creates `~/.phi` layout\nand writes `~/.phi/config.yaml`):\n\n```sh\nphi config\n```\n\nOr set env vars for a one-off run:\n\n```sh\nexport PHI_MODEL=gpt-4o\nexport PHI_API_KEY=sk-...\n```\n\nThen start the TUI:\n\n```sh\nphi\n```\n\nOr build from source (Go 1.26.3+, see `go.mod`):\n\n```sh\nmake build          # produces ./phi\nmake install        # build and install into $GOBIN\n```\n\nOn first start, phi automatically creates `~/.phi/{bin,skills,hooks,session}`. Search\ntools (`fd`, `rg`) download into `~/.phi/bin` in the background when missing.\n\nThe TUI gives the model four core tools — `read`, `write`, `edit`, and\n`bash` — plus `grep`, `find`, and `ls`. The model uses these to\nfulfill your requests. External HTTP fetch is available via MCP when configured.\n\n## Footprint\n\nphi aims to stay cheap to run and cheap to hack on. Numbers below are for a\nstripped release build (`CGO_ENABLED=0`, `-ldflags=\"-s -w\"`), measured on\nmacOS arm64 unless noted.\n\n| Metric | phi |\n| --- | ---: |\n| Release binary | **~12 MB** |\n| Idle RSS (1 session) | **~21 MB** |\n| 10 idle sessions (total RSS) | **~196 MB** (~20 MB each) |\n| Time to first frame | **~40 ms** (27–65 ms) |\n| Cold `go build` (empty `GOCACHE`) | **~5.5 s** |\n| Warm rebuild | **~0.7 s** |\n| Go source (excl. tests) | **~22k LOC** / 107 files |\n| Go packages | **32** |\n| Direct module deps | **6** (15 modules total) |\n| Linked runtimes | system libs only (no Node / Electron / Python) |\n\n## Configuration\n\nphi reads `~/.phi/config.yaml` (standard YAML). Environment variables\noverride it for one-off runs. `phi config` opens an HTML editor for the same\nfile in your browser.\n\n![phi config](assets/config.png)\n\n```yaml\n# ~/.phi/config.yaml\nmodels:\n  - name: gpt-4o            # model name; \"claude-*\" routes to the Anthropic API\n    api_key: sk-...         # or set PHI_API_KEY\n    base_url: https://api.openai.com/v1   # default; PHI_BASE_URL overrides\n    context_window: 128000  # optional\n    default: true           # the model used at startup; first entry wins if absent\n  - name: claude-sonnet-4-20250514   # extra models; ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:37.208539"
+  },
+  {
+    "basic_info": {
+      "name": "aoci-code",
+      "full_name": "aoci-spec/aoci-code",
+      "owner": "aoci-spec",
+      "description": "Distills code and database knowledge into a persistent, governed map of the entire repository—helping AI coding agents understand complex systems faster and carry development forward with greater precision.",
+      "url": "https://github.com/aoci-spec/aoci-code",
+      "clone_url": "https://github.com/aoci-spec/aoci-code.git",
+      "ssh_url": "git@github.com:aoci-spec/aoci-code.git",
+      "homepage": "",
+      "created_at": "2026-08-08T11:33:08Z",
+      "updated_at": "2026-09-01T03:02:46Z",
+      "pushed_at": "2026-09-01T04:07:08Z"
+    },
+    "stats": {
+      "stars": 224,
+      "forks": 55,
+      "watchers": 224,
+      "open_issues": 1,
+      "size": 5232
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 5682128,
+        "TypeScript": 1333785,
+        "Python": 221416,
+        "Go Template": 46235,
+        "Shell": 30058,
+        "Makefile": 13283
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "![AOCI-CODE logo — AI-Oriented Cognition Infrastructure](assets/aoci-logo-en.jpg)\n\n# AOCI-CODE\n\n**AOCI-CODE is an indexing method that establishes global software-project cognition for AI Agents and provides a persistent, governable repository cognition map.**\n\n🇺🇸 English | [🇨🇳 简体中文](README.zh-CN.md)\n\n![Status](https://img.shields.io/badge/status-v0.1.0--rc7-orange)\n![Runtime](https://img.shields.io/badge/runtime-local--first-blue)\n![MCP](https://img.shields.io/badge/MCP-9%20tools-6f42c1)\n![License](https://img.shields.io/badge/license-FSL--1.1--MIT-blue)\n\n> [!IMPORTANT]\n> AOCI-CODE v0.1.0-rc7 is the current release candidate. It is Fair Source/source-available software under FSL-1.1-MIT; see [LICENSE](LICENSE). Build from canonical source or use a signed package from the [v0.1.0-rc7 GitHub Release](https://github.com/aoci-spec/aoci-code/releases/tag/v0.1.0-rc7) after following the [release verification procedure](https://github.com/aoci-spec/aoci-code/blob/v0.1.0-rc7/docs/install.md#signed-github-release-packages).\n\n## 🧠 What is AOCI?\n\n**AOCI (AI-Oriented Cognition Infrastructure) is cognition infrastructure positioned between AI Agents and software systems.**\n\nLarge models handle reasoning, Agents handle planning and execution, and AOCI organizes code, configuration, tests, and database structures into continuously maintainable system cognition bound to the current system version, for Agents to read and understand before acting.\n\n## 🗺️ What is AOCI-CODE?\n\nAOCI-CODE originates from AOCI. Put simply, AOCI-CODE distills the information from source code, database structures, and other assets that materially affects how AI understands and modifies a system into a high-information-density, plain-text index combining symbols and semantics.\n\nAOCI-CODE applies this method to projects through the `aoci` CLI and MCP Server.\n\nWhen model context is limited, an AI Agent can read the index first, acquire most of the project’s key information in one pass, and then enter a specific development task. This reduces repeated searching and code re-learning while improving continuity across tasks and sessions.\n\n- **The index is not a one-time summary**: it evolves with the system and remains in the project over the long term, where it can be diffed, reviewed, versioned, and rolled back with Git.\n- **It records more than “where files are”**: AOCI-CODE also preserves object responsibilities, strong relationships, public contracts, transaction boundaries, compatibility constraints, and other information that is difficult to infer directly from code structure.\n- **The index is portable**: the index is stored with the project and is not tied to a specific model, AI Agent, or individual session. When the index is aligned with the code version, different AI Agents and later sessions can read and reuse the same system cognition without rebuilding their understanding from scratch each time.\n- **Code and databases can be understood together**: the model can build an independent table-level index for database tables. When Code Cognition and Database Cognition are delivered together, an AI Agent can understand the software system more completely.\n\n\nNames in this document have the following roles: **AOCI** refers to the cognition paradigm and protocol, while **AOCI-CODE** refers to the project and the index itself that embody this method.\n\n## ⚙️ How AOCI works\n\nIn the current Volume-first layout, AOCI-CODE organizes the index as governed, plain-text cognition assets stored with the project:\n\n- **Root (`aoci.txt`)**: declares the composition and activation entry point of the current CognitionSet;\n- **Meta (`aoci.meta.txt`)**: stores the tag dictionary, FRAS rules, and model-authoring constraints;\n- **Code (`aoci.code.txt`)**: stores model-authored cognition for code and other repository assets;\n- **Database (`aoci.database.txt`)**: stores optional table-level cognition when Database Cognition is enabled.\n\nRoot, Meta, and participating object Volumes together form the current Whole-Index. On top of these assets, the workflow has three stages:\n\n1. **Establish governed cognition**: The model reads source code and accepted evidence, while AOCI-CODE governs Managed Scope and model-authored cognition for managed objects with the `index` role.\n2. **Deliver cognition before action**: The Agent reads the Rules, live Guide, and current Whole-Index, then checks source and other evidence for the task at hand.\n3. **Maintain cognition after verified change**: Once code and tests are stable, project Rules and the AOCI MCP workflow guide the Agent to update affected Entries and return formal cognition to `aligned`.\n\nThese plain-text cognition assets are stored with the project and can be versioned with Git. When cognition remains aligned with the current system version, different AI Agents and later sessions can read and reuse the same Whole-Index.\n\n## 🚀 One-step setup\n\nGive the following instruction to your AI Agent to download AOCI-CODE and integrate it; ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:38.597915"
+  },
+  {
+    "basic_info": {
+      "name": "MeshLAN",
+      "full_name": "zhaoxuya520/MeshLAN",
+      "owner": "zhaoxuya520",
+      "description": "Self-hosted P2P-first virtual LAN, service sharing, multi-relay and AI automation built on Nebula.",
+      "url": "https://github.com/zhaoxuya520/MeshLAN",
+      "clone_url": "https://github.com/zhaoxuya520/MeshLAN.git",
+      "ssh_url": "git@github.com:zhaoxuya520/MeshLAN.git",
+      "homepage": null,
+      "created_at": "2026-08-22T10:30:10Z",
+      "updated_at": "2026-09-01T02:46:07Z",
+      "pushed_at": "2026-08-30T21:11:01Z"
+    },
+    "stats": {
+      "stars": 203,
+      "forks": 24,
+      "watchers": 203,
+      "open_issues": 0,
+      "size": 3346
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 680161,
+        "HTML": 208068,
+        "JavaScript": 101536,
+        "PowerShell": 21043,
+        "CSS": 13242,
+        "Shell": 6681
+      },
+      "license": "MIT License",
+      "topics": [
+        "golang",
+        "mesh-network",
+        "nat-traversal",
+        "nebula",
+        "p2p",
+        "relay",
+        "self-hosted",
+        "virtual-lan",
+        "vpn",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <img src=\"cmd/meshlan/assets/meshlan-icon.png\" width=\"96\" alt=\"MeshLAN logo\">\n  <h1>MeshLAN</h1>\n  <p><strong>简体中文</strong> · <a href=\"README.en.md\">English</a> · <a href=\"README.ja.md\">日本語</a></p>\n  <p><strong>以 P2P 为主、Relay 兜底的自托管虚拟局域网与本地服务协作平台</strong></p>\n  <p>\n    <img alt=\"Go\" src=\"https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white\">\n    <img alt=\"Nebula\" src=\"https://img.shields.io/badge/Nebula-1.11-315C77\">\n    <img alt=\"Windows client\" src=\"https://img.shields.io/badge/Client-Windows-0078D4?logo=windows\">\n    <img alt=\"Linux server\" src=\"https://img.shields.io/badge/Server-Linux-FCC624?logo=linux&logoColor=111\">\n    <img alt=\"License\" src=\"https://img.shields.io/badge/License-MIT-2E7D65\">\n  </p>\n</div>\n\nMeshLAN 在 [SlackHQ Nebula](https://github.com/slackhq/nebula) 之上提供自动配对、\nP2P/NAT 优化、多 Lighthouse/Relay、服务映射、MeshDNS、文件直传、访问审批、\n实时拓扑、历史回放、安全更新和可选 AI 自动化。Windows 用户只需运行一个便携\n客户端；控制面和中继节点由你自己的 Linux 服务器承载。\n\n> 本仓库包含 Windows 客户端、Linux 主控制服务器和 Linux 子节点的完整源码。\n> 截图来自真实原生客户端，设备标识、IP、IPv6、域名和公网端点均已遮挡。\n\n## 截图\n\n### 实时网络拓扑\n\n![MeshLAN real-time topology](docs/screenshots/topology.png)\n\n### 历史与回放\n\n![MeshLAN history and replay](docs/screenshots/history.png)\n\n### AI 助手\n\n![MeshLAN AI assistant](docs/screenshots/ai-assistant.png)\n\n## 核心能力\n\n- **虚拟局域网**：基于 Nebula v2 证书和加密隧道连接异地 Windows 设备。\n- **P2P 优先**：双栈打洞、稳定 UDP 端口、UPnP、STUN 诊断与 Route Guard。\n- **Relay 兜底**：直连失败时自动中继；多节点根据延迟、抖动、丢包和健康状态择优。\n- **多节点控制面**：主 Lighthouse 管理 Linux 子 Lighthouse/Relay，支持健康检查与故障切换。\n- **服务映射**：把 `localhost` TCP/UDP 服务发布给同一 Mesh，支持自定义端口、暂停和健康检查。\n- **访问审批**：服务可设置直接访问或手动批准；创建者只能管理自己的映射和授权。\n- **MeshDNS**：设备使用 `alice.mesh`，服务使用 `api.alice.mesh` 等稳定名称。\n- **HTTPS 网关**：为 `.mesh` HTTP 服务提供本地 CA、证书签发和无端口访问入口。\n- **文件直传**：文件内容通过设备间加密链路传输，控制服务器只分发元数据。\n- **实时可观测性**：拓扑、P2P/Relay 路径、Underlay、延迟、服务健康和实时字节动画。\n- **按用户 Token 统计**：从模型响应的真实 `usage` 累计输入、输出、缓存与推理 Token，不读取对话正文。\n- **历史与回放**：本地 SQLite 保留流量、路径、连接和事件；支持时间滑块与筛选。\n- **AI 助手**：模型密钥只在服务端；上下文和结果端到端加密；所有修改必须由用户确认。\n- **安全更新**：Ed25519 签名清单、SHA-256 校验、可选 Authenticode、健康检查和自动回滚。\n- **多语言界面**：支持简体中文、繁體中文、English、日本語；界面与 AI 助手回复同步切换并在本机保存。\n\n## 把异地设备变成一个局域网\n\nMeshLAN 的核心不是把某一个 API 暴露到公网，而是让不同运营商、不同城市、不同 NAT\n后的 Windows 设备加入同一个加密局域网。每台设备获得稳定的 Mesh IP，应用可以像访问\n同一台路由器下的电脑一样访问其他设备；现有家庭网络、公司网络和默认网关不会被替换。\n\n- 设备之间优先使用加密 P2P 直连，打洞失败才自动切换到可用 Relay；\n- IPv4、IPv6 或智能双栈可按设备选择，Route Guard 避免全局代理/TUN 抢走 MeshLAN 链路；\n- 拓扑图实时展示在线设备、实际 P2P/Relay 路径、延迟、流量和链路变化；\n- 设备离线、换网或公网端点变化后会重新注册和建链，不需要重新分配 Mesh IP；\n- 同一 Mesh 内可继续使用 ping、远程桌面、数据库、游戏服务器和自建 API 等现有协议。\n\n```text\nWindows A ── encrypted P2P ── Windows B\n    │                              │\n10.77.0.2                      10.77.0.3\n    └──── Relay fallback（仅直连失败时）────┘\n```\n\n控制服务器负责设备授权、证书和发现信息，不承载正常的 P2P 业务数据。即使走 Relay，\n中继看到的也只是 Nebula 加密数据包。\n\n## MeshDNS：用名称访问设备和服务\n\nMesh IP 适合底层路由，人更适合记名称。MeshDNS 为每个用户/设备维护可修改的唯一前缀，\n并根据当前设备和服务状态实时生成记录，无需在每台电脑上手写 `hosts` 文件。\n\n假设设备前缀是 `alice`：\n\n| 目标 | MeshDNS 名称 | 示例用途 |\n|---|---|---|\n| 设备本身 | `alice.mesh` | ping、RDP、SMB 或其他任意协议 |\n| HTTP 服务 | `chat.alice.mesh` | 通过本地网关无端口访问 Web 服务 |\n| 普通 TCP 服务 | `db.alice.mesh:5432` | 数据库、API 或自定义 TCP 协议 |\n| UDP 服务 | `game.alice.mesh:27015` | 游戏服务器或其他 UDP 服务 |\n\n用户可以修改自己的设备前缀，也可以为每个已发布服务单独修改三级前缀。创建、编辑、\n暂停或删除映射后，服务目录与 MeshDNS 记录会随真实状态更新；名称冲突会在保存前提示，\n不会静默指向错误设备。只有 HTTP/HTTPS 网关模式可以省略端口，普通 TCP/UDP 服务仍需\n使用映射端口。\n\n## 服务映射：共享 localhost，而不是暴露公网端口\n\n很多开发工具只监听 `localhost`，例如本地 API、Web 面板、数据库或游戏服务器。\nMeshLAN 可以把它发布到虚拟局域网，不需要在家庭路由器做端口转发，也不需要把服务\n直接暴露给整个互联网。\n\n创建映射时填写：\n\n1. 服务名称，例如 `Chat API`；\n2. 本地地址与端口，例如 `localhost` 和 `4571`；\n3. TCP 或 UDP；\n4. 自动分配或自定义 Mesh 端口；\n5. MeshDNS 服务前缀，例如 `chat`；\n6. 直接访问或需要创建者批准。\n\n发布完成后，同一 Mesh 的成员会在“全网共享服务”中实时看到服务所有者、名称、协议、\n健康状态、访问地址和端口。例如本机的 `localhost:4571` 可以发布为：\n\n```text\nhttp://chat.alice.mesh\n# 或普通端口模式\nchat.alice.mesh:20000\n```\n\n映射支持同时创建多个 TCP/UDP 服务。端口冲突会在创建前返回明确提示；创建者可以暂停\n整个映射、暂停某个获准用户、查看当前连接者和流量，并随时恢复。需要审批的服务会生成\n访问申请，创建者可在消息列表中同意或拒绝。所有用户都能查看共享目录，但只能修改或\n删除自己创建的映射。\n\n```text\npeer request\n    │\n    ▼\nchat.alice.mesh:20000\n    │  MeshDNS + access policy\n    ▼\nalice (10.77.0.2)\n    │  local encrypted forwarding\n    ▼\nlocalhost:4571\n```\n\n## 架构\n\n```mermaid\nflowchart LR\n  subgraph Endpoints[Windows endpoints]\n    A[Windows Client A\\nWebView2 + Nebula]\n    B[Windows Client B\\nWebView2 + Nebula]\n    C[Windows Client C\\nWebView2 + Nebula]\n  end\n\n  subgraph Control[Self-hosted control plane]\n    M[Main Linux Server\\nEnrollment + Admin + Lighthouse + Relay]\n    N1[Linux Child Node\\nLighthouse + Relay]\n    N2[Linux Child Node\\nLighthouse + Relay]\n  end\n\n  A <-->|preferred encrypted P2P| B\n  B <-->|preferred encrypted P2P| C\n  A -.->|discovery / heartbeat| M\n  B -.->|discovery / heartbeat| M\n  C -.->|discovery / heartbeat| M\n  M <-->|health + signed revocations| N1\n  M <-->|health + signed revocations| N2\n  A -.->|fallback relay| N1\n  C -.->|fallback relay| M\n```\n\n### 组件\n\n| 组件 | 平台 | 职责 |\n|---|---|---|\n| Windows Client | Windows 10/11 | 原生桌面窗口、配对、Nebula 服务、Route Guard、服务映射、MeshDNS、文件直传、AI 助手 |\n| Main Server | Linux amd64/arm64 | 管理台、设备授权、证书签发、吊销、更新分发、主 Lighthouse/Relay、AI Provider |\n| Child No",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:39.867021"
+  },
+  {
+    "basic_info": {
+      "name": "whip",
+      "full_name": "context-labs/whip",
+      "owner": "context-labs",
+      "description": "A fast coding-agent harness in Go. Tool-use loop, bubbletea TUI, provider-routable models with live catalog discovery, MCP support, background subagents. One binary, no runtime, built for open-source models.",
+      "url": "https://github.com/context-labs/whip",
+      "clone_url": "https://github.com/context-labs/whip.git",
+      "ssh_url": "git@github.com:context-labs/whip.git",
+      "homepage": "",
+      "created_at": "2026-08-20T22:57:11Z",
+      "updated_at": "2026-09-01T05:21:38Z",
+      "pushed_at": "2026-09-01T03:56:55Z"
+    },
+    "stats": {
+      "stars": 199,
+      "forks": 20,
+      "watchers": 199,
+      "open_issues": 26,
+      "size": 4005
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2158903,
+        "Swift": 60781,
+        "Shell": 8979,
+        "JavaScript": 7134,
+        "Makefile": 2539
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "```\n        ▄ ▄   ▄ ▄ ▄ ▄   ▄\n        █ █   █   █ █▀▀▀█▀▀▄\n        ▀█▀ ▄▄█   █ █   █\n        whip — a fast coding-agent harness in Go\n```\n\nAn LLM tool-use loop (bash / read / write / edit / subagent), an interactive\nbubbletea session, and provider-routable models. One binary, no runtime,\nconfig you can read.\n\n## Why whip\n\n- **Agent harnesses should be FAST** — literally as fast as possible. whip is\n  built in Go around that constraint: parallel tool calls, streaming\n  everything, nothing between you and the model but a loop.\n- **Defaults across other harnesses suck.** They all have awesome patterns,\n  but none of them bring them all together. whip cherry-picks the best ideas\n  from pi, opencode, codex, and exo into one opinionated harness\n  (see [docs/roadmap.md](docs/roadmap.md) — every feature cites its source).\n- **Go is great for networking-heavy applications**, and harnesses do a whole\n  lot of networking. whip leans on channels where the TypeScript reference\n  designs hand-roll promises — per-path file locks and background subagents\n  collapse into primitives the compiler checks\n  ([docs/concurrency.md](docs/concurrency.md)).\n- **whip is focused on a future where open-source models are the preferred\n  models.** Keeping up with those models is hard — whip brings you an\n  opinion on what model you should be using: live discovery from every\n  provider's catalog, new models surfaced in the picker, a fast default that\n  tracks the frontier.\n\n## Install\n\n```sh\ncurl -fsSL https://raw.githubusercontent.com/context-labs/whip/main/install.sh | sh\n```\n\nChecksum-verified prebuilt binaries (Linux/macOS, x64/arm64). Or from source\n(Go ≥ 1.27):\n\n```sh\ngo install github.com/context-labs/whip/cmd/whip@latest\n```\n\nThen `whip` and you're in. Defaults to inference.net models — any\nOpenAI-compatible endpoint works as a provider. One command wires up\nOpenRouter's whole catalog (`/model` lists every model, no per-model\nconfig):\n\n```sh\nwhip auth openrouter   # masked key prompt — or /auth openrouter in-session\n```\n\nTo update to the latest release later, run `whip update` — it re-runs the\ninstall script above.\n\n## First things to try\n\n```\n/context-doctor     audit what a fresh session injects, in tokens\n/goal <text>        work until done\n/model              pick a model — type to filter (new) entries come from the\n                    provider catalog, no config needed\n```\n\nDrop a `.mcp.json` in your repo and MCP servers just appear (`/mcp` to see\nthem). ctrl+c once interrupts; twice quits.\n\n## Docs\n\nThe full setup, config reference, MCP, browser/computer-use, and how\neverything works: **[docs/README.md](docs/README.md)**.\n\nHighlights:\n\n- [docs/architecture.md](docs/architecture.md) — the moving parts, keystroke\n  to tool call\n- [docs/agent-loop.md](docs/agent-loop.md) — one loop, one function\n- [docs/concurrency.md](docs/concurrency.md) — channels where others use\n  promises\n- [docs/features.md](docs/features.md) — full feature map, linked to code\n  and tests\n- [docs/roadmap.md](docs/roadmap.md) — shipped vs. next, sources cited\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:41.171843"
+  },
+  {
+    "basic_info": {
+      "name": "procoder",
+      "full_name": "azrtydxb/procoder",
+      "owner": "azrtydxb",
+      "description": "Senior-developer discipline for AI coding agents. A commit gate that counts unchecked as failing, quality controllers that refuse to call unfinished work done, and a lessons loop that closes each escaped bug's class. One Go binary, no runtime deps, works with 20+ agents.",
+      "url": "https://github.com/azrtydxb/procoder",
+      "clone_url": "https://github.com/azrtydxb/procoder.git",
+      "ssh_url": "git@github.com:azrtydxb/procoder.git",
+      "homepage": "https://procoder.azrty.com/",
+      "created_at": "2026-08-16T07:47:17Z",
+      "updated_at": "2026-08-31T19:19:53Z",
+      "pushed_at": "2026-08-31T19:14:34Z"
+    },
+    "stats": {
+      "stars": 197,
+      "forks": 14,
+      "watchers": 197,
+      "open_issues": 15,
+      "size": 196041
+    },
+    "tech_info": {
+      "language": "Go",
+      "languages": {
+        "Go": 2219600,
+        "Shell": 64483,
+        "JavaScript": 42976,
+        "Batchfile": 1840,
+        "Python": 698
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "ai-coding-assistant",
+        "claude-code",
+        "claude-code-plugin",
+        "code-quality",
+        "code-review",
+        "developer-tools",
+        "linter",
+        "mcp",
+        "security",
+        "static-analysis"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/assets/banner.png\" alt=\"Procoder — senior dev wisdom, automated\" width=\"100%\">\n</p>\n\n**Make your AI coder work like a senior developer.** One Go binary gives\nthe agent a commit gate it cannot talk its way past, quality controllers\nthat refuse to call unfinished work done, and a self-learning loop that\nturns every escaped bug into a permanently closed class. The agent stays\nin control — nothing ever touches your code behind its back.\n\n![CI](https://github.com/azrtydxb/procoder/actions/workflows/ci.yml/badge.svg)\n![Version](https://img.shields.io/badge/version-3.4.0-7C3AED)\n![License](https://img.shields.io/badge/license-Apache--2.0-7C3AED)\n![Agents](https://img.shields.io/badge/works%20with-20%2B%20agents-7C3AED)\n\n## Quick start\n\n```\n/plugin marketplace add azrtydxb/procoder\n/plugin install procoder\n/procoder:init          # installs the tools this repository needs\n```\n\nThat's Claude Code; Procoder also ships adapters for **every agent** —\nCursor, Windsurf, Cline, Kilo Code, Roo, Kiro, Codex CLI, Copilot CLI,\nGemini, OpenCode, and anything that reads `AGENTS.md`. See\n[Every agent](https://procoder.azrty.com/portability/).\n\n## Before / after\n\nWithout Procoder, \"done\" is whatever the agent last said. With it, done\nhas to survive the gate — this is a real run, verbatim, on a demo repo\nwith an unformatted file, a conflict marker, and a staged junk file:\n\n```\n$ procoder check\nunformatted  main.go  (run `procoder format \"main.go\"` for the result)\nBLOCKING     notes.md:1  merge conflict marker left in the file\nBLOCKING     notes.md:5  merge conflict marker left in the file\nBLOCKING     .DS_Store  junk file staged — caches and garbage never belong in a commit\n...\nprocoder gate: 0 clean, 2 unformatted, 0 unchecked, 1 out of scope, 8 hygiene finding(s) (3 blocking)\n```\n\nThe agent gets the findings and the fixed content in the same turn; the\nbinary never edits a file itself. And a tool that failed is **never**\nreported as clean — \"unchecked\" counts as failing, said out loud.\n\n## How it works\n\n```\nagent writes code ──► hook fires ──► binary computes findings\n        ▲                                    │\n        └──── agent reviews and implements ◄─┘\n```\n\nTwo modes, one principle:\n\n- **Self-serve** — tools the agent runs itself: check, format, lint,\n  scan, query the index, audit the tree.\n- **Forced** — hooks at fixed lifecycle points (every write, every\n  session start) the agent cannot skip.\n- **P-CONTROL** — the binary computes and reports; the agent acts.\n  Nothing modifies code, files, or state behind the agent's back. The one\n  exception is `procoder prune --apply`, which removes superseded copies of\n  the plugin from your cache — not repository content, and never without\n  being asked twice.\n\n## What's inside\n\n**The commit gate** (`procoder check`) — formatting across the popular\nlanguages (Go, Python, JS/TS/HTML/CSS, PHP, Rust, C/C++, Java, Kotlin,\nSwift, Ruby, Dart, C#, shell — one canonical formatter each, the\nproject's config always wins), git hygiene (conflict markers, junk, oversized\nfiles, AI-attribution lines), secrets, lint, ci and infra hygiene, and\ndocumentation health, all through one code path so `check`, `git`, and\nCI can never disagree.\n\nThat full set is what a repository that has **adopted** procoder gets — one\nwith a `.procoder/` directory, or an `AGENTS.md` naming procoder. In\nsomebody else's repository only the checks that are true anywhere run\n(secrets, oversized files, conflict markers, junk, AI-attribution lines),\nand the ones that read file content see only the lines your commit wrote.\nprocoder does not apply its conventions to a project that never asked for\nthem, and every run says which mode it was in.\n\n**The quality chain** — thinking before code, with a refusing controller\nat every link: a **spec** interview closes design gaps before anything is\nbuilt (`spec check` blocks while sections are missing or questions\nopen), a **plan** turns the spec into tasks an engineer with zero\ncontext could execute (`plan check` blocks placeholders), a **backlog**\nholds larger projects as milestones → epics → user stories seeded from\nspecs and worked in scope-boxed **sprints** (one active sprint, explicit\ncarry-over, closes that refuse), and a **todo** list tracks standalone\nwork (`todo close` refuses until every acceptance criterion is checked,\nevidence is recorded, and the gate is clean — story closes carry the\nsame rigor).\n\n**The self-learning loop** — a pre-PR self-review catches\nreviewer-class findings before a PR exists; anything that still escapes\nbecomes a **lessons** ledger entry whose adaptation (a linter rule, a\nrubric line, a pinning test) must land before the work counts as done.\nDownstream bot reviewers are the fallback net, not the net — and what\nthat net catches is not lost either: `procoder copilot-leak` collects\nGitHub Copilot's auto-review findings, strips every trace of your code\nfrom them, and — only after you say yes on a terminal — files them as",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-01T05:53:42.426101"
+  }
+]

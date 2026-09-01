@@ -1,0 +1,104 @@
+# lsoff
+
+[English](README.md) | [日本語](README.ja.md)
+
+<img width="899" height="477" alt="image" src="https://github.com/user-attachments/assets/6cb1ff20-f44d-4759-b0e1-0d34ac629153" />
+
+CLI / TUI that lists listening TCP/UDP ports on Windows, Linux, and macOS.
+
+Think of it as a port-focused `lsof`: quickly see who is holding a port, then kill the process if you need to.
+
+## Install
+
+Binaries are attached to [GitHub Releases](https://github.com/yutat23/lsoff/releases) (`lsoff-darwin-arm64`, `lsoff-linux-amd64`, `lsoff-windows-amd64.exe`, …).
+
+### Windows (WinGet)
+
+```powershell
+winget install yutat23.lsoff
+```
+
+### macOS / Linux (Homebrew)
+
+Install it from the [Homebrew tap](https://github.com/yutat23/homebrew-tap). Homebrew 6 requires trusting a third-party tap first:
+
+```bash
+brew tap yutat23/tap
+brew trust yutat23/tap
+brew install lsoff
+```
+
+### Go install
+
+```bash
+go install github.com/yutat23/lsoff@latest
+```
+
+### Build from source
+
+```bash
+git clone https://github.com/yutat23/lsoff
+cd lsoff
+go build -o lsoff .
+```
+
+A tagged push (`git tag v0.1.0 && git push origin v0.1.0`) builds those binaries and publishes the release.
+
+macOS uses libproc, so CGO is required (enabled by a normal `go build`).
+
+## Usage
+
+```bash
+lsoff                 # TUI (prints a table if stdout is not a TTY)
+lsoff 8080            # show processes holding port 8080
+lsoff nginx           # search by name, path, PID, cmdline, project, service…
+lsoff -q "node 8080"  # space-separated words are AND
+lsoff -t              # TCP only (TUI)
+lsoff -p              # hide rows with an unknown PID
+lsoff -u 53           # UDP port 53
+lsoff --json nginx    # search results as JSON
+lsoff -k 8080         # kill those processes (with confirmation)
+lsoff -k -y 8080      # skip confirmation (required when piped)
+lsoff -h
+lsoff -v
+```
+
+Example output for a port query:
+
+```
+PROTO  PORT  ADDRESS      PID    PROJECT  PROCESS  PATH                 CMD                   CWD
+tcp    8080  127.0.0.1    41233  lsoff    node     /usr/local/bin/node  /usr/local/bin/node   ~/mywork/lsoff
+```
+
+### TUI
+
+| Key / action | What it does |
+|------|------|
+| `/` / click `Search:` / `ctrl+f` | Search (port, PID, name, project, path, cmdline; spaces are AND) |
+| `↑` / `↓` / `j` / `k` / click / wheel | Move and select (works while searching too) |
+| Click a header | Sort by that column (click again for descending) |
+| `s` / `S` | Cycle sort column / toggle ascending-descending |
+| `p` | Hide rows with an unknown PID (toggle) |
+| `y` | Copy the selected `addr:port` |
+| `a` | Auto-refresh every 2 seconds (toggle) |
+| `enter` / `space` / click `▸` | Expand or collapse sockets for the same PID |
+| `h` / `l` | Collapse / expand |
+| `esc` / `ctrl+c` | Clear the search |
+| `r` | Reload the list now |
+| `x` | Kill the selected process (asks first) |
+| `q` | Quit |
+
+In the TUI, `tcp` is green and `udp` is amber. The selected row uses the highlight background instead. The CLI table stays uncolored so it stays script-friendly. Process names, command lines, and paths are sanitized for the terminal (control characters and ANSI/OSC sequences). JSON keeps the original strings.
+
+Sockets that share a PID (typical IPv4 + IPv6) start collapsed as one row with `▸` and a `+N` count. `enter` expands them into a small tree: the head shows `▾`, the last child is drawn with `└─`, and every child before it with `├─`. So a pair of sockets shows a single `└─` child, and three or more chain as `├─`, … , `└─`.
+
+Known service names (http, postgres, redis, vite, …) are searchable and shown on the `SVC` footer line. Ambiguous ports such as 3000 are aliases-only and have no single display name. Historic ports (echo, chargen) are not included. JSON may include `"service"` when a display name exists.
+
+After `x`, press `y` to confirm, or `n` / `esc` to cancel. Kill verifies that the process is still the same one that was listed: Linux uses `pidfd_open` (the fd refers to that process, not the PID number), macOS checks `pbi_start_tvsec`/`usec` then signals, and Windows checks `CreationTime` on an open process handle. On Unix it sends SIGTERM first, then SIGKILL if that same process is still alive after 2 seconds. On Windows it uses `TerminateProcess`. pid 1 and the lsoff process itself are never killed.
+
+CLI `-k` follows the same rules. If the same PID appears twice (IPv4 and IPv6), it is killed only once. When stdin is not a TTY, `-y` is required so a pipe cannot kill by accident.
+
+## Limitations
+
+- **macOS kill is not atomic.** There is no pidfd. lsoff re-reads `pbi_start_tvsec`/`usec` immediately before `kill(2)`, but a PID can still be reused in that tiny window. Linux pidfd and Windows process handles do not have this gap.
+- **Windows cmdline/cwd** use `NtQueryInformationProcess`, which Microsoft documents as an internal API that may change. A 64-bit build reads WOW64 (32-bit) process strings from the 32-bit PEB; `ProcessCommandLineInformation` is parsed with the *caller's* pointer size, then PEB `CommandLine

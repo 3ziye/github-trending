@@ -1,0 +1,879 @@
+[
+  {
+    "basic_info": {
+      "name": "watermarks-remover",
+      "full_name": "guillaumemeyer/watermarks-remover",
+      "owner": "guillaumemeyer",
+      "description": "A privacy-first app that strips AI watermarks from content you own.",
+      "url": "https://github.com/guillaumemeyer/watermarks-remover",
+      "clone_url": "https://github.com/guillaumemeyer/watermarks-remover.git",
+      "ssh_url": "git@github.com:guillaumemeyer/watermarks-remover.git",
+      "homepage": "https://github.com/guillaumemeyer/watermarks-remover",
+      "created_at": "2026-08-11T16:32:38Z",
+      "updated_at": "2026-09-06T05:12:50Z",
+      "pushed_at": "2026-09-05T14:18:42Z"
+    },
+    "stats": {
+      "stars": 20831,
+      "forks": 2402,
+      "watchers": 20831,
+      "open_issues": 17,
+      "size": 1596
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1632629,
+        "Shell": 19892,
+        "PowerShell": 15280,
+        "Makefile": 6838,
+        "JavaScript": 2983,
+        "Dockerfile": 2925
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skill",
+        "ai",
+        "anthropic",
+        "c2pa",
+        "chatgpt",
+        "claude",
+        "gemini",
+        "openai",
+        "provenance",
+        "synthid",
+        "watermark",
+        "watermark-detection",
+        "watermark-tools",
+        "watermarking",
+        "watermarks"
+      ]
+    },
+    "content": {
+      "readme": "```\n_ _ _ ____ ___ ____ ____ _  _ ____ ____ _  _ ____    ____ ____ _  _ ____ _  _ ____ ____\n| | | |__|  |  |___ |__/ |\\/| |__| |__/ |_/  [__  __ |__/ |___ |\\/| |  | |  | |___ |__/\n|_|_| |  |  |  |___ |  \\ |  | |  | |  \\ | \\_ ___]    |  \\ |___ |  | |__|  \\/  |___ |  \\\n```\n\n# watermarks-remover\n\n<!-- logo: figlet -d .figlet -f cybermedium -w 120 \"watermarks-remover\" -->\n\n[![CI](https://github.com/guillaumemeyer/watermarks-remover/actions/workflows/ci.yml/badge.svg)](https://github.com/guillaumemeyer/watermarks-remover/actions/workflows/ci.yml)\n[![Release](https://img.shields.io/github/v/release/guillaumemeyer/watermarks-remover)](https://github.com/guillaumemeyer/watermarks-remover/releases)\n[![Stars](https://img.shields.io/github/stars/guillaumemeyer/watermarks-remover)](https://github.com/guillaumemeyer/watermarks-remover/stargazers)\n[![Forks](https://img.shields.io/github/forks/guillaumemeyer/watermarks-remover)](https://github.com/guillaumemeyer/watermarks-remover/forks)\n\nAgent skill + stdlib Python service to strip **multi-vendor AI provenance marks** from text and files — for privacy and hygiene on content **you own**. The skill is a thin client: it drives the machinery over HTTP, so the agent host needs no Python.\n\n| Layer | Target | How |\n| --- | --- | --- |\n| **A** | Invisible Unicode, exotic spaces, bidi, tag chars | Deterministic Python scripts |\n| **B** | Statistical (token-sampling) text watermarks | Agent rewrite + optional `rewrite_text.py` hook |\n| **Files** | C2PA / EXIF / XMP / doc props | PNG, JPEG, WebP, AVIF, HEIC, BMP, GIF, TIFF, SVG, PDF, DOCX, XLSX, PPTX, EPUB, ODT, HTML, Markdown, MP4/MOV/M4A/M4V, WAV, MP3, FLAC |\n\nVendors / ecosystems (class-level): **Claude**, **Gemini / SynthID-Text**, **OpenAI** provenance surfaces, **open-LLM** Kirchenbauer-style (green-list) and keyed-Gumbel / EXP (Aaronson) marks.\n\n**Latest release:** [v0.7.0](https://github.com/guillaumemeyer/watermarks-remover/releases/tag/v0.7.0)\n\nSkill path: [`skills/remove-ai-marks/`](skills/remove-ai-marks/)  \nService path: [`service/`](service/)  \n(migration: formerly `remove-claude-marks`; slash alias `/remove-claude-marks` still documented)\n\n## Install (agent skill)\n\nThe skill ships **no code** — it calls the service over HTTP. Install the skill (markdown only) and start the service, then set `WATERMARKS_SERVICE_URL` if it is not `http://127.0.0.1:8765`.\n\nIn Claude Code, the fastest route is the bundled\n[plugin marketplace](#claude-code-plugin-marketplace) — no clone, and it updates\nin place. Everywhere else, one installer covers every supported host\n(Python 3.10+ stdlib, no dependencies):\n\n```bash\npython3 install_skill.py --skill remove-ai-marks --target claude-code\n```\n\n| Host | Target | Lands in |\n| --- | --- | --- |\n| Claude Code (personal) | `--target claude-code` | `~/.claude/skills/<skill>` (honors `CLAUDE_CONFIG_DIR`) |\n| Claude Code (project) | `--target claude-project --project-dir PATH` | `PATH/.claude/skills/<skill>` |\n| Cowork, claude.ai, cloud sessions, routines | `--target cowork` | `dist/<skill>.zip` to upload under **Customize → Skills** |\n| Cursor | `--target cursor` (default) | `~/.cursor/skills/<skill>` |\n\nShipped skills: `remove-ai-marks` (full, service-backed) and\n`clean-user-facing-text` (text only, self-contained). `--list` prints them.\nExisting installations are preserved unless you pass `--force`; replacement is\nstaged first and the previous install is kept as a uniquely named backup.\n`--link` symlinks this checkout instead of copying, so edits are picked up\nlive. On Windows, use `py install_skill.py ...`; the `install-skill.sh` wrapper\nis provided for macOS/Linux shells.\n\nBefore writing anything, the installer validates the skill against the\n[Agent Skills](https://agentskills.io) packaging rules that claude.ai uploads\nand the Skills API enforce: spec-only frontmatter (`name`, `description`,\n`license`, `compatibility`, `metadata`, `allowed-tools`), a lowercase hyphenated\n`name` of at most 64 characters matching the directory, a non-empty\n`description` of at most 1024 characters. The Cowork bundle additionally has\nto fit the 30 MB upload limit, which the packager enforces.\n\n### Automatic cleaning via hook (deterministic)\n\nA skill is an instruction: the model decides whether to invoke it, and the\nmodel is the thing producing the marks. A **hook** is executed by the harness\non every matching tool call, cooperation not required. That makes the hook the\ndeterministic half of this workflow.\n\nThe plugin registers a `PostToolUse` hook on `Write|Edit|MultiEdit|NotebookEdit`\nthat runs [`service/scripts/hook_written_file.py`](service/scripts/hook_written_file.py)\nagainst the file the agent just wrote. Two modes, matching the pre-commit\nconvention of check-by-default:\n\n| Mode | Behaviour |\n| --- | --- |\n| `check` (default) | Reports provenance marks, leaves the file alone. Findings go to the model (exit 2), so it can offer to clean them. |\n| `clean` | Strips the marks in place, then tells the model the fi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:22.228673"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-dsh-plugin",
+      "full_name": "awesome-dsh-plugin/awesome-dsh-plugin",
+      "owner": "awesome-dsh-plugin",
+      "description": "A curated list of plugins for DeepSeek Harness (dsh) · DeepSeek Harness 插件精选列表",
+      "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin",
+      "clone_url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin.git",
+      "ssh_url": "git@github.com:awesome-dsh-plugin/awesome-dsh-plugin.git",
+      "homepage": "https://awesome-dsh-plugin.com",
+      "created_at": "2026-08-13T13:55:31Z",
+      "updated_at": "2026-09-06T05:15:44Z",
+      "pushed_at": "2026-09-05T14:58:55Z"
+    },
+    "stats": {
+      "stars": 14589,
+      "forks": 2604,
+      "watchers": 14589,
+      "open_issues": 232,
+      "size": 75892
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 290595,
+        "JavaScript": 216306,
+        "HTML": 101391,
+        "Shell": 14020
+      },
+      "license": "Creative Commons Zero v1.0 Universal",
+      "topics": [
+        "awesome",
+        "awesome-list",
+        "deepseek-harness",
+        "dsh",
+        "dsh-plugin"
+      ]
+    },
+    "content": {
+      "readme": "# Awesome DeepSeek Harness (DSH) Plugin [![Awesome](https://awesome.re/badge.svg)](https://awesome.re) ![awesome · DSH plugin](https://awesome-dsh-plugin.com/badge.svg) ![plugin count](https://img.shields.io/endpoint?url=https%3A%2F%2Fawesome-dsh-plugin.com%2Fcount.json)\n\n[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/banner-en.png)](https://awesome-dsh-plugin.com)\n\nEnglish | [中文](README.zh.md)\n\n> A curated list of plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`).\n\nDeepSeek Harness is DeepSeek's open-source agent harness — a runnable coding agent (Web and headless), built on a framework where everything is a plugin: models, tools, sandboxes, session storage, UI, even the agent loop itself. Plugins can extend the official coding agent, swap out its core parts, or assemble something entirely different.\n\nThis list collects community plugins that are installable via `dsh plugin add` (each declares a `dsh.bundle` manifest). [PRs welcome](#contributing).\n\n> 🛒 **Recommended: [dsh-market](https://github.com/dsh-market/dsh-market#readme)** (optional) — the plugin market inside DeepSeek Harness, with every plugin on this list. Simple, friendly UI: one-click plugin install and upgrade, one-click theme switching:\n\n```sh\ndsh plugin --profile web add dshmarket\n```\n\n<a href=\"https://raw.githubusercontent.com/dsh-market/dsh-market/main/assets/demo-en.png\"><img src=\"https://raw.githubusercontent.com/dsh-market/dsh-market/main/assets/demo-en.png\" width=\"320\" alt=\"dsh-market plugin browser inside DeepSeek Harness Settings: searchable plugin cards with one-click Install, category filters and a Themes tab\"></a>\n\n<sub><i>The plugin market inside Settings — click to enlarge.</i></sub>\n\n> 💡 Prefer chat? [dsh-find-plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin#readme) lets your agent find plugins for you (`dsh plugin --profile web add dsh-find-plugin`).\n\n> 💬 **Every plugin page takes comments.** Ask the author a question, say what you used it for, or warn the next reader — [see an example](https://awesome-dsh-plugin.com/p/00080000/dsh-project-memory/). Threads live in this repository's [GitHub Discussions](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/discussions), so there is no account to make beyond the GitHub one you have. Nothing loads until you ask for it.\n\n> ℹ️ **On desktop clients.** This list is client-agnostic. A plugin is listed because it follows the official protocol — it declares a `dsh.bundle` manifest and installs with `dsh plugin add` — not because it adapts to any particular client.\n>\n> We're talking with `anywhere-labs/deepseek-harness-desktop` about working together again; we'll update this note as that progresses. Whatever comes of it, the listing rule stays as it is: adapting to any particular client is not a condition of being listed, and no plugin will be removed or demoted for not doing so.\n>\n> Clients worth a look: [dsh-desktop](https://github.com/dataelement/dsh-desktop) and [deepseek-harness-desktop](https://github.com/hairyf/deepseek-harness-desktop) — both ship dsh-market built in, so everything on this list is one click away. Any other good third-party client works too.\n\n> [!WARNING]\n> Installing a plugin runs third-party code on your machine with your own permissions — it can read your files, use your credentials, and reach the network. Tool approvals don't sandbox plugin code. Being on this list is not a security review: check the source before you install, and try unfamiliar plugins somewhere that doesn't hold your keys. See the full disclaimer at the bottom of this page.\n\n<details>\n<summary><b>What it takes to be listed here</b></summary>\n\nAn entry is added when the plugin installs with `dsh plugin add`, does what its one-line description says, sits in the right category, and is maintained. Every submission is checked against its own source before merging — if a description claims \"46 tools\", someone counts them.\n\nThat is the whole bar. **This list doesn't rank plugins or judge their quality, and we don't want to.** Plenty of good software will never appear here, and a slot here proves nothing beyond meeting those rules. They exist so that whatever you pick installs and behaves the way the line said it would.\n\nA listing isn't permanent either: entries whose repos go away, stop being maintained, or turn out to be broken get removed. Full criteria and the review checklist: [how submissions are reviewed](contributing.md#how-submissions-are-reviewed--收录如何评审).\n\n</details>\n\n## Contents\n\n<!-- BEGIN TOC -->\n- [Plugins](#plugins)\n  - [AGI Architecture Exploration](#agi-architecture-exploration)\n  - [UI Enhancements](#ui-enhancements)\n  - [Usage & Billing](#usage--billing)\n  - [Themes & Appearance](#themes--appearance)\n  - [Models & Providers](#models--providers)\n  - [Identity & Communication](#identity--communication)\n  - [Sessions & Messages](#sessions--messages)\n  - [Memory](#memory)\n  - [Tools & Capabilities](#tools--capabilities)\n ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:23.668406"
+  },
+  {
+    "basic_info": {
+      "name": "PRAXIST",
+      "full_name": "sapientinc/PRAXIST",
+      "owner": "sapientinc",
+      "description": "Autonomous research system for measurable, computer-executable research.",
+      "url": "https://github.com/sapientinc/PRAXIST",
+      "clone_url": "https://github.com/sapientinc/PRAXIST.git",
+      "ssh_url": "git@github.com:sapientinc/PRAXIST.git",
+      "homepage": "https://praxist.sapient.inc/en/docs",
+      "created_at": "2026-08-27T14:20:58Z",
+      "updated_at": "2026-09-06T05:00:09Z",
+      "pushed_at": "2026-09-05T11:26:09Z"
+    },
+    "stats": {
+      "stars": 6310,
+      "forks": 548,
+      "watchers": 6310,
+      "open_issues": 8,
+      "size": 15380
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 11215613,
+        "Jinja": 174927,
+        "Shell": 64603,
+        "Mako": 594,
+        "Dockerfile": 417
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/assets/brand/praxist-banner.svg\" alt=\"Praxist\" width=\"800\">\n</p>\n\n<h1 align=\"left\">Praxist: meet your personal R&amp;D team</h1>\n\n<p align=\"center\">\n  <a href=\"../../actions/workflows/ci.yml\"><img src=\"../../actions/workflows/ci.yml/badge.svg\" alt=\"CI\"></a>\n  <a href=\"https://praxist.sapient.inc/en/docs\"><img src=\"https://img.shields.io/badge/docs-open-334155\" alt=\"Documentation\"></a>\n  <a href=\"https://arxiv.org/abs/2608.25955\"><img src=\"https://img.shields.io/badge/arXiv-2608.25955-B31B1B.svg\" alt=\"arXiv paper\"></a>\n  <a href=\"https://discord.gg/sapient\"><img src=\"https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&amp;logoColor=white\" alt=\"Discord\"></a>\n  <img src=\"https://img.shields.io/badge/Python-3.11%2B-3776AB\" alt=\"Python 3.11+\">\n</p>\n\nPraxist is an autonomous research system for measurable, computer-executable\nresearch. It coordinates parallel research peers, task-owned evaluation,\ndurable evidence, and generation-to-generation synthesis.\n\nPraxist treats research as a persistent process rather than a sequence of\ndisconnected prompts. Use it when a project already runs and its objective is\nmeasurable, but the best path forward is still unknown.\n\n<p align=\"center\">\n  <img src=\"docs/assets/figures/praxist-overview.svg\" alt=\"Praxist architecture\" width=\"920\">\n</p>\n\n## Install Praxist\n\nInstall the complete runtime integrations and finish first-use setup with one\ncommand:\n\n```bash\npython3 -m pip install --index-url https://pypi.org/simple \"praxist[agents,codex]\" && praxist setup --interactive --install-skills codex\n```\n\nThe local wizard covers the Fair Source License, User Agreement, privacy,\nruntime profile, masked credentials, Codex skills, writable examples,\nand readiness checks. It does not select a research project or launch a run.\nFor Claude Code, use the\n[host-specific one-line command](docs/getting-started/installation.md#install-and-configure).\n\nFor an agent-managed installation, open Codex:\n\n```bash\ncodex --yolo\n```\n\nThen ask it to install and configure Praxist using the packaged OOBE runbook,\nand to stop after readiness checks.\n\nBefore starting research, read the [Quickstart](docs/getting-started/quickstart.md)\nand [Your First Task](docs/getting-started/first-task.md). They describe the\nseparate takeover step and the project contract it creates.\n\nChoose **Codex-native mode** to use an existing Codex subscription without an\nAPI key. For sustained research, Praxist generally favors\n[open-source model APIs](docs/guides/open-source-model-apis.md) with a high\nobserved cache-hit rate. The setup wizard also supports other API-backed\nprofiles.\n\n## Use Praxist Through Codex\n\nWe recommend Codex as the interface for operating Praxist. Praxist is not a\nreplacement for Codex: Codex remains the interactive agent that understands\nyour project, communicates with you, and uses development tools. Praxist adds\nthe persistent research loop, parallel peers, evidence protocols, scheduling,\nand lifecycle control.\n\nAfter installation, open Codex in the root of an already runnable research\nproject and invoke `$praxist-takeover`. The takeover skill inspects readiness,\ncreates or repairs the task harness, validates its evaluator and evidence\ncontract, and launches the run after the required gates pass. A precise brief\nproduces a better research plan; include the objective, metrics, constraints,\nresources, exploration choices, and whether launch is authorized.\n\n<details>\n<summary>Example takeover brief</summary>\n\n```text\n$praxist-takeover\n\nTreat the current directory as the existing runnable research project. Verify\nthe baseline and its evaluation path before changing anything.\n\nOptimize <primary metric and direction> while preserving <key constraints>.\nUse <peer count> peers for up to <generation count> generations within\n<time or cost budget>. Use the runtime and model provider selected during\nsetup. <Allow or disable> literature search, <enable or disable> QD, and\n<enable or disable> generation-zero DIG.\n\nDo not download new datasets or replace required project assets. Build a\nseparate task harness with explicit metric directions, baseline provenance,\nprotocol-integrity checks, evidence maturity rules, and justified retention\nlanes. After readiness checks pass, <launch immediately in detached mode / ask\nfor confirmation>. Report the task path, run ID, evidence contract, generation\nclose policy, and monitor command.\n```\n\n</details>\n\nOther bundled skills:\n\n| Skill | Purpose |\n|---|---|\n| `praxist-takeover-codex` | No-key takeover using the saved Codex login |\n| `praxist-onboarding` | Explain Praxist and inspect local readiness |\n| `praxist-task-initialization` | Build or repair a task harness without launching |\n| `praxist-interactive-task-init` | Design a task through confirmation-first setup |\n| `praxist-control` | Start, stop, resume, monitor, and inspect runs |\n| `praxist-diagnostic` | Diagnose run health and produce reports |\n| `praxist-scientific-research` | Gather so",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:24.964460"
+  },
+  {
+    "basic_info": {
+      "name": "sprix-sage-router",
+      "full_name": "wang2122/sprix-sage-router",
+      "owner": "wang2122",
+      "description": "Sprix AI at 屿智同行 — state-aware SELF/COLLABORATE/HANDOFF routing for A2A agent networks.",
+      "url": "https://github.com/wang2122/sprix-sage-router",
+      "clone_url": "https://github.com/wang2122/sprix-sage-router.git",
+      "ssh_url": "git@github.com:wang2122/sprix-sage-router.git",
+      "homepage": "",
+      "created_at": "2026-08-18T04:08:11Z",
+      "updated_at": "2026-09-06T00:43:33Z",
+      "pushed_at": "2026-08-28T09:12:08Z"
+    },
+    "stats": {
+      "stars": 3705,
+      "forks": 424,
+      "watchers": 3705,
+      "open_issues": 1,
+      "size": 350
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 189084
+      },
+      "license": "MIT License",
+      "topics": [
+        "a2a",
+        "agent-orchestration",
+        "agent-routing",
+        "ai-agents",
+        "multi-agent-systems",
+        "python",
+        "sprix-ai",
+        "task-scheduling"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# Sprix SAGE Router\n\n### Checkpoint-aware mid-execution rerouting for open A2A networks\n\n[![Tests](https://github.com/wang2122/sprix-sage-router/actions/workflows/tests.yml/badge.svg)](https://github.com/wang2122/sprix-sage-router/actions/workflows/tests.yml)\n[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)\n[![License](https://img.shields.io/badge/License-MIT-0F766E.svg)](LICENSE)\n[![Status](https://img.shields.io/badge/Status-Research%20Preview-D97706.svg)](#project-status)\n\n**An open-source research output of [Sprix AI](#about-sprix-ai) at 屿智同行.**\n\nChoose whether an in-flight task should **continue**, **recruit collaborators**, or **hand off** after accounting for completed DAG nodes, reusable artifacts, observed partial quality, remaining work, failures, budget, and deadline.\n\n[Quick start](#quick-start) · [Algorithm](ALGORITHM.md) · [Related work](RELATED_WORK.md) · [A2A integration](docs/INTEGRATION.md) · [Operations](docs/OPERATIONS.md) · [Benchmark](#benchmark) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)\n\n</div>\n\n---\n\n## Why SAGE?\n\nAgent discovery tells a system which agents exist. It does not answer the harder runtime question: **who should work with whom after execution has already begun?**\n\nSAGE—**State-Aware Graph Exchange**—is the decision layer between A2A discovery and task execution. It evaluates three routes in one auditable objective:\n\n| Route | Ownership | Best used when |\n|---|---|---|\n| **SELF** | Incumbent agent | Existing capability and accumulated context are sufficient |\n| **COLLABORATE** | Incumbent retains ownership | A small complementary team covers missing requirements |\n| **HANDOFF** | A peer takes full ownership | Specialist advantage exceeds context-transfer loss |\n\nSAGE is designed to sit above the [Agent2Agent (A2A) protocol](https://a2a-protocol.org/latest/). A2A provides Agent Cards, messages, tasks, artifacts, authentication, and transport. SAGE decides **which feasible agent configuration should execute the task, in which mode, and why**.\n\n![SAGE routing pipeline and evidence loop](docs/assets/fig01-system-overview.svg)\n\n<p align=\"center\"><sub><b>Figure 1.</b> SAGE filters candidates, compares all three routing modes, jointly searches assignments and schedules, ranks feasible plans, and learns from execution evidence.</sub></p>\n\n## Research focus\n\nSAGE is deliberately narrow: **checkpoint-aware reconfiguration after execution has begun**.\n\n- **Concrete continuation value.** The router preserves completed requirements and combines in-flight completion, observed partial quality, current ownership, and artifact portability to estimate how much work each candidate must actually redo.\n- **Comparable runtime actions.** SELF, COLLABORATE, and HANDOFF share one permission-, budget-, and deadline-constrained action space. Progress-masked and static-coalition baselines receive the same registry and limits.\n- **Requirement-conditioned evidence.** Reliability is tracked per agent and requirement instead of assuming that one reputation score transfers across skills.\n- **Trajectory-level falsification.** A separate evaluator replays checkpoints and scores artifact reuse, added cost, recovery latency, wasted work, and final quality without calling SAGE's switching equation.\n\nNoisy-OR, beam search, a linear utility, Beta beliefs, online logistic regression, and DAG-induced communication edges are not claimed as inventions. They are replaceable implementation mechanisms. The repository also provides permission-first filtering, bounded candidate search, workload-sensitive quotes, auditable alternatives, degraded-route flags, state persistence, and transport-neutral A2A plans as engineering features.\n\n## Core algorithm\n\nFor task requirement \\(r\\), SAGE combines global and requirement-conditioned trust into calibrated capability \\(q_{a,r}\\). If the current owner has completed fraction \\(f_r\\), a candidate owner reuses fraction \\(\\eta_r\\):\n\n$$\n\\eta_r=\\begin{cases}f_r,&\\text{owner retained}\\\\f_r\\tau_r,&\\text{owner changed}\\end{cases},\\qquad\n\\bar q_{a,r}=\\eta_r q^{\\mathrm{current}}_r+(1-\\eta_r)q_{a,r}\n$$\n\nHere \\(\\tau_r\\) is artifact portability. Only the assigned owner contributes requirement coverage; adding an unassigned teammate no longer creates a noisy-OR quality gain. The same reused fraction reduces projected remaining cost and duration, so lost work is not charged again inside the learned success probability.\n\nSAGE jointly searches calibrated requirement owners and their schedule. Work assigned to one agent is serialized, work on independent agents can run concurrently, and team-level cost and critical-path latency are checked again after construction.\n\nEvery feasible route is ranked by:\n\n$$\nU(m,S,z,E)=V\\hat p_\\theta(y=1\\mid x,m,S,z,E)-\\lambda_c C-\\lambda_l L-\\lambda_r R-\\lambda_h H-\\lambda_o O-\\lambda_u\\mathcal U+\\beta\\mathcal B\n$$\n\nHere \\(z\\) is role assignment, \\(E\\) is the i",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:26.250418"
+  },
+  {
+    "basic_info": {
+      "name": "mono-color-skill",
+      "full_name": "yanliudesign/mono-color-skill",
+      "owner": "yanliudesign",
+      "description": "One-ink editorial print image skill — warm paper, halftone photography, active negative space, and restrained typography.",
+      "url": "https://github.com/yanliudesign/mono-color-skill",
+      "clone_url": "https://github.com/yanliudesign/mono-color-skill.git",
+      "ssh_url": "git@github.com:yanliudesign/mono-color-skill.git",
+      "homepage": null,
+      "created_at": "2026-08-19T06:07:45Z",
+      "updated_at": "2026-09-06T04:52:40Z",
+      "pushed_at": "2026-09-02T18:49:42Z"
+    },
+    "stats": {
+      "stars": 2722,
+      "forks": 61,
+      "watchers": 2722,
+      "open_issues": 6,
+      "size": 73967
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 33646
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skill",
+        "ai-agent",
+        "claude-skill",
+        "editorial-design",
+        "generative-art",
+        "halftone",
+        "image-generation",
+        "monochrome",
+        "poster-design",
+        "prompt-engineering",
+        "risograph",
+        "zine"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n[中文](./README.zh.md) · **English**\n\n# Monocolor Editorial Print\n\n**A one-ink and controlled two-ink editorial image skill for posters, zines, portraits, packaging, and visual field notes.**\n\n[![Version](https://img.shields.io/badge/VERSION-1.2.0-2ea44f?style=flat-square&labelColor=333)](./CHANGELOG.md)\n[![Skills](https://img.shields.io/badge/SKILLS-1-2ea44f?style=flat-square&labelColor=333)](./SKILL.md)\n[![Stars](https://img.shields.io/github/stars/yanliudesign/mono-color-skill?style=flat-square&label=STARS&color=e37f2c&labelColor=333)](https://github.com/yanliudesign/mono-color-skill/stargazers)\n[![Validate skill](https://github.com/yanliudesign/mono-color-skill/actions/workflows/validate.yml/badge.svg)](https://github.com/yanliudesign/mono-color-skill/actions/workflows/validate.yml)\n\n[![Claude Code](https://img.shields.io/badge/Claude_Code-Skill-d97757?style=flat-square&labelColor=1a1a1a&logo=anthropic&logoColor=white)](https://claude.ai/code)\n[![SKILL.md](https://img.shields.io/badge/Agent-SKILL.md-214f9b?style=flat-square&labelColor=1a1a1a)](./SKILL.md)\n\n</div>\n\nTurn a theme, sentence, object, or supplied photograph into an original editorial image. The skill defaults to controlled two-ink with one dominant plate and one narrowly assigned accent plate. Explicit one-ink or monochrome requests remain pure one-ink. White, cool gray, or pale-beige substrates are selected from the image and palette; contemporary editorial is the default, while vintage treatment appears only when requested.\n\nIt preserves a visual system rather than copying a reference. Every composition is rebuilt around the subject, intent, words, and image role.\n\n## Selected examples\n\n| Summer cycling | Field study | Ordinary spaces |\n|:---:|:---:|:---:|\n| <img src=\"./examples/example-cycling.png\" alt=\"Cobalt and terracotta summer cycling editorial print\" width=\"280\"> | <img src=\"./examples/example-zebra.png\" alt=\"Cobalt and orange zebra field-study editorial print\" width=\"280\"> | <img src=\"./examples/example-chair.png\" alt=\"Green and oxblood chair zine editorial print\" width=\"280\"> |\n\n| Sardine packaging | Headphone packaging | Sunscreen packaging |\n|:---:|:---:|:---:|\n| <img src=\"./examples/example-sardines.png\" alt=\"Violet and orange sardine tin packaging\" width=\"280\"> | <img src=\"./examples/example-headphones.png\" alt=\"Cobalt and black headphone packaging\" width=\"280\"> | <img src=\"./examples/example-sunscreen.png\" alt=\"Cyan and coral sunscreen packaging\" width=\"280\"> |\n\n| A little warmth | Brand merchandise | Slow leaf |\n|:---:|:---:|:---:|\n| <img src=\"./examples/example-teapot.png\" alt=\"Green halftone teapot editorial poster\" width=\"280\"> | <img src=\"./examples/example-merchandise.png\" alt=\"Cobalt and orange mono-color merchandise collection\" width=\"280\"> | <img src=\"./examples/example-tea.png\" alt=\"Green halftone tea packaging\" width=\"280\"> |\n\n| Night photography | Sunday radio | Night market |\n|:---:|:---:|:---:|\n| <img src=\"./examples/example-night-photography.png\" alt=\"Cobalt urban night photography exhibition poster\" width=\"280\"> | <img src=\"./examples/example-radio.png\" alt=\"Cobalt and black radio listening poster\" width=\"280\"> | <img src=\"./examples/example-night-market.png\" alt=\"Red and cyan mushroom night market poster\" width=\"280\"> |\n\nThese original generated examples demonstrate the skill's range; they are outputs, not templates to reproduce.\n\n## Visual references\n\nThe visual system was informed by a twelve-image research set. See [Visual References and Attribution](./REFERENCES.md) for the complete image index, research notes, attribution status, and correction link. Third-party references remain the property of their respective creators and rights holders.\n\n| 01 | 02 | 03 |\n|:---:|:---:|:---:|\n| <a href=\"./examples/reference-01.png\"><img src=\"./examples/reference-01.png\" alt=\"Visual reference 01\" width=\"280\"></a> | <a href=\"./examples/reference-02.png\"><img src=\"./examples/reference-02.png\" alt=\"Visual reference 02\" width=\"280\"></a> | <a href=\"./examples/reference-03.png\"><img src=\"./examples/reference-03.png\" alt=\"Visual reference 03\" width=\"280\"></a> |\n| 04 | 05 | 06 |\n| <a href=\"./examples/reference-04.png\"><img src=\"./examples/reference-04.png\" alt=\"Visual reference 04\" width=\"280\"></a> | <a href=\"./examples/reference-05.png\"><img src=\"./examples/reference-05.png\" alt=\"Visual reference 05\" width=\"280\"></a> | <a href=\"./examples/reference-06.png\"><img src=\"./examples/reference-06.png\" alt=\"Visual reference 06\" width=\"280\"></a> |\n| 07 | 08 | 09 |\n| <a href=\"./examples/reference-07.png\"><img src=\"./examples/reference-07.png\" alt=\"Visual reference 07\" width=\"280\"></a> | <a href=\"./examples/reference-08.png\"><img src=\"./examples/reference-08.png\" alt=\"Visual reference 08\" width=\"280\"></a> | <a href=\"./examples/reference-09.png\"><img src=\"./examples/reference-09.png\" alt=\"Visual reference 09\" width=\"280\"></a> |\n| 10 | 11 | 12 |\n| <a href=\"./examples/reference-10.png\"><img src=\"./examples/reference-10.pn",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:27.506358"
+  },
+  {
+    "basic_info": {
+      "name": "Amagine3D",
+      "full_name": "amagine-ai/Amagine3D",
+      "owner": "amagine-ai",
+      "description": "Amagine3D: From hardware requirements to editable 3D designs",
+      "url": "https://github.com/amagine-ai/Amagine3D",
+      "clone_url": "https://github.com/amagine-ai/Amagine3D.git",
+      "ssh_url": "git@github.com:amagine-ai/Amagine3D.git",
+      "homepage": null,
+      "created_at": "2026-08-19T15:31:34Z",
+      "updated_at": "2026-09-06T04:44:56Z",
+      "pushed_at": "2026-09-06T04:44:49Z"
+    },
+    "stats": {
+      "stars": 2499,
+      "forks": 99,
+      "watchers": 2499,
+      "open_issues": 4,
+      "size": 5113
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1467526,
+        "TypeScript": 705126,
+        "CSS": 74116,
+        "JavaScript": 10162,
+        "HTML": 493
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<h1>Amagine3D</h1>\n\n<p><strong>From hardware requirements to editable 3D designs</strong></p>\n\n<p>\n  Amagine3D is the open-source 3D capability layer <a href=\"https://amagine.ai\">Amagine</a> is developing for hardware creation.<br />\n  Give it a product description and reference images, add the key dimensions, and Amagine3D can design an enclosure and assembly structures around the internal components while producing source code that remains editable. STEP, STL, and 3MF files can be exported as needed.\n</p>\n\n<p>\n  <a href=\"#capabilities\">Capabilities</a> ·\n  <a href=\"#example\">Example</a> ·\n  <a href=\"#quick-start\">Quick Start</a> ·\n  <a href=\"./docs/README.zh-CN.md\">简体中文</a>\n</p>\n\n<p>\n  <img src=\"https://img.shields.io/badge/License-Apache--2.0-blue.svg\" alt=\"Apache 2.0\" />\n  <img src=\"https://img.shields.io/badge/Node.js-22.19.0%2B-339933.svg?logo=node.js&amp;logoColor=white\" alt=\"Node.js 22.19.0+\" />\n  <img src=\"https://img.shields.io/badge/Vite-7.3.6-646CFF.svg?logo=vite&amp;logoColor=white\" alt=\"Vite 7.3.6\" />\n  <img src=\"https://img.shields.io/badge/Runtime-build123d%20%2B%20OCP-5B5BD6.svg\" alt=\"build123d + OCP\" />\n</p>\n\n<p>\n  <img src=\"./docs/assets/readme/stl-rotation.gif\" alt=\"A rotating BUSY Bar enclosure generated by Amagine3D\" width=\"72%\" />\n</p>\n\n</div>\n\n<a id=\"capabilities\"></a>\n\n## From Requirements to Editable Hardware Structures\n\nAmagine3D currently focuses on printable intelligent-hardware enclosures and related structures, creating complete designs from natural-language requirements, reference images, dimensions, and existing geometry.\n\nThe design process starts with internal components, arranging mounts and interfaces before creating the enclosure, controls, and thermal-management structures. When a design needs multiple parts, covers, hinges, or latches are developed together with assembly clearances and printing tolerances. For rigid mechanisms such as hinged or sliding covers, the system can also check collisions and operating clearances along a defined motion path.\n\nEvery generation records one semantic scene containing its parts, features, interfaces, materials, and representation masters. Dimension-driven parts retain editable Python and build123d source and export genuine STEP; freeform mesh-master parts retain their canonical mesh instead of pretending to be parametric CAD. A mesh-master part can bind precise build123d cutters and additions directly into its mesh booleans without creating an intermediate STEP. The same workflow emits STL, display GLB, and a profile-bound 3MF package when required, including permanent color regions inside a physical part.\n\nBehind the scenes, the 3D-native Agent turns the request into an immutable intent and one mutable semantic scene. Internal BRep, mesh, mixed-geometry, and color backends compile that scene into one evidence contract. The Agent sees measured dimensions and checks for feature ownership, print orientation, plate fit, connectivity, interference, and exported-file readback, then renders and reads the latest result before accepting it.\n\n<a id=\"example\"></a>\n\n## Example: BUSY Bar Desktop Device Enclosure\n\nThe GIF above shows a desktop device enclosure that Amagine3D generated from public information about [BUSY Bar](https://busy.app/). BUSY Bar is a productivity multi-tool for displaying custom statuses. It includes a built-in Pomodoro timer and apps, supports extensive customization, is open-source, and is friendly to developers and hardware enthusiasts. Amagine3D created a multipart enclosure for it, with a display area on the front, physical controls on top, and internal space arranged around the components and interfaces.\n\nThe Agent first used the reference images to position the display area and controls, then divided the enclosure into parts around the internal components. The dimensions that determine appearance and assembly remain editable parameters, so they can be adjusted after generation.\n\nThis generation produced complete build123d source code, STEP and STL files, and a check report. The workbench can continue to preview, measure, and modify the model. Parameter changes are written back to the source and rebuild the geometry, and the complete result is saved with the project.\n\nDesign reference: [BUSY Bar official website](https://busy.app/).\n\n<!--\nUncomment the section below when more example assets are added to the repository. It pairs each original prompt directly with its corresponding GIF instead of expanding it into a full case study.\n\n## More Generated Results\n\n| Prompt | Result |\n| --- | --- |\n| [Original prompt from the actual runtime] | ![](./docs/assets/readme/examples/example-01.gif) |\n| [Original prompt from the actual runtime] | ![](./docs/assets/readme/examples/example-02.gif) |\n| [Original prompt from the actual runtime] | ![](./docs/assets/readme/examples/example-03.gif) |\n| [Original prompt from the actual runtime] | ![](./docs/assets/readme/examples/example-04.gif) |\n-->\n\n## 3D-nativ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:28.783417"
+  },
+  {
+    "basic_info": {
+      "name": "phone-harness",
+      "full_name": "ShawnPana/phone-harness",
+      "owner": "ShawnPana",
+      "description": "let your agent control your phone",
+      "url": "https://github.com/ShawnPana/phone-harness",
+      "clone_url": "https://github.com/ShawnPana/phone-harness.git",
+      "ssh_url": "git@github.com:ShawnPana/phone-harness.git",
+      "homepage": "",
+      "created_at": "2026-08-07T22:28:53Z",
+      "updated_at": "2026-09-06T04:06:18Z",
+      "pushed_at": "2026-09-04T18:48:42Z"
+    },
+    "stats": {
+      "stars": 2472,
+      "forks": 242,
+      "watchers": 2472,
+      "open_issues": 22,
+      "size": 150
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 146924,
+        "Shell": 165
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "ai",
+        "automation",
+        "developer-tools"
+      ]
+    },
+    "content": {
+      "readme": "# Phone Harness 📱\n\n**[phone-harness](https://phone-harness.com?utm_source=github&utm_medium=readme&utm_campaign=header)** · let your agent control your phone.\n\nConnect Claude Code, Codex, or any agent to your real phone. **iPhone** through\nthe Mac's iPhone Mirroring window, **Android** over adb. No jailbreak, no\nXcode, nothing installed on the phone. The agent sees the screen, taps, types,\nand reads the result.\n\n```\n  ● agent: wants to open Weather\n  │\n  ● find_text(\"Weather\") → (400, 468)\n  │\n  ● tap(400, 468) → reads the screen → forecast is up\n  ✓ done\n```\n\nTry [Phone Harness Cloud](https://phone-harness.com/cloud?utm_source=github&utm_medium=readme&utm_campaign=cloud) → Hosted iPhones and Androids with stealth, real numbers, 2FA, and unlimited devices\n\nGet started by sending the [setup prompt](https://phone-harness.com?utm_source=github&utm_medium=readme&utm_campaign=setup-prompt) to your\ncoding agent.\n\n## Demo\n\n**Task:** \"Buy me a Waymo to Delah Coffee from my current location.\"\n\nhttps://github.com/user-attachments/assets/80b6d38e-0222-481c-93db-9de60d79247a\n\n## Setup\n\nPaste into Claude Code or Codex:\n\n```text\nSet up phone-harness for me. Clone https://github.com/ShawnPana/phone-harness into ~/.phone-harness, read `install.md` first, install it so `phone-harness` is a command on my PATH, and register it as an agent skill named phone-harness using `phone-harness skill` as the body. Then read `onboarding.md` and walk me through it.\n```\n\nThe agent asks which phone is your default and walks you through the parts\nthat need your hands: pairing iPhone Mirroring and granting Accessibility and\nScreen Recording, or turning on Android developer options and approving adb.\n`phone-harness --doctor` checks the chain. Details in [install.md](install.md).\n\n## Usage\n\n```bash\nphone-harness <<'PY'\nopen_app(\"Notes\")\ntap_text(\"New Note\")\ntype_text(\"hello from the harness\")\nprint([o[\"text\"] for o in ocr()][:10])\nPY\n```\n\nHelpers are pre-imported. [SKILL.md](SKILL.md) is the agent's day-to-day\nguide; [helpers.py](src/phone_harness/helpers.py) is the full list.\n\n## How it works\n\n**iPhone.** iPhone Mirroring renders the phone as a Mac window and forwards\nmouse and keyboard as touches. The harness captures that window, OCRs it with\nApple's Vision framework for text with tap-ready coordinates, and posts\nHID-level events for taps, swipes, and typing.\n\n**Android.** adb is the transport. `screencap` is the capture, the phone's\naccessibility tree is the text source, `input` is the hands. Works over USB or\nWi‑Fi, no window needed.\n\nSame helpers on both. `phone-harness config set platform ios|android` picks\nthe default.\n\n## Limits\n\n- Unlocking the iPhone pauses mirroring; a PIN-locked Android needs the user.\n- OCR sees text, not icons. Unlabeled controls need a screenshot and a\n  vision-capable model.\n- No multi-touch, no camera or Face ID flows. DRM video renders black.\n- Connecting the phone is always the user's job.\n\n## Sponsor\n\nphone-harness is free and maintained in my own time.\n[Sponsoring](https://github.com/sponsors/ShawnPana) keeps it that way.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:30.057090"
+  },
+  {
+    "basic_info": {
+      "name": "sepia",
+      "full_name": "Nanako0129/sepia",
+      "owner": "Nanako0129",
+      "description": "De-AI writing skill for any Agent Skills-compatible agent (77+ via the Skills CLI), with native plugins for Claude Code, Codex, Grok Build, and Antigravity. Narrative-architecture repair for fiction, venue-matched rules for professional prose. Based on StoryScope (arXiv:2604.03136).",
+      "url": "https://github.com/Nanako0129/sepia",
+      "clone_url": "https://github.com/Nanako0129/sepia.git",
+      "ssh_url": "git@github.com:Nanako0129/sepia.git",
+      "homepage": null,
+      "created_at": "2026-08-28T05:56:49Z",
+      "updated_at": "2026-09-06T05:07:46Z",
+      "pushed_at": "2026-09-05T14:40:32Z"
+    },
+    "stats": {
+      "stars": 2275,
+      "forks": 138,
+      "watchers": 2275,
+      "open_issues": 2,
+      "size": 438
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 39533
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "ai-writing",
+        "antigravity",
+        "claude-code",
+        "codex",
+        "developer-tools",
+        "fiction",
+        "grok",
+        "humanizer",
+        "llm",
+        "prompt-engineering",
+        "writing-tools"
+      ]
+    },
+    "content": {
+      "readme": "# sepia\n\n**English** | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md)\n\n[![behavioral eval](https://github.com/Nanako0129/sepia/actions/workflows/behavioral-eval.yml/badge.svg)](https://github.com/Nanako0129/sepia/actions/workflows/behavioral-eval.yml) [![version consistency](https://github.com/Nanako0129/sepia/actions/workflows/version-consistency.yml/badge.svg)](https://github.com/Nanako0129/sepia/actions/workflows/version-consistency.yml) [![release](https://img.shields.io/github/v/release/Nanako0129/sepia)](https://github.com/Nanako0129/sepia/releases/latest) [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n\n> De-AI writing at the layer that actually gives AI away. Fiction gets its narrative architecture repaired before anyone touches word choice; professional documents (release notes, PR replies, postmortems, tickets, technical articles) each get rules matched to their venue.\n\nA portable [Agent Skill](https://agentskills.io/specification): any agent that speaks the standard can load it, and the [Skills CLI](https://skills.sh), which supports 77+ agents, installs it with one command. Claude Code, Codex, Grok Build, and Antigravity additionally get native plugin packaging. One canonical `SKILL.md`, no per-platform forks. Four operations: **write**, **review** (diagnose only), **refactor** (minimal edits), **recreate** (full rewrite).\n\n## Why another humanizer\n\nEvery popular humanizer edits word choice and syntax. [StoryScope](https://arxiv.org/abs/2604.03136) (Russell et al., 2026: 61,608 stories, human + 5 frontier LLMs) showed that a classifier using **narrative-structure features alone** detects AI fiction at 93.2% macro-F1. In the same study's LAMP-edited condition, where human editors had rewritten the surface style, detection dropped only from 95.5% to 93.9%. The tells that survive are architectural: themes explained by the narrator, single-track causally-tidy plots, emotions rendered only as bodily sensation, no real-world references, no reader, linear time, endings resolved by protagonist growth and acceptance.\n\nsepia turns those measured gaps, together with the related studies digested in [`research/`](research/), into a three-pass writing and revision protocol for fiction:\n\n| Pass | Layer | Examples |\n|---|---|---|\n| 1 | Narrative architecture (fiction) | stop explaining the theme, loosen the causal chain, back-load revelations, mix emotion modes, sparse character networks, name real things |\n| 2 | Discourse flow | de-template the paragraph-question sequence, fix the mid-story sag, vary rhythm and positions |\n| 3 | Surface style | the classic layer: clichés, syntax templates, vocabulary, register |\n\nPlus a 30-feature diagnosis rubric and per-model fingerprints in two layers: narrative tells measured by StoryScope (Claude, GPT, Gemini, DeepSeek, Kimi) and sentence-level tells taken from the vendors' own prompting guides (Claude Fable 5.1 and Mythos 5.1, Fable 5 and Mythos 5, Opus 5, Opus 4.8; GPT-5.6; Gemini 3 series), applied when the writing or executing model is known. Vendors that publish no such guidance are recorded as consulted, not guessed.\n\nProfessional prose fails differently. The studies digested in [`research/`](research/) point at filler that carries no information, hedging where a judgment was needed, chatbot leftovers, register that ignores the venue, and formatting that looks stamped out. Each document type gets a thin rule file on top of one shared checklist:\n\n| Domain | The gist |\n|---|---|\n| Release notes / announcements | user impact first, artifacts per claim, no marketing inflation |\n| PR / issue replies | answer first, cite `file:line`, no reflex praise, length ∝ stakes |\n| Postmortems | blameless toward people, merciless toward mechanisms; timestamps, dead ends, owned action items |\n| Tickets / work orders | title = outcome, testable acceptance criteria, link don't repeat |\n| Technical articles | open at the problem, one real dead end, one committed opinion, numbers with conditions |\n\nThe governing principle throughout: **calibrate to the human distribution, don't invert the AI one.** Humans sit at moderate values; a story with every rule applied is a new fingerprint. The skill selects 3–5 moves per story and leaves slack.\n\n## Operation entries\n\nThe complete plugin package gives Claude Code, Codex, Grok Build, and Antigravity a general router plus five direct entries:\n\n| Operation | Claude Code | Codex | Grok Build | Antigravity | Meaning |\n|---|---|---|---|---|---|\n| write | `/sepia-write` | `$sepia-write` | `/sepia-write` | `/sepia-write` | Create new prose |\n| review | `/sepia-review` | `$sepia-review` | `/sepia-review` | `/sepia-review` | Diagnose without editing |\n| refactor | `/sepia-refactor` | `$sepia-refactor` | `/sepia-refactor` | `/sepia-refactor` | Make minimal in-place edits |\n| recreate | `/sepia-recreate` | `$sepia-recreate` | `/sepia-recreate` | `/sepia-recreate` | Rewrite from the source facts and intent |\n| hemingway | `/se",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:31.332239"
+  },
+  {
+    "basic_info": {
+      "name": "oil-motion",
+      "full_name": "oil-oil/oil-motion",
+      "owner": "oil-oil",
+      "description": "Create smooth, responsive interactive web animations.",
+      "url": "https://github.com/oil-oil/oil-motion",
+      "clone_url": "https://github.com/oil-oil/oil-motion.git",
+      "ssh_url": "git@github.com:oil-oil/oil-motion.git",
+      "homepage": null,
+      "created_at": "2026-08-07T12:36:33Z",
+      "updated_at": "2026-09-06T05:01:09Z",
+      "pushed_at": "2026-09-05T15:56:01Z"
+    },
+    "stats": {
+      "stars": 2177,
+      "forks": 164,
+      "watchers": 2177,
+      "open_issues": 1,
+      "size": 3152
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 238169,
+        "HTML": 34075,
+        "TypeScript": 30206
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"./assets/readme/hero.svg\" width=\"100%\" alt=\"Oil Motion 把 AI 生成的连续动作接入网页交互\">\n</p>\n\n**English**: [README.en.md](./README.en.md) · **中文**: README.md\n\nOil Motion 是一个 Agent 通用的交互动画 Skill。它负责设计动作、生成连续画面、整理动画资源，并把最终效果接入页面滚动、鼠标、拖动、触摸或设备方向。\n\n使用时只需要说明希望表达什么、提供哪些素材，以及动画应该跟随什么操作。具体的生成、检查、压缩和前端实现由 Agent 完成。\n\n## 演示\n\nhttps://github.com/user-attachments/assets/08e26ad6-ca23-4f31-ac53-44c7692ba99d\n\n## 安装\n\n告诉 Agent：帮我安装「https://github.com/oil-oil/oil-motion」这个 Skill。\n\n## 适合实现的动画\n\n- **随滚动一镜到底（Continuous One-Shot）**：无限尺度穿透（宇宙到纳米芯片）、实体遮挡跨场景转场、时光流转剥蚀与空间重力折叠。\n- **页面向下滚动时**：产品逐步展开、拆解爆炸图、进入内部芯片或切换结构状态。\n- **鼠标移动时**：角色/头像在时钟圆周上直视镜头注视跟随光标，或硬件产品 360° 展台自转。\n- **拖动进度时**：动画跟随手势前进、后退或停在指定位置。\n- **在手机上**：使用触摸或设备方向控制视差与动态倾斜。\n- **点击、悬停或状态变化时**：播放对应的语义动作转场。\n- **没有操作时**：自然微动或匀速巡视，用户开始操作后无缝切换为实时随动模式。\n\n这些动画可以用于产品介绍、角色互动、操作演示、数据变化和章节转场。Oil Motion 同时处理动作连贯性、画面清晰度、加载体积和移动端表现。\n\n## 工作原理\n\nAI 生成的视频需要先被整理成稳定时间轴，再根据交互目标选择控制方式：输入值可以持续对应动画进度，也可以只触发一段正常播放的转场，或让动画按时间自主播放。滚动、鼠标和状态切换只是输入来源，不直接决定播放方式。\n\n完整过程如下：\n\n```text\n参考素材、表达目的和控制方式\n  ↓\n先确认开始、中间和结束时应该是什么样子\n  ↓\n使用 AI 视频生成这些画面之间的连续动作\n  ↓\n逐帧检查，删除停顿、重复和异常画面\n  ↓\n按照页面中的实际显示大小整理并压缩资源\n  ↓\n把滚动、鼠标、拖动、触摸或设备方向对应到动画进度\n```\n\n这套流程分成三个部分。\n\n### 先确认关键画面\n\n关键画面是动作过程中必须保持准确的几个状态，例如产品完整、零件展开和最终拆解。Agent 会先生成并检查这些画面，确认主体身份、结构、Logo、构图和风格没有变化。\n\n如果直接生成整段视频，模型可能在过程中改变产品结构、角色比例或动作终点。先确认关键画面，可以让连续动作有明确的起点、过程和终点。\n\n### 再生成连续动作\n\n关键画面确认后，AI 视频负责生成它们之间的变化。肢体转动、产品变形、材质变化和前后遮挡都在这个阶段完成，因为这些变化只靠前端移动或缩放图片通常不自然。\n\n位移、缩放、裁切、播放速度、跟随阻尼和最大转动速度由程序控制。这些变化不需要交给视频模型重新生成，程序处理会更稳定，也方便后续调整。\n\n### 最后转换成可控制的网页资源\n\n生成的视频需要经过整理才能用于交互。Agent 会检查每个画面，裁掉开头和结尾的停顿，删除近似重复画面，找出闪烁或结构变化，并根据页面中的实际显示大小进行压缩。\n\n处理完成后，浏览器不会在用户操作时重新生成视频，而是在已经准备好的连续画面中定位或播放。这样可以让动画及时响应输入，也能避免每次交互出现不同结果。\n\n## 资源形式\n\nAgent 会先锁定 Concept Contract：主体、风格、动作、背景归属、交互输入、时间控制和连续性要求逐项确认，不擅自扩写。背景归属决定是否把场景烧入视频；参数空间、访问方式和设备预算决定资源形式；时间控制单独决定逐帧 scrub、分段播放或自主播放。\n\n| 使用情况 | 常用形式 | 原因 |\n| --- | --- | --- |\n| 场景叙事、镜头运动、环境光与地面接触重要 | 烘焙场景全关键帧 MP4 | 背景与主体同视频生成，连续性最好，没有抠色风险 |\n| 透明复用：小型、环形、二维或频繁跳转 | Alpha WebP 图集 | 构建时完成抠色，随机访问响应稳定 |\n| 透明复用：大尺寸、长时间轴、一维滚动 | 绿幕全关键帧 MP4 | WebGL 实时抠色，压缩率高，避免大型图集占用大量内存 |\n\nAgent 会先运行预算脚本并直接采用最合适的一种主方案，不会把形式选择交给使用者，也不会重复实现两套。量产之前还会先完成首屏 Pilot：一对关键帧、一段短视频、挂载到真实页面验收通过后生成带工件哈希的批准文件；后续片段缺少批准文件或首尾帧 SHA-256 不一致时，生成脚本会在联网前阻断。\n\n压缩会依据页面中的实际显示尺寸进行。展示区域较大时保留更高分辨率；展示区域较小时减少不必要的数据。文件大小和清晰度发生冲突时，优先保证页面中的实际观感。\n\n## 快速开始\n\n已经有素材和动作方向时，可以直接说明：\n\n```text\n使用 $oil-motion，把这两张产品图制作成随页面滚动逐步展开的动画。\n桌面端的展示区域较大，需要保持清晰；移动端使用较轻的资源。\n```\n\n只有产品素材，还没有动作方案时，可以让 Agent 先完成设计：\n\n```text\n使用 $oil-motion，为这个产品首页设计一个随滚动变化的连续动画。\n先提供三个方向，分别说明它们表达什么、如何跟随滚动，以及实现成本。\n确认方向以后再生成关键画面和视频。\n```\n\n角色或宠物需要跟随鼠标时，可以说明运动范围和期望感受：\n\n```text\n使用 $oil-motion，让这个角色跟随鼠标调整朝向。\n动作需要及时响应，同时限制转动速度，快速反向时不能闪烁或抽动。\n```\n\n## Agent 会判断什么\n\n在开始制作前，Agent 会确认以下内容：\n\n- 动画要表达的内容，以及它在页面中的作用。\n- 主体的身份、结构、比例和不能改变的部分。\n- 动画由滚动、鼠标、拖动、触摸还是其他状态控制。\n- 动作是一条前后变化的路径，还是需要同时响应水平和垂直方向。\n- 页面中的实际显示大小，以及桌面端和移动端是否需要不同资源。\n- 动画尚未加载、加载失败或用户关闭动态效果时显示什么。\n\n如果鼠标的水平位置和垂直位置都会改变主体姿态，就需要准备二维方向的画面。只使用一段左右往返的视频，无法准确表达上下和远近变化。\n\n## 交付内容\n\n根据项目需要，Agent 会交付其中一部分或全部内容：\n\n- 已确认的关键画面和生成提示词。\n- 可以继续处理的原始视频。\n- 删除停顿、重复和异常画面后的动画资源。\n- 适合桌面端与移动端加载的图集或视频。\n- 可以直接接入项目的交互代码。\n- 展示完整画面、当前帧和交互输入的原理预览页。\n- 动画资源、交互范围和加载方式的配置文件。\n\n这些文件会保留生成、处理和验收所需的信息，方便后续修改动作、替换画面或调整交互参数。\n\n## 质量检查\n\n交付前需要检查：\n\n- 主体身份、产品结构、比例、位置和光线在连续画面中保持一致。\n- 没有多余肢体、部件复制、硬切、闪帧和异常停顿。\n- 透明素材的边缘干净，内部白色区域和细线没有被误删。\n- 快速滚动、快速反向和频繁移动鼠标时，动画不粘滞、不抽动、不越界。\n- 页面滚动、缩放或设备旋转后，输入位置与动画方向仍然对应。\n- 初次加载时有清晰的首帧，资源加载失败时可以回退到静态画面。\n- 最终资源放进真实页面以后仍然清晰，移动端不会因为资源过大而明显卡顿。\n- 用户选择减少动态效果时，页面可以显示静态替代内容。\n\n程序可以处理轻微漂移、颜色差异、重复画面和编码问题，但无法修复错误的动作设计。发现主体结构、肢体关系或动作方向错误时，需要重新调整关键画面或生成视频。\n\n## 第一次生成动画\n\n第一次需要生成动画时，Agent 会引导配置所需的 API Key。密钥只保存在本机，之后会自动读取，不需要重复输入。\n\n## 技术资料\n\n日常使用不需要手动运行脚本。如果需要修改生成参数、资源处理方式或网页运行逻辑，可以继续查看 [`SKILL.md`](./SKILL.md) 和 [`references/`](./references/)。\n\n## License\n\n[MIT](./LICENSE)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:32.620274"
+  },
+  {
+    "basic_info": {
+      "name": "commerce-agents",
+      "full_name": "anthropics/commerce-agents",
+      "owner": "anthropics",
+      "description": "Reference blueprint for building shopping and merchant agents with Claude. Examples in retail, commerce, telecom, and entertainment included.",
+      "url": "https://github.com/anthropics/commerce-agents",
+      "clone_url": "https://github.com/anthropics/commerce-agents.git",
+      "ssh_url": "git@github.com:anthropics/commerce-agents.git",
+      "homepage": "https://claude.com/solutions/commerce",
+      "created_at": "2026-09-01T12:30:12Z",
+      "updated_at": "2026-09-06T05:19:10Z",
+      "pushed_at": "2026-09-01T20:41:14Z"
+    },
+    "stats": {
+      "stars": 2093,
+      "forks": 351,
+      "watchers": 2093,
+      "open_issues": 4,
+      "size": 1464
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1017449,
+        "Shell": 5300
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Claude Commerce Agents\n\nTwo commerce agents built on Claude: a **shopping agent** a business embeds in its app for\ncustomers, and a **merchant agent** its staff use to run the back office. Each is defined\nonce (prompt, skills, tool contracts, gates) and runs on the Messages API, the Claude Agent\nSDK, and Managed Agents; four runnable verticals show both over the same libraries.\n\n> [!NOTE]\n> Every company, brand, product, and person here is fictional; the only company is ACME.\n> Nothing places an order, charges a card, or changes a live listing: `checkout` renders\n> the cart for the host to complete, and every merchant write is staged until a person\n> approves it. Business rules, authorization, and compliance are the deployment's.\n\n## Quick start: run the demos\n\nPython 3.11+ and Node 22. Clone, install, add a key, run a vertical:\n\n```bash\ngit clone https://github.com/anthropics/commerce-agents.git && cd commerce-agents\npython3 -m venv .venv && source .venv/bin/activate\npip install -r requirements.txt       # the seven packages and their pinned dependencies\ncp .env.example .env                  # add ANTHROPIC_API_KEY\n(cd examples && npm ci)               # the eight web apps share one workspace\npython scripts/run_demo.py retail     # API :8000 + storefront :3000\n```\n\n`--merchant` starts the portal instead of the storefront and `--all` starts both. The\nverticals are `retail` (:3000, portal :3100), `travel` (:3001, :3101), `telecom` (:3002,\n:3102), and `entertainment` (:3003, :3103); each README lists prompts to try on both surfaces.\n\n## Quick start: build your own\n\nThe Claude Code plugin scaffolds an agent on these packages against your systems, or reviews\none you have. With the repo cloned as above (the plugin reads it as the reference):\n\n```bash\nclaude plugin marketplace add anthropics/commerce-agents\nclaude plugin install commerce-builder@claude-commerce-agents\nclaude\n/scaffold-commerce-agent a shopping assistant for our store\n```\n\nThe command asks about your stack, plays the plan back, and builds the project; `/add-commerce-flow`\nand `/author-commerce-evals` continue from there, and `/review-commerce-agent` starts from an agent\nthat already exists ([`plugins/commerce-builder/`](plugins/commerce-builder/)). Each command also\nruns when a request matches its description, so naming it is optional.\n\n## The two agents\n\nThe **shopping agent** searches, compares, plans, fills the cart, answers order and policy\nquestions, and remembers what a customer tells it. Its five flows are the skills in\n[`shopping-agent/skills/`](shopping-agent/skills/); a deployment implements\n[`StorefrontBackend`](shopping-agent/core/shopping_agent/backend.py) over its catalog,\ncart, order, and policy systems.\n\nThe **merchant agent** explains performance, maintains listings, acts on inventory and order\nalerts, prices and promotes, and drafts campaigns; every write is a staged change the host's\napproval surface applies. Its five flows are the skills in [`merchant-agent/skills/`](merchant-agent/skills/);\na deployment implements [`MerchantBackend`](merchant-agent/core/merchant_agent/backend.py) over\nits analytics, catalog, inventory, pricing, and campaign systems.\n\n## Layout\n\n| Directory | Contents | pip package, `import` name |\n|---|---|---|\n| [`commerce-common/`](commerce-common/) | What both roles share: config, fencing, memory, skills, grounding, presentation, executor frame, events | `commerce-common`, `commerce_common` |\n| [`shopping-agent/core/`](shopping-agent/core/) | Shopping types, `StorefrontBackend`, prompt, tool contracts, gates, executor | `shopping-agent-core`, `shopping_agent` |\n| [`shopping-agent/runtime-messages-api/`](shopping-agent/runtime-messages-api/) | `ShoppingAgent`, the turn loop on the Messages API | `shopping-agent-runtime`, `shopping_agent_runtime` |\n| [`shopping-agent/runtime-agent-sdk/`](shopping-agent/runtime-agent-sdk/) | The shopping agent on the Agent SDK, with a console | `shopping-agent-sdk`, `shopping_agent_sdk` |\n| [`shopping-agent/managed-agents/`](shopping-agent/managed-agents/) | Manifest and storefront MCP server for Managed Agents | — |\n| [`merchant-agent/core/`](merchant-agent/core/) | Merchant types, `MerchantBackend`, prompt, tool contracts, change guardrails, gates, executor | `merchant-agent-core`, `merchant_agent` |\n| [`merchant-agent/runtime-messages-api/`](merchant-agent/runtime-messages-api/) | `MerchantAgent` and the analysis delegate on the Messages API | `merchant-agent-runtime`, `merchant_agent_runtime` |\n| [`merchant-agent/runtime-agent-sdk/`](merchant-agent/runtime-agent-sdk/) | The merchant agent on the Agent SDK, with an approving console | `merchant-agent-sdk`, `merchant_agent_sdk` |\n| [`merchant-agent/managed-agents/`](merchant-agent/managed-agents/) | Manifest, merchant MCP server, scheduled digest for Managed Agents | — |\n| [`examples/`](examples/) | Four verticals, shared host code (`demo_common/`), shared web code (`web-shared/`) | — |\n| [`plugins/commerce-builder/`](plug",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:33.894711"
+  },
+  {
+    "basic_info": {
+      "name": "FrontierAgent",
+      "full_name": "ApodexAI/FrontierAgent",
+      "owner": "ApodexAI",
+      "description": "🧩 FrontierAgent, our agent framework, open-sourced alongside it — native command-line TUI, ReAct and Agent Team modes, one command on macOS and Linux, no preinstall, no hard Docker dependency.",
+      "url": "https://github.com/ApodexAI/FrontierAgent",
+      "clone_url": "https://github.com/ApodexAI/FrontierAgent.git",
+      "ssh_url": "git@github.com:ApodexAI/FrontierAgent.git",
+      "homepage": "https://www.apodex.ai",
+      "created_at": "2026-08-22T05:07:35Z",
+      "updated_at": "2026-09-06T04:31:28Z",
+      "pushed_at": "2026-09-06T04:35:23Z"
+    },
+    "stats": {
+      "stars": 1826,
+      "forks": 143,
+      "watchers": 1826,
+      "open_issues": 11,
+      "size": 6708
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 6136751,
+        "Shell": 111713,
+        "HTML": 61695,
+        "CSS": 32023,
+        "JavaScript": 10588,
+        "Dockerfile": 9564
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-orchestration",
+        "agentic-ai",
+        "agentic-framework",
+        "ai-agents",
+        "harness",
+        "multi-agent",
+        "terminal-agent",
+        "tui"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <picture>\n    <img src=\"./assets/apodex_logo.jpeg\" width=\"30%\" alt=\"Apodex\">\n  </picture>\n</div>\n<hr>\n<br>\n\n<div align=\"center\">\n  <a href=\"https://www.apodex.ai\"><img alt=\"Online Service\" src=\"https://img.shields.io/badge/🤖%20Online_Service-Apodex_1.1-1783ff\"/></a>\n  <a href=\"https://www.apodex.com/\"><img alt=\"Homepage\" src=\"https://img.shields.io/badge/Homepage-Apodex_AI-white\"/></a>\n  <a href=\"https://platform.apodex.ai\"><img alt=\"Try Apodex API\" src=\"https://img.shields.io/badge/Try_Apodex_1.1-API_Platform-1783ff\"/></a>\n  <br>\n  <a href=\"https://huggingface.co/collections/apodex\"><img alt=\"Hugging Face\" src=\"https://img.shields.io/badge/🤗%20Hugging_Face-Apodex_AI-ffc107\"/></a>\n  <a href=\"https://discord.gg/TDJA59TCng\"><img alt=\"Discord\" src=\"https://img.shields.io/badge/Discord-Apodex_AI-5865F2\"/></a>\n  <a href=\"https://x.com/Apodex_AI\"><img alt=\"X\" src=\"https://img.shields.io/badge/X-@Apodex__AI-000000?logo=x&logoColor=white\"/></a>\n  <a href=\"LICENSE\"><img alt=\"License\" src=\"https://img.shields.io/badge/License-Apache_2.0-blue\"/></a>\n</div>\n<br>\n<p align=\"center\">\n  <b><a href=\"https://www.apodex.com/blog/apodex-1.1-scaling-agentic-intelligence-for-complex-work\">Tech Blog</a></b> ·\n  <b><a href=\"https://arxiv.org/abs/2608.23283\">Tech Report</a></b>\n</p>\n\n# FrontierAgent\n\nFrontierAgent is an open-source agent runtime, terminal product, and evaluation\nsuite for long-horizon research and file-based work. The `frontier-agent` TUI\nships two native workflows:\n\n- **ReAct** — one stateful agent researches, reads files, writes deliverables,\n  runs commands, and iterates in a task-scoped sandbox.\n- **Agent Team** — a coordinator maintains a task board, delegates independent\n  work to parallel sub-agents, collects their reports, and synthesizes the result.\n\nThe same workflow engine powers the benchmark runner used to evaluate Apodex\nmodels. The framework, tools, workflows, and evaluation layer remain separate,\nso each can be reused independently.\n\n> [!IMPORTANT]\n> ### 🚀 Try FrontierAgent on the Apodex API — free for the next two weeks!\n>\n> **No model hosting required.** Get an API key, connect to the OpenAI-compatible\n> Apodex-1.1 endpoint, and start running FrontierAgent in minutes.\n>\n> **[→ Start building for free at platform.apodex.ai](https://platform.apodex.ai/)**\n>\n> ⏳ This is a limited-time offer—come try it and let us know what you build!\n\nNew here? Use the **[documentation index](docs/README.md)** to find the right\ninstallation, SGLang, workflow, evaluation, or developer guide.\n\n<p align=\"center\">\n  <img src=\"./assets/apodex1.1_bench.png\" alt=\"Apodex-1.1 benchmark results across professional work, finance, scientific research, and general reasoning tasks\" width=\"900\"/>\n</p>\n\n## Highlights\n\n- **Native Agent Team workflow.** The coordinator decomposes the request,\n  dispatches bounded parallel assignments, receives structured reports, and can\n  use an optional fast reporter for final evidence review.\n- **Task Board.** Agent Team's `add_task` and `update_task` events appear live in\n  the TUI sidebar with pending, active, completed, blocked, and cancelled state.\n- **Sandboxed file work.** Shell and file tools share one task-scoped filesystem:\n  `/inputs` is read-only, `/workspace` is working state, and `/outputs` contains\n  persistent deliverables. Authorization and sandbox failures are fail-closed.\n- **Asynchronous intervention.** Type while an agent is running to queue a new\n  instruction. It is injected at the next safe turn boundary without discarding\n  the active run. In Agent Team mode it steers the coordinator; already-running\n  sub-agents are allowed to finish.\n- **Transparent deliverables.** On macOS/Docker, `/outputs` maps to\n  `.apodex/runs/<session-id>/outputs` on the host. The same run directory also\n  contains its checkpoint, trace, engine log, and trajectories.\n- **Approval, trace, and recovery.** Mutating operations show a diff and require\n  approval unless `--yes` is enabled. Sessions are checkpointed, every action is\n  traced locally, `/revert` restores session changes, and `--resume` continues a\n  saved run.\n- **Evaluation included.** The subprocess runner supports research and\n  file-grounded benchmarks, deterministic artifact collection, concurrency,\n  progress inspection, and rerunning individual failures.\n\n<p align=\"center\">\n  <img src=\"./assets/agent_team.png\" alt=\"Conceptual Agent Team workflow: a main agent assigns work to expert sub-agents, collects asynchronous reports, requests verification when needed, and synthesizes the final report\" width=\"900\"/>\n</p>\n\n<p align=\"center\"><em>Conceptual Agent Team workflow, from task delegation and asynchronous report collection to verification and final synthesis.</em></p>\n\n## How it fits together\n\n```mermaid\nflowchart LR\n    U[\"User / benchmark task\"] --> TUI[\"TUI or subprocess runner\"]\n    TUI --> R[\"Stateful ReAct\"]\n    TUI --> C[\"Agent Team coordinator\"]\n    C --> B[\"Task board\"]\n    B --> S1[\"Sub-agent 1\"]\n    B -->",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:35.182226"
+  },
+  {
+    "basic_info": {
+      "name": "WeMM-Embedding",
+      "full_name": "Tencent/WeMM-Embedding",
+      "owner": "Tencent",
+      "description": "WeMM-Embedding is a family of universal multimodal embedding models by the WeChat Vision Team at Tencent, supporting multimodal understanding and retrieval.",
+      "url": "https://github.com/Tencent/WeMM-Embedding",
+      "clone_url": "https://github.com/Tencent/WeMM-Embedding.git",
+      "ssh_url": "git@github.com:Tencent/WeMM-Embedding.git",
+      "homepage": "",
+      "created_at": "2026-08-25T02:46:10Z",
+      "updated_at": "2026-09-06T04:10:50Z",
+      "pushed_at": "2026-09-03T10:54:44Z"
+    },
+    "stats": {
+      "stars": 1303,
+      "forks": 93,
+      "watchers": 1303,
+      "open_issues": 1,
+      "size": 1599
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 732995,
+        "Shell": 13138
+      },
+      "license": "Other",
+      "topics": [
+        "embedding-models",
+        "multimodal",
+        "multimodal-llm"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">WeMM-Embedding: WeChat Multi-Modal Embedding</h1>\n\n<p align=\"center\">\n  <b>English</b> | <a href=\"./README_zh.md\">中文</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://huggingface.co/collections/tencent/wemm-embedding\">\n    <img src=\"https://img.shields.io/badge/🤗-Hugging%20Face-yellow\" alt=\"Hugging Face\">\n  </a>\n  <a href=\"https://arxiv.org/abs/2608.24053\">\n    <img src=\"https://img.shields.io/badge/📄-Technical%20Report-red\" alt=\"Technical Report\">\n  </a>\n  <a href=\"LICENSE\">\n    <img src=\"https://img.shields.io/badge/License-Apache%202.0-blue.svg\" alt=\"License\">\n  </a>\n</p>\n\nWeMM-Embedding is a family of universal multimodal embedding models developed by the WeChat Vision team. It provides unified representations for text, images, videos, visual documents, and interleaved multimodal inputs, achieving state-of-the-art performance across multiple benchmarks covering diverse tasks and domains.\n\n<p align=\"center\">\n  <a href=\"assets/performance-overview.pdf\">\n    <img src=\"assets/performance-overview.png\" width=\"100%\" alt=\"WeMM-Embedding Performance Overview\">\n  </a>\n</p>\n\n## Model Zoo\n\n| Model | Matryoshka dimensions | Hugging Face |\n| --- | --- | --- |\n| WeMM-Embedding-2B | `64, 128, 256, 512, 1024, 2048` | [🤗 Link](https://huggingface.co/tencent/WeMM-Embedding-2B) |\n| WeMM-Embedding-4B | `64, 128, 256, 512, 1024, 2560` | [🤗 Link](https://huggingface.co/tencent/WeMM-Embedding-4B) |\n| WeMM-Embedding-9B | `64, 128, 256, 512, 1024, 2048, 4096` | [🤗 Link](https://huggingface.co/tencent/WeMM-Embedding-9B) |\n\nAll models support text, images, videos, visual documents, and interleaved multimodal inputs. Embeddings are obtained from the last-layer hidden state at the dedicated `<embedding>` token position, followed by L2 normalization. Audio input is not currently supported.\n\n\n## Installation\n\n```bash\npip install -r requirements.txt\n```\n\n## Transformers\nWe recommend using `transformers==5.2.0` for inference and reproducibility, as newer versions may differ in preprocessing behavior.\n\n```bash\npython examples/transformers_inference.py \\\n  --model /path/to/WeMM-Embedding-2B \\\n  --image /path/to/image.jpg \\\n  --video /path/to/video.mp4 \\\n  --dimension 2048\n```\n\nThe example produces independent text, image, and video embeddings. Omit `--dimension` for the full embedding dimension.\n\n## Sentence Transformers\n\n```bash\npython examples/sentence_transformers_inference.py \\\n  --model /path/to/WeMM-Embedding-2B \\\n  --image /path/to/image.jpg \\\n  --video /path/to/video.mp4 \\\n  --dimension 2048\n```\n\n`SentenceTransformer` loads the model directly, so a Hugging Face model id such as `tencent/WeMM-Embedding-2B` also works in place of a local path. Text, image, and video inputs go through `SentenceTransformer.encode()`, and MRL is selected with `--dimension`.\n\n## Serving\n\nTested versions: vLLM `0.27.0` and SGLang `0.5.9`.\n\nvLLM:\n\n```bash\nMODEL_PATH=/path/to/WeMM-Embedding-2B\nvllm serve \"$MODEL_PATH\" \\\n  --runner pooling \\\n  --chat-template \"$MODEL_PATH/embedding_chat_template.jinja\"\n```\n\nSGLang:\n\n```bash\nMODEL_PATH=/path/to/WeMM-Embedding-2B\npython scripts/patch_sglang_video.py\npython -m sglang.launch_server \\\n  --model-path \"$MODEL_PATH\" \\\n  --is-embedding \\\n  --enable-precise-embedding-interpolation\n```\n\nEquivalent one-command wrappers are available in `scripts/serve_vllm.sh` and `scripts/serve_sglang.sh`.\n\n## Matryoshka Embeddings\n\nFor a supported dimension `d`, truncate the full embedding and normalize it again:\n\n```python\nembedding = torch.nn.functional.normalize(embedding[..., :d], dim=-1)\n```\n\nOn MMEB-v2, the 2B model at 256 dimensions retains 98.7% of its full-dimensional image and video performance.\n\n## Evaluation\n\n### MMEB-v2\n\nResults on 78 datasets from Table 1 of the [technical report](assets/WeMM_Embedding_tech_report.pdf). Image and video tasks use Hit@1, while visual-document tasks use NDCG@5. Higher is better.\n\n| Model | Size | AVG | Image | Video | VisDoc |\n| --- | ---: | ---: | ---: | ---: | ---: |\n| VLM2Vec | 2B | 47.8 | 59.7 | 29.0 | 44.0 |\n| GME | 2B | 55.4 | 51.9 | 33.9 | 76.8 |\n| VLM2Vec-V2 | 2B | 59.3 | 64.9 | 34.9 | 69.2 |\n| Qwen3-VL-Embedding | 2B | 73.2 | 75.0 | 61.9 | 79.2 |\n| DME-Small† | 2B | 74.8 | 75.9 | 65.6 | 79.9 |\n| **WeMM-Embedding** | **2B** | **77.9** | **79.6** | **70.8** | **80.7** |\n| **WeMM-Embedding** | **4B** | **79.2** | **80.8** | **72.1** | **82.0** |\n| VLM2Vec | 8B | 53.2 | 65.5 | 34.0 | 49.1 |\n| GME | 8B | 59.2 | 56.0 | 38.6 | 79.3 |\n| Qwen3-VL-Embedding | 8B | 77.8 | 80.1 | 67.1 | 82.4 |\n| DME-Medium† | 9B | 78.4 | 79.8 | 70.8 | 82.0 |\n| **WeMM-Embedding** | **9B** | **80.6** | **81.9** | **74.3** | **83.3** |\n\n† Closed-source leaderboard submission without publicly released model weights or a public inference endpoint.\n\n### MMEB-v3\n\nResults on all 190 tasks from Table 2 of the [technical report](assets/WeMM_Embedding_tech_report.pdf). V3-All includes the 78 MMEB-v2 tasks, 53 text tasks, 47 agent tasks, 11 audio tasks, and MCMR. Unsupported tasks are assigned a score of",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:36.463166"
+  },
+  {
+    "basic_info": {
+      "name": "4DAnyone",
+      "full_name": "ant-research/4DAnyone",
+      "owner": "ant-research",
+      "description": "[SIGGRAPH Asia 2026] 4DAnyone: Create Anyone in 4D from a Casual Monocular Video",
+      "url": "https://github.com/ant-research/4DAnyone",
+      "clone_url": "https://github.com/ant-research/4DAnyone.git",
+      "ssh_url": "git@github.com:ant-research/4DAnyone.git",
+      "homepage": "",
+      "created_at": "2026-08-10T07:46:06Z",
+      "updated_at": "2026-09-06T04:50:03Z",
+      "pushed_at": "2026-09-04T19:13:24Z"
+    },
+    "stats": {
+      "stars": 1189,
+      "forks": 90,
+      "watchers": 1189,
+      "open_issues": 4,
+      "size": 16537
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 314852
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "4d-gaussian-splatting",
+        "generative-ai",
+        "generative-model",
+        "video-generation",
+        "video-world-model"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\"><a href=\"https://4danyone.github.io/\"><img src=\"docs/assets/logo_title.png\" width=\"300\" alt=\"4DAnyone\"></a></p>\n\n<h2 align=\"center\">4DAnyone: Create Anyone in 4D from a Casual Monocular Video</h2>\n\n<p align=\"center\"><a href=\"https://4danyone.github.io/\"><strong>Project Page</strong></a> &nbsp;|&nbsp; <a href=\"https://arxiv.org/abs/2608.20335\"><strong>Paper</strong></a></p>\n\n<p align=\"center\"><img src=\"docs/assets/teaser.gif\" width=\"100%\" alt=\"4DAnyone teaser\"></p>\n\n<p align=\"center\">4DAnyone turns a casual monocular video into multi-view videos, enabling downstream 4DGS reconstruction.</p>\n\n> [!note]\n> 4DAnyone is a multi-view video model that:\n>\n> - generates dozens of synchronized, view-consistent videos from a single monocular video.\n> - requires **22 GB** of peak CUDA memory, enabling inference on consumer GPUs.\n> - generates a 121-frame video in **27 seconds** on a single RTX 4090.\n\n## News\n\n- **2026-09-05**: Reduced peak GPU memory below **24 GB**, enabling inference on consumer GPUs (RTX 4090).\n- **2026-09-02**: Released **4DAnyone-Turbo**, achieving a **5.58×** denoising speedup over 4DAnyone-Base.\n- **2026-08-28**: Achieved a **1.42×** end-to-end speedup for the complete 24-view generation pipeline.\n- **2026-08-28**: Reduced peak GPU memory below **32 GB** while slightly improving speed.\n\n## Installation\n\n```bash\ngit clone https://github.com/ant-research/4DAnyone.git\ncd 4DAnyone\ngit submodule update --init third_party/GVHMR\n\nconda create -n 4danyone python=3.11 -y\nconda activate 4danyone\npip install -r requirements.txt\n```\n\nFor faster inference, optionally install [FlashAttention-3](https://github.com/Dao-AILab/flash-attention/tree/main/hopper) or [SageAttention](https://github.com/thu-ml/SageAttention). The installed backend is enabled automatically.\n\nMissing models and examples are downloaded automatically on first use. You can also download them manually:\n\n```bash\npython scripts/download_smplx.py\npython scripts/download_model.py\npython scripts/download_example.py\n```\n\n## Inference\n\nThis repository provides two models: **4DAnyone-Base** with the standard denoising schedule and the distilled **4DAnyone-Turbo** for faster four-step denoising. 4DAnyone-Turbo is enabled by default for faster inference while maintaining generation quality comparable to 4DAnyone-Base. See [Inference performance](docs/inference_performance.md) for GPU memory, inference speed, and generation quality benchmarks.\n\n4DAnyone supports flexible target-view counts, pitch layers, and yaw coverage. Here are several common camera configurations:\n\n### 6-View Full Orbit\n\nA compact 360° layout for basic coverage. Start here for an initial test.\n\n```bash\npython inference.py \\\n    --video_path \"data/source/pexels/2785536-uhd_2160_3840_25fps.mp4\" \\\n    --views_per_layer 6\n```\n\n<p align=\"left\"><img src=\"docs/assets/inference-6-views.jpg\" width=\"600\" alt=\"Six evenly spaced target cameras on one full orbit\"></p>\n\n### 24-View Full Orbit\n\nA dense 360° layout with broad angular coverage, suitable for 4DGS reconstruction.\n\n```bash\npython inference.py \\\n    --video_path \"data/source/pexels/2785536-uhd_2160_3840_25fps.mp4\" \\\n    --views_per_layer 24\n```\n\n<p align=\"left\"><img src=\"docs/assets/inference-24-views.jpg\" width=\"600\" alt=\"Twenty-four evenly spaced target cameras on one full orbit\"></p>\n\n### 48-View Full Orbit, Three Pitch Layers\n\nThis layout distributes views across three pitch rings for broader coverage, enabling free-viewpoint 4DGS rendering.\n\n```bash\npython inference.py \\\n    --video_path \"data/source/pexels/2785536-uhd_2160_3840_25fps.mp4\" \\\n    --views_per_layer 16 --layer_pitches '[-10,15,35]'\n```\n\n<p align=\"left\"><img src=\"docs/assets/inference-48-views-3-layers.jpg\" width=\"600\" alt=\"Forty-eight target cameras arranged over three pitch layers\"></p>\n\n### 24-View Frontal Arc, Two Pitch Layers\n\nA two-layer layout for dense coverage across the frontal 180° arc.\n\n```bash\npython inference.py \\\n    --video_path \"data/source/pexels/2785536-uhd_2160_3840_25fps.mp4\" \\\n    --views_per_layer 12 --layer_pitches '[0,30]' --start_yaw -90 --yaw_span 180\n```\n\n<p align=\"left\"><img src=\"docs/assets/inference-24-views-front-180.jpg\" width=\"600\" alt=\"Twenty-four target cameras distributed over two pitch layers along the frontal 180-degree arc\"></p>\n\n### Key Arguments\n\nRun `python inference.py --help` for the full list.\n\n- `views_per_layer`: number of evenly spaced views per pitch layer. It must be divisible by 4 or 6.\n- `layer_pitches`: pitch angles in degrees, one per layer. Positive values place cameras above the subject. Total views are `views_per_layer × len(layer_pitches)`.\n- `start_yaw`: horizontal angle of the first view, in degrees. Yaw `0` is the front view.\n- `yaw_span`: horizontal range covered by each camera layer, in degrees.\n- `gpu_ids`: GPU IDs used for parallel pose/VAE view stages and target denoising. Defaults to all visible GPUs.\n- `enable_turbo`: whether to use 4DAnyone-Turbo. Enabled by default.\n\n### Output\n\nWi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:37.767443"
+  },
+  {
+    "basic_info": {
+      "name": "tokentab",
+      "full_name": "damejan80/tokentab",
+      "owner": "damejan80",
+      "description": "A CLI that reads Claude Code, Codex, and Gemini CLI session logs and works out how much they cost, by model, project, and day.",
+      "url": "https://github.com/damejan80/tokentab",
+      "clone_url": "https://github.com/damejan80/tokentab.git",
+      "ssh_url": "git@github.com:damejan80/tokentab.git",
+      "homepage": "",
+      "created_at": "2026-08-27T14:16:09Z",
+      "updated_at": "2026-09-05T19:17:53Z",
+      "pushed_at": "2026-08-27T14:20:23Z"
+    },
+    "stats": {
+      "stars": 1160,
+      "forks": 213,
+      "watchers": 1160,
+      "open_issues": 0,
+      "size": 317
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 61235
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai",
+        "claude",
+        "claude-code",
+        "cursor",
+        "python",
+        "token-optimization",
+        "token-usage"
+      ]
+    },
+    "content": {
+      "readme": "# tokentab\n\ntokentab reads the session logs that Claude Code, Codex, Cursor and Gemini CLI already leave on disk and adds up token usage and cost - broken down by model, by project, by day, and by the kind of work each session was doing. It runs entirely locally: no account, no API key, nothing leaves your machine.\n\n<img src=\"assets/dashboard.png\" width=\"620\" alt=\"tokentab web dashboard\" />\n\n## Installing\n\nClone the repo and install it into your environment:\n\n```\ngit clone https://github.com/damejan80/tokentab\ncd tokentab\npip install .\npython cli.py\n```\n\nThat puts a `tokentab` command on your path. You can also run it without installing at all - see [From source](#from-source).\n\n## What it reads\n\nIt understands three tools out of the box, plus a Cursor slot that's wired up but not finished (more on that below).\n\n| Tool | Where its logs live |\n| --- | --- |\n| **Claude Code** | `~/.claude/projects/**/*.jsonl` |\n| **Codex** | `~/.codex/sessions/**/rollout-*.jsonl` |\n| **Gemini CLI** | `~/.gemini/tmp/**/session-*.json` |\n| **Cursor** | *(stub - see below)* |\n\nIf a tool isn't installed, it's just skipped. You'll only ever see the tools you actually use.\n\n## Using it\n\nThe bare command gives you the last 7 days across everything:\n\n```\npython cli.py\n```\n\nSome other things it does:\n\n```\npython cli.py -today                     # just today\npython cli.py -month                     # this calendar month\npython cli.py -p all                    # everything you've ever run\npython cli.py --provider claude         # one tool only\npython cli.py --project myapp           # one project\npython cli.pyb --from 2026-06-01 --to 2026-06-15   # a specific window\npython cli.py --json | jq .             # machine-readable, pipe it wherever\npython cli.py -web                       # the same thing, in a browser, with charts\n```\n\nColour drops automatically when you pipe the output somewhere, so pasting into a PR or a chat doesn't drag a load of escape codes along with it.\n\n### The web dashboard\n\n```\npython cli.py -web\n```\n\nOpens `http://localhost:4747` and lays the same numbers out as a monthly statement - total up top, everything itemised below. It reads from disk on every request (the data's tiny, so there's no reason to cache and risk showing you something stale) and binds to localhost only - nothing gets uploaded, same as the CLI. It doesn't even pull fonts from a CDN; it uses whatever serif and mono your system already has, so it works with the network unplugged. Pick a port with `--port`, or pass `--no-open` if you don't want it grabbing your browser.\n\nIt's built on Python's standard-library HTTP server - no Flask, no framework, nothing extra to install.\n\n## How the numbers are worked out\n\n**Tokens** come straight from the logs - every one of these tools records its own token counts per call, so nothing here is guessed. The one wrinkle is caching: Claude splits cache reads and writes out separately, and Gemini reports input *including* the cached part, so tokentab pulls the cached tokens back out before pricing to avoid charging you twice for the same thing.\n\n**Prices** are a hand-kept table in [`tokentab/pricing/prices.py`](tokentab/pricing/prices.py), in dollars per million tokens. It's a table on purpose - the tool never reaches out to the network to price anything, and a slightly-stale number beats a crash when a vendor renames a model overnight. The matching is fuzzy: `claude-opus-4-6-20260514` still finds `claude-opus-4-6`. If a model shows up as `$0.00`, it means the name didn't match anything in the table - add a line and it's sorted. The CLI says so when it happens instead of quietly counting it as free.\n\n**Activity** (coding / debugging / refactor / testing / etc.) is a guess based on which tools got used and the wording of your first message in a session. It's deterministic - no model calls - so it's fast and you can eyeball whether it's roughly right. Treat it as a hint, not gospel.\n\n\n## Adding another tool\n\nEvery provider is a single module in `tokentab/providers/` that exposes a `collect()` function returning a flat list of `UsageRecord`s (the shape's in [`tokentab/types.py`](tokentab/types.py)). Write the module, add it to the list in `tokentab/providers/__init__.py`, done - pricing, grouping, the dashboard, all of it just works because everything downstream only ever touches that one shared shape. The three real parsers are worth a read as templates; Claude's is the simplest place to start.\n\n## From source\n\n```\ngit clone https://github.com/wzchav/tokentab\ncd tokentab\npip install -e .\ntokentab\n```\n\n\nThe only third-party dependency is [rich](https://github.com/Textualize/rich), for the terminal tables. Everything else - the web server, the parsers, the JSON - is Python's standard library.\n\n## Reading the output\n\nA few patterns worth knowing when you look at your own numbers:\n\n- **Cache hit under ~80%, consistently** - your context probably isn't stable between calls, or caching isn't switched on. One weird session i",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:39.040824"
+  },
+  {
+    "basic_info": {
+      "name": "qwen38-27b-rtx3090",
+      "full_name": "syv-ai/qwen38-27b-rtx3090",
+      "owner": "syv-ai",
+      "description": "Qwen3.8-27B on a single RTX 3090 with vLLM: ~1,000 tok/s at 64 concurrent (int8 tensor-core GEMMs, fp16 DeltaNet state), ~114 tok/s single-user at default sampling / ~124 greedy (MTP drafts, own-output draft vocab, calibrated int4 lm_head, split-KV verify attention), 150k-262k context; patches, requant scripts, benchmarks",
+      "url": "https://github.com/syv-ai/qwen38-27b-rtx3090",
+      "clone_url": "https://github.com/syv-ai/qwen38-27b-rtx3090.git",
+      "ssh_url": "git@github.com:syv-ai/qwen38-27b-rtx3090.git",
+      "homepage": null,
+      "created_at": "2026-08-15T09:10:56Z",
+      "updated_at": "2026-09-06T03:36:34Z",
+      "pushed_at": "2026-09-04T18:13:59Z"
+    },
+    "stats": {
+      "stars": 1155,
+      "forks": 158,
+      "watchers": 1155,
+      "open_issues": 21,
+      "size": 24242
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 532141,
+        "Shell": 95174,
+        "Dockerfile": 2035
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "kv-cache",
+        "llm-inference",
+        "local-llm",
+        "quantization",
+        "qwen",
+        "qwen3",
+        "rtx-3090",
+        "speculative-decoding",
+        "vllm"
+      ]
+    },
+    "content": {
+      "readme": "# Qwen3.8-27B on one RTX 3090\n\n![Stock vLLM against this repo, same card, same prompts](docs/media/demo.gif)\n\nServing setup for [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) on a\nsingle 24 GB consumer GPU with vLLM — 150k token context and an OpenAI-compatible\nAPI with key auth, in two ready-made modes.\n\n## Quick start\n\nThe image is prebuilt and pushed to\n[ghcr.io](https://github.com/syv-ai/qwen38-27b-rtx3090/pkgs/container/qwen38-27b-rtx3090)\non every commit — the build applies all `patches/` and runs `verify.sh` as its\ngate, so `latest` is always the current stack. The first start pulls it (9.5 GB),\ndownloads and requantizes the model (~20 GB, once, into `./models`), and serves\non port 18020. Pick a mode — one GPU serves one at a time:\n\n```bash\ngit clone https://github.com/syv-ai/qwen38-27b-rtx3090 && cd qwen38-27b-rtx3090\n\ndocker compose --profile single up -d    # one or a few people chatting\ndocker compose --profile batch  up -d    # API backend, many concurrent requests\n```\n\n| | `--profile batch` → [batch/](batch/) | `--profile single` → [single-user/](single-user/) |\n|---|---|---|\n| for | API backends, pipelines, many concurrent requests | one or a few people chatting |\n| aggregate, 64 concurrent (128 in / 512 out) | **~1,035 tok/s** steady-state decode, 948 end-to-end (~1,222 / 1,042 with all layers int8) | n/a (8 slots) |\n| single-stream (C1) decode rate, realistic prompts | 46 tok/s | MTP: **121** tok/s at default sampling, **120** greedy (`CTX=fast`, 64k; 96 / 102 with `CTX=long`, 150k). DFlash2 (`SPEC=dflash2`): **127** default, **130** greedy |\n| reproducing its own context (quoting a document, applying an edit) | 46 tok/s | **381 tok/s** at 25k context — 15.0 tokens per verify step, drafted straight from the prompt (`SPEC=dflash2` + `DFLASH_TOKENS=15`) |\n| trick | 16-bit recurrent state + int8 tensor-core GEMMs | MTP speculation with 4 cheap drafts, a draft vocabulary that covers what the model says, calibrated int4 lm_head/drafter, split-KV verify attention; optionally native vLLM 0.28.0 DFlash2 (7 drafts in one pass, int4-requantized) with a verify block the context fills |\n<sub>Single-stream numbers re-measured 2026-08-22 on current main with\n`bash bench/run_benchmarks.sh single` — `vllm bench serve`, the 8 prompts in\n`bench/prompts_real.jsonl`, 1024 output tokens, C1, decode rate taken as\n`C / mean TPOT`. Quote them against that harness: a client with a different output\nlength is not measuring the same thing, and mixing the two is how\n[#3](https://github.com/syv-ai/qwen38-27b-rtx3090/issues/3) got confusing.</sub>\n\n> Version note: this branch pins vLLM 0.28.0; the throughput and quality tables are\n> retained as reference baselines while the v0.28.0 GPU matrix is being re-measured.\n\nBoth modes share one install — the mode is just which launch script you run.\nSpeculation wins below ~8 concurrent users on short prompts, plain batching above;\non long independent sessions the crossover is much earlier, because a speculating\nrequest reserves recurrent-state pages the pool has few of — the concurrency\nparagraph under \"DFlash2 at 240k\" has the measurement. Numbers are `vllm bench serve` on an\nRTX 3090 at a 250 W power limit. If the card is yours alone, the fastest\nconfiguration is three environment variables away:\n[If you are the only user](#if-you-are-the-only-user-do-this).\n\nPrefill is a separate budget from either: ~1,810 tok/s at 1k inputs in batch\nmode, and in single-user mode ~1,440 tok/s stock or **~1,850-1,940 with\n`INT8_ACT=int8`** (1,423 at 51k in), measured on the seeded benchmark protocol\n([full matrix](batch/README.md#prefill); older published prefill rows came\nfrom an unseeded harness that let the prefix cache contaminate the numbers,\nand are not comparable). How each number was won:\n[docs/optimizations.md](docs/optimizations.md).\n\nThe server listens on `0.0.0.0` and is unauthenticated unless you give it a key.\nFor anything past your own machine, add one first — everything reads it from\n`.env` or `api_key.txt`, and nothing needs it otherwise:\n\n```bash\necho \"VLLM_API_KEY=$(openssl rand -hex 24)\" > .env\n```\n\nNo compose, no clone — plain Docker runs the same image with one command and\nprepares the model itself on the first boot (into a named volume, so it\nsurvives container replacement):\n\n```bash\ndocker run -d --name qwen --gpus all --ipc=host -p 18020:18020 \\\n  -v qwen-models:/app/models -v qwen-cache:/cache \\\n  --restart unless-stopped ghcr.io/syv-ai/qwen38-27b-rtx3090:latest\n```\n\n`batch` after the image name is the other mode, and the knobs compose reads\nfrom `.env` become `-e` flags (`-e VLLM_API_KEY=...`, `-e SPEC=dflash2`, ...) —\n[docs/docker.md](docs/docker.md#plain-docker-no-compose) has the mapping.\n\nOr by hand in a venv (same steps: model download, requantization, vLLM\npatches, `verify.sh`) — see [Setup](#setup).\n\n### If you are the only user, do this\n\nThe command above starts the conservative default — MTP speculation, 8 request\nslots, 64k context, 120 tok/s greedy a",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:40.337998"
+  },
+  {
+    "basic_info": {
+      "name": "SpiderPanel",
+      "full_name": "amirh00sain/SpiderPanel",
+      "owner": "amirh00sain",
+      "description": null,
+      "url": "https://github.com/amirh00sain/SpiderPanel",
+      "clone_url": "https://github.com/amirh00sain/SpiderPanel.git",
+      "ssh_url": "git@github.com:amirh00sain/SpiderPanel.git",
+      "homepage": null,
+      "created_at": "2026-08-18T15:30:17Z",
+      "updated_at": "2026-09-05T23:30:17Z",
+      "pushed_at": "2026-09-05T09:25:14Z"
+    },
+    "stats": {
+      "stars": 1136,
+      "forks": 3827,
+      "watchers": 1136,
+      "open_issues": 2,
+      "size": 8523
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 628038,
+        "HTML": 450329,
+        "JavaScript": 91944,
+        "Shell": 36834,
+        "Dockerfile": 846
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"right\" dir=\"rtl\">\n\n🕷️ SpiderPanel\n\n🚀 راهنمای نصب و دیپلوی\n\n────────\n\n⚡ نصب مستقیم روی VPS\n\nاگر می‌خواهید SpiderPanel را مستقیماً روی VPS نصب کنید، دستور زیر را در ترمینال اجرا کنید:\n\n```bash\ncurl -fsSL https://raw.githubusercontent.com/amirh00sain/SpiderPanel/main/start.sh | bash\n```\n\n> 💡 **دستور بالا را کپی کرده و در ترمینال VPS اجرا کنید.**\n\n────────\n\n🚄 دیپلوی روی Railway\n\n۱. دریافت ایمیل موقت\n\nابتدا وارد سایت Atomic Mail شوید و یک ایمیل جدید دریافت کنید.\n\n۲. ساخت حساب GitHub\n\nبا استفاده از ایمیلی که در مرحله قبل دریافت کردید، یک حساب کاربری جدید در GitHub بسازید.\n\n۳. Fork کردن پروژه\n\nپروژه را Fork کنید و آن را روی اکانت GitHub خود ذخیره نمایید.\n\n۴. ورود به Railway\n\nوارد Railway شوید و با استفاده از حساب GitHub خود Login کنید.\n\n۵. Deploy پروژه\n\nپروژه Fork‌شده را انتخاب کرده و مراحل Deploy را آغاز کنید.\n\n۶. تنظیم Domain و Port\n\nپس از اتمام کامل Deploy:\n\n• وارد بخش Settings شوید.\n• روی Generate Domain کلیک کنید.\n• پورت را روی 8080 تنظیم کنید.\n\n۷. ورود به پنل\n\nپس از ساخت Domain، عبارت زیر را به انتهای آدرس اضافه کنید:\n\n```text\n/spider\n```\n\nمثال:\n\n```text\nhttps://your-domain.up.railway.app/spider\n```\n\n────────\n\n📌 اطلاعات پروژه\n\nپورت پیش‌فرض:\n\n```text\n8080\n```\n\nمسیر ورود به پنل:\n\n```text\n/spider\n```\n\n────────\n\n📢 کانال‌های ارتباطی\n\n👤 سازنده پروژه:\namirsp1ider\n\n📢 کانال اصلی:\nSPiDER_VPN1\n\n────────\n\n❤️ ساخته شده توسط amirsp1ider\n\n</div>\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:41.613389"
+  },
+  {
+    "basic_info": {
+      "name": "undress-service",
+      "full_name": "GangTailorUpgrade/undress-service",
+      "owner": "GangTailorUpgrade",
+      "description": "Dress AI Sponsor",
+      "url": "https://github.com/GangTailorUpgrade/undress-service",
+      "clone_url": "https://github.com/GangTailorUpgrade/undress-service.git",
+      "ssh_url": "git@github.com:GangTailorUpgrade/undress-service.git",
+      "homepage": "https://undress.design/undress",
+      "created_at": "2026-08-31T00:12:45Z",
+      "updated_at": "2026-09-06T04:52:47Z",
+      "pushed_at": "2026-09-02T13:58:48Z"
+    },
+    "stats": {
+      "stars": 1104,
+      "forks": 1,
+      "watchers": 1104,
+      "open_issues": 0,
+      "size": 1184
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 65137,
+        "Batchfile": 4017,
+        "Dockerfile": 1045
+      },
+      "license": "MIT License",
+      "topics": [
+        "18comic",
+        "coomer",
+        "coomer-downloader",
+        "coomer-party",
+        "coomer-porn",
+        "coomer-su",
+        "doujin-moe",
+        "ehviewer",
+        "ex-hentai",
+        "explicit-content",
+        "hitomi-la",
+        "kemono",
+        "kemono-downloader",
+        "kemono-oarty",
+        "kemono-party",
+        "kemono-porn",
+        "kemono-su",
+        "nudity",
+        "sex",
+        "unrestricted-ai"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"https://raw.githubusercontent.com/GangTailorUpgrade/dress-ai-service/main/docs/logo.png\" alt=\"Dress AI Service\" width=\"180\">\n\n# 👗 Dress AI Service\n\n**Self-Hosted AI Outfit Generator & Virtual Wardrobe Stylist**\n\n[![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://python.org)\n[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com)\n[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://docker.com)\n[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)\n[![Stars](https://img.shields.io/github/stars/GangTailorUpgrade/dress-ai-service?style=social)](https://github.com/GangTailorUpgrade/undress-service)\n\n🚀 **Turn your closet into an AI-powered fashion assistant.** Upload your wardrobe, get smart outfit recommendations for any occasion, and visualize your looks with generative AI — all self-hosted, private, and free.\n\n[🎥 Demo Video](#) · [📖 Documentation](docs/) · [🐳 Quick Start](#quick-start) · [💬 Discord](#)\n\n</div>\n\n---\n\n## ✨ What is Dress AI Service?\n\n**Dress AI Service** is an open-source, self-hosted AI fashion platform that helps you:\n\n- 📸 **Digitize your wardrobe** — Upload photos of your clothes; AI auto-tags them by category, color, style, and season\n- 🧠 **Get smart outfit recommendations** — AI suggests perfect combinations based on occasion, weather, and your personal style\n- 🎨 **Visualize outfits before wearing** — Generate AI renderings of how recommended outfits will look\n- 🌤️ **Weather-aware styling** — Integrates real-time weather to suggest appropriate layers and fabrics\n- 🏠 **100% self-hosted** — Your photos stay on your machine. No cloud uploads. No privacy concerns.\n\nWhether you're a fashion enthusiast, a boutique owner, or a developer building the next generation of fashion tech, Dress AI Service gives you a complete, production-ready foundation.\n\n---\n\n## 🖼️ Screenshots\n\n| Wardrobe Upload | AI Tagging | Outfit Recommendations | AI Visualization |\n|---|---|---|---|\n| ![Upload](docs/screenshots/upload.png) | ![Tagging](docs/screenshots/tagging.png) | ![Outfits](docs/screenshots/outfits.png) | ![Visualize](docs/screenshots/visualize.png) |\n\n---\n## 💖 Sponsors\n\nDress AI Service is made possible by our amazing sponsors. Support the project and get your logo here!\n\n<div align=\"center\">\n\n\n[<img width=\"1672\" height=\"941\" alt=\"5259cbc0-c12f-40e1-934b-d0f6802f745c\" src=\"https://github.com/user-attachments/assets/43a0f5ad-c0b0-427d-9d24-0824c5bb8fa7\"/>](https://undress.design/undress/?utm_source=github.com%2FGangTailorUpgrade%2Fundress-service&utm_medium=sponsorship&utm_campaign=github-september-2026&utm_content=readme-sponsor)\n\n### Option 1: Docker (Recommended)\n\n```bash\ngit clone https://github.com/GangTailorUpgrade/undress-service.git\ncd dress-ai-service\ncp .env.example .env\ndocker-compose up --build\n```\n\nVisit `http://localhost:8080` — your personal AI stylist is live! 🎉\n\n### Option 2: Local Python\n\n```bash\ngit clone https://github.com/GangTailorUpgrade/undress-service.git\ncd dress-ai-service\npython -m venv venv\nsource venv/bin/activate  # Windows: venv\\Scripts\\activate\npip install -r requirements.txt\n\n# Download AI models (first run)\npython scripts/download_models.py\n\n# Start the server\nuvicorn app.main:app --host 0.0.0.0 --port 8080 --reload\n```\n\n---\n\n## 🏗️ Architecture\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│                     Dress AI Service                        │\n├─────────────────────────────────────────────────────────────┤\n│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │\n│  │  Wardrobe   │  │   Outfit    │  │   AI Visualization  │ │\n│  │   Upload    │  │   Engine    │  │      Pipeline       │ │\n│  │  & Storage  │  │  (Rules +   │  │  (Stable Diffusion  │ │\n│  │             │  │   LLM)      │  │   / FLUX / SDXL)    │ │\n│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘ │\n│         │                │                     │            │\n│  ┌──────▼────────────────▼─────────────────────▼──────────┐ │\n│  │              FastAPI Backend (Python 3.11)             │ │\n│  │  • SQLite / PostgreSQL  • CLIP Tagging  • Weather API │ │\n│  └─────────────────────────┬──────────────────────────────┘ │\n│                            │                                │\n│  ┌─────────────────────────▼──────────────────────────────┐ │\n│  │              Self-Hosted Frontend (HTML/JS)            │ │\n│  │         • Drag & Drop Upload  • Live Preview          │ │\n│  └────────────────────────────────────────────────────────┘ │\n└─────────────────────────────────────────────────────────────┘\n```\n\n---\n\n## 🛠️ Tech Stack\n\n| Layer | Technology | Purpose |\n|-------|-----------|---------|\n| **Backend** | FastAPI + Python 3.11 | High-performance async API |\n| **AI/ML** | CLIP, Stable Diffusion XL, FLUX.1-schnell | Image understanding & generation |\n| **Database** | SQLite (default) / PostgreSQL | Wardrobe & outfit storage |\n| **Frontend** | ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:42.873809"
+  },
+  {
+    "basic_info": {
+      "name": "darwin-vm",
+      "full_name": "jprx/darwin-vm",
+      "owner": "jprx",
+      "description": "Run iOS/ macOS in Qemu. Virtual iPhone 17, 16, 15, 14, 13, 12 and M5-M1 Apple Si Macs supported.",
+      "url": "https://github.com/jprx/darwin-vm",
+      "clone_url": "https://github.com/jprx/darwin-vm.git",
+      "ssh_url": "git@github.com:jprx/darwin-vm.git",
+      "homepage": "",
+      "created_at": "2026-08-27T22:24:31Z",
+      "updated_at": "2026-09-05T23:00:11Z",
+      "pushed_at": "2026-09-03T18:50:25Z"
+    },
+    "stats": {
+      "stars": 1034,
+      "forks": 88,
+      "watchers": 1034,
+      "open_issues": 5,
+      "size": 4628
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 18234,
+        "Shell": 8557
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# darwin-vm\n\nRun iOS/ macOS in Qemu. Supports emulating iPhone 17, 16, 15, 14, 13, and 12\n(A19-A14) and M5-M1 Macs (tested with Macbook Air and Mac Mini). You can debug\nthe kernel, edit the root filesystem, and run a root shell + custom programs.\n\nFeatures:\n- Runs a lightweight debuggable iOS/ macOS (Darwin) system with custom filesystem.\n- Boots you directly into a root shell in just a few seconds.\n- Compile and run your own programs as root in the VM, no jailbreak or kernel patches required.\n- Runs anywhere qemu runs (ARM host not required).\n- Supports emulating A19-A14 (iOS) and M5-M1 (macOS) CPUs.\n- Supports SPTM based kernels and CPUs with MIE.\n- Can debug / patch the kernel, SPTM, TXM, dyld, launchd, and userspace programs.\n- Automated setup to get going in just a few minutes.\n\n```\n$ ./run.sh\nDarwin Kernel Version 27.0.0: Tue Aug 11 22:05:33 PDT 2026; root:xnu-13432.1.9~3/RELEASE_ARM64_T8142\npmap_startup() init/release time: 893478 microsec\nvm_page_bootstrap: 463555 free pages, 25917 wired pages\nVM bootstrap: 73 maps, 256 entries and 64 nodes available\nptr-packing max: compressor:0x<ptr> page:0x<ptr> vmn:0xfffffeffffffff00 vme:0x<ptr>\nzone_map_range: min:0x<ptr> max:0x0, vm-size:0x5cc000000 ro-size:0x29e000000, vm_min:0x<ptr> ro_min:0x<ptr>\nvm: \"vm_compressor_mode\" is 4\nVM bootstrap done: 71 maps, 224 entries and 59 nodes left\nstandard timeslicing quantum is 10000 us\nstandard background quantum is 2500 us\nLong logs support configured: size: 16384\nFirehose configured: 16 chunks, 8 io pages\nLog queues configured: slot count: 90, per-slot size: 32768, total size: 2949120\nOSLog stream configured: stream: 8192 bytes, cache: 2112 bytes\n[trap_telemetry] trap_telemetry_init\nmig_table_max_displ = 91 mach_kobj_count = 390\ndebug_log_init: Error!! gPanicBase is still not initialized\nlibTXM_KernelVersion: 12\nlibTXM_Image4Version: 1\nTXM [Log]: setup logging: 32768 bytes (256 | 128)\nTXM [Log]: system supports DIT feature\nTXM [Log]: setup device tree range\nTXM [Log]: unable to find esdm-fuses property in /chosen\nTXM [Log]: resolved system platform identity: 0\nTXM [Log]: Code Signing Monitor Image4 Module Version 7.0.0: Mon Aug 10 00:10:03 PDT 2026; root:AppleImage4_txm-374~7048/libima\n...\nDarwin Ignition Sequence Version 1.0.0: Tue Aug 11 21:44:28 PDT 2026; root:libignition-64~19270/libignition_core/RELEASE_ARM64E\nlibignition: 1: arguments           :\nlibignition: 1:   ignition level    : 0x5\nlibignition: 1:   force dylib root  : 0x0\nlibignition: 1:   halt after stage  : n/a\n...\ncom.apple.xpc.launchd|1970-01-01 00:00:29.466851 <Notice>: Darwin Bootstrapper Version 7.0.0: Mon Aug 10 01:06:09 PDT 2026; root:libxpc_executables-3298.1.1~29/launchd/RELEASE_ARM64E\ncom.apple.xpc.launchd|1970-01-01 00:00:29.484709 <Notice>: boot-args = rd=md0 serial=3 -v -noprogress wdt=-1 wlan-olyhal-abort\ncom.apple.xpc.launchd|1970-01-01 00:00:29.486795 <Notice>: Restore environment starting.\ncom.apple.xpc.launchd|1970-01-01 00:00:29.487770 <Notice>: System Integrity Protection is engaged.\ncom.apple.xpc.launchd|1970-01-01 00:00:29.904447 (system/com.jprx.bash) <Notice>: internal event: WILL_SPAWN, code = 0\ncom.apple.xpc.launchd|1970-01-01 00:00:29.905070 (system/com.jprx.bash) <Notice>: service state: spawn scheduled\ncom.apple.xpc.launchd|1970-01-01 00:00:29.905166 (system/com.jprx.bash) <Notice>: service state: spawning\ncom.apple.xpc.launchd|1970-01-01 00:00:29.922055 (system/com.jprx.bash) <Notice>: launching: speculative\nbash-3.2# uname -v\nDarwin Kernel Version 27.0.0: Tue Aug 11 22:05:33 PDT 2026; root:xnu-13432.1.9~3/RELEASE_ARM64_T8142\nbash-3.2# whoami\nroot\nbash-3.2# ls\n.fseventsd      mnt1            mnt3            mnt8            usr\nSystem          mnt10           mnt4            mnt9            var\nbin             mnt11           mnt5            private\ndev             mnt12           mnt6            sbin\netc             mnt2            mnt7            tmp\n```\n\n(some kernel messages were removed from the above log to make it easier to read)\n\n# What this is not\n\nThis is not a full iPhone/ Mac emulator. Don't expect the screen, wifi,\nbluetooth, graphics, GUI apps, or full springboard to work. This just boots iOS\n/ macOS to a barebones root shell so you can run custom command line programs,\ndebug the kernel, and mess around with low-level Darwin internals.\n\nIf you've ever compiled Linux + busybox and booted in qemu (with `-kernel` and\n`-initrd`) for kernel development, this is like that but for Darwin systems.\n\n# Tested Configurations\n\n`darwin-vm` has been tested with the following systems:\n\n| Device          | `devname`    | CPU name | iOS 27.0 beta 8 | iOS 26.6 |\n|-----------------|--------------|----------|-----------------|----------|\n| iPhone 17 (A19) | `iPhone18,3` | `t8150`  | ✅              | ✅       |\n| iPhone 16 (A18) | `iPhone17,3` | `t8140`  | ✅              | ✅       |\n| iPhone 15 (A16) | `iPhone15,4` | `t8120`  | ✅              | ✅       |\n| iPhone 14 (A15) | `iPhone14,7` | `t8110`  | ✅              | ✅       |\n| iPho",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:44.132559"
+  },
+  {
+    "basic_info": {
+      "name": "AutoResearch",
+      "full_name": "EvoMap/AutoResearch",
+      "owner": "EvoMap",
+      "description": "AI/ML research agents from idea to paper-ready evidence. An EvoMap open-source project.",
+      "url": "https://github.com/EvoMap/AutoResearch",
+      "clone_url": "https://github.com/EvoMap/AutoResearch.git",
+      "ssh_url": "git@github.com:EvoMap/AutoResearch.git",
+      "homepage": null,
+      "created_at": "2026-08-15T07:48:42Z",
+      "updated_at": "2026-09-06T05:13:25Z",
+      "pushed_at": "2026-09-01T06:42:07Z"
+    },
+    "stats": {
+      "stars": 1032,
+      "forks": 74,
+      "watchers": 1032,
+      "open_issues": 0,
+      "size": 736
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1313038,
+        "TypeScript": 67206,
+        "Shell": 33346,
+        "CSS": 21944
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# AutoResearch\n\n<h2 align=\"center\">From Idea to Paper-Ready Evidence</h2>\n\n<p align=\"center\">\n  Insight In, Hallucination Out.\n</p>\n\n<p align=\"center\">\n  English &nbsp;·&nbsp; <a href=\"README_CN.md\">简体中文</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"LICENSE\"><img alt=\"License: Apache-2.0\" src=\"https://img.shields.io/badge/License-Apache--2.0-47C9E7\"></a>\n  <a href=\"https://www.python.org/\"><img alt=\"Python 3.10+\" src=\"https://img.shields.io/badge/Python-3.10%2B-0B1324\"></a>\n  <a href=\"https://evomap.ai\"><img alt=\"EvoMap ecosystem\" src=\"https://img.shields.io/badge/EvoMap-Ecosystem-47C9E7\"></a>\n  <a href=\"https://arxiv.org/abs/2608.17906\"><img alt=\"Report: arXiv:2608.17906\" src=\"https://img.shields.io/badge/Report-arXiv%3A2608.17906-B31B1B\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://scholar.google.com/citations?user=ayf4nGIAAAAJ\">Yiming Ren</a>\n  &nbsp;·&nbsp;\n  <a href=\"mailto:liuxiang@evomap.ai\">Xiang Liu</a>\n  &nbsp;·&nbsp;\n  <a href=\"mailto:sun@evomap.ai\">Qumeng Sun</a>\n  &nbsp;·&nbsp;\n  <a href=\"mailto:zhangxiao@evomap.ai\">Xiao Zhang</a>\n  &nbsp;·&nbsp;\n  <a href=\"https://github.com/likaho991007-design\">Jiahao Li</a>\n</p>\n\n<p align=\"center\">\n  Project Leaders:\n  <strong><a href=\"https://autogame-17.github.io/\">Haoyang Zhang</a></strong>\n  &nbsp;·&nbsp;\n  <strong><a href=\"https://wangjunjie-ai.github.io/\">Junjie Wang</a></strong>\n</p>\n\n<p align=\"center\">\n  Infinite Evolution Lab, <a href=\"https://evomap.ai\">EvoMap</a>\n</p>\n\n![AutoResearch workflow from a research idea to reviewable evidence](docs/diagrams/autoresearch-workflow.svg)\n\nAutoResearch is an open-source agent workflow for AI and machine learning research. Give it a research idea, or let it discover directions from recent papers, developer communities, and open-source trends. It continues through experiment planning, implementation, review, execution, result analysis, and independent evaluation to produce an evidence package ready for paper writing.\n\nThe workflow is stateful and recoverable. It can iterate based on pilot results and independent review. Research plans, code, run logs, metrics, failure causes, critic reports, and blind reviews are written to disk so researchers can inspect, take over, or stop the process.\n\n![AutoResearch project monitor showing pipeline progress, reviews, and execution rounds](docs/images/autoresearch-project-monitor.png)\n\n## 1. Ways to Use AutoResearch\n\n| Your starting point | Path | Main outputs |\n|---|---|---|\n| You do not have a specific idea yet | Run Idea Generation | Candidate research directions, reviewed ideas, and experiment plans |\n| You already have an idea | Execute the idea directly | Experiment code, run logs, result analysis, and independent review |\n| You want the complete workflow | Generate ideas, then select a plan for execution | A complete record from research signals to paper-ready evidence |\n\n## 2. Core Capabilities\n\n| Capability | What you get |\n|---|---|\n| Cross-domain idea generation | Discover problems from recent external signals, then add constraints and experience from your own domain knowledge |\n| Independent multi-model review | Use at least three distinct models during Idea Generation instead of letting one model generate and approve its own work |\n| Stateful experiment execution | Persist plans, code, queues, logs, and conclusions so long-running work can resume after interruption |\n| Pilot before scaling | Test feasibility at lower cost before starting full experiments or stopping early |\n| Traceable evidence and sources | Record Forge sources, knowledge directions, experiment results, critic reports, and blind reviews |\n| Support for negative results | Preserve evidence and stop when a hypothesis fails instead of forcing every experiment into a success story |\n\nResearch agents can invent missing details when evidence is thin and repeatedly validate their own output. AutoResearch grounds problem discovery in real signals, adds domain knowledge from a local knowledge base, and checks important claims through cross-model review, source records, experiment logs, critic reports, and blind review. These mechanisms reduce unsupported generation, unclear provenance, inflated self-evaluation, and overinterpretation of negative results. The system cannot guarantee that every conclusion is correct, but it preserves the evidence and state needed for researcher review.\n\n## 3. Quickstart\n\n### 3.1 Clone the Repository and Check the Environment\n\nPrepare a Linux machine, either local or accessible over SSH, with Git, Python 3.10+, and `python3-venv` installed:\n\n```bash\ngit clone https://github.com/EvoMap/AutoResearch.git\ncd AutoResearch\nbash scripts/bringup.sh\n```\n\n`scripts/bringup.sh` creates `.venv`, installs Python dependencies, runs the baseline tests and secret scan, and checks the current model configuration. It does not contact model services or incur API charges.\n\nOn the first run, before API credentials are configured, a final `BLOCKED` result or nonzero exit is expected. Confirm that ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:45.405474"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-deepseek-harness",
+      "full_name": "0xsline/awesome-deepseek-harness",
+      "owner": "0xsline",
+      "description": "DeepSeek Harness (DSH) ecosystem: curated plugins, tools, and infrastructure from dsh-external/hub and the public dsh-plugin topic.",
+      "url": "https://github.com/0xsline/awesome-deepseek-harness",
+      "clone_url": "https://github.com/0xsline/awesome-deepseek-harness.git",
+      "ssh_url": "git@github.com:0xsline/awesome-deepseek-harness.git",
+      "homepage": "https://deepseekdocs.com/",
+      "created_at": "2026-08-11T13:14:49Z",
+      "updated_at": "2026-09-06T02:46:42Z",
+      "pushed_at": "2026-09-05T12:17:14Z"
+    },
+    "stats": {
+      "stars": 998,
+      "forks": 369,
+      "watchers": 998,
+      "open_issues": 6,
+      "size": 3779
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 202946
+      },
+      "license": "Creative Commons Zero v1.0 Universal",
+      "topics": [
+        "agent",
+        "ai",
+        "ai-agents",
+        "ai-tools",
+        "awesome",
+        "awesome-list",
+        "coding-assistant",
+        "curated-list",
+        "deepseek",
+        "deepseek-harness",
+        "developer-tools",
+        "dsh",
+        "dsh-plugin",
+        "dsh-plugins",
+        "harness",
+        "llm",
+        "mcp",
+        "plugins"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n <a href=\"README.md\">English</a>&nbsp;&nbsp;|&nbsp;&nbsp;\n <a href=\"README.zh-CN.md\">简体中文</a>\n</p>\n\n<br>\n\n<div align=\"center\">\n <img width=\"640\" src=\"assets/banner.jpg\" alt=\"Awesome DeepSeek Harness\">\n</div>\n\n# Awesome DeepSeek Harness [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)\n\n<!-- BANNER: luminous DeepSeek whale with agent-orchestration harness (1280×480) -->\n\n<p align=\"center\">\n <a href=\"#install\">Install</a>&nbsp;&nbsp;&nbsp;\n <a href=\"contributing.md\">Contribution guide</a>&nbsp;&nbsp;&nbsp;\n <a href=\"https://deepseekdocs.com/\">DeepSeek Docs</a>&nbsp;&nbsp;&nbsp;\n <a href=\"https://github.com/topics/dsh-plugin\">Public plugin topic</a>&nbsp;&nbsp;&nbsp;\n <a href=\"https://github.com/dsh-external/issues\">Issues</a>&nbsp;&nbsp;&nbsp;\n <a href=\"CATALOG.md\">完整目录</a>&nbsp;&nbsp;&nbsp;\n</p>\n\n<br>\n\n<p align=\"center\">\n <b>Curated DeepSeek Harness (DSH) ecosystem: plugins, tools &amp; infrastructure. Sources: dsh-external/hub catalog and the public GitHub dsh-plugin topic.</b><br>\n</p>\n\n<br>\n> Note: the GitHub [`dsh-plugin` topic](https://github.com/topics/dsh-plugin) is public; some `dsh-external` repository links may still require org access.\n\n## Contents\n\n- [Install](#install)\n- [Core & Bundles](#core--bundles)\n- [Agents & Orchestration](#agents--orchestration)\n- [Context & Search](#context--search)\n- [Memory & Knowledge](#memory--knowledge)\n- [Input & Editing](#input--editing)\n- [UI, Themes & Interaction](#ui-themes--interaction)\n- [Dashboards & Session UX](#dashboards--session-ux)\n- [IDE & Clients](#ide--clients)\n- [Browser & Remote](#browser--remote)\n- [Models & Inference](#models--inference)\n- [Git & Engineering](#git--engineering)\n- [Security & Governance](#security--governance)\n- [Output & Deliverables](#output--deliverables)\n- [Office & Documents](#office--documents)\n- [Notifications & Channels](#notifications--channels)\n- [Fun & Lifestyle](#fun--lifestyle)\n- [Plugin Ecosystem & Development](#plugin-ecosystem--development)\n- [Runtime & Operations](#runtime--operations)\n- [Domain & Specialist Skills](#domain--specialist-skills)\n- [Tools & Utilities](#tools--utilities)\n- [Related](#related)\n- [Thanks](#thanks)\n\n## Install\n\nInstall the official runtime with Node.js:\n\n```sh\nnpx @deepseek-ai/dsh web\n```\n\nInstall an external profile bundle with pnpm on your `PATH`:\n\n```sh\ndsh plugin --profile web add \"github:owner/repo#ref\"\n```\n\n`dsh plugin` forwards package operations to pnpm, so npm, Git/GitHub, local path, `file:` and `link:` package specs are supported. Only packages declaring `dsh.bundle.patch` become active profile layers; plain dependencies remain installed but inactive. Restart `dsh --profile web` after installing or updating a bundle.\n\nThe former `&path:` sub-path and Repository Plugin installation forms are not part of the current official bundle flow; use an installable package that declares `dsh.bundle.patch`.\n\nManagement panel: Settings → Plugins.\n\n## Core & Bundles\n\n- [DeepSeek Harness Ultimate](https://github.com/18126295767-cell/deepseek-harness-ultimate) - Community-maintained reproducible profile installer: deduplicated defaults across coding, workflow, reliability and productivity; full commit-SHA pins, permissive-license audit, pre/post dependency checks, optional sensitive integrations, and beginner guides in 20 languages for Windows, macOS and Linux.\n- [dsh-deepresearch](https://github.com/dsh-external/dsh-deepresearch) - DeepResearch plugin (cordis).\n- [dsh-plan-execute](https://github.com/dsh-external/dsh-plan-execute) - Dual-model plan/execute routing: planner model thinks, executor model acts.\n- [dsh-toolkit](https://github.com/dsh-external/dsh-toolkit) - Zero-dependency tool suite (calculator/csv/diff/encoding/json/markdown/regex/time).\n- [dsh-deep-research](https://github.com/dsh-external/dsh-deep-research) - Adaptive deep-research orchestrator (workflow engine).\n- [dsh-101](https://github.com/dsh-external/dsh-101) - DSH documentation reading mode.\n- [dsh-client-ui-plan-execute](https://github.com/dsh-external/dsh-client-ui-plan-execute) - Web Settings row for plan/execute model routing.\n- [dsh_workflow](https://github.com/dsh-external/dsh_workflow) - Dynamic workflow for DSH (placeholder).\n- [dsh-equip-engine](https://github.com/wuykjl/dsh-equip-engine) - Task-driven plugin equip engine: dual retrieval (curated rules + LLM semantic), combo scoring (synergy/conflict/cost/trust), conflict detection and install-command export.\n- [dsh-claude-move](https://github.com/PerryLink/dsh-claude-move) - Four-source migration wizard: move Claude Code, Codex, OpenCode and Hermes sessions, memories, skills, instructions and slash commands into DSH (approval-gated, idempotent, resumable sessions).\n- [dsh-skill-mover](https://github.com/mjylfz/dsh-skill-mover) - One-click skill migration into DSH: scans 14 agent platforms (Cursor, Claude Code, Codex, Hermes, Trae, Qoder...) plus the shared ~/.agents layer, merges same-name skills, dedupes symlinks and rolls ba",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-06T05:19:46.706812"
+  }
+]

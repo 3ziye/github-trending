@@ -1,0 +1,104 @@
+<div align="center">
+  <img src="resources/app-icon/flectar-mail-masked.png" width="112" alt="Flectar Mail logo">
+  <h1 align="center">
+    Flectar Mail
+  </h1>
+  <div align="center">
+    <h3>Email, made fast again</h3>
+    <p>Built from the ground up for speed. Flectar Mail delivers native performance, instant startup, and as little as 20 MB of RAM.</p>
+  </div>
+  <p>
+    <a href="https://flectar.com">Website</a> ·
+    <a href="https://github.com/flectar/mail/issues">Report an issue</a> ·
+    <a href="CONTRIBUTING.md">Contribute</a>
+  </p>
+</div>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="resources/screenshots/desktop-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="resources/screenshots/desktop-light.png">
+  <img src="resources/screenshots/desktop-light.png" alt="Flectar Mail unified inbox and message view">
+</picture>
+
+Flectar Mail is a lightweight, native home for your email, calendars, and
+contacts. It is engineered to open instantly, stay responsive, and use a
+fraction of the memory of a typical web-based mail client.
+
+## Why Flectar Mail?
+
+- **Fast from the first click.** A native interface and local-first data path
+  get you to your inbox without waiting on a browser runtime.
+- **As little as 20 MB of RAM.** Flectar Mail is deliberately designed to keep
+  memory use low, even with a full-featured inbox at your fingertips.
+- **Everything in one place.** Move between mail, calendars, and contacts
+  without stitching together separate apps.
+- **Offline by design.** Your mailbox and calendar are stored locally, so your
+  synced data remains useful without a connection.
+- **Works with your accounts.** Connect Gmail, Outlook and Microsoft 365, or
+  standards-based IMAP/SMTP, JMAP, and CalDAV services.
+- **Privacy-conscious defaults.** Remote images are blocked until you allow
+  them, helping prevent tracking pixels from reporting when you read a message.
+- **Security by architecture.** Email content is never opened in a WebView.
+  Flectar Mail renders HTML and CSS through its own Rust-native pipeline, does
+  not execute email scripts, and blocks remote images by default. This avoids
+  the embedded-browser attack surface by design.
+- **An experimental Rust renderer.** Building an email renderer without a
+  browser engine is new territory. Rendering issues are expected, especially
+  in complex messages, while compatibility continues to improve.
+- **Made for every screen.** Spacious and minimal desktop layouts share the
+  same experience as the touch-friendly compact interface.
+- **Native and open source.** Built from the ground up with Rust. It is not a
+  browser wrapped in a window, and it is released under the AGPLv3.
+
+## Experimental HTML rendering
+
+> [!WARNING]
+> HTML email rendering is currently the most experimental part of Flectar Mail.
+> Some messages, especially those with complex or unusual markup and CSS, may
+> not render correctly yet.
+
+To keep the client fully native and memory usage around 20 MB, Flectar Mail
+renders email HTML with [Blitz](https://github.com/DioxusLabs/blitz), a Rust
+HTML/CSS renderer from the Dioxus team, instead of embedding a browser or
+WebView.
+
+As far as we know, Flectar Mail is one of the first projects using Blitz for
+arbitrary, real-world email HTML. Email markup contains plenty of unusual HTML
+and CSS, so this pushes the renderer into demanding territory. We currently
+carry several patches on top of Blitz and hope to upstream as much of that work
+as possible over time.
+
+If you find an email that renders incorrectly, please
+[report it](https://github.com/flectar/mail/issues). This approach is still
+experimental, but it is also a major reason Flectar Mail can remain so
+lightweight compared with WebView-based clients built with frameworks such as
+Tauri or Wails.
+
+## Make it yours
+
+Choose the workspace that fits the way you handle email. Keep the detailed
+three-pane layout, switch to a streamlined minimal view, choose a light or dark
+theme, select a built-in color palette or create a custom one, and show or hide
+sender avatars.
+
+The full workspace keeps your folders, message list, and selected email visible
+together. The minimal layout reduces visual noise and gives each part of your
+inbox more room when you need it.
+
+### Light
+
+| Full workspace | Minimal workspace |
+| --- | --- |
+| ![Flectar Mail full desktop workspace in light mode](resources/screenshots/desktop-light.png) | ![Flectar Mail minimal desktop workspace in light mode](resources/screenshots/desktop-minimal-light.png) |
+
+### Dark
+
+| Full workspace | Minimal workspace |
+| --- | --- |
+| ![Flectar Mail full desktop workspace in dark mode](resources/screenshots/desktop-dark.png) | ![Flectar Mail minimal desktop workspace in dark mode](resources/screenshots/desktop-minimal-dark.png) |
+
+### Color palettes
+
+| Teal | Green | Purple | Custom |
+| --- | --- | --- | --- |
+| ![Flectar Mail teal palette in light mode](resources/screenshots/desktop-teal-light.png) | ![Flectar Mail gr

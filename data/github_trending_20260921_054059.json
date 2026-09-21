@@ -1,0 +1,869 @@
+[
+  {
+    "basic_info": {
+      "name": "NoGraphicsAPI",
+      "full_name": "sebbbi/NoGraphicsAPI",
+      "owner": "sebbbi",
+      "description": "Minimal graphics API. Built on top of latest Vulkan extensions. As close as possibly to my \"No Graphics API\" blog post and the SIGGRAPH talk.",
+      "url": "https://github.com/sebbbi/NoGraphicsAPI",
+      "clone_url": "https://github.com/sebbbi/NoGraphicsAPI.git",
+      "ssh_url": "git@github.com:sebbbi/NoGraphicsAPI.git",
+      "homepage": null,
+      "created_at": "2026-08-31T14:14:12Z",
+      "updated_at": "2026-09-21T04:49:22Z",
+      "pushed_at": "2026-09-16T17:10:44Z"
+    },
+    "stats": {
+      "stars": 1443,
+      "forks": 45,
+      "watchers": 1443,
+      "open_issues": 6,
+      "size": 645
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 379671,
+        "CMake": 13508,
+        "Slang": 1903,
+        "C": 880
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# NoGraphicsAPI\n\n`NoGraphicsAPI` is an experimental Vulkan 1.4 implementation of the ideas in Sebastian Aaltonen's\n[*No Graphics API*](https://www.sebastianaaltonen.com/blog/no-graphics-api). It explores how much of\na conventional graphics API disappears when shaders use 64-bit GPU pointers, texture and sampler\ndescriptors live in application-owned GPU memory, and synchronization describes hazards instead of\nresource state.\n\nThe Vulkan backend is implemented and exercised by three example applications. Metal support is not\nimplemented; [the Metal 4 design](docs/metal-porting.md) records the proposed mapping and open issues.\n\n## How it maps to *No Graphics API*\n\n- **GPU pointers replace buffer objects and bindings.** `create_gpu_heap()` returns a raw allocation\n  with a GPU address and, for mapped memory, a CPU address. Address-based commands consume\n  `GpuRange {gpu, size}` directly, and shaders follow typed 64-bit pointers for vertex fetch and\n  arbitrary data structures.\n- **Applications own descriptor heaps.** Texture and sampler descriptor heaps are mapped GPU heaps.\n  The application chooses slots, writes descriptors through the CPU address, binds the GPU range,\n  and passes 32-bit indices to shaders.\n- **Root data is one small payload.** A shared C++/Slang structure is copied with\n  `vkCmdPushDataEXT` for each draw or dispatch. Its pointer fields are GPU addresses. Unlike the\n  blog's GPU-resident, stage-specific roots, graphics stages share one CPU-supplied root.\n- **Barriers describe execution and memory hazards.** The public API exposes global stage/access\n  barriers, not per-resource transition lists. Normal textures remain in one unified layout.\n- **Pipeline binding state stays small.** There are no public buffer objects, descriptor sets,\n  descriptor layouts, pipeline layouts, or sampler objects. Viewport, scissor, and exposed\n  depth/stencil behavior are command state rather than PSO permutations, while data arrives through the root and descriptor heaps.\n- **Submission is explicit and asynchronous.** Applications provide timeline points for reuse and\n  deferred destruction. Submitted command buffers are one-shot.\n\nThe [design comparison](docs/no-graphics-api-comparison.md) separates faithful mappings, Vulkan-driven\ndifferences, and features that remain outside the prototype.\n\n## Vulkan realization\n\nThe backend intentionally creates no `VkDescriptorSetLayout`, `VkDescriptorPool`, `VkDescriptorSet`,\nor `VkPipelineLayout`. Its central extensions are:\n\n- `VK_EXT_descriptor_heap` for application-owned resource/sampler heaps and `vkCmdPushDataEXT`;\n- `VK_KHR_device_address_commands` for address-based index, indirect, and copy commands;\n- `VK_KHR_shader_untyped_pointers` as the descriptor-heap SPIR-V prerequisite;\n- `VK_KHR_unified_image_layouts`, when available, to optimize ordinary texture access in\n  `VK_IMAGE_LAYOUT_GENERAL`;\n- `VK_EXT_mesh_shader` for task/mesh pipelines and dispatch.\n\nNoGraphicsAPI is a low-level, thin Vulkan wrapper. Debug builds enable `VK_EXT_debug_utils` and the\nKhronos validation layer when available.\n\nVulkan 1.4 supplies buffer device addresses, timeline semaphores, dynamic rendering,\nsynchronization2, scalar block layout, and the remaining core features. See\n[Vulkan support](docs/vulkan-support.md) for the concise feature and command mapping.\n\n## GPU memory and descriptor heaps\n\nThere are no public buffer objects or internal suballocators. Applications own data and descriptor\nheaps; optimal-tiled textures use separate GPU-only heaps. The optional utility library provides\napplication-side data and texture allocation policies.\n\n`GpuRange` is the non-owning address/size view used by commands. Texture and sampler descriptors are\naddressed in Slang through the standard heap syntax:\n\n```slang\nTexture2D<float4> texture = ResourceDescriptorHeap[texture_index];\nSamplerState sampler = SamplerDescriptorHeap[sampler_index];\nfloat4 texel = texture.Sample(sampler, uv);\n```\n\n## Shared root ABI\n\nShared scalar, vector, and matrix types come from `<NoGraphicsAPIUtility/shader_types.h>`. Root\nstructures are declared once and included by C++ and Slang:\n\n```cpp\nstruct RootArguments\n{\n    Vertex* vertices;\n    float4x4 mvp;\n};\n```\n\nOn the CPU, pointer fields receive GPU virtual addresses while ordinary values are copied directly:\n\n```cpp\nGpuCpuRange<Vertex> vertex_memory = bump_allocator.allocate<Vertex>(vertex_count);\nRootArguments root{\n    .vertices = vertex_memory.gpu,\n    .mvp = mvp,\n};\ngpu::draw(commands, root, vertex_count);\n```\n\nSlang declares the same root as push-constant data and reads both pointer and value fields directly:\n\n```slang\n[[vk::push_constant]] ConstantBuffer<RootArguments> root;\n\nVertex vertex = root.vertices[vertex_id];\nfloat4x4 mvp = root.mvp;\n```\n\nThe draw or dispatch copies the root bytes immediately through `vkCmdPushDataEXT`; the root does not\nneed to outlive the call. Shared structures use C layout, and matrix-bearing roots use row-major matrix\nlayout. Root value",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:00.274222"
+  },
+  {
+    "basic_info": {
+      "name": "RTX40MFG-Unlock",
+      "full_name": "dashdogy/RTX40MFG-Unlock",
+      "owner": "dashdogy",
+      "description": "Experimental DLSS Multi Frame Generation controls for any supported MFG title on RTX 40 series GPUs",
+      "url": "https://github.com/dashdogy/RTX40MFG-Unlock",
+      "clone_url": "https://github.com/dashdogy/RTX40MFG-Unlock.git",
+      "ssh_url": "git@github.com:dashdogy/RTX40MFG-Unlock.git",
+      "homepage": "",
+      "created_at": "2026-08-29T17:00:46Z",
+      "updated_at": "2026-09-21T04:50:02Z",
+      "pushed_at": "2026-09-18T10:27:50Z"
+    },
+    "stats": {
+      "stars": 1026,
+      "forks": 37,
+      "watchers": 1026,
+      "open_issues": 23,
+      "size": 977
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1813582,
+        "CMake": 34340,
+        "Python": 18769,
+        "Lua": 17822,
+        "PowerShell": 16649,
+        "NASL": 4085,
+        "C": 3710,
+        "Assembly": 1469,
+        "GLSL": 854
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Universal RTXMFG — v1.3.3 Hotfix 2\n\nDLSS Multi Frame Generation controls for Windows x64 games on RTX 40 series GPUs,\nwith experimental RTX 30 support. The backend and menu are combined in one\nDLL, with fixed multipliers up to 6x and Dynamic MFG where supported.\n\n**RTX 30 series support is very early and experimental. It may not work in some\ngames or configurations, even when the menu loads.**\n\nThe game must already have a Streamline DLSS Frame Generation integration.\nAvailable modes depend on the GPU, active runtime and NVIDIA's per-game\nMFG override maximum. A listed maximum does not guarantee that the active\nFrame Generation pipeline can apply it.\n\nIf this mod helps you, [help me get through university on Ko-fi](https://ko-fi.com/dashdogy).\n\n## Changes in v1.3.3 Hotfix 2\n\n- Restores missing menus in MSFS 2024 and GTA V Enhanced, including HDR and\n  locked-status-file handling. The MSFS menu fix is confirmed in-game.\n- Improves renderer detection and fixes the small-stack startup overflow.\n- Reuses one log and one status file per installation, overwritten on launch.\n\n## Changes in v1.3.3\n\n- Rebuilt the UI and fixed MFG getting stuck at 2x, freezes and black screens.\n- Improved FG detection, multiplier limits and experimental Vulkan menus.\n- New installs use **Follow game**; unsupported Dynamic modes show **Unavailable**.\n\n## Install\n\nThe v1.3.3-hotfix.2 download contains **`RTXMFG.dll`**. The menu is built in; no separate\nReShade or external loader installation is needed.\n\n1. Close the game. If upgrading from a split release, remove the old mod\n   components as described below first.\n2. Download `RTXMFG-v1.3.3-hotfix.2.zip` from [Releases](https://github.com/dashdogy/RTX40MFG-Unlock/releases)\n   and extract it.\n3. Rename `RTXMFG.dll` to **one** supported filename below that the game loads\n   early. Place it beside the **actual game executable**, not the launcher.\n4. Launch the game, enable DLSS Frame Generation where available, and press\n   **Backspace** to open the menu. On first launch it opens automatically.\n\nInstall only one copy. Do not overwrite a DLL belonging to the game or another\nmod; choose another suitable name if it is already occupied. Leaving the file\nnamed `RTXMFG.dll` does not make the game load it automatically.\n\n### Supported filenames\n\n```text\nversion.dll\ndinput8.dll\nwinmm.dll\nd3d9.dll\nd3d10.dll\nd3d11.dll\nd3d12.dll\ndxgi.dll\ndsound.dll\nwininet.dll\nwinhttp.dll\nbinkw64.dll\nbink2w64.dll\nxinput1_1.dll\nxinput1_2.dll\nxinput1_3.dll\nxinput1_4.dll\nxinput9_1_0.dll\nxinputuap.dll\n```\n\nThe correct name depends on the game. A supported name must actually be loaded\nbefore Frame Generation starts; Vulkan games may not load DirectX proxy names.\n\n**For Bink games:** back up the game's original DLL first, then rename\n`binkw64.dll` to `binkw64Hooked.dll`, or `bink2w64.dll` to\n`bink2w64Hooked.dll`. Give RTXMFG the original filename and keep both files\nbeside the executable. These routes require the game's original Bink DLL.\n\n## Upgrade\n\nWhen upgrading from v1.2, move `RTX40MFGCore.dll`, `RTX40MFG.asi`, and\n`RTX40MFG-UI.addon64` to a backup outside the game's loading directories.\nAlso remove older Universal/Bridge mod components or corresponding RTX 30 split\nfiles, if installed. Preserve unrelated mods and their loaders.\n\nv1.3.3 and its hotfixes save settings in `RTXMFG-Universal.json`. Older RTX40MFG/RTX30MFG settings\nare not imported automatically; reselect your preferences in the menu.\n\nFor later single-DLL updates, replace only the installed RTXMFG DLL, keeping\nits chosen filename and your settings.\n\n## Usage\n\nPress **Backspace** to open or close the menu. The hotkey can be changed there.\nThe default **Follow game** mode keeps the game's requested multiplier. The\nfirst-launch menu opens when the game window is foreground and does not reopen\nautomatically after it has been shown and saved.\n\n- Choose **Follow game**, a fixed multiplier, or **Dynamic** when available.\n- Dynamic can target the display refresh rate or a custom FPS value.\n- Select **Game/driver**, **Preset A**, or **Preset B** where supported.\n  Preset changes after initialization require a restart.\n- **Limit FPS with Reflex** provides a separate cap where supported.\n  The manual cap is unavailable while Dynamic is selected or active.\n\nCheck the status line for pending changes or restart instructions.\nUse the game or driver settings for V-Sync.\n\n## Compatibility and troubleshooting\n\nRTX 40 has DirectX 12 and experimental Vulkan paths. RTX 30 support is\n**very early, experimental, and DirectX 12 only**. Some games or configurations\nmay not work at all. Dynamic MFG is unavailable on Vulkan.\nCompatibility varies by game; artifacts, freezes, black screens and crashes\nremain possible.\n\nThe latest Indiana Jones Vulkan fix is still awaiting an in-game retest.\n\nIf the menu does not appear, check the executable folder, chosen proxy name,\nand any leftover split components. Fully close the game before changing files.\n\nFor frozen presentation, some user",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:01.442144"
+  },
+  {
+    "basic_info": {
+      "name": "DLSS5-Feeder",
+      "full_name": "jlrouzies-fr/DLSS5-Feeder",
+      "owner": "jlrouzies-fr",
+      "description": "DLSS 5 neural rendering in D3D11/D12/Vulkan games that ship without any DLSS — feeds a synthetic DLAA contract (ReShade depth + motion vectors) to the DLSS 5 add-on via a private D3D12 device.",
+      "url": "https://github.com/jlrouzies-fr/DLSS5-Feeder",
+      "clone_url": "https://github.com/jlrouzies-fr/DLSS5-Feeder.git",
+      "ssh_url": "git@github.com:jlrouzies-fr/DLSS5-Feeder.git",
+      "homepage": "",
+      "created_at": "2026-08-29T19:52:37Z",
+      "updated_at": "2026-09-21T05:17:38Z",
+      "pushed_at": "2026-09-21T04:18:40Z"
+    },
+    "stats": {
+      "stars": 989,
+      "forks": 57,
+      "watchers": 989,
+      "open_issues": 30,
+      "size": 8081
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1266775,
+        "PowerShell": 238495,
+        "C": 90973,
+        "HLSL": 61550,
+        "Batchfile": 9836
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "![DLSS5 Feeder](docs/images/dlss5-feeder-logo-dark.png)\n\n[![AI-DECLARATION: copilot](https://img.shields.io/badge/䷼%20AI--DECLARATION-copilot-fee2e2?labelColor=fee2e2)](AI-DECLARATION.md) [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/jlrouzies)\n\n**[↓ Jump to the Table of Contents](#contents)**\n\n> ## ⚠️ Careful of fake malicious websites\n> \n> We got information that some **malicious** websites were making users download ZIP using similar name as this project, e.g. `DLSS5-Feeder-v0.7.0.zip.`\n> \n> The only official release of DLSS 5 Feeder is on this GitHub, so be careful! \n>\n> This now includes **copies of this repository on GitHub itself**: same source tree, but the README replaced by a \"Download\" button leading to a ZIP on a personal `github.io` page, sold as \"double-click to run, it detects your game\". This project has no executable installer, only a PowerShell script you can read, and the only download is <https://github.com/jlrouzies-fr/DLSS5-Feeder/releases>. If you got a ZIP anywhere else, delete it and scan your machine.\n> \n> *Thank to NIGos for the [report](https://github.com/jlrouzies-fr/DLSS5-Feeder/issues/88), and to the reporter of [#115](https://github.com/jlrouzies-fr/DLSS5-Feeder/issues/115).*\n\n> ## ℹ️ Does not work with your game? Read this part\n> \n> Please note that I cannot test every games reported in the issues (as I simply do not own them or don't have time to try all).\n>\n> If you are really looking for a specific game to work, see to get like a Claude Pro subscription, install it and ask it the following:\n>\n> \"Here is my game folder: [GAME PATH] ; I am using https://github.com/jlrouzies-fr/DLSS5-Feeder but sadly it doesn't work well. Can you help clone it, check the different logs, and implement a fix? Then if you implement a legitimate fix, make a pull request.\"\n>  \n\n> ## ⚠️ Nvidia Driver can cause issues with some addons\n>\n> **Some combinations of driver, NGX runtime and neural consumer do not work — it is usually the\n> combination, not the game.** Check yours in fifteen seconds, with no game running:\n> `host64\\dlss5-feed-host64.exe --test` (`300/300 evaluates succeeded` means you are fine). The\n> scenarios we know about:\n>\n> | neural consumer | driver **616.56** | driver **616.64** |\n> |---|---|---|\n> | *(none — DLAA only, no neural pass)* | — | ✅ 300/300 |\n> | **Deep Fried Chicken** 1.4.8-alpha | — | ✅ 300/300 |\n> | `renodx-dlss5` **v4.55** (classic engine) | — | ✅ 300/300 |\n> | `renodx-dlss5` **\"latest\"** (classic engine) | — | ✅ 300/300 |\n> | `renodx-dlss5` **v4.6** (lazy-adoption engine) | — | ❌ 1/300 |\n> | `renodx-dlss5` **v4.7** (lazy-adoption engine) | ✅ 300/300 | ❌ 0/300 |\n>\n> Blank cells are combinations nobody has run. Measured with `--test` on one RTX 5090 through the\n> 64-bit helper. On 616.64+ the evaluate faults inside NVIDIA's own `nvngx_dlssnr.dll`\n> ([#54](https://github.com/jlrouzies-fr/DLSS5-Feeder/issues/54)) — **any one of these works:** Deep\n> Fried Chicken, a classic-engine `renodx-dlss5`, or driver 616.56.\n>\n> Use **0.14.0-beta.2 or newer**, and run `Verify-DLSS5Feeder.ps1` in the game folder before reporting anything.\n\n## Description\n\n**DLSS 5 neural rendering in games that ship without any DLSS — D3D11, D3D12, Vulkan, OpenGL, 32-bit, even DirectX 10 and DirectX 9.**\n\nDLSS 5's neural-rendering add-on only works by hooking a game's own DLSS calls. A game that has no\nDLSS never makes those calls, so the add-on sits idle. **DLSS5-Feeder makes the calls itself.** It\nbuilds a complete DLSS DLAA \"contract\" out of what ReShade already has — the frame being processed,\nthe depth buffer, and estimated optical-flow motion vectors — runs a genuine DLSS evaluate, lets the\nDLSS 5 neural-rendering add-on hook into that evaluate, and copies the neural result back into the\nframe. All inside ReShade's effect chain.\n\n```\ngame frame → ReShade effects → [motion vectors] → [DLSS5_Feed] → DLSS5-Feeder:\n                                                    depth + MV     DLSS DLAA + DLSS 5 neural rendering\n                                                                   ↓\n                                    neural output written back over the frame → later effects → present\n```\n\n**[↓ Jump to the Contents](#contents)**\n\n---\n\n## Before you install: four things\n\nNone of this is hard, and the [automated installer](#install-the-automated-way) verifies most of it for you.\n\n### 1. You might not need this project at all\n\nIf your game is **64-bit** and uses **DirectX 9, 11 or 12**, there is now a simpler option:\nShortFuse's **renodx-dlss** add-on does the whole job by itself. Use that instead — it is one\nadd-on rather than two, and there is nothing for this project to add.\n\n| Your game | What to use |\n| --- | --- |\n| 64-bit, DirectX 9 / 11 / 12 | **renodx-dlss** on its own — you do not need DLSS5-Feeder |\n| **32-bit** (any graphics API) | **DLSS5-Feeder** |\n| **Vulkan** | **DLSS5-Feeder** |\n| **Direc",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:02.638285"
+  },
+  {
+    "basic_info": {
+      "name": "kimodo.cpp",
+      "full_name": "localai-org/kimodo.cpp",
+      "owner": "localai-org",
+      "description": "Animate skeletons with natural language; NVIDIA's Kimodo ported to C++/GGML",
+      "url": "https://github.com/localai-org/kimodo.cpp",
+      "clone_url": "https://github.com/localai-org/kimodo.cpp.git",
+      "ssh_url": "git@github.com:localai-org/kimodo.cpp.git",
+      "homepage": "",
+      "created_at": "2026-08-22T20:26:58Z",
+      "updated_at": "2026-09-21T03:52:33Z",
+      "pushed_at": "2026-09-17T13:25:53Z"
+    },
+    "stats": {
+      "stars": 840,
+      "forks": 95,
+      "watchers": 840,
+      "open_issues": 6,
+      "size": 396
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 241329,
+        "Python": 127753,
+        "CMake": 12901,
+        "Shell": 10983,
+        "C": 3488,
+        "Nix": 1224
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# kimodo.cpp\n\nGGML/C++ implementation of NVIDIA's Kimodo text-to-motion model.\n\n## Status\n\nThe five released Kimodo motion checkpoints accept either a UTF-8 prompt or a\nprecomputed LLM2Vec embedding and generate local rotations plus root\ntranslations on CPU or Vulkan:\n\n- SMPL-X RP v1: 22 joints\n- SOMA RP/SEED v1.1: the predicted compact 30-joint control skeleton\n- G1 RP/SEED v1: 34 Unitree G1 joints\n\nNVIDIA's Python API expands SOMA's predicted 30 joints to a relaxed-hand\n77-joint presentation skeleton. The native API currently returns the 30 joints\nthe model actually predicts. The text encoder uses eight-layer Vulkan chunks by\ndefault; set `KIMODO_TEXT_LAYER_CHUNK=1..32` to tune VRAM use.\n\nIncluded: checked GGUF loading, safetensors conversion, DDIM sampling, C/C++\nAPIs, conditioned multi-prompt transitions, CPU/Vulkan parity tests,\nskeleton-only GLB export, selective LLM2Vec quantisation, divergence reporting,\nand local generation/comparison viewers. General constraint input, 77-joint\nSOMA expansion, skinned-mesh GLB export, and motion-denoiser quantisation are\nnot implemented yet.\n\n## Build and test on Linux\n\nInstall a C++23 compiler, CMake 3.25+, Ninja, Python 3 with the Hugging Face\nCLI (`pip install huggingface_hub`), and the Vulkan loader/headers for Vulkan\nsupport. GGML is a pinned Git submodule:\n\n```sh\ngit submodule update --init --recursive\nscripts/download_gguf_weights.sh --output \"$PWD\" --model soma-rp-v1.1\ncmake --preset debug\ncmake --build --preset debug\nctest --preset debug\n```\n\nThe standard test suite requires the local motion GGUF, text bundle, and\nfixtures. It never downloads weights by itself. `release`, `asan-ubsan`, and\n`fuzz` presets are also available.\n\nNix is optional and provides these dependencies reproducibly:\n\n```sh\nnix develop path:. --command cmake --preset debug\nnix develop path:. --command cmake --build --preset debug\n```\n\nFor sanitizer work:\n\n```sh\nnix develop path:. --command cmake --preset asan-ubsan\nnix develop path:. --command cmake --build --preset asan-ubsan\nnix develop path:. --command env \\\n  LD_LIBRARY_PATH=\"$PWD/build/asan-ubsan/ggml/src:$PWD/build/asan-ubsan/ggml/src/ggml-vulkan:$LD_LIBRARY_PATH\" \\\n  ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 UBSAN_OPTIONS=print_stacktrace=1 \\\n  ctest --preset asan-ubsan --output-on-failure\n```\n\nLeak detection is disabled because Vulkan loader/driver allocations are global\nto the process. The GGUF parser fuzzer requires Clang.\n\n## API\n\n`include/kimodo/kimodo_capi.h` is the C API. Model loading checks the motion\nGGUF and text model before inference. The text model can be a monolithic GGUF\nbeside `tokenizer.gguf` or the legacy component directory. Use\n`kimodo_generate_embedding` for\n4096 F32 values or `kimodo_generate` for text. Both return the selected model's\nroot translations and local XYZW rotations; query the joint count from the\nresult rather than assuming a fixed skeleton.\n\n## Demo\n\nAfter building the debug preset and downloading the native GGUF bundle:\n\n```sh\ngo run ./demo -addr 0.0.0.0:8094\n```\n\nOpen `http://localhost:8094`. The left sidebar contains the prompt and a\npersistent history plus motion-model and text-encoder-quantization selectors;\nchoosing a previous animation restores its prompt and encoder choice for a new\ngeneration. Every successful animation also writes a standalone\n`animation.glb` beside its raw streams, for example\n`demo-output/<animation-id>/animation.glb`. It contains the selected animated\nnode hierarchy (no mesh), ready to copy into a Three.js project. It is also\navailable from `/api/animations/<animation-id>/animation.glb` while the demo\nis running.\n\nThe demo keeps all 32 layers of its default Q8 text encoder in VRAM for maximum\nthroughput, while executing them as bounded eight-layer GGML graphs. Its 10 GiB\nresidency ceiling makes the larger BF16 reference stream in bounded groups on a\n16 GiB GPU. Library and command-line callers retain the lower-memory eight-layer\ndefault; set `KIMODO_TEXT_LAYER_CHUNK=32` for residency and optionally set\n`KIMODO_TEXT_RESIDENT_LIMIT_MIB` to enforce a VRAM-safe bundle-size ceiling.\nThe demo reuses one native worker while the selected motion model and text\nquantization remain unchanged, preserving both weight sets across requests.\nProfiling controls, measurements, and the next optimization targets are in\n[`docs/PROFILING.md`](docs/PROFILING.md).\n\nQuantisation comparisons produced by the workflow in\n[`docs/QUANTIZATION.md`](docs/QUANTIZATION.md) can be opened at\n`http://localhost:8094/compare`. Supply their parent directory with the demo's\n`--comparisons` option. The comparison view overlays every variant on a shared\ntimeline and provides world-space and root-position-aligned modes.\n\n## Weights\n\nReady-to-run native GGML weights are published under the Hugging Face\n`LocalAI-io` organisation (not GitHub's `localai-org`). The reusable\n[Llama-3-Kimodo-GGML](https://huggingface.co/LocalAI-io/Llama-3-Kimodo-GGML)\ntext encoder is separate from the four redistributable motion",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:03.845047"
+  },
+  {
+    "basic_info": {
+      "name": "OptiScaler-DLSSNR-PreSR-Multipass",
+      "full_name": "wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass",
+      "owner": "wilsjo2",
+      "description": "A game mod that uses NVIDIA AI to change lighting, detail and colour, with controls for strength and performance.",
+      "url": "https://github.com/wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass",
+      "clone_url": "https://github.com/wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass.git",
+      "ssh_url": "git@github.com:wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass.git",
+      "homepage": null,
+      "created_at": "2026-09-05T23:32:00Z",
+      "updated_at": "2026-09-21T04:41:13Z",
+      "pushed_at": "2026-09-21T04:06:41Z"
+    },
+    "stats": {
+      "stars": 654,
+      "forks": 43,
+      "watchers": 654,
+      "open_issues": 52,
+      "size": 167827
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 10516575,
+        "C": 7733583,
+        "HLSL": 157117,
+        "Batchfile": 25592,
+        "PowerShell": 23921,
+        "Shell": 12328,
+        "Python": 1475,
+        "CMake": 601
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "baldurs-gate-3",
+        "dlss",
+        "dlss-neural-rendering",
+        "optiscaler"
+      ]
+    },
+    "content": {
+      "readme": "# OptiScaler Neural Rendering\n\nA game mod that uses NVIDIA AI to change lighting, detail and colour. You can adjust the look and how much performance the effect costs.\n\nThis is an experimental community version of OptiScaler. Results and game support vary.\n\n**[Download the latest version](https://github.com/wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass/releases/latest)** · [Setup guide](INSTALL-DLSSNR.md) · [What's new](https://github.com/wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass/releases)\n\n## What you can change\n\n- Adjust the strength, lighting, detail and colour of the effect.\n- Use separate settings for skin and scenery.\n- Run the effect before or after the game's upscaling.\n- Apply NR to the finished picture to help with green noise. Works with frame generation on or off in native DirectX 12 games, including HDR.\n- Apply it more than once, with different settings each time. Extra passes cost more performance.\n- Lower the model resolution to reduce the performance cost.\n\n## What you need\n\nAn NVIDIA RTX 20, 30, 40 or 50-series GPU and a supported 64-bit game. Older cards can be much slower.\n\nDownload the NVIDIA model file, `nvngx_dlssnr.dll`, separately. The file you need depends on your GPU. The [setup guide](INSTALL-DLSSNR.md#choose-the-correct-runtime) explains which one to use and how to check it.\n\n## Install on Windows\n\n1. Close the game and back up any existing mod files.\n2. Download the release ZIP and extract **all files** beside the game's executable.\n3. Add the model file described above to the same folder.\n4. Run `setup_windows.bat` and choose **NVIDIA** when asked.\n5. Start the game, select DLSS, then press **Insert** to open OptiScaler. Enable Neural Rendering and start with one pass.\n\nSee the [setup guide](INSTALL-DLSSNR.md) for game-specific steps and troubleshooting.\n\n## Keep in mind\n\n- Neural Rendering costs performance and can cause flicker or other visual problems. Using it before Ray Reconstruction is still experimental.\n- The optional **hybrid mode** is for RTX 50 GPUs. Its files are included. Loading may pause the game and look like a freeze; please wait.\n- Avoid anti-cheat-protected multiplayer games.\n\nFor frame generation, see the [setup notes](docs/DLSS-FRAME-GENERATION.md). For bugs, [open an issue](https://github.com/wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass/issues) with your game, GPU, settings and `OptiScaler.log`.\n\n## Credits\n\nBuilt on [OptiScaler](https://github.com/optiscaler/OptiScaler) and [Dagherbou's Neural Rendering fork](https://github.com/Dagherbou/OptiScaler_DLSSNR), with colour processing from [RenoDX](https://github.com/clshortfuse/renodx).\n\n[Full credits](docs/CREDITS.md) · [Licence](LICENSE) · [OptiScaler documentation](https://github.com/optiscaler/OptiScaler/wiki)\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:05.027238"
+  },
+  {
+    "basic_info": {
+      "name": "omakade",
+      "full_name": "btsouth/omakade",
+      "owner": "btsouth",
+      "description": "A beautiful, local-first game library built for Omarchy.",
+      "url": "https://github.com/btsouth/omakade",
+      "clone_url": "https://github.com/btsouth/omakade.git",
+      "ssh_url": "git@github.com:btsouth/omakade.git",
+      "homepage": "",
+      "created_at": "2026-09-01T01:23:41Z",
+      "updated_at": "2026-09-20T19:58:28Z",
+      "pushed_at": "2026-09-20T04:15:25Z"
+    },
+    "stats": {
+      "stars": 410,
+      "forks": 23,
+      "watchers": 410,
+      "open_issues": 3,
+      "size": 89992
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 2392277,
+        "QML": 591829,
+        "CMake": 62897,
+        "Python": 20682,
+        "C": 3255
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "game-launcher",
+        "heroic-games-launcher",
+        "hyprland",
+        "linux",
+        "lutris",
+        "omarchy",
+        "qml",
+        "qt",
+        "steam",
+        "wayland"
+      ]
+    },
+    "content": {
+      "readme": "# Omakade\n\n[![CI](https://github.com/btsouth/omakade/actions/workflows/ci.yml/badge.svg)](https://github.com/btsouth/omakade/actions/workflows/ci.yml)\n[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-8cd3cb.svg)](COPYRIGHT)\n\n**Your games, beautifully together.**\n\n[![Omakade library showing installed games from multiple launchers](docs/assets/library-preview.webp)](https://btsouth.github.io/omakade/assets/omakade-demo.mp4)\n\n[Watch the 18-second demo](https://btsouth.github.io/omakade/assets/omakade-demo.mp4)\n\nOmakade is a Linux game library built for Omarchy. It brings\ninstalled Steam, Lutris, Heroic, Faugus, RetroArch, Battle.net, Epic, GOG, and Amazon games\ninto one quiet, cover-focused home that follows the active Omarchy theme.\n\n[Project homepage](https://btsouth.github.io/omakade/) ·\n[Roadmap](PLAN.md) · [Support](SUPPORT.md)\n\n> Omakade is an independent community project. It is not an official Omarchy\n> application.\n\n## Features\n\nOmakade 1.10.0 includes:\n\n- Native and Flatpak Steam, Lutris, Heroic, Faugus, RetroArch, PCSX2,\n  Ryujinx, Cemu, shadPS4, Dolphin, and Xenia discovery, plus direct GOG installation\n  discovery, including Steam non-Steam shortcuts and games sideloaded into\n  Heroic, plus Battle.net games from Wine, Proton, and Bottles prefixes\n- Console cards for cartridge and disc systems, with a per-system choice\n  between cards and library tiles, per-game pinning, and ROM folder scanning\n  for EmuDeck-style layouts\n- Optional local session recording from supported emulator process arguments,\n  with recent per-game Play History across linked installations\n- Versioned save protection for supported emulator save sets, with explicit\n  restore confirmation, interrupted-restore recovery, manual snapshots, storage\n  usage, and confirmed backup deletion\n- Optional read-only RomM integration with a locally mounted library and offline catalog\n- Per-installation launch setup, diagnostics, and missing-path repair\n- Save-protection overview, custom layouts, retention controls, and reviewed cleanup\n- Guided library repair with persistent progress and separate identity/artwork undo\n- Optional Home, persistent Up Next, and local discovery suggestions\n- Genre, decade, and platform filters with saved-filter persistence\n- One-click details and delegated launching through the owning platform\n- Omarchy palette, font, transparency, and live theme updates\n- Search, favorites, hidden games, sorting, and source filters that combine,\n  including one chip for every emulator\n- Runtime source controls with scan status and detected locations\n- Optional close-after-launch behavior\n- Collections, tags, completion states, and smart organization filters\n- Local Steam achievements plus optional Web API enrichment\n- Optional RetroAchievements progress for supported RetroArch systems\n- Optional Steam owned-library sync with installed and ready-to-install views\n- Optional IGDB ratings, popularity sorting, and game-length estimates, plus\n  release dates, original platform, genres, credits, and a background\n  paragraph on game details\n- SteamGridDB portrait covers with per-game identification and artwork choices\n- Adjustable cover size and per-console grouping preferences\n- Local, downloaded, and user-selected cover, hero, and logo artwork\n- Manual games, preferred installations, extra GOG folders, bulk organization,\n  saved filters, a random pick, and personal backup and restore\n- Explicit linking for games installed through multiple sources\n- Optional cached ProtonDB community badges for Steam store games, plus\n  ProtonDB and PCGamingWiki shortcuts with actionable launch errors\n- Keyboard, mouse, and controller navigation\n- Controller-first Couch Mode with Detail and Grid views, on-screen search,\n  and controller input that stays with your game after launch\n- x86_64 and ARM64 packages, with checksums, SBOMs, and signed provenance\n- Optional Sunshine app export so Moonlight can start Omakade or any installed\n  game, plus `--play` and `--quit` commands\n\n![Omakade game details showing playtime, IGDB insights, and Steam achievements](docs/assets/game-details.webp)\n\nOmakade reads launcher data without modifying it. Core discovery, browsing,\nartwork, and launching work offline. Run `omakade --demo` to explore the UI\nwith a deterministic fictional library.\n\nDirect GOG discovery checks `~/GOG Games`, `~/Games/GOG`, `~/Games/Heroic`,\nand immediate game folders under `~/Games`. In Settings, use **Extra GOG Folders**\nto add library folders by path or through the desktop folder picker. Saved folders\nare scanned alongside the standard locations. `OMAKADE_GOG_LIBRARY_PATHS` remains\nan additive, colon-separated list of extra roots. Missing folders keep their\ncached games while available folders refresh. Removing a saved folder does not\ndelete its game files or personal library choices. Native Linux builds\nlaunch directly; Windows game builds run on Linux through `umu-run` with an\nisolated per-game prefix. ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:06.324158"
+  },
+  {
+    "basic_info": {
+      "name": "Spun",
+      "full_name": "yappologistic/Spun",
+      "owner": "yappologistic",
+      "description": "A CD-shaped music player for Linux, with local playback and Cider integration.",
+      "url": "https://github.com/yappologistic/Spun",
+      "clone_url": "https://github.com/yappologistic/Spun.git",
+      "ssh_url": "git@github.com:yappologistic/Spun.git",
+      "homepage": null,
+      "created_at": "2026-09-07T00:30:36Z",
+      "updated_at": "2026-09-20T20:55:29Z",
+      "pushed_at": "2026-09-16T04:24:14Z"
+    },
+    "stats": {
+      "stars": 396,
+      "forks": 17,
+      "watchers": 396,
+      "open_issues": 20,
+      "size": 5397
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1260435,
+        "QML": 545167,
+        "Python": 36849,
+        "CMake": 11150,
+        "Shell": 4224,
+        "Nix": 3198,
+        "C": 1856
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">Spun</h1>\n\n<p align=\"center\">A music player for Linux with CD, vinyl, cassette and recorder views.</p>\n\n<p align=\"center\">\n  <img src=\"assets/screenshots/spun-vinyl.png\" alt=\"Spun in vinyl mode with a gold tonearm and the Cider queue alongside it\" width=\"1000\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://buymeacoffee.com/E_Gurl\">\n    <img src=\"https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png\" alt=\"Support Spun on Buy Me a Coffee\" width=\"217\" height=\"60\">\n  </a>\n  <br>\n  <sub>Optional support for Spun's development.</sub>\n</p>\n\n<p align=\"center\">\n  <a href=\"#install\">Install</a> ·\n  <a href=\"#start-listening\">Get started</a> ·\n  <a href=\"#inside-the-player\">Features</a> ·\n  <a href=\"#troubleshooting-and-privacy\">Help</a> ·\n  <a href=\"#license\">License</a>\n</p>\n\nPlay local music, browse YouTube Music anonymously, connect to Jellyfin, Navidrome or Subsonic, or control Apple Music through Cider. Spun puts your album artwork on a spinning CD, vinyl record, cassette or TP-7-inspired recorder, with an interface inspired by Material Design 3. Optional 3D players add physical depth and lighting that follows Noctalia's wallpaper palette.\n\n**Source-available · PolyForm Noncommercial 1.0.0.** Personal and other permitted noncommercial use is free. This is not an OSI-approved open-source license. [Read the license details](#license).\n\n## Install\n\n<details>\n<summary><b>Build dependencies for Arch and CachyOS</b></summary>\n\n```bash\nsudo pacman -S --needed base-devel git cmake ninja python qt6-base qt6-declarative qt6-multimedia qt6-svg qt6-wayland taglib qt6-quick3d\n```\n</details>\n\n<details>\n<summary><b>Build dependencies for Fedora</b></summary>\n\n```bash\nsudo dnf install gcc-c++ git cmake ninja-build pkgconf-pkg-config python3 qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtmultimedia-devel qt6-qtsvg-devel qt6-qtwayland taglib-devel qt6-qtquick3d-devel\n```\n</details>\n\nSpun builds from source; there is no packaged installer yet. You can do so using these commands:\n```bash\ngit clone https://github.com/yappologistic/Spun.git\ncd Spun\n./scripts/build.sh -DBUILD_TESTING=OFF\n./scripts/install-launcher.sh\n```\n\nSpun includes 3D when Qt Quick 3D is available. To build without it, add `-DSPUN_ENABLE_3D=OFF` to the build command.\n\nOpen **Spun** from your application menu, or run `./scripts/run.sh` from its folder. The launcher points to that folder. If you move it, run `./scripts/install-launcher.sh` again.\n\n<details>\n<summary>Ubuntu 22.04 and 24.04</summary>\n\nThe default repositories do not provide the required Qt 6.8+ and TagLib 2.0+. Install a newer Qt SDK with Quick Controls, Multimedia, SVG, and optionally Quick 3D, and build TagLib 2.x using its [upstream instructions](https://github.com/taglib/taglib/blob/master/INSTALL.md).\n\n```bash\nsudo apt install build-essential git cmake ninja-build pkg-config python3 libutfcpp-dev zlib1g-dev libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0\n```\n\n`libutfcpp-dev` supplies TagLib's UTF-8 dependency. `libxcb-cursor0` is required by Qt's X11 platform plugin. Point CMake at the newer Qt installation rather than the distribution's older Qt:\n\n```bash\n./scripts/build.sh -DBUILD_TESTING=OFF -DCMAKE_PREFIX_PATH=/path/to/Qt/gcc_64\n```\n\nIf TagLib was installed into a custom prefix, add its `lib/pkgconfig` directory to `PKG_CONFIG_PATH` before building. `pkg-config --modversion taglib` must report 2.0 or newer.\n\n</details>\n\n<details>\n<summary>Building on another Linux distribution</summary>\n\nYou need a C++20 compiler, CMake 3.22+, Ninja, pkg-config, Python 3, Qt 6.8+ with Quick Controls, Multimedia, SVG and development files, and TagLib 2.0+ development files. Qt Quick 3D is optional. Package names differ between distributions. Spun is developed on CachyOS with Hyprland and Noctalia; desktop integration can vary elsewhere.\n\n</details>\n\n<details>\n<summary>Nix and NixOS</summary>\n\nWith Nix flakes enabled, run from the cloned source folder:\n\n```bash\nNIXPKGS_ALLOW_UNFREE=1 nix run --impure .\n# Build without launching:\nNIXPKGS_ALLOW_UNFREE=1 nix build --impure .\n# Development tools:\nnix develop\n```\n\nThe license is noncommercial, so Nix requires an explicit unfree-package opt-in. The flake supports x86_64 and aarch64 Linux. Wayland and X11 plugins are included; no display backend is forced.\n\n</details>\n\n## Start listening\n\n**Local music:** choose **Local**, then **+** to add tracks, or drop files and folders onto Spun. **More → Add music folder** includes artist and album subfolders. Imports show progress, skip songs already in the queue and can be cancelled without adding a partial import. Directory symlinks inside the folder are not followed. Your music files are not copied or modified. **More → Play demo** plays the included original soundcheck.\n\n**Apple Music through Cider:** open Cider, sign in there, then choose **Cider** in Spun. Cider handles authentication and streaming and must remain running. Apple Music playback requires the appropriate access through Cider.\n\nFor searc",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:07.546180"
+  },
+  {
+    "basic_info": {
+      "name": "TriAevum",
+      "full_name": "coccofresco/TriAevum",
+      "owner": "coccofresco",
+      "description": "Experimental native PC recompilation runtime for Ocarina of Time 3D. Windows x64, NRI/Vulkan, single-screen UI and ROM-only setup.",
+      "url": "https://github.com/coccofresco/TriAevum",
+      "clone_url": "https://github.com/coccofresco/TriAevum.git",
+      "ssh_url": "git@github.com:coccofresco/TriAevum.git",
+      "homepage": null,
+      "created_at": "2026-09-07T20:47:12Z",
+      "updated_at": "2026-09-21T01:04:50Z",
+      "pushed_at": "2026-09-18T19:48:55Z"
+    },
+    "stats": {
+      "stars": 391,
+      "forks": 14,
+      "watchers": 391,
+      "open_issues": 43,
+      "size": 49234
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 134908960,
+        "Python": 11732293,
+        "C": 3358778,
+        "PowerShell": 2543128,
+        "CMake": 451433,
+        "Java": 124089,
+        "Kotlin": 91862,
+        "Shell": 45353,
+        "JavaScript": 26502,
+        "GLSL": 17841,
+        "HLSL": 12146,
+        "Metal": 9839,
+        "Pawn": 7448,
+        "Objective-C++": 3501,
+        "Dockerfile": 2162,
+        "Assembly": 1336,
+        "LLVM": 418,
+        "Batchfile": 280
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# TriAevum\n\nA native PC AOT recompilation of *The Legend of Zelda: Ocarina of Time 3D*,\nwith a modern NRI/Vulkan renderer, single-screen UI and customizable graphics.\n\n## Credit Where It Belongs\n\nBefore the shaders, settings and excessive grass: **TriAevum would not exist in\nits current form without [TopScreen](https://gamebanana.com/mods/695893),\ndeveloped by rlgcarrot**. Its single-screen experience is reimplemented here for\nour runtime, but the vision, care and tremendous work behind it deserve a\nspecial thank-you. Please consider [buying rlgcarrot a coffee](https://ko-fi.com/rlgcarrot)\nto support that fantastic work.\n\nJust as essential are **Azahar, Ship of Harkinian, libultraship, NVIDIA NRI**,\nand the SDL controller-mapping community. And, of course, **Nintendo and\nGrezzo**, who created the original game. [Full credits and licenses](THIRD_PARTY_NOTICES.md).\n\n> **alpha.3 and alpha.3b are BROKEN and withdrawn. Do not use these builds.**\n> Downloads have been removed pending further verification. Back up existing\n> saves/settings. [Release status and earlier releases](https://github.com/coccofresco/TriAevum/releases).\n\n## About\n\nTriAevum is an AOT recomp in the same general spirit as the Xbox 360 recomp\nprojects. I just ended up spending most of my time on the renderer instead of,\nyou know, actually playing the game. The goal is to push the visuals further\nwithout completely losing the original look.\n\n**Development of this project is entirely AI-assisted, under human direction.**\nThat describes the TriAevum-specific work, not the mature donor projects and\nlibraries it builds on: Azahar, Ship of Harkinian, NRI and others. Aside from\nthose foundations, you could fairly call this concentrated AI slop.\nApparently, even AI slop can still consume several months of your life.\n\n## Install\n\nRequires Windows or Linux x64, a Vulkan-capable GPU with current drivers, and your own\nsupported decrypted ROM. Forge accepts `.3ds` and `.cci` and checks the contents,\nnot just the filename.\n\nIt should work with any personal EUR or USA ROM dump, provided it is decrypted\nand in `.cci` or `.3ds` format.\nSee [ROM compatibility details](docs/TRIAEVUM_CONTENT_FAMILY_IMPORT.md).\n\n### Windows\n\n1. Download the **Windows-x64 ZIP**, not GitHub's source-code archive, and\n   extract it into a writable folder.\n2. Run `TriAevumForge.exe` and select your decrypted ROM.\n3. When setup finishes, choose **Launch game**. Afterwards, use `TriAevum.exe`.\n\n### Linux and Steam Deck\n\nThe alpha.3/alpha.3b AppImages are withdrawn; the instructions below describe\nthe intended packaging, not a currently recommended download.\n\n1. Download the **Linux-x86_64.AppImage** and make it executable in your file\n   manager, or with `chmod +x TriAevum-*.AppImage`.\n2. Open the AppImage and select your decrypted ROM in Forge.\n3. Choose **Launch game** when preparation finishes.\n\nOn Steam Deck, prepare in Desktop Mode, then add the same AppImage as a non-Steam\ngame. Use Steam Input's Gamepad layout without Proton. Physical Steam Deck and\nGaming Mode testing have not yet been performed. `--forge` reopens preparation;\n`--appimage-extract-and-run` is available on systems without FUSE.\n\nNo compiler or SDK is needed. Forge downloads the official TopScreen texture\npackage during setup; an Internet connection is required unless that package\nis [provided locally](docs/TRIAEVUM_TOPSCREEN_INSTALLATION.md). No ROM or original\ngame assets are included. Forge also prepares the bundled shaders for your GPU\nautomatically; shaders encountered later are cached while playing.\nBack up your saves, settings and prepared data: `data/` beside the Windows\napplication, or `$XDG_DATA_HOME/TriAevum` (normally `~/.local/share/TriAevum`)\non Linux. Old Flatpak data remains in `~/.var/app/io.github.coccofresco.TriAevum/`\nand is not migrated automatically.\n\n## Graphics and controls\n\n- Cel/toon shading and outlines.\n- Ambient occlusion, plus optional reflections, shadows and anti-aliasing.\n- Real widescreen framing and configurable field of view.\n- **60/90 FPS visual interpolation** of the original 30 Hz game state.\n  Game logic and gameplay speed remain unchanged; this is not 60/90 Hz physics.\n- Azahar-compatible custom textures and texture dumping.\n- Reimplemented **TopScreen** single-screen HUD and menus.\n- Configurable gameplay free camera, keyboard/mouse and controller inputs.\n- Named settings profiles, audio and save states.\n- Procedural grass. A lot of grass. Possibly too much grass.\n\nPress **F1** for settings. **F2** temporarily disables the main added graphics\neffects, then restores them without losing your configuration. Most of the\npresentation is configurable, so if my artistic decisions offend you\npersonally, you can probably undo them. Effects can be expensive; adjust them\nto suit your GPU.\n\n## Testing and contributing\n\nThis is an **experimental alpha**, not a fully tested port. Gameplay testing\ncurrently covers the early parts of the game. The USA adapter has been checked\nthrough insta",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:08.760466"
+  },
+  {
+    "basic_info": {
+      "name": "kvmem-llama.cpp",
+      "full_name": "kvmem/kvmem-llama.cpp",
+      "owner": "kvmem",
+      "description": null,
+      "url": "https://github.com/kvmem/kvmem-llama.cpp",
+      "clone_url": "https://github.com/kvmem/kvmem-llama.cpp.git",
+      "ssh_url": "git@github.com:kvmem/kvmem-llama.cpp.git",
+      "homepage": null,
+      "created_at": "2026-09-14T02:40:26Z",
+      "updated_at": "2026-09-21T05:11:41Z",
+      "pushed_at": "2026-09-21T04:12:10Z"
+    },
+    "stats": {
+      "stars": 389,
+      "forks": 34,
+      "watchers": 389,
+      "open_issues": 24,
+      "size": 826
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 786714,
+        "Python": 318362,
+        "Cuda": 34228,
+        "PowerShell": 31437,
+        "Svelte": 17750,
+        "Shell": 10687,
+        "CMake": 6601,
+        "JavaScript": 3017,
+        "TypeScript": 1651,
+        "C": 1473
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# KVMem + llama.cpp\n\n**Prebuilt downloads:** [Windows x64 CUDA 13 / 12 (rc3)](https://github.com/kvmem/kvmem-llama.cpp/releases/tag/v0.16.0-rc3) · [Linux / WSL2 x86_64 (rc1)](https://github.com/kvmem/kvmem-llama.cpp/releases/tag/v0.16.0-rc1)\n\n**QQ community / QQ 交流群：1040777853**\n\n## Near-lossless Qwen3.8-27B at a full 256K workspace on 16 GiB VRAM\n\nllama.cpp inference with tiered KV memory for long-running agents.\n\n**KVMem** adds a bounded GPU KV working set, host-memory storage and query-based retrieval to [llama.cpp](https://github.com/ggml-org/llama.cpp). llama.cpp handles model loading, inference, quantization and MTP. The separate `llama-kvmem-server` provides OpenAI-compatible chat, tools and optional vision. **NVMe offload is not implemented.**\n\nThis port supports **Qwen3.8-27B GGUF quants**, including IQ3 and IQ4. The sibling [kvmem-qw3](https://github.com/kvmem/kvmem-qw3) is a CUDA-native runtime focused on Q8, primarily tested on RTX PRO 6000.\n\nThe logical workspace (`-c`) can extend beyond 256K using host RAM; quality at those lengths remains experimental.\n\nThe [KVMem paper](https://arxiv.org/abs/2609.04852) shows that, on queries up to 256K, keeping only a **32K GPU-resident active context** is essentially lossless versus the **full 256K** history: **LongMemEval-S** 85.6% vs 86.6% accuracy, **AgentLongBench** 60.9% vs 59.5% task success.\n\n**KV streaming vs. KVMem.** Both methods support a full 256K context on a 16 GiB GPU by storing part of the KV cache in host RAM. [Raymond Huang’s adaptive KV-cache streaming](https://medium.com/@raymond860909/running-qwen-27b-on-16g-vram-with-full-context-length-building-adaptive-kv-cache-streaming-for-bf1e819116e9) keeps part of the KV cache in VRAM and stores the rest in host RAM. During decoding, it prefetches the offloaded KV layer by layer through reusable GPU buffers, overlapping transfers with computation. This preserves attention over the entire history, but longer contexts increase both attention work and PCIe traffic, eventually slowing decode.\n\nKVMem retrieves relevant historical blocks into a bounded GPU window, limiting the KV used for attention. On RTX 5060 Ti, the current MTP3 256K tool benchmark achieves **32–33 token/s decode**, **437–463 token/s prefill for initial computation** and **242–253 token/s overall prefill**, including input reprocessing and cache management.\n\n**Performance on faster GPUs.** Our measurements use the RTX 5060 Ti, the entry-level 16 GB option in the desktop RTX 50 series. The 16 GB RTX 5070 Ti and RTX 5080 offer substantially more compute and roughly twice the memory bandwidth ([NVIDIA specifications](https://www.nvidia.com/en-us/geforce/graphics-cards/compare/)). We therefore expect substantially faster GPU prefill and decode on these cards. Actual gains depend on the workload, CPU and host-memory transfers; benchmarks on these GPUs are welcome.\n\nCurrent milestone: [`v0.16.0-rc3`](docs/milestones/v0.16.0-rc3.md) (pre-release).\n\n**Limitation:** one generation cannot exceed `--kvmem-gen-reserve` (16384 tokens on the IQ3 recipe, 12288 on IQ4), including thinking. Retrieval pins the GPU window; new tokens only use those reserved slots. We are working on fixing this. For agent use, add a line to the system prompt such as: *Keep each turn's output, including thinking, within 16384 tokens* (use 12288 on IQ4). That makes oversized single-turn replies much less likely.\n\nVersion: **0.16.0-rc3**. See the [English / 中文 release notes](docs/releases/v0.16.0-rc3.md) for CUDA build choices and measured results.\n\n## How KVMem works\n\nCompleted KV blocks are stored in host RAM. For each agent step, KVMem retrieves relevant blocks using the current query and places them in chronological order in a bounded GPU working set. Previously computed KV is reused across turns.\n\n![High-level KVMem flow](docs/assets/kvmem-flow.svg)\n\nCore flags (what the 16 GiB recipes still pass):\n\n| Flag | Meaning |\n|---|---|\n| `-c` | Logical workspace, including history stored off GPU. 256K is the tested default; larger is experimental. |\n| `--kvmem-budget` | How many historical tokens retrieval may keep on GPU. |\n| `--kvmem-sink-tokens N` | Server and CLI: always keep the prefix in the GPU working set. Default `0` keeps one block (not disabled). Positive values round down to whole blocks, with a minimum of one block. For example, with block size 128, `1024` keeps 1024 tokens and `129` keeps 128. These blocks count toward `--kvmem-budget`. |\n| `--kvmem-gen-reserve` | GPU slots reserved for new tokens so retrieval cannot fill the pool. **One generation cannot exceed this length** (including thinking). |\n| `--kv-dtype` | Sets the same cache type for **main** attention K and V (IQ3 q8_0, IQ4 q5_0). Use `-ctk q8_0 -ctv q4_0` for mixed precision. |\n| `--spec-type draft-mtp` | Enable multi-token prediction. |\n| `--mmproj` | Vision projector GGUF. Omit for text-only. |\n\nKVMem retrieval is on by default, with 128-token blocks, query replay `auto`, query policy `user`, M",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-09-21T05:41:09.954654"
+  },
+  {
+    "basic_info": {
+      "name": "tatr",
+      "full_name": "tsoding/tatr",
+      "owner": "tsoding",
+      "description": "Task Tracker",
+      "url": "https://github.com/tsoding/tatr",
+      "clone_url": "https://github.com/tsoding/tatr.git",
+      "ssh_url": "git@github.com:tsoding/tatr.git",
+      "homepage": null,
+      "created_at": "2026-08-30T02:01:19Z",
+      "updated_at": "2026-09-21T05:26:40Z",
+      "pushed_at": "2026-09-14T10:54:42Z"
+    },
+    "stats": {
+      "stars": 372,
+      "forks": 36,
+      "watchers": 372,
+      "open_issues": 0,
+      "size": 859
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 126324,
+        "C": 94906
+      },
+      "license": "GNU General Public License v2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Task Tracker\n\n<p align=center>\n  <img src=\"./cover/cover-512.png\" width=512>\n</p>\n\n<p align=center>\n  <sub>Cover by <a href=\"https://github.com/rexim\">rexim</a></sub>\n</p>\n\nThis is an improvised Tasks system, because I needed something more powerful than just plane TODOs in the Source Code of my projects, yet I didn't want to install a full blown Issue Tracker System.\n\n## The Spec\n\n### Layout\n\nEach project at the root has `tasks/` folder which contains sub-folders for each task.\n\n```\nproject/\n+-...\n+-tasks/\n| +-tags\n| +-20260824-215300\n| | +-TASK.md\n| | +-...\n| +-20260830-000403-rexim\n| | +-TASK.md\n| | +-screenshot.png\n| | +-...\n| +-...\n+-...\n```\n\n### HUID\n\nEach task sub-folder is named with a Task ID. The Task ID format is `[0-9]{8}-[0-9]{6}`. Just grab the current date and time and use it as the Task ID. Use UTC timezone so the current timezone is irrelevant. If your Task ID collides with an existing one, just wait one second and try again.\n\nThe full format is actually `[0-9]{8}-[0-9]{6}(-[a-zA-Z0-9\\\\-]*)?`. So if you work in a team you can agree on unique suffixes per individual to slap at the end like `20260829-235855-rexim` or `20260829-235902-01`. Those are valid Task IDs too.\n\nI call this ID system HUID (Human-Unique IDentifier). It is fairly unique if you generate IDs at \"Human-speed\". That is for me personally the speed at which I need to generate them is never below one second.\n\nHaving a Unique Task ID is beneficial under such control systems as git, because you can generate tasks in parallel branches and then relatively easily merge them together.\n\n### TASK.md\n\nInside of the task sub-folder there is one mandatory file `TASK.md` which is a markdown file describing the task. The folder may contain other files as attachments to the task. `TASK.md` should link to the attachments as necessary. Try to keep the size of the attachments small, since they are going to be committed to the git repo. Use [ffmpeg](https://ffmpeg.org/) to reencode any screencast to reduce their size as necessary.\n\nThe format of `TASK.md`:\n\n```markdown\n# <title>\n\n- STATUS: (OPEN|CLOSED)\n- PRIORITY: <number>\n- TAGS: <comma-and-whitespace-separated-list-of-tags>\n[other properties]\n\n[description]\n```\n\nAs you work on the task feel free to append any discovered details about the task to the `[description]`.\n\nUse [git-blame](https://git-scm.com/docs/git-blame) and [git-log](https://git-scm.com/docs/git-log) to learn about when, how and by whom any changes to the task were made.\n\n#### Task Properties\n\nThe `STATUS` property defines whether the task is done or not. There could be only two statuses. If you need more it is generally recommended to use `TAGS` for whatever you are trying to do.\n\nThe `PRIORITY` is generally used for sorting the tasks by the external tools. One thing I've seen people online do is stressing out about what priority to put. Don't think of priority as an absolute value. Think of it as the means of getting your list of tasks sorted in a specific way you want them to see.\n\nThe `TAGS` property contains the list of tags separated by commas and whitespaces. `TAGS: foo,bar,baz` defines 3 tags. `TAGS: foo,,, hello  world` also defines 3 tags. You can use these tags to group tasks into categories. Like `bug` or `enhancement`.\n\nWe allow to specify `[other properties]` (in addition to `STATUS`, `PRIORITY`, and `TAGS`) in a similar format (that is `- [NAME]: [VALUE]`), the official tool will ignore them but try its best to not disturb them too much during any mass update operations (like `tatr-untag`, etc).\n\nDuplicated properties are not allowed. If a tasks specifies duplicated properties only the last value must be taken into account. Mass update operations of the official tool will remove any duplicated properties.\n\n### Tags description file\n\nThere might be an optional `tasks/tags` file with the following format:\n\n```\n<tag-name> [,] <tag-description>\n<tag-name> [,] <tag-description>\n<tag-name> [,] <tag-description>\n...\n```\n\nIt serves as a documentation for each existing tag and the thirdparty tools may use it to display the tag descriptions.\n\n## The Tool\n\nThe repo comes with a command line tool that helps to navigate and manipulate the `tasks/` folder:\n\n```console\n$ cc -o nob nob.c\n$ ./nob\n$ sudo cp ./build/tatr /usr/local/bin/\n$ tatr help\n```\n\nIt is specifically optimized to be run in compilation mode of Emacs. Not sure how useful it is outside of this use case.\n\nWe only support Linux right now But I have tasks to add [Windows](./tasks/20260825-170729/TASK.md) and [MacOS](./tasks/20260901-063204/TASK.md) support in the future.\n\nYou are welcome to make your own tools.\n\n### Tatr Query Language (TQL)\n\nThe Query language that is used in `tatr ls` command to select a set of tasks.\n\n#### Examples\n\nQuery everything with tag `bug`:\n\n```console\n$ tatr ls :bug\n```\n\nEverything with tag `bug`, but without tag `ui`:\n\n```console\n$ tatr ls :bug and not :ui\n```\n\nEverything that is not tagged:\n\n```console\n$ tatr ls not tagged\n```\n\nAll t",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:11.190821"
+  },
+  {
+    "basic_info": {
+      "name": "hells-gate-recomp",
+      "full_name": "florinp93/hells-gate-recomp",
+      "owner": "florinp93",
+      "description": "Xbox 360 to PC port of Dante's Inferno using ReXGlue (static recompilation)",
+      "url": "https://github.com/florinp93/hells-gate-recomp",
+      "clone_url": "https://github.com/florinp93/hells-gate-recomp.git",
+      "ssh_url": "git@github.com:florinp93/hells-gate-recomp.git",
+      "homepage": null,
+      "created_at": "2026-08-31T08:32:13Z",
+      "updated_at": "2026-09-21T04:12:37Z",
+      "pushed_at": "2026-09-16T18:13:47Z"
+    },
+    "stats": {
+      "stars": 366,
+      "forks": 14,
+      "watchers": 366,
+      "open_issues": 13,
+      "size": 6542
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 165170,
+        "C#": 147692,
+        "Python": 20848,
+        "CMake": 19904,
+        "Shell": 10814,
+        "Inno Setup": 9536,
+        "PowerShell": 8145
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Dante's Inferno - Xbox 360 to PC Port (ReXGlue)\n\n<p align=\"center\">\n  <img src=\"assets/fan_artwork.png\" alt=\"Dante's Inferno - Fan Artwork\" width=\"256\" />\n</p>\n\n<p align=\"center\">\n  <em>Fan artwork by <a href=\"https://www.deviantart.com/pooterman\">POOTERMAN</a> (<a href=\"https://github.com/florinp93/hells-gate-recomp/issues/12\">#12</a>)</em>\n</p>\n\nA static recompilation port of **Dante's Inferno** (Xbox 360) to native PC,\nbuilt with the [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk).\n\nReXGlue converts Xbox 360 PowerPC XEX executables into portable C++ that runs\nnatively on Windows (D3D12) and Linux (Vulkan) - no emulation, no JIT at\nruntime.\n\n<p align=\"center\">\n  <a href=\"https://ko-fi.com/zerkiller\">\n    <img src=\"https://img.shields.io/badge/Ko--Fi-Buy%20me%20a%20coffee-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white\" alt=\"Ko-fi\" />\n  </a>\n  <a href=\"https://discord.gg/mjGfv7ysG8\">\n    <img src=\"https://img.shields.io/badge/Discord-Join%20the%20server-5865F2?style=for-the-badge&logo=discord&logoColor=white\" alt=\"Discord\" />\n  </a>\n  <a href=\"https://github.com/florinp93\">\n    <img src=\"https://img.shields.io/badge/Other-Projects-0AB4F5?style=for-the-badge&logo=github&logoColor=white\" alt=\"Other Projects\" />\n  </a>\n</p>\n\n## 🤖 AI Usage Disclosure\n\nTransparency and integrity are important to this project. Artificial Intelligence (AI) tools were utilized as part of the development and maintenance workflow, strictly serving as an assistant to handle repetitive, time-consuming, and low-level tasks.\n\n### How AI Was Used:\n* **Documentation:** Generating initial drafts, organizing notes, and structuring documentation to keep project progress up to date.\n* **Research & Exploration:** Investigating APIs, syntax references, and conceptual troubleshooting.\n* **Git Workflows:** Assisting with routine commit descriptions, repository maintenance tasks, and boilerplate structuring.\n\n### Human Oversight:\nWhile AI accelerated the auxiliary workflow, all core architectural decisions, advanced problem-solving, code implementation, and final reviews were entirely human-driven. The AI served to eliminate friction, allowing focus on high-level logic and feature development.\n\n## Linux build (Ubuntu)\n\nThe project can also be built natively on Linux using Vulkan.\n\nThe commands below use **Clang 22** and the same ReXGlue workflow used by the\nWindows build, with the additional Linux GPU plugin and generated-code patch\nstep.\n\n### 1. Install the required Linux dependencies\n\nMake manifest backup and make the provided dependency installer executable and run it:\n\n```bash\ncp dantes_inferno_manifest.toml dantes_inferno_manifest.toml.back\nchmod +x ./scripts/install_dantes_min.sh\n./scripts/install_dantes_min.sh\n```\n\nThis installs the compiler/toolchain and the development libraries needed by\nReXGlue on Ubuntu.\n\n### 2. Set up the SDK\n\nRun the existing project setup script with PowerShell:\n\n```bash\npwsh ./setup.ps1\n```\n\n### 3. Configure Linux and build the ReXGlue CLI\n\n```bash\ncmake -B out/build/linux-release \\\n  -G Ninja \\\n  -DCMAKE_C_COMPILER=/usr/bin/clang-22 \\\n  -DCMAKE_CXX_COMPILER=/usr/bin/clang++-22 \\\n  -DCMAKE_CXX_FLAGS=\"-stdlib=libstdc++ -I$(pwd)/thirdparty/rexglue-sdk/thirdparty/imgui -mssse3 -mavx2\" \\\n  -DREXSDK_DIR=thirdparty/rexglue-sdk\n\ncmake --build out/build/linux-release --target rexglue\n```\n\n### 4. Build the Xenos GPU plugin\n\n```bash\ncmake --build out/build/linux-release --target rexgpu-xenos\n\ncp thirdparty/rexglue-sdk/out/linux-amd64/lib*.so \\\n  ./out/build/linux-release/\n```\n\n### 5. Regenerate the SDK-managed project files\n\nMake sure `game/default.xex` is present before running this command:\n\n```bash\nthirdparty/rexglue-sdk/out/linux-amd64/rexglue init \\\n  --force \\\n  --project-name dantes_inferno \\\n  --project-root . \\\n  --xex-path game/default.xex \\\n  --game-root game\n```\n\n### 6. Generate the recompiled C++ sources\n\nReconfigure the project:\n\n```bash\ncmake -B out/build/linux-release \\\n  -G Ninja \\\n  -DCMAKE_C_COMPILER=/usr/bin/clang-22 \\\n  -DCMAKE_CXX_COMPILER=/usr/bin/clang++-22 \\\n  -DCMAKE_CXX_FLAGS=\"-stdlib=libstdc++ -I$(pwd)/thirdparty/rexglue-sdk/thirdparty/imgui -mssse3 -mavx2\" \\\n  -DREXSDK_DIR=thirdparty/rexglue-sdk\n```\n\nRestore the project manifest backup, then run codegen:\n\n```bash\ncp dantes_inferno_manifest.toml.back dantes_inferno_manifest.toml\n\ncmake --build out/build/linux-release \\\n  --target dantes_inferno_codegen\n```\n\n### 7. Apply the generated-code patches\n\nThe generated sources need the project-specific patches before the final game\nbuild:\n\n```bash\npython3 patches/generated/apply_generated_patches.py\n```\n\n### 8. Build the Linux executable\n\nReconfigure once more:\n\n```bash\ncmake -B out/build/linux-release \\\n  -G Ninja \\\n  -DCMAKE_C_COMPILER=/usr/bin/clang-22 \\\n  -DCMAKE_CXX_COMPILER=/usr/bin/clang++-22 \\\n  -DCMAKE_CXX_FLAGS=\"-stdlib=libstdc++ -I$(pwd)/thirdparty/rexglue-sdk/thirdparty/imgui -mssse3 -mavx2\" \\\n  -DREXSDK_DIR=thirdparty/rexglue-sdk\n```\n\nRestore the manifest and build the port:\n\n``",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:12.371749"
+  },
+  {
+    "basic_info": {
+      "name": "LostOdysseyRecomp",
+      "full_name": "freefrank/LostOdysseyRecomp",
+      "owner": "freefrank",
+      "description": "Experimental native PC port of Lost Odyssey using static recompilation. No game assets included.",
+      "url": "https://github.com/freefrank/LostOdysseyRecomp",
+      "clone_url": "https://github.com/freefrank/LostOdysseyRecomp.git",
+      "ssh_url": "git@github.com:freefrank/LostOdysseyRecomp.git",
+      "homepage": null,
+      "created_at": "2026-09-05T07:01:47Z",
+      "updated_at": "2026-09-21T00:17:28Z",
+      "pushed_at": "2026-09-21T03:55:45Z"
+    },
+    "stats": {
+      "stars": 347,
+      "forks": 14,
+      "watchers": 347,
+      "open_issues": 15,
+      "size": 20265
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 29544677,
+        "Python": 468335,
+        "JavaScript": 67939,
+        "CMake": 66232,
+        "PowerShell": 23389,
+        "HTML": 11793,
+        "Batchfile": 5098,
+        "Java": 3223,
+        "Shell": 1439,
+        "C": 276
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# Lost Odyssey Recomp\n\n**An experimental native PC port of Lost Odyssey for Xbox 360.**\n\nWindows x64 · Direct3D 12 · Vulkan · PowerPC static recompilation\n\n<img src=\"docs/images/title-screen.png\" alt=\"Lost Odyssey title screen — Press START\" width=\"960\">\n\nOptional diagnostics are off by default and can be disabled in Settings. See [Privacy](PRIVACY.md).\n\n### [Latest download](https://github.com/freefrank/LostOdysseyRecomp/releases/latest) · [Installation guide](docs/INSTALLING.md) · [Report an issue](https://github.com/freefrank/LostOdysseyRecomp/issues)\n\n[简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md) · [Projects](https://github.com/users/freefrank/projects/3) · [Build from source](docs/BUILDING.md)\n\n</div>\n\n> [!IMPORTANT]\n> **This project is still in early testing.** Opening areas and selected scenes have been tested; a complete playthrough has not. Rendering and stability issues remain. You must supply your own supported game files.\n\n## v0.6.7 release\n\nPublished release [v0.6.7](https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v0.6.7) on 2026-09-20T20:09:28Z from source `f92c24d` via Release CI [35533399325](https://github.com/freefrank/LostOdysseyRecomp/actions/runs/35533399325) as the latest public release. It adds an in-game Graphics menu Widescreen switch and expanded 21:9 resolution presets (1720×720, 2560×1080, 3440×1440, 3840×1600, 5120×2160), with closest vertical height matching when toggling aspect ratio, automatic detection for existing configurations, and synchronization with first-launch setup across 5 languages. Issue #17 is resolved and closed.\n\n> [!WARNING]\n> **Ultrawide support remains EXPERIMENTAL across diverse hardware and aspect ratio combinations.**\n\nSee the [changelog](CHANGELOG.md#v067--2026-09-20) and [development status](docs/STATUS.md) for validation limits.\n\n## v0.6.6 release\n\nPublished release [v0.6.6](https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v0.6.6) (reissued 2026-09-20 from source `c6cbd1f` via Release CI [35527543573](https://github.com/freefrank/LostOdysseyRecomp/actions/runs/35527543573)). It introduces initial native ultrawide (21:9) support (Issue #17), a shadow-map rendering repair across all aspect ratios and high internal resolutions, and Linux AppImage updater rollback-preserving cleanup.\n\nThe shadow fix repairs effective-height render-target caching and depth-only rasterization modes 4 and 5; shadows were confirmed fixed in user testing of the affected scene. Reissue packages have been verified and uploaded; the initial `c953bb5` packages are superseded, and players who downloaded the earlier build should redownload to get the fix.\n\nSee the [changelog](CHANGELOG.md#v066--2026-09-20) and [development status](docs/STATUS.md) for validation limits.\n\n## v0.6.3 release\n\nPublished at [GitHub Release v0.6.3](https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v0.6.3) on 2026-09-19T23:56:08Z. It restores bounded sampled comparison for large vertex-cache hits to reduce CPU comparison cost while keeping small vertex buffers and index-cache source validation exact. `LoVertexCacheTest` passed 3,668,957 focused checks; no release-binary performance or full-game result is claimed. It also includes the Issue #54 language-menu safety correction, Issue #53 file-I/O locking and bounded diagnostics, deterministic I/O lifetime regression coverage, and platform-native asynchronous F1 render-state archives. The Windows ZIP and Linux AppImage, plus their sidecars, passed package hash and public delivery checks. Linux native GPU, Steam Deck, AppImage runtime and broader gameplay remain pending. See the [changelog](CHANGELOG.md#v063--2026-09-19).\n\n## v0.6.2 release\n\nPublished release: [v0.6.2](https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v0.6.2). The Windows ZIP and Linux AppImage include the shader set; this release has no separate shader package. v0.6.2 packages experimental geometric motion-vector replay and the accepted main-path TAA policy. The normal TAA path uses 0.5 jitter scale, stationary motion snapping, stationary color clipping and multi-surface history with RGBA8 history at `31/33`; experimental FP16 history and moving bilinear fallback remain off. On Vulkan with an RTX 5080, the same Uhra 4K scene was accepted by the user at about 60 FPS. This is scene- and machine-limited evidence, not whole-game or cross-platform acceptance.\n\nThe candidate comparison measured 60.34/59.00 FPS against 54.61 FPS for a separate Release build and 54.57 FPS for the previous RelWithDebInfo main binary in hidden muted A-B-A-B captures without pacing. The 1080p-internal to 4K moving-camera limitation, broader scene coverage, D3D12 replay PSO follow-up, Linux native GPU and Steam Deck validation remain open.\n\n## v0.6.1 release\n\nPublished release: [v0.6.1](https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v0.6.1). It checks for updates before importing game data on Windows and Linux. A newer release opens an app",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:13.571766"
+  },
+  {
+    "basic_info": {
+      "name": "starfox-enhanced",
+      "full_name": "kandowontu/starfox-enhanced",
+      "owner": "kandowontu",
+      "description": "A native 60 FPS PC source port built from the UltraStarFox codebase.",
+      "url": "https://github.com/kandowontu/starfox-enhanced",
+      "clone_url": "https://github.com/kandowontu/starfox-enhanced.git",
+      "ssh_url": "git@github.com:kandowontu/starfox-enhanced.git",
+      "homepage": null,
+      "created_at": "2026-08-25T23:59:17Z",
+      "updated_at": "2026-09-20T17:25:59Z",
+      "pushed_at": "2026-09-20T17:25:55Z"
+    },
+    "stats": {
+      "stars": 328,
+      "forks": 18,
+      "watchers": 328,
+      "open_issues": 23,
+      "size": 18631
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 18234711,
+        "HLSL": 267617,
+        "PowerShell": 152380,
+        "Python": 111958,
+        "CMake": 108267,
+        "Java": 23826,
+        "Shell": 8824,
+        "C": 8685
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Star Fox Enhanced\n\nA native C++/SDL3 port of [UltraStarFox](https://github.com/Sunlitspace542/ultrastarfox),\nwith **Original Star Fox** and **Star Fox EX** experiences, high-frame-rate\npresentation, widescreen support, and optional visual enhancements.\n\n**[Download 0.0.6.7](https://github.com/kandowontu/starfox-enhanced/releases/tag/v0.0.6.7)** ·\n[Changelog](https://github.com/kandowontu/starfox-enhanced/blob/main/docs/RELEASE-0.0.6.7.md) ·\n[Settings and controls](https://github.com/kandowontu/starfox-enhanced/blob/main/docs/SETTINGS-AND-CONTROLS.md) ·\n[Build guide](https://github.com/kandowontu/starfox-enhanced/blob/main/docs/BUILDING.md) ·\n[Report a bug](https://github.com/kandowontu/starfox-enhanced/issues)\n\n> This is an alpha release, not a cycle-accurate SNES emulator. A supported,\n> unmodified retail ROM supplied by you is required. No retail ROM is included.\n\n## Get started\n\n1. Download the package for your platform. Desktop users should extract it\n   into a writable folder before launching; no source build is necessary.\n2. Launch the game. On desktop, place your supported `.sfc`/`.smc` ROM beside\n   the executable, or set `STARFOX_RETAIL_ROM` to its path. Mobile apps provide\n   a first-launch file picker.\n3. The game validates your ROM and creates `Starfox-Assets.BIN` locally.\n   Keep that companion with the application; it may need rebuilding after\n   updates to the embedded assets.\n4. Choose **Original** or **Star Fox EX**, adjust your options, then select\n   **Start Game** from the main menu.\n\nFor devices needing prepared assets, the release includes a standalone Windows\n[asset builder](https://github.com/kandowontu/starfox-enhanced/blob/main/platform/mobile/ASSET_BUILDER.md). It accepts the same ROMs;\nmobile users can also select a ROM directly.\n\n### Supported ROMs\n\n- Star Fox Japan: 1.0 / 1.1\n- Star Fox USA: 1.0 / 1.1 / 1.2\n- Starwing Europe: 1.0 / 1.1\n- Starwing Germany: 1.0\n\nA 512-byte copier header is accepted. Known revisions are checksum-verified\nand canonicalized before the source-built patches are applied. Hacks, betas,\ncompetition cartridges, Star Fox 2 and unknown revisions are not supported.\n\n## Platforms\n\n| Package | Notes |\n|---|---|\n| Windows x64 / x86 | Extract and run `starfox_pc.exe`. |\n| Linux x64 | Native SDL3 runtime. |\n| macOS universal | Unsigned application for Intel and Apple Silicon. |\n| iOS arm64 | Unsigned device bundle; [signing/sideloading instructions](https://github.com/kandowontu/starfox-enhanced/blob/main/platform/apple/IOS_INSTALL.md). |\n| Android arm64 | Installable development APK; see the upgrade notice below. |\n| Nintendo Switch | Homebrew NRO; [setup and optional forwarder](https://github.com/kandowontu/starfox-enhanced/blob/main/platform/switch/README.md). |\n| PS Vita | Homebrew VPK; [setup](https://github.com/kandowontu/starfox-enhanced/blob/main/platform/vita/README.md). |\n| Xbox UWP x64 | Developer Mode required; [setup](https://github.com/kandowontu/starfox-enhanced/blob/main/platform/uwp/README.md). |\n\nBuild success does not guarantee identical behavior on every device.\nSee the [release notes](https://github.com/kandowontu/starfox-enhanced/blob/main/docs/RELEASE-0.0.6.7.md) for verification limits.\n\n**Android upgrades:** 0.0.6 uses a permanent signing key. Older APKs used\ntemporary keys, so upgrading from those builds requires a one-time reinstall.\n**Back up saves and settings before uninstalling.** Later public builds will\nretain the permanent signing certificate.\n\n## Features and settings\n\n- **Original and EX:** original routes and frontend flow, plus EX's shipped\n  campaigns, native options and mechanics.\n- **Smooth presentation:** 20–480 FPS choices, defaulting to 60. Game pace is\n  independent of render FPS; Original Speed preserves source-style slowdown.\n- **Display:** 4:3, 16:10, 16:9, 21:9 and 32:9; GPU or software presentation.\n- **Languages:** English, English (Europe), Japanese, German, French and Spanish, including menus\n  and dialogue. EX translations include authored additions.\n- **2D Options:** artwork filtering, 2D Bloom, World Effects and their intensity.\n  The artwork filter also covers textures on 3D polygons.\n- **3D Options:** anti-aliasing, VSync, 1–4× Render Upscale, 3D Bloom, 3D Smoothing,\n  Enhanced Lighting, HDR Effect, Ray Tracing (hardware DXR shadows, default Off),\n  Chromatic Aberration, Model Effects\n  and Model Effect Intensity. HDR Effect is brightness/contrast\n  processing, **not HDR display output**.\n  Ray Tracing replaces original shadows rather than drawing a second set;\n  there is no separate Enhanced Shadows toggle.\n- **Preview:** a fixed reference scene shows graphics changes live. Hold **Tab**\n  to hide the menu temporarily. Preview defaults off each launch.\n- **Customization:** draggable HUD layouts, controller/keyboard remapping,\n  crosshair colors, separate music/SFX volumes, rumble and optional God Mode.\n\nModel and world effects are independent; CEL-DRAWN is model-only and BLUEPRINT\nis world-only. Most vis",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:14.750844"
+  },
+  {
+    "basic_info": {
+      "name": "DeepJIT",
+      "full_name": "deepseek-ai/DeepJIT",
+      "owner": "deepseek-ai",
+      "description": "A lightweight library for xPU kernel JIT compilation",
+      "url": "https://github.com/deepseek-ai/DeepJIT",
+      "clone_url": "https://github.com/deepseek-ai/DeepJIT.git",
+      "ssh_url": "git@github.com:deepseek-ai/DeepJIT.git",
+      "homepage": "",
+      "created_at": "2026-09-08T03:57:22Z",
+      "updated_at": "2026-09-17T09:11:02Z",
+      "pushed_at": "2026-09-14T08:13:10Z"
+    },
+    "stats": {
+      "stars": 327,
+      "forks": 26,
+      "watchers": 327,
+      "open_issues": 14,
+      "size": 110
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 324500,
+        "Python": 60134,
+        "Cuda": 11941,
+        "CMake": 781
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# DeepJIT\n\nDeepJIT is a lightweight, header-only C++20 JIT runtime for **NVIDIA CUDA GPUs** and **HUAWEI Ascend (昇腾) NPUs**. It gives C++/Python extension authors a shared interface for compiling kernel source at runtime, caching the resulting binaries, loading them onto the device, and launching them with backend-specific options.\n\nDeepJIT handles the JIT infrastructure so that kernel libraries can focus on their device code. Both backends share runtime configuration, source and include hashing, in-memory and on-disk caches, and lazy initialization. Kernel source and compiler/launch options remain specific to the selected backend.\n\n**Main authors:** [@guyan364](https://github.com/guyan364), [@kurisu6912](https://github.com/kurisu6912), [@LyricZhao](https://github.com/LyricZhao).\n\n## Features\n\n- **CUDA and Ascend backends:** use `deep_jit::Runtime<deep_jit::CUDA>` or `deep_jit::Runtime<deep_jit::Ascend>` with the same compile/load/launch workflow.\n- **Kernel caching:** reuse loaded kernels in memory and compiled artifacts on disk. Cache keys account for source, tracked includes, compiler versions, effective compiler options, and an application-provided dependency signature.\n- **Distributed filesystems and shared caches:** share one cache directory across users, processes, and nodes to reuse compiled kernels. Both backends support local and distributed filesystems with the required POSIX filesystem semantics; see [Shared cache](#shared-cache) for configuration.\n- **Lazy initialization:** defer device and compiler discovery until the runtime is first used.\n- **PyTorch integration:** use the current PyTorch CUDA or `torch_npu` stream by default, and expose the configured runtime through pybind11 with `get_jit()`.\n- **Compilation controls and diagnostics:** configure runtime defaults and per-kernel overrides, inspect compilation metadata, and dump CUDA PTX/SASS or Ascend assembly. CUDA also supports a Python post-compilation hook.\n\n### In development (WIP)\n\n- **Cache warmup from history:** use historical cache entries to anticipate kernels that future runs may need and warm up their cache in advance, reducing compilation delays during execution. This feature is under development and is not yet available.\n- **Python compilation API:** pass kernel source code directly from Python to compile CUDA or Ascend kernels. This feature is under development and is not yet available.\n\n## Supported backends\n\n| Backend | Device toolchain and runtime | Integration requirements |\n| --- | --- | --- |\n| **CUDA** | NVCC compiles CUDA source to CUBIN; the CUDA Driver API loads and launches kernels. | CUDA headers 12.4+, NVCC 12.9+, and PyTorch with CUDA support. |\n| **Ascend** | Bisheng and ld.lld compile and link Ascend kernel source; ACL loads and launches kernels. | CANN with `bin/bisheng`, `bin/ld.lld`, and the Ascend `adv_api` headers; ACL and `torch_npu` headers and runtime. |\n\nThe host environment must provide Linux, a C++20 compiler and standard library with `std::format` support, Python, pybind11, and the dependencies for the selected backend. DeepJIT is intended to be embedded into your extension as a header-only dependency.\n\nSee [Integration](#integration) for setup, [CUDA](#cuda) for GPU usage, and [Ascend](#ascend) for NPU usage.\n\n## Shared cache\n\nCUDA and Ascend use the same disk-cache implementation. It supports local and distributed filesystems that provide atomic directory rename within a filesystem and file/directory `fsync`. Builds use unique temporary directories, synchronize their contents, and publish complete entries through an atomic rename. Concurrent processes can compile the same entry and reuse the published result.\n\nMultiple users, processes, and nodes can point to the same cache directory:\n\n```bash\nexport DJ_JIT_CACHE_DIR=/shared/deep_jit\n```\n\nConfigure directory permissions so participating users can read shared artifacts and writers can create and publish entries under the cache root. As with all DeepJIT caches, use a trusted shared directory. Matching compilation inputs and cache tags allow users to reuse each other's compiled kernels.\n\nYou can also combine a writable personal cache with a shared lookup cache:\n\n```bash\nexport DJ_JIT_CACHE_DIR=\"$HOME/.dj:/shared/deep_jit\"\n```\n\nDeepJIT searches all roots in order and writes cache misses only to the first root. The shared lookup cache can be read-only. To configure a single consumer library, use its prefix instead, for example `MYLIB_JIT_CACHE_DIR`.\n\n## Repository layout\n\n| Path | Contents |\n| --- | --- |\n| [`include/deep_jit/runtime/`](include/deep_jit/runtime/) | Shared runtime and configuration. |\n| [`include/deep_jit/backend/cuda/`](include/deep_jit/backend/cuda/) | CUDA compiler, device queries, kernel loading, and launch options. |\n| [`include/deep_jit/backend/ascend/`](include/deep_jit/backend/ascend/) | Ascend compiler/linker integration, device queries, kernel loading, and launch options. |\n| [`include/deep_jit/cache/`](include/deep_jit/cache/",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:15.981420"
+  },
+  {
+    "basic_info": {
+      "name": "dlss5-bridge",
+      "full_name": "NIGos/dlss5-bridge",
+      "owner": "NIGos",
+      "description": "DLSS 5 Neural Rendering in DirectX 11 and Vulkan games, and optionally in games with no DLSS via NVIDIA Optical Flow (lower quality). A ReShade add-on.",
+      "url": "https://github.com/NIGos/dlss5-bridge",
+      "clone_url": "https://github.com/NIGos/dlss5-bridge.git",
+      "ssh_url": "git@github.com:NIGos/dlss5-bridge.git",
+      "homepage": "https://github.com/NIGos/dlss5-bridge/releases",
+      "created_at": "2026-08-28T23:23:56Z",
+      "updated_at": "2026-09-21T04:41:25Z",
+      "pushed_at": "2026-09-13T16:57:58Z"
+    },
+    "stats": {
+      "stars": 292,
+      "forks": 29,
+      "watchers": 292,
+      "open_issues": 21,
+      "size": 1076
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1501256,
+        "C": 143300,
+        "Batchfile": 7772,
+        "PowerShell": 5575,
+        "GLSL": 702
+      },
+      "license": "MIT License",
+      "topics": [
+        "d3d11",
+        "directx11",
+        "directx12",
+        "dlss",
+        "dlss-neural-rendering",
+        "game-modding",
+        "neural-rendering",
+        "ngx",
+        "nvidia",
+        "optical-flow",
+        "reshade",
+        "upscaling",
+        "vulkan"
+      ]
+    },
+    "content": {
+      "readme": "# DLSS 5 Bridge\n\n> [!WARNING]\n> **Unofficial download site:** `dlss5bridge.com` is not operated or endorsed by this project.\n> Get DLSS 5 Bridge from [this repository's GitHub releases](https://github.com/NIGos/dlss5-bridge/releases).\n> Its ZIP contains an unofficial `.exe` installer. [Hybrid Analysis](https://hybrid-analysis.com/sample/5c3cc8dec5827d57f4cfe0968415eeb44ed3f865253bccbca95689989e462837/6aa123764f15cef3a90c2e95)\n> classifies it as **Malicious** and records attempts to add Microsoft Defender exclusions for other executables.\n> **Do not run installers from that site.** A user's reported compromise has not been independently verified;\n> see [#30](https://github.com/NIGos/dlss5-bridge/issues/30).\n> [Verify your download before loading it](VERIFYING-DOWNLOADS.md): official SHA-256 values and an optional PowerShell checker.\n\n**A bridge for DLSS 5 Neural Rendering add-ons in DirectX 11 and Vulkan games,\nwith an optional optical-flow path for games without DLSS.**\n\nA ReShade add-on that mirrors a DirectX 11 or Vulkan game's DLSS onto a private\nDirectX 12 session, where a compatible neural rendering add-on can process it.\nFor games without DLSS, it can build substitute inputs from ReShade's depth\nand NVIDIA Optical Flow, or a ReShade motion-vector shader. The game's files\nare not patched.\n\nThis bridge does not do neural rendering itself. It needs a separate compatible\n**DLSS 5 Neural Rendering add-on**, such as RenoDX's `renodx-dlss5.addon64`, distributed in\n[its Discord channel](https://discord.com/channels/1408098019194310818/1542647972695904317),\ntogether with its `nvngx_dlssnr.dll`. The bridge only gives that add-on a\nplace to work.\n\nIf it is useful to you, you can help cover the AI tooling used in its\ndevelopment:\n\n[![Support on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nigos)\n\nReleases and their notes: [github.com/NIGos/dlss5-bridge/releases](https://github.com/NIGos/dlss5-bridge/releases).\n\n**Release status (11 September 2026).** [v1.4.12](https://github.com/NIGos/dlss5-bridge/releases/tag/v1.4.12)\nremains the stable release. `main` contains the cumulative 1.4.13 prerelease\nchanges and the [D3D11 depth/MV conversion fix](https://github.com/NIGos/dlss5-bridge/pull/34).\nThe latest test build, [v1.4.13-pre7](https://github.com/NIGos/dlss5-bridge/releases/tag/v1.4.13-pre7),\nalso fixes a Vulkan Frame Generation startup failure\nreported in [Endfield](https://github.com/NIGos/dlss5-bridge/issues/27#issuecomment-5606803978):\nit supplies the command buffer's device when NGX cannot infer one alongside\nthe Bridge's private device, and clears obsolete hooks when an NGX module unloads.\nPre7 includes all pre6 changes and has verified GitHub Actions build provenance.\nIt is still unsigned; follow the\n[download verification instructions](VERIFYING-DOWNLOADS.md) before loading it.\nPre6 separated D3D11 temporal histories and the BG3 reporter confirmed that\nshimmering was fixed. Pre7 additionally avoids rebuilding shared textures when\nsplit-screen views have different heights. The official build passes the\nunequal-height Gym test with neural rendering active; confirmation of the\nstutter/shutdown fix in BG3 is still pending. Neural rendering reaching only one\nBG3 viewport remains open ([#12](https://github.com/NIGos/dlss5-bridge/issues/12)).\nThe [BG3 FG reporter](https://github.com/NIGos/dlss5-bridge/issues/28#issuecomment-5609017168)\nconfirmed neural output, but also tested local hook changes and newer Streamline\nfiles; flickering/ghosting and general hook coexistence remain under investigation.\nThe [Endfield reporter](https://github.com/NIGos/dlss5-bridge/issues/27#issuecomment-5609207523)\nconfirmed DLAA + MFG 4x + neural rendering working together on pre5.\nThe Endfield mirror slowdown\nremains unresolved; the FG startup fix does not establish an FPS improvement.\n\nSome neural add-ons support additional graphics APIs directly. Whether you need\nthis bridge depends on the add-on build and the game. See the compatibility\nnotes below; support for NGX D3D12 calls alone does not guarantee compatibility.\n\n## What it does\n\nThe DLSS 5 add-on is not modified. It receives genuine NGX D3D12 calls on a\nprivate D3D12 device, and its result is copied back into the game's output.\nThree routes; the substitute is off by default:\n\n| Route | Game | Contract |\n| --- | --- | --- |\n| **D3D11 bridge** | DirectX 11 with DLSS | The game's Color, Depth and MotionVectors are copied into shared textures, evaluated on D3D12 and copied back. The bridge follows the supplied dimensions, regions and parameters, with defaults for missing values. |\n| **Vulkan mirror** | Vulkan with DLSS | The game's own, mirrored the same way through imported D3D12 textures. `vk_mirror=1`, the default. |\n| **Substitute contract** | Games without DLSS that expose usable depth and motion inputs through ReShade | DLAA at back-buffer size, using NVIDIA Optical Flow or a ReShade motion-vector shader. Requires `synth=1`; availability depends on th",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:17.160080"
+  },
+  {
+    "basic_info": {
+      "name": "Veyra-NRVideo",
+      "full_name": "Likely7/Veyra-NRVideo",
+      "owner": "Likely7",
+      "description": "Bring PS5 GTA6 to 120FPS with DLSS 5. An advanced Windows video player and capture enhancement tool featuring real-time preview for videos, images, and capture card sources. Combine AI-powered Super Resolution, NR image enhancement, and Frame Generation to deliver a next-generation visual experience.",
+      "url": "https://github.com/Likely7/Veyra-NRVideo",
+      "clone_url": "https://github.com/Likely7/Veyra-NRVideo.git",
+      "ssh_url": "git@github.com:Likely7/Veyra-NRVideo.git",
+      "homepage": "",
+      "created_at": "2026-09-09T10:58:42Z",
+      "updated_at": "2026-09-21T03:56:52Z",
+      "pushed_at": "2026-09-20T09:37:08Z"
+    },
+    "stats": {
+      "stars": 268,
+      "forks": 15,
+      "watchers": 268,
+      "open_issues": 3,
+      "size": 46650
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 3810626,
+        "PowerShell": 272098,
+        "Python": 175555,
+        "CMake": 86581,
+        "HLSL": 57417,
+        "C": 18755,
+        "Batchfile": 1389
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Veyra\n\n<p align=\"center\"><img src=\"assets/veyra-logo.png\" alt=\"Veyra\" width=\"200\"></p>\n\n[English](README_EN.md) | 简体中文\n\n<p align=\"center\">\n  <a href=\"https://github.com/Likely7/Veyra-NRVideo/blob/main/REAMDE%20MP4.mp4\">\n    <img src=\"assets/readme-demo.gif\" alt=\"Veyra 演示视频\" width=\"960\">\n  </a>\n</p>\n\n\nWindows 视频播放器与采集卡增强工具。支持视频、图片、采集卡实时预览和 PS5 局域网串流，可组合使用超分辨率、NR 画面增强与补帧。\n\n[下载 1.4.3 免安装版](https://github.com/Likely7/Veyra-NRVideo/releases/tag/v1.4.3) · [更新记录](docs/RELEASE_NOTES_1.4.3.md) · [反馈问题](https://github.com/Likely7/Veyra-NRVideo/issues)\n\n## 1.4.3 更新\n\n**补帧与呈现**：修复 DLSS / XeSS 切换后自动弹回、XeSS 倍率能力缓存和部分错误补帧受限路径；修正调度成本统计、实时呈现相位、GPU 完成同步及文件播放追赶。保留用户选择的倍率，不自动降档，也不新增固定 35/50ms 等待。XeSS 垂直同步接入提供方呈现链路。\n\n**窗口与设置**：修复拖动边角放大窗口时的栈耗尽崩溃，合并跨屏 DPI 字体与布局刷新；修复字幕按钮闪关、字幕设置无法连续调整、数值输入被刷新覆盖。参数滑条新增单项还原，按住 V 对比原画时也会绕过调色。\n\n**采集、字幕与截图**：修复采集音频时间戳兼容、压缩采集参考链与解码重送、帧身份和重排时间戳；字幕支持目标行数调整，修正多组字幕布局和样式缓存；修复 NR + RTX Video HDR 截图的错误拒绝，并补充音量快捷调节及独立 XeSS 统计。\n\n**已知边界**：固定 6X 在高负载下仍可能呈现不均匀，软件提交 FPS 不等于屏幕刷新率或肉眼流畅度。本版不宣称所有“补帧受限”或 GC551/GC573 实卡问题已根治。[完整更新与验证边界](docs/RELEASE_NOTES_1.4.3.md)。\n\n## 下载与运行\n\n1. 在 [Releases](https://github.com/Likely7/Veyra-NRVideo/releases) 下载 **Veyra-1.4.3-win64-portable.zip**，不要下载 Source code。\n2. 完整解压到一个可写文件夹，双击 **Veyra.exe**。无需安装 SDK、Python 或开发工具。\n   首次启动 NR、超分和内部补帧均关闭，确认基础画面后按需开启；导入旧设置会恢复原来的开关。\n3. 使用当前显卡驱动。要使用 NVIDIA NR、DLSS、RTX Video SR 和 NVENC，需兼容的 NVIDIA RTX 显卡；本版本主要在 RTX 5070 上验证。\n\n系统要求：Windows 11 x64、DirectX 12。便携包含当前功能所需运行组件，显卡驱动和采集卡驱动由系统提供。8K 超分和原生高分辨率增强需要更多显存，不保证每个组合都能实时运行。\n\n升级时先退出旧版，解压到新目录。需要保留设置时，复制旧目录下的 `runtime_local/*.v1` 与 `veyra.ini`；不要用旧目录整体覆盖新版运行组件。\n\n## 使用教程\n如果这个项目对你有所帮助，欢迎请作者喝杯咖啡！你的支持是持续维护的最大动力\n\n<img width=\"276\" height=\"374\" alt=\"7baf2084b2310a7e685c5355bf9307d3\" src=\"https://github.com/user-attachments/assets/1438c8f7-08b4-46fd-ad5e-6d83c46cdec2\" />\n\nBUG反馈与新功能\n\n<img width=\"318\" height=\"476\" alt=\"屏幕截图 2026-09-19 095641\" src=\"https://github.com/user-attachments/assets/a4479395-1456-48c1-98d4-e343a2102c3b\" />\n\n\n### 视频与图片\n\n专业模式顶部点击 **截图**，保存处理后的完整画面到系统“图片”文件夹下的 `Veyra Screenshots`，SDR 保存为 PNG，HDR 保存为保留浮点高亮的 JPEG XR（`.jxr`），需支持 HDR 的看图软件。\n\n点击底栏“打开”选择文件。底栏提供播放、进度、音量、字幕和全屏；切换到专业模式后，鼠标位于画面上时可用滚轮缩放。\n\n### 采集卡\n\n1. 连接设备，关闭其他软件对同一采集卡的占用。\n2. 点击“采集”，选择设备、分辨率、帧率、像素格式及音频设备。\n3. 在“音频监听”中按来源选择 `[DirectShow]` 或 `[WASAPI]`；默认是不监听音频。WASAPI 端点用 Windows 设备 ID 保存，只连接你明确选中的输入，不会自动切到麦克风或系统回录。\n4. 先关闭增强确认基础画面，再按需打开 NR、超分和补帧。同一模式下可优先试 YUY2 / NV12。\n5. 若主机游戏为30fps、采集卡输出60fps，在专业模式的内容节奏中选择60转30；真正60fps内容使用原始采集节奏。\n\n### PS5 串流\n\n1. PS5 和电脑连接同一局域网，优先网线。在 PS5 **设置 → 系统 → 远程游玩**中启用远程游玩。\n2. 点击软件 **PS5** 并搜索主机。搜不到时，在 PS5 **设置 → 网络 → 连接状态 → 查看连接状态**找到 IPv4 地址，手动填写。\n3. 填入 **PSN Account ID**，不是昵称或 Online ID。实验性“登录 PSN”可打开索尼网页；完成登录后复制最终跳转网址，再点击“从剪贴板提交登录结果”获取 ID。\n4. 首次配对仍需 PS5 **远程游玩 → 关联设备**的八位配对码。成功后选已保存主机直接连接，不需每次重新配对。\n5. 手柄连接 **电脑**，DualSense 优先 USB。兼容设备支持触摸板、陀螺仪、震动及自适应扳机，效果取决于设备、连接方式和游戏。“仅观看”不转发 PC 手柄，也不保证同账号下 PS5 直连手柄与串流会话共存。\n\n输入最高可选 1080p；2K / 4K / 8K 是本地超分目标，不是主机原生串流分辨率。H.264 / H.265 可选，码率请求范围 5–100Mbps，不保证主机实际达到请求值。自动解码优先硬解、失败回退软解，也可手动指定。\n\n主机和 PSN 凭据加密保存在 **%LOCALAPPDATA%/Veyra/remoteplay**，绑定当前 Windows 用户，升级不需搬运；不要分享这个目录。退出 PSN 不删除主机配对。首次免配对码注册、外网串流未实现。\n\n**实验 HDR**：H.265 HDR 在 Windows HDR 开启时可保留 HDR 输出，也可同时开启 NR、超分和补帧。NR / RTX Video SR 处理映射副本，再与原 HDR 基底合成，属于 HDR 保留增强，不是原生 HDR NR 模型；SDR 显示器仍先映射为 SDR。真实 PS5 HDR 与 Sony 登录仍待进一步验收。\n\n### 增强与补帧\n\n光流可选 NVIDIA NVOF、AMD FidelityFX 和 **GPU DIS · FAST 实验**，默认 NVOF。GPU DIS 供效果对比，本机 1080p 合成测试明显慢于 NVOF，不保证提升性能。\n\n专业模式中分别开启 NR、超分和补帧。超分下方选择算法及目标尺寸；补帧页选择 DLSS 或 XeSS 及可用倍率。建议从实时 NR、较低 RTX Video SR 档位和2X补帧开始，结合对比画面与实时状态调整。\n\n处理跟不上时降低画质、倍率或目标尺寸。四个阶段卡显示光流、NR、超分、补帧的 GPU 耗时；曲线显示光流、NR、超分、残差合成、补帧的总增强处理耗时；展开后的第一项另列画面额外延迟估计。两者口径不同，都不是按键到屏幕的实测延迟。\n\n音画同步自动跟随软件处理链路，采集卡音视频共同的输入延迟不会重复补偿。轻微耗时波动不会逐帧停放声音；持续欠速时实时预览跳过过期的补帧或源帧增强机会，保持媒体时间前进。导出仍完整处理，不采用预览跳帧策略。\n\n鼠标在设置上停留约半秒即可查看说明。默认超分→NR→补帧；“低延迟模式”改为 NR→超分→补帧，默认关闭，仅影响预览。可能降低耗时，也可能增加拖影或边缘瑕疵。\n\n### Smooth Motion（NVIDIA App AI 插帧）\n\n只用 Smooth Motion 时，在软件中将补帧倍率设为**关闭补帧**，再到 **NVIDIA App → 图形 → 当前使用的 Veyra.exe → AI 插帧 → 开**，应用后重启播放器。NR、超分可以照常使用；专业模式的补帧页也提供展开说明。\n\n只想用 DLSS / XeSS 时，在 NVIDIA App 关掉 AI 插帧并重启，再选择软件补帧。也允许两者同时开启，不作拦截；叠加效果未验证，可能增加重影、延迟或 GPU 负担。软件的“关闭补帧”和总增强开关不会关闭驱动功能。\n\n软件 FPS、耗时与队列不包含驱动生成部分；截图、导出不包含驱动中间帧。额外音画延迟、直播捕获结果需自行验证。本机用户已反馈 Smooth Motion 有效且稳定，不代表所有显卡和驱动均已验收。\n\n### 导出与运行组件\n\n在专业模式选择图片保存或视频导出、格式与输出位置。1.4.1 已取消导出资格门禁和结束逐帧扫描；编码与封装失败仍报告真实错误，可取消任务。内嵌字幕暂不保留；不要让多个实例同时导出到同一个目标文件。XeSS 目前仅用于预览；视频导出使用已支持的 DLSS 路径。\n\n允许自行替换 DLL：退出软件后，NVIDIA 文件放在 `runtime/experimental/`，XeSS / XeLL 放在 `runtime_local/intel/experimental/`，保留文件名。软件不锁定哈希或签名；清单仅记录发布包原件，替换版的接口与硬件兼容性不作保证。卸载整个软件只需退出后删除解压目录。\n\n### NR 运行版本\n\n专业模式 → 增强 → NR 运行版本，可选 NVIDIA 原版、RTX 40/50 社区版或 **RTX 30 兼容 · 实验**。选择版本后再手动开启 NR。切换会短暂停顿，失败恢复上一套设置。\n\n两种社区组件分别在 `runtime/experimental/nr-community/` 和 `nr-ampere/`，无需覆盖原版；均为修改文件，签名状态 `HashMismatch`。三种运行版本已在 RTX5070 验证切换和 NR 执行。1.4.1 的 RTX30/40 修复经受影响用户反馈可用，具体性能与画质仍取决于显卡、素材和设置。NR 运行版本与 DLSS 补帧分别设置；RTX30/40 最高 6X 由补帧兼容层提供。\n\n### OBS 直播与录制\n\n添加“窗口采集”，选择 Veyra，并将“捕获方式”手动设为 **Windows 10（1903及以上）**。不要依赖“自动”：它可能选中 BitBlt，导致只捕获 UI、视频区域没有画面。本机已通过切换到该 Windows 捕获方式恢复视频。\n\n软件里的“直播兼容 · 实验”只切换显示交换链，不能解决 BitBl",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:18.402321"
+  },
+  {
+    "basic_info": {
+      "name": "suyu-v0.0.4",
+      "full_name": "suyu-emu/suyu-v0.0.4",
+      "owner": "suyu-emu",
+      "description": "suyu v0.04 release",
+      "url": "https://github.com/suyu-emu/suyu-v0.0.4",
+      "clone_url": "https://github.com/suyu-emu/suyu-v0.0.4.git",
+      "ssh_url": "git@github.com:suyu-emu/suyu-v0.0.4.git",
+      "homepage": null,
+      "created_at": "2026-09-04T18:38:15Z",
+      "updated_at": "2026-09-21T01:24:52Z",
+      "pushed_at": "2026-09-18T15:25:53Z"
+    },
+    "stats": {
+      "stars": 266,
+      "forks": 262,
+      "watchers": 266,
+      "open_issues": 1,
+      "size": 358370
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 35321597,
+        "Kotlin": 1263998,
+        "CMake": 373437,
+        "Shell": 116180,
+        "GLSL": 115324,
+        "Python": 93230,
+        "NASL": 57312,
+        "PowerShell": 15216,
+        "Assembly": 14656,
+        "JavaScript": 11735,
+        "C": 11459,
+        "Perl": 5666,
+        "Batchfile": 3165,
+        "Nix": 820
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# suyu\n\n<h1 align=\"center\">\n  <br>\n  <img src=\"dist/suyu.svg\" alt=\"suyu\" height=\"128\">\n  <br>\n  <b>suyu</b>\n  <br>\n</h1>\n\n<h4 align=\"center\">\nNintendo Switch emulator and native recompiler — based on <a href=\"https://git.eden-emu.dev/eden-emu/eden\">Eden</a>, which itself descends from yuzu.\n</h4>\n\n<p align=\"center\">\n  <a href=\"#status\">Status</a> |\n  <a href=\"#building\">Building</a> |\n  <a href=\"#license\">License</a>\n</p>\n\n---\n\n> **This is the final public release of suyu — v0.04. This repository is a public archive.**\n>\n> No further development or downloads are planned. The codebase is preserved here under GPL-3.0 for historical reference and community use.\n>\n> **Note:** a small number of fixes were later pulled in from a community\n> continuation of this codebase, after users reported that installed\n> updates/DLC, service handler registration, and RomFS registration were all\n> broken in the archived build. Those fixes are folded in here as bug fixes to\n> suyu itself; this remains the same final v0.04 release, not new development.\n\n## About\n\nsuyu is a Nintendo Switch emulator and AArch64 native recompiler written in C++. It can run decrypted Switch titles using either:\n\n- **HLE/emulation mode** — full hardware-level emulation via the suyu core (GPU, CPU, audio, services)\n- **Recompiler mode** — ahead-of-time static recompilation of Switch AArch64 game code to native x86-64 executables, bundled with suyu's HLE backend\n\nBased on [Eden](https://git.eden-emu.dev/eden-emu/eden), with suyu's own improvements to UI, recompiler, and platform support.\n\n## Status\n\nFinal version: **v0.04**. Automated builds are published to the [releases page](../../releases) by GitHub Actions (Windows, Linux, Android).\n\nPlatforms: Windows, Linux, Android. macOS/iOS not included in this release.\n\n## Legal Notice\n\nsuyu is a GPLv3 program, which allows fully free redistribution of its source code and releases liability of its authors for how this software is used as stated in Section 15 and 16.\n\nThe suyu Emulator program does not circumvent Nintendo's technological protection measures (TPMs) as the user is required to provide both the Nintendo Switch software & the encryption keys for these games, and the suyu Emulator uses a mode of the Advanced Encryption Standard (AES), an open encryption standard established by the US NIST, along with the encryption keys that the user themselves must lawfully acquire, to decrypt the software. As the standard is public and available to use by all, it does not constitute as the Digital Market Copyright Act's (DMCA) definition of \"circumventing a technological measure\" as defined in Section 1201(a)(3).\n\nThe suyu Emulator also falls under the exemptions stated in Section 1201(f) of the DMCA as this software was created for the purposes of reverse engineering the Nintendo Switch software (known as Horizon OS) to create interoperability with Nintendo Switch games and software with the Windows, macOS, and GNU/Linux operating systems.\n\nAny aggressive DMCA claims or takedown notices against projects that explicitly disclaim piracy support, require user-provided keys, and limit functionality to interoperability (such as suyu) could constitute overreach or misuse of the DMCA.\n\nAs derived from §512(f), if Nintendo (or an affiliated entity) knowingly materially misrepresents that a project like suyu is infringing (or circumvents TPMs) when it does not, especially if they fail to consider fair use, interoperability exemptions under §1201(f), or the fact that the emulator requires user-provided keys and does not itself contain proprietary Nintendo code, they can be made liable for any Damages against suyu.\n\n## Building\n\n### Dependencies\n\n- CMake 3.15+, Ninja\n- Qt 6.4+ (without bundled Qt: `-DYUZU_USE_BUNDLED_QT=OFF`)\n- Vulkan SDK, libusb, OpenSSL\n\n### Windows\n\n```bat\ncmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=ON -DYUZU_USE_BUNDLED_QT=OFF -GNinja\ncmake --build build --target suyu suyu-cmd\n```\n\n### Linux\n\n```sh\nsudo apt-get install ninja-build qt6-base-dev libqt6svg6-dev libusb-1.0-0-dev libssl-dev\ncmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=ON -DYUZU_USE_BUNDLED_QT=OFF -GNinja\ncmake --build build --target suyu suyu-cmd\n```\n\n### Android\n\n```sh\ncd src/android && ./gradlew assembleMainlineRelease\n```\n\n## License\n\nGPL-3.0-or-later. See [LICENSE.txt](LICENSE.txt).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:19.595222"
+  },
+  {
+    "basic_info": {
+      "name": "moria",
+      "full_name": "nmatt0/moria",
+      "owner": "nmatt0",
+      "description": "IoT firmware identification and extraction",
+      "url": "https://github.com/nmatt0/moria",
+      "clone_url": "https://github.com/nmatt0/moria.git",
+      "ssh_url": "git@github.com:nmatt0/moria.git",
+      "homepage": null,
+      "created_at": "2026-09-07T04:20:32Z",
+      "updated_at": "2026-09-21T03:31:47Z",
+      "pushed_at": "2026-09-19T05:46:03Z"
+    },
+    "stats": {
+      "stars": 266,
+      "forks": 37,
+      "watchers": 266,
+      "open_issues": 5,
+      "size": 815
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 937412,
+        "Python": 321015,
+        "CMake": 8506,
+        "Roff": 6592,
+        "Shell": 5284,
+        "Nix": 1782
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# moria\n\n**IoT firmware identification and extraction**\n\nmoria identifies files and the structures embedded inside firmware and IoT images (filesystems, kernels, bootloaders, archives, keys) and unpacks most of what it finds, without root. It reports each finding with a byte offset, a type, and a confidence score, and it speaks clean JSON so scripts and LLM agents can drive it as easily as people can.\n\n## Why moria\n\n- **Extracts a broad set of filesystems in-process, without sudo:** SquashFS, ext2/3/4, F2FS, XFS, btrfs, HFS+, NTFS, EROFS, JFFS2, UBIFS, and more.\n- **Recursive by default.** A gzip-wrapped SquashFS inside a UBI volume unpacks all the way down.\n- **Flags packed executables.** Detects UPX-packed ELF/PE/Mach-O across architectures from the checksum-verified PackHeader trailer (format, method, and sizes), and flags stubs whose header was zeroed or altered to defeat `upx -d`.\n- **Deterministic.** The same input always produces the same output; conflict resolution has no random tie-break.\n- **Safe on hostile input.** Every read is bounds-checked, every write goes through `openat` + `O_NOFOLLOW` (no path-traversal or symlink escape), and decompression is bounded against bombs.\n- **Identification-first.** A readable tree by default, JSON (`-j`) for tools, with offsets and confidence on every finding.\n\n## Build & Install\n\n```\ncmake -S . -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j\ncmake --install build --prefix ~/.local     # or /usr/local (needs sudo)\n```\n\nBuild needs `cmake`, a C++20 compiler, and the zlib, liblzma, lz4, and zstd development libraries (the decompressors used by `--extract`). On Debian/Ubuntu: `sudo apt install cmake g++ zlib1g-dev liblzma-dev liblz4-dev libzstd-dev`. To build without one (a minimal or identify-only build), configure with `-DMORIA_OPTIONAL_CODECS=ON` and the missing codec is simply disabled.\n\nThe `moria` binary is **self-contained**: all signature sets are embedded at build time, so the binary works anywhere with nothing installed alongside it (`cp build/moria ~/.local/bin` is enough, and a downloaded release binary just runs). To use external signatures instead of the embedded ones (to test a new `.toml` without rebuilding, say), pass `--sigs DIR` or set `$MORIA_SIGDIR`.\n\n## Usage\n\nOutput is human-readable by default. Pass `-j` for JSON.\n\n```\nmoria <file>              # identify: a findings tree with offsets, types, and confidence\nmoria <dir>               # scan a tree: a type summary plus the notable files\nmoria -j <file>           # JSON, for tools and agents\nmoria -e <file>           # extract to <file>.extracted/   (-C DIR to choose the output dir)\nmoria -c <file>           # carve raw byte ranges to <file>.carved/ (no parsing)\nmoria -E <file>           # entropy pass: flag unidentified / possibly-encrypted regions\nmoria --list <archive>    # list tar/cpio/zip members without extracting\nmoria --broad <path>      # also load the ~2.5k general file-type signatures\nmoria --help\n```\n\n## Extraction\n\n`-e` unpacks recognized formats under `<file>.extracted/`, one directory per region (`0x<offset>-<type>/`), plus a `manifest.json` mapping offsets to paths. It recurses into nested containers automatically and rebuilds UBI images volume by volume. Guards (`--depth`, `--max-files`, `--max-bytes`, and a decompression-ratio cap) bound hostile input; a tripped guard stops that branch and still returns everything recovered.\n\nUnpacked in-process, no external tools and no sudo:\n\n- **Filesystems:** SquashFS, ext2/3/4, F2FS, FAT12/16/32, exFAT, NTFS, HFS+/HFSX, XFS, btrfs, JFFS2, UBI/UBIFS, romfs, YAFFS2, cramfs, EROFS\n- **Archives and images:** ZIP, tar, cpio, ISO 9660, Android sparse, Android boot\n- **Kernels and wrappers:** U-Boot uImage, U-Boot FIT, standalone gzip / xz / zstd / lz4 streams\n- **Firmware packages:** RAE Systems / Honeywell RFP (section table; LZARI-decompresses each section)\n\n## Signatures\n\n- `signatures/` is the hand-written core: firmware filesystems, containers, kernels, and common formats, each with structural validation.\n- `signatures-firmware/` holds vendor firmware-container magics and loads by default.\n- `signatures-generated/` holds ~2.5k general file-type magics derived from `file(1)`'s magic database and loads only with `--broad`.\n\nTo add a format, drop a `.toml` in `signatures/`. A small C++ validator is only needed for checks the declarative layer can't express, such as CRCs or cross-block pointers.\n\n## Scope\n\nmoria does structural identification, extraction, and carving. Secret/credential scanning, SBOM, CVE, and license analysis are a separate tool ([mithril](https://github.com/nmatt0/mithril)).\n\n## License\n\nMIT, see `LICENSE`.\n\nSome on-disk format handling is a clean reimplementation of the algorithms in\nother open-source projects, written independently against moria's own I/O layer\n(no source copied): the UCL/NRV2B decompressor and CTO unfilters from UPX/UCL\n(GPL-2.0, algorithms only), and the metadata-commit and CTZ skip-list la",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-09-21T05:41:20.774900"
+  },
+  {
+    "basic_info": {
+      "name": "motion-bricks.cpp",
+      "full_name": "localai-org/motion-bricks.cpp",
+      "owner": "localai-org",
+      "description": "NVIDIA MotionBricks ported to GGML/C++; dynamically generates animations from keyframes using a neural network. Can be used in games or with robots",
+      "url": "https://github.com/localai-org/motion-bricks.cpp",
+      "clone_url": "https://github.com/localai-org/motion-bricks.cpp.git",
+      "ssh_url": "git@github.com:localai-org/motion-bricks.cpp.git",
+      "homepage": null,
+      "created_at": "2026-09-02T13:36:52Z",
+      "updated_at": "2026-09-21T02:28:17Z",
+      "pushed_at": "2026-09-16T11:02:05Z"
+    },
+    "stats": {
+      "stars": 252,
+      "forks": 30,
+      "watchers": 252,
+      "open_issues": 1,
+      "size": 904
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 497059,
+        "Python": 348397,
+        "Go": 36507,
+        "CMake": 34048,
+        "C": 33533,
+        "Shell": 3970,
+        "Nix": 1160,
+        "Dockerfile": 483
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# motion-bricks.cpp\n\nA C++23/GGML port of NVIDIA MotionBricks for CPU and Vulkan inference, with a\nstable C ABI suitable for PureGo.\n\nThe released batch-one G1 inference path is implemented end to end: strict\nGGUF loading, root/duration planning, pose-token prediction, VQ decoding,\n418/414/413 feature conversion, style alignment, and skeletal animation\noutput. CPU and Vulkan use the same public API and preserve the same duration\nand pose-token decisions in the reference suite.\n\nThe demo also offers optional native MuJoCo physics driven by **GGML SONIC**,\nincluding Kimodo animation playback, with target/reference/physical skeletons.\nThe original G1 mode-0 policy passes independent CPU/Vulkan layer parity.\nSee [SONIC setup, results and limitations](docs/SONIC-GGML.md) and the\n[MuJoCo 3.12 upgrade notes](docs/MUJOCO-UPGRADE.md).\nThe browser sends WebSocket commands and renders buffered server-owned motion;\nsee [streaming and client QA](docs/STREAMING.md).\n\n## Build\n\nThe normal build uses CMake and does not depend on Nix:\n\n```sh\ncmake --preset debug\ncmake --build --preset debug\nctest --preset debug\n```\n\nConfiguration downloads and SHA-256-verifies the published 0.73 GB G1 F32\nGGUF and style bundles into `generated/` when they are not already present.\nThe same operation can be run explicitly:\n\n```sh\npython scripts/download_gguf_weights.py\n```\n\nFor an offline or source-only build, preserve an existing local bundle or use\n`cmake --preset debug -DMOTIONBRICKS_DOWNLOAD_MODELS=OFF`. The repository and\nrevision are configurable with `MOTIONBRICKS_MODEL_REPOSITORY` and\n`MOTIONBRICKS_MODEL_REVISION`.\n\nOn NixOS, enter the reproducible development shell first:\n\n```sh\nnix develop\ncmake --preset debug\ncmake --build --preset debug\nctest --preset debug\n```\n\nWhen the pinned `ggml/` submodule is present, it is included automatically.\nThe non-neural ABI and validation subset can also be built without GGML:\n\n```sh\ncmake -S . -B build/debug -G Ninja -DMOTIONBRICKS_ENABLE_GGML=OFF\n```\n\nThe Go binding and demo use PureGo to load `libmotionbricks` at runtime; they\ndo not use cgo or `import \"C\"`. Once the native shared library has been built,\nthe Go components therefore need no C compiler and can be built with cgo\nexplicitly disabled:\n\n```sh\ncd demo\nCGO_ENABLED=0 go build -o ../build/debug/bin/motionbricks-demo .\n```\n\n`CGO_ENABLED=0` is optional but recommended for making this property explicit\nin builds and CI. It affects only the Go build—the native C++ library is still\nbuilt separately with CMake.\n\nThe sanitizer lane is:\n\n```sh\ncmake --preset asan-ubsan\ncmake --build --preset asan-ubsan\nctest --preset asan-ubsan\n```\n\n### SONIC CPU performance\n\nBuilds enable GGML runtime CPU selection by default: they package the supported\nCPU variants for the target architecture and load the highest-scoring compatible\nvariant. For CPU-only SONIC inference with `-O3` and profiling symbols:\n\n```sh\ncmake --preset sonic-cpu\ncmake --build --preset sonic-cpu\nctest --preset sonic-cpu\n```\n\nThis CPU-only preset uses local SONIC weights and parity fixtures prepared\nwith the [SONIC setup instructions](docs/SONIC-GGML.md). It builds\n`build/sonic-cpu/libmotionbricks.so` and runs backend discovery, API and\none/two-thread parity checks. Set the runtime thread count explicitly; the\n[profiling harness](reference/profile_sonic_cpu.py) additionally pins the\nprocess to one or two distinct physical cores with `--cpus`.\n\nOn the measured Ryzen 9 7900, an encoder+decoder pair takes about **0.93 ms\non one core** and **0.62 ms on two**. The matched G1-only ONNX Runtime 1.22\ncomparison takes 1.25 ms / 0.74 ms. Results describe this CPU and workload;\nthese historical measurements used the single-variant AVX512 build.\nThe `sonic-cpu-avx512` preset remains available to reproduce those experiments.\nSee [CPU backend packaging and validation](docs/CPU-BACKENDS.md) for installation\nand the explicit `MOTIONBRICKS_CPU_ALL_VARIANTS=OFF` opt-out.\nSee [measurements and methodology](docs/SONIC-CPU-PROFILE.md),\n[the ONNX comparison](docs/SONIC-ONNX-COMPARISON.md), and\n[machine-readable summaries](docs/benchmarks/sonic-cpu-2026-09-10.json).\n\n## Current ABI\n\nStart with the [API selection guide](docs/API.md): choose stateless MotionBricks\ninference, the optional animation controller, standalone SONIC inference, or\nthe SONIC/MuJoCo physics controller. The [inference-only C example](examples/inference.c)\nuses caller-supplied poses without styles or an agent.\n\nThe installed C API uses only fixed-width scalars, pointers, and opaque heap\nhandles. Callers never reproduce a C or C++ structure layout. All constructors\nhave matching free functions, and no C++ exception crosses the ABI boundary.\n\nThe current CLI can report ABI information:\n\n```sh\n./build/debug/bin/motionbricks-cli abi\n```\n\nAfter producing the trusted safetensors intermediates described in\n`reference/README.md`, build and inspect an F32 runtime bundle with:\n\n```sh\npython scripts/convert_to_gguf.py \\\n  --safe-directory generated/safe \\\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:21.999731"
+  },
+  {
+    "basic_info": {
+      "name": "strikers",
+      "full_name": "new-coke/strikers",
+      "owner": "new-coke",
+      "description": "A native PC port of Super Mario Strikers, ported from decompiled code. Not a recompilation.",
+      "url": "https://github.com/new-coke/strikers",
+      "clone_url": "https://github.com/new-coke/strikers.git",
+      "ssh_url": "git@github.com:new-coke/strikers.git",
+      "homepage": "",
+      "created_at": "2026-09-10T12:26:34Z",
+      "updated_at": "2026-09-21T00:03:36Z",
+      "pushed_at": "2026-09-18T23:55:12Z"
+    },
+    "stats": {
+      "stars": 244,
+      "forks": 12,
+      "watchers": 244,
+      "open_issues": 11,
+      "size": 14446
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 9467585,
+        "C": 3871769,
+        "Shell": 54501,
+        "CMake": 53506,
+        "Python": 44572,
+        "Assembly": 26752,
+        "PowerShell": 794,
+        "Makefile": 441
+      },
+      "license": null,
+      "topics": [
+        "aurora",
+        "gamecube",
+        "next-level-games",
+        "nintendo-gamecube",
+        "super-mario-strikers"
+      ]
+    },
+    "content": {
+      "readme": "# Strikers - A native PC Port of Super Mario Strikers\n\n![](media/strikers-gameplay.webp)\n\n*Requires game data from your own copy of Super Mario Strikers. No game assets are included.*\n\nSuper Mario Strikers, rebuilt to run natively on Windows, Linux and macOS, with modern display support, configurable controls and a focus on performance across both powerful and low-power hardware.\n\nBuilt on the community decompilation by the excellent [Yannick Suter](https://github.com/yannicksuter), this project brings the original game to modern systems while preserving the original gameplay and visual style.\n\n## Features\n\n- High framerate support with configurable frame limits and VSync.\n- Widescreen and ultrawide support, with an expanded view of the pitch and corrected aspect ratios.\n- Higher-resolution rendering with adjustable internal resolution, 4x MSAA and up to 16x anisotropic filtering.\n- Modern graphics backends through Metal, Vulkan and Direct3D 12 via [Aurora](https://github.com/encounter/aurora), with experimental OpenGL and OpenGL ES options on Linux. Vulkan is personally recommended on non-macOS systems. \n- Controller support for Xbox, PlayStation, Switch Pro and compatible GameCube adapters through SDL.\n- Button prompts follow the active keyboard or controller and its bindings with selectable controller artwork.\n- Customisable controls, including keyboard and gamepad bindings, stick deadzones and rumble.\n- Faster loading compared with original hardware.\n- Direct disc-image loading from ISO/GCM, CISO and GCZ files, alongside extracted game folders.\n- US, European and Japanese game support in one executable, with region-aware saves and language handling. The Japanese disc supports Japanese, English, German, French, Spanish and Italian.\n- A dedicated settings app for configuring graphics, controls, audio and game-data location. Some basic localisation included to help.\n\nThe obvious omission is online multiplayer. I have no desire to implement this as I don't have much experience with netcode. But I am sure someone will fork this and build it. It will be a fun challenge and I look forward to trying it myself.\n\n## Notes\n\nThis has been a solo effort. I am releasing this on what is effectively a 'burner' GitHub account because I don't want it attached to my name for professional and legal reasons. I have not done this port for reasons of ego or notoriety. Mario Strikers is one of my favourite games and it's been a dream of mine to bring it to the PC platform without the pains of emulation. My goal is simply to have it running on Steam Deck or similar low-end hardware with as little power draw as possible and nice performance, as I play the original game on Steam Deck a lot and bring it to parties and such.\n\n[Yannick Suter](https://github.com/yannicksuter), who headed the decomp effort, and the other contributors deserve a ton of credit for the work that's gone into the mind-numbing process of decompilation. And of course, the team behind [Aurora](https://github.com/encounter/aurora), for making this kind of project as easy as possible, deserve endless respect.\n\nPull requests are welcome, but it's more than likely this project will be forked by people more invested than I, as I feel like my job is done.\n\n## Licensing\n\nThis project contains material with different licences and rights statuses.\n\nMy original porting code, tools and documentation are offered under CC0 1.0, except where otherwise noted, and only to the extent that I own the relevant rights. This does not relicense third-party material or grant rights to the original game.\n\nThe main distinctions are:\n\n- Reconstructed game code: this is an unofficial source reconstruction, not an official source release. Reconstructed material may remain subject to third-party rights; this project claims no ownership of those rights and grants no permission on behalf of their holders.\n- MusyX audio middleware: the upstream decompilation carries an MIT licence, which is preserved here. That notice does not, by itself, establish that its licensors hold all rights in the reconstructed middleware.\n- ODE physics: upstream ODE portions use the historical BSD-style licence preserved in the repository. That licence does not, by itself, establish the licensing status of independently copyrightable game-specific modifications.\n- Button prompt artwork: [Input Prompts](https://kenney.nl/assets/input-prompts) by Kenney, under CC0 1.0. \n- Other third-party material and dependencies: these retain their applicable licences and notices. FFmpeg's terms depend on its build configuration.\n\nThe project distributes source code and compiled releases. These do not include game assets; you must supply game data from your own copy. Distribution does not grant permission to reuse or redistribute third-party material beyond its applicable licences and rights.\n\nThis is an unofficial project, unaffiliated with and not endorsed by Nintendo or Next Level Games.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-21T05:41:23.191504"
+  }
+]

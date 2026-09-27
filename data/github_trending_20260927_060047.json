@@ -1,0 +1,806 @@
+[
+  {
+    "basic_info": {
+      "name": "laya",
+      "full_name": "NandhaKishorM/laya",
+      "owner": "NandhaKishorM",
+      "description": "Non-autoregressive System 1 decision engine. Typed choice, score and yes/no decisions over any text in a single forward pass, in 100+ languages, with a router that picks the right checkpoint per request.",
+      "url": "https://github.com/NandhaKishorM/laya",
+      "clone_url": "https://github.com/NandhaKishorM/laya.git",
+      "ssh_url": "git@github.com:NandhaKishorM/laya.git",
+      "homepage": "https://huggingface.co/convaiinnovations/laya",
+      "created_at": "2026-09-18T04:46:33Z",
+      "updated_at": "2026-09-27T06:00:09Z",
+      "pushed_at": "2026-09-26T16:25:54Z"
+    },
+    "stats": {
+      "stars": 26021,
+      "forks": 2262,
+      "watchers": 26021,
+      "open_issues": 202,
+      "size": 5843
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1291495,
+        "TypeScript": 272614,
+        "Jupyter Notebook": 89072,
+        "JavaScript": 12784,
+        "Nix": 9749,
+        "Dockerfile": 2433,
+        "Shell": 10
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "calibration",
+        "classification",
+        "decision-model",
+        "huggingface",
+        "jev",
+        "modernbert",
+        "multilingual",
+        "nlp",
+        "python",
+        "pytorch",
+        "routing",
+        "typed-decisions",
+        "zero-shot"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://raw.githubusercontent.com/NandhaKishorM/laya/main/assets/logo-lockup-dark.png\" />\n    <img src=\"https://raw.githubusercontent.com/NandhaKishorM/laya/main/assets/logo-lockup.png\" alt=\"Laya\" width=\"330\" />\n  </picture>\n</p>\n\n**Multilingual, non-autoregressive System 1 decision engine.** Typed decisions over 100+ languages in a single forward pass — 33 ms — trained with reinforcement learning against strictly proper scoring rules (RLCD), with a router that picks the right checkpoint per request.\n\n<div align=\"center\">\n\n[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/15d4Yv__KHeHjshVb-6PRTfqVllxih2S3?usp=sharing)\n[![PyPI version](https://img.shields.io/pypi/v/laya.svg)](https://pypi.org/project/laya/)\n[![Docs](https://img.shields.io/badge/docs-online-2ea44f)](https://nandhakishorm.github.io/laya/)\n[![Hugging Face Model](https://img.shields.io/badge/%F0%9F%A4%97%20Model-convaiinnovations%2Flaya-blue)](https://huggingface.co/convaiinnovations/laya)\n[![Multilingual](https://img.shields.io/badge/%F0%9F%A4%97%20Model-laya--multilingual-blue)](https://huggingface.co/convaiinnovations/laya-multilingual)\n[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Space-laya--demo-orange)](https://huggingface.co/spaces/convaiinnovations/laya-demo)\n[![Dev.to Article](https://img.shields.io/badge/dev.to-Read%20Article-0A0A0A?logo=devdotto&logoColor=white)](https://dev.to/nandakishor_m_6cc0adfde9f/i-built-non-autoregressive-decision-models-a-year-ago-then-a-frontier-lab-called-it-a-18me)\n[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-nandakishorm-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/nandakishorm)\n[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)\n\n</div>\n\n## Installation\n\n```bash\npython -m pip install laya\n```\n\nPython 3.10 or newer. Optional extras: `laya[serve]` (HTTP server), `laya[mcp]` (MCP server), `laya[langchain]` (LangChain and LangGraph), `laya[onnx]` (ONNX Runtime), `laya[fast]` (TileLang GPU fast path). Step-by-step setup for each platform, CPU-only or GPU PyTorch builds, and troubleshooting are in [Installation details](#installation-details).\n\n**Long documents.** `laya-multilingual` reads up to 8,192 tokens with `max_len=8192`. Measured accuracy and time by document length, reproducible with [`research/scripts/bench_long_context.py`](https://github.com/NandhaKishorM/laya/blob/main/research/scripts/bench_long_context.py):\n\n<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/NandhaKishorM/laya/main/assets/long_context_8192.png\" alt=\"laya-multilingual with max_len=8192: 16 to 18 of 20 requests correct with up to about 4,000 tokens of text before them, more variable beyond\" width=\"100%\" />\n</p>\n\n## Quickstart\n\n> **Long documents: `laya-multilingual` reads up to 8,192 tokens.** It ships with a 1,024-token limit that cuts long documents off, so pass `max_len=8192` for them:\n>\n> ```python\n> result = router.predict(long_document, questions, model=\"multilingual\", max_len=8192)\n> ```\n>\n> In the table above, 16 to 18 of 20 requests were answered correctly with up to about 4,000 tokens of text before them; beyond that results vary (8 to 17 of 20), so check long-document accuracy on your own data. Short inputs give identical answers with `max_len=8192`, and speed follows the input's real length, not the limit: short inputs are unchanged, and a 4,000-token input takes about 1.7 s on an Apple GPU. Name the checkpoint with `model=\"multilingual\"`, since long mostly-English text would otherwise route to the English checkpoint.\n\n```python\nfrom laya import Router\n\nrouter = Router()  # downloads a checkpoint on first use; Router(preload=True) loads all three up front\n\nstate = \"Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan.\"\nquestions = {\n    \"department\": {\"type\": \"choice\", \"instructions\": \"Which department should handle this?\",\n                   \"criteria\": {\"billing\": \"invoices, payments, refunds\",\n                                \"technical\": \"bugs, outages, system errors\",\n                                \"other\": \"everything else\"}},\n    \"urgency\": {\"type\": \"score\", \"instructions\": \"How urgent is this?\",\n                \"criteria\": [\"not urgent\", \"soon\", \"blocking\"]},\n    \"churn_risk\": {\"type\": \"noul\", \"instructions\": \"Does the user threaten to cancel or leave?\"},\n}\n\nresult = router.predict(state, questions)\nprint(result[\"answers\"][\"department\"][\"choice\"])  # billing\nprint(result[\"answers\"][\"churn_risk\"][\"noul\"])    # probability the answer is yes\nprint(result[\"routing\"][\"model\"])                 # english\n```\n\nThe same call works in any of 100+ languages. The `Router` detects the script and language and sends non-English text to `laya-multilingual`:\n\n```python\nfor text",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:47.928883"
+  },
+  {
+    "basic_info": {
+      "name": "jev-ultrafast",
+      "full_name": "browser-use/jev-ultrafast",
+      "owner": "browser-use",
+      "description": "Fastest and cheapest web agent",
+      "url": "https://github.com/browser-use/jev-ultrafast",
+      "clone_url": "https://github.com/browser-use/jev-ultrafast.git",
+      "ssh_url": "git@github.com:browser-use/jev-ultrafast.git",
+      "homepage": "https://browser-use.com",
+      "created_at": "2026-09-16T21:30:12Z",
+      "updated_at": "2026-09-27T06:00:31Z",
+      "pushed_at": "2026-09-25T04:06:12Z"
+    },
+    "stats": {
+      "stars": 20617,
+      "forks": 1419,
+      "watchers": 20617,
+      "open_issues": 145,
+      "size": 4447
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 68448,
+        "HTML": 21865,
+        "JavaScript": 15717,
+        "CSS": 12312
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<img src=\"docs/banner.svg\" alt=\"Jev Ultrafast · Browser Use × TypeSafe\" width=\"100%\" />\n\n# Jev Ultrafast ⚡\n\n> [!IMPORTANT]\n> **The Browser Use Cloud waitlist is open.** Get early access to ultrafast browser agents in the cloud.\n> **[Join the waitlist →](https://browser-use.com/ultrafast?utm_source=github&utm_medium=readme&utm_campaign=jev-ultrafast)**\n\n**A browser agent with a dynamic, indexed action space.**\n\nGive it one goal. [TypeSafe's Jev](https://docs.typesafe.ai/introduction) picks an operation and an element. A small LLM writes text only when the operation is `TYPE_TEXT`.\n\n**Zürich → London on Google Flights in 7.1 seconds.** One natural-language goal, actual text generation, and loading waits included.\n\n<a href=\"docs/demo.mp4\"><img src=\"docs/demo.gif\" alt=\"A real Google Flights search at 1× speed, with generated city names and dynamic operation/target decisions\" width=\"100%\" /></a>\n\n[Watch the MP4](docs/demo.mp4) · [Measurements](docs/performance.md) · [Read the loop](jev_ultrafast/agent.py)\n\n## The action space\n\nEvery observation produces a new element table:\n\n```text\n[1] button    Change ticket type · Round trip\n[2] combobox  Where from?        · San Francisco\n[3] combobox  Where to?          · empty\n[4] textbox   Departure          · empty\n...\n```\n\nThe operations are `CLICK`, `TYPE_TEXT`, `SELECT`, `SCROLL_UP`, `SCROLL_DOWN`, `WAIT`, `DONE`, and `BLOCKED`. Only supported operations and targets are offered.\n\n```text\n                      one TypeSafe request\n                     ┌───────────────────────────┐\npage → element table → operation                 │\n                     │ click_target              │\n                     │ type_text_target          │\n                     │ select_target, if present │\n                     └─────────────┬─────────────┘\n                         use the matching target\n                                   │\n                    CLICK [7] ─────┤──→ browser\n                TYPE_TEXT [3] ─────┘\n                          ↓\n                   small LLM → text → browser\n```\n\nTarget questions are speculative. If the operation is `CLICK`, only `click_target` can execute. Two decisions, **one network round trip**. Each target head contains only compatible elements. Native dropdown choices carry an observed element/option index.\n\nThere are no site-specific action scripts or prepared field strings in the policy. The Flights example supplies a goal and independently verifies the outcome. The screenshot renderer adds labels afterward; it does not drive the browser.\n\n## Try it\n\n```bash\ngit clone https://github.com/browser-use/jev-ultrafast.git\ncd jev-ultrafast\nuv sync\ncp .env.example .env\n# Add TYPESAFE_API_KEY and TEXT_MODEL_API_KEY.\nuv run jev\n```\n\nOpen **http://127.0.0.1:8766** and click **Start demo → Run automatically**. The inspector shows numbered elements, operation probabilities, target probabilities, and executed actions. **Choose next** pauses before execution.\n\nChrome connects through [Browser Harness](https://github.com/browser-use/browser-harness), installed by `uv sync`. Run `uv run browser-harness --doctor` if it needs connecting. Allow remote debugging in Chrome when prompted.\n\n`TEXT_MODEL_API_KEY` is an OpenRouter key in the example configuration. The current demo uses `inception/mercury-2.5` with reasoning disabled. Gemini, GLM, and DeepSeek can also use the OpenAI-compatible text helper; configure the appropriate model, endpoint, and reasoning setting.\n\n## Use the library\n\n```python\nfrom jev_ultrafast import Agent\n\nwith Agent(\n    \"https://www.google.com/travel/flights?hl=en\",\n    \"Find one-way flights from Zurich to London on September 20, 2026, \"\n    \"for one adult in economy. Stop when matching flight options are visible.\",\n) as agent:\n    for state in agent.run():\n        print(state[\"elapsed_ms\"], state[\"status\"])\n```\n\nRun with `uv run --env-file .env python your_script.py`. The same policy can run a different task:\n\n```bash\nuv run --env-file .env python examples/run.py \\\n  --url https://en.wikipedia.org/wiki/Main_Page \\\n  --goal 'Find and open the Wikipedia article about Gödel’s incompleteness theorems.'\n```\n\n`uv run --env-file .env python examples/flights.py --keep-open` performs the flight search, checks the actual route/date/results, and saves its trace. It does not select or book a flight.\n\n## Why it moves\n\n- **One request per decision cycle.** Operation and target heads share the same observed state.\n- **No screenshots in the default agent loop.** Jev consumes structured state. The inspector opts into screenshots; the video uses a separate continuous screencast.\n- **One browser call per snapshot.** Read visible controls, their names, values, and text atomically. Keep references to the actual DOM nodes.\n- **Validate the selected target.** Clicks check the document, form values, target, and nearby context. Animation alone does not force another prediction. Resolve current geometry and reject covered controls before input.\n- **Wait for useful state",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:49.108693"
+  },
+  {
+    "basic_info": {
+      "name": "kev",
+      "full_name": "jaredpalmer/kev",
+      "owner": "jaredpalmer",
+      "description": "Jev-like family of decision models built on top of Qwen3.5/3.8 you can train and run on your own",
+      "url": "https://github.com/jaredpalmer/kev",
+      "clone_url": "https://github.com/jaredpalmer/kev.git",
+      "ssh_url": "git@github.com:jaredpalmer/kev.git",
+      "homepage": "",
+      "created_at": "2026-09-17T20:49:39Z",
+      "updated_at": "2026-09-27T05:59:09Z",
+      "pushed_at": "2026-09-26T14:47:41Z"
+    },
+    "stats": {
+      "stars": 7267,
+      "forks": 438,
+      "watchers": 7267,
+      "open_issues": 17,
+      "size": 112160
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1821504,
+        "TypeScript": 88479,
+        "CSS": 5725,
+        "JavaScript": 1675,
+        "Shell": 841,
+        "HTML": 303
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "decision-model",
+        "jev",
+        "qwen3"
+      ]
+    },
+    "content": {
+      "readme": "# Kev\n\nSmall Jev-like decision models you can train and run yourself.\n\n<p>\n  <a href=\"https://github.com/jaredpalmer/kev/actions/workflows/ci.yml\"><img alt=\"CI\" src=\"https://img.shields.io/github/actions/workflow/status/jaredpalmer/kev/ci.yml?style=for-the-badge&labelColor=000000\" height=\"28\"></a>\n  <a href=\"https://huggingface.co/collections/jaredpalmer/kev-6aad9d0ea49f2589665e07cd\"><img alt=\"Weights: Kev-0.8B · 4B · 9B · 27B\" src=\"https://img.shields.io/badge/WEIGHTS-0.8B%20%C2%B7%204B%20%C2%B7%209B%20%C2%B7%2027B-0a0a0a.svg?style=for-the-badge&labelColor=000000\" height=\"28\"></a>\n  <a href=\"https://huggingface.co/spaces/jaredpalmer/kev\"><img alt=\"Demo on Hugging Face Spaces\" src=\"https://img.shields.io/badge/DEMO-HF%20Spaces-0a0a0a.svg?style=for-the-badge&labelColor=000000\" height=\"28\"></a>\n  <a href=\"https://huggingface.co/datasets/jaredpalmer/kev-suites\"><img alt=\"Frozen eval suites\" src=\"https://img.shields.io/badge/EVAL%20SUITES-frozen-0a0a0a.svg?style=for-the-badge&labelColor=000000\" height=\"28\"></a>\n  <a href=\"LICENSE\"><img alt=\"License: Apache-2.0\" src=\"https://img.shields.io/badge/license-Apache--2.0-0a0a0a.svg?style=for-the-badge&labelColor=000000\" height=\"28\"></a>\n</p>\n\nKev is a family of small decision models built on Qwen3.5 and Qwen3.8 and based on the architecture described in [Jev's Architecture Unmasked](https://archerhume.com/posts/jevs-architecture-unmasked). You can use the pretrained weights or train your own. The API matches TypeSafe's [System One](https://docs.typesafe.ai/api), so you can point their Python SDK at your local server.\n\n## Highlights\n\n- Yes/no (`noul`), multiple-choice (`choice`) and rating (`score`) questions in one request. The questions share the text but can't read each other.\n- Calibrated probabilities by default: each checkpoint ships with a temperature fitted on held-out data.\n- Drop-in for Jev: the TypeSafe Python SDK works against a Kev server unchanged.\n- Four sizes, from a 0.8B that runs on a laptop to a 27B for a single data-centre GPU.\n- Fine-tune on your own labelled examples. A coding-agent skill runs the whole loop on Modal, from finding your questions to serving the result.\n- Deploy your own HTTPS endpoint with one command. It scales to zero when idle.\n- Try it in the browser first: [huggingface.co/spaces/jaredpalmer/kev](https://huggingface.co/spaces/jaredpalmer/kev).\n\n## Models\n\nStart with Kev-4B. Move to Kev-9B if you have a bigger GPU, or to Kev-27B if you have an 80 GB GPU and want the most accurate Kev. Use Kev-0.8B when size matters more than accuracy.\n\n| Model | Base | Accuracy: New Sources | Accuracy: Trained Sources | Brier: New Sources | Runs on | Model Card |\n|---|---|---|---|---|---|---|\n| [Kev-0.8B](https://huggingface.co/jaredpalmer/kev-0.8b) | Qwen3.5-0.8B-Base | 0.648 / 0.697 | 0.827 / 0.838 | 0.481 / 0.416 | Any Apple Silicon Mac, L4 | [Details](docs/model-cards/kev-0.8b.md) |\n| [Kev-4B](https://huggingface.co/jaredpalmer/kev-4b) | Qwen3.5-4B-Base | 0.817 / 0.838 | 0.873 / 0.865 | 0.269 / 0.242 | 32 GB Mac, L40S, H100 | [Details](docs/model-cards/kev-4b.md) |\n| [Kev-9B](https://huggingface.co/jaredpalmer/kev-9b) | Qwen3.5-9B-Base | 0.822 / 0.852 | 0.872 / 0.874 | 0.286 / 0.237 | 32 GB Mac, L40S, H100 | [Details](docs/model-cards/kev-9b.md) |\n| [Kev-27B](https://huggingface.co/jaredpalmer/kev-27b) | Qwen3.8-27B (post-trained) | **0.848 / 0.896** | 0.866 / 0.870 | **0.236 / 0.164** | B200, H200, H100 80 GB | [Details](docs/model-cards/kev-27b.md) |\n| Jev | Hosted | 0.857 / – | 0.845 / – | 0.211 / – | TypeSafe's API | – |\n\nEach cell is **development / test**. \"New sources\" means datasets and policy rules Kev never saw during training. It is the closest thing here to your own questions. \"Trained sources\" means held-out examples from the datasets Kev was trained on. We pick checkpoints using the development sets and read each test set only once per released model. Jev has only been run on the development sets. Brier scores the whole probability distribution, not just the top answer; lower is better.\n\nOn new sources Kev-27B is within a point of Jev (0.848 vs 0.857), and Kev-4B and Kev-9B are within four points. We don't know what Jev was trained on, so this isn't a controlled comparison of the two architectures. [What to Expect](#what-to-expect) says where Kev is as good as Jev and where it isn't.\n\nKev-0.8B, 4B and 9B start from Qwen base models and share one training recipe. Kev-27B starts from Qwen's post-trained release, and we don't know what that was trained on. Each model card has the full recipe, all results, and the earlier versions kept as Hub tags. The weights are also in the [GitHub release](https://github.com/jaredpalmer/kev/releases/tag/kev-family), with SHA-256 checksums.\n\n## Quick Start\n\n### Try It in the Browser\n\nThe [Hugging Face Space](https://huggingface.co/spaces/jaredpalmer/kev) runs Kev-4B and Kev-0.8B, with nothing to install.\n\n### Run It Locally\n\nYou'll need Python 3.12 or 3.13 and [uv](https://docs.astral.sh/uv/). Th",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:50.323390"
+  },
+  {
+    "basic_info": {
+      "name": "laya-mlx",
+      "full_name": "mizorewww/laya-mlx",
+      "owner": "mizorewww",
+      "description": "Native MLX runtime for Laya typed decision models — 7–14 ms short decisions on M3 Max. No text generation, PyTorch, or cloud API.",
+      "url": "https://github.com/mizorewww/laya-mlx",
+      "clone_url": "https://github.com/mizorewww/laya-mlx.git",
+      "ssh_url": "git@github.com:mizorewww/laya-mlx.git",
+      "homepage": "https://pypi.org/project/laya-mlx/",
+      "created_at": "2026-09-19T13:50:26Z",
+      "updated_at": "2026-09-27T05:16:10Z",
+      "pushed_at": "2026-09-22T05:34:51Z"
+    },
+    "stats": {
+      "stars": 6434,
+      "forks": 502,
+      "watchers": 6434,
+      "open_issues": 18,
+      "size": 5915
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 293666
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "apple-silicon",
+        "decision-model",
+        "inference",
+        "laya",
+        "local-ai",
+        "machine-learning",
+        "mlx",
+        "modernbert",
+        "system-one",
+        "typed-decisions"
+      ]
+    },
+    "content": {
+      "readme": "# Laya-MLX\n\n![Laya MLX playing Snake — actual decisions, original speed](https://raw.githubusercontent.com/mizorewww/laya-mlx/main/docs/assets/snake-demo.gif)\n\n**Open-weight typed decisions, running natively on Apple Silicon.**\n\n**13.4 ms** median end-to-end for a short English typed decision. **7.4 ms** with the multilingual checkpoint. **0 output tokens.** Local MLX inference, with no PyTorch, Transformers runtime, or cloud API.\n\n[中文](https://github.com/mizorewww/laya-mlx/blob/main/README.zh-CN.md) · [Benchmarks](https://github.com/mizorewww/laya-mlx/blob/main/BENCHMARKS.md) · [Snake demo](https://github.com/mizorewww/laya-mlx/blob/main/docs/SNAKE_DEMO.md) · [Hugging Face weights](https://huggingface.co/aac6fef/laya-mlx)\n\nThe GIF is an original-speed render of a real local Snake run. Every move calls Laya; the visible cycle safety layer can correct unsafe proposals. The latency figures above are the separate **one-question API benchmark**, not the frame time of the three-question Snake loop. [Watch the 30-second MP4](https://github.com/mizorewww/laya-mlx/blob/main/docs/assets/snake-demo.mp4) · [Snake speed and stability](https://github.com/mizorewww/laya-mlx/blob/main/docs/SNAKE_BENCHMARKS.md).\n\n## Quick start\n\n```bash\npip install laya-mlx\n```\n\n```python\nimport laya_mlx as laya\n\nagent = laya.load(\"aac6fef/laya-mlx\")\nresult = agent.predict(\n    \"I was billed twice. Please refund the duplicate.\",\n    {\n        \"department\": {\n            \"type\": \"choice\",\n            \"instructions\": \"Who should handle this?\",\n            \"criteria\": [\"billing\", \"technical\", \"sales\"],\n        }\n    },\n)\nprint(result[\"answers\"][\"department\"])\n```\n\nApple Silicon, Python 3.11+, macOS 14+. First load downloads the checkpoint; later inference is fully local. The measured environment is macOS 27.2, Python 3.12.13 and MLX 0.32.2. That MLX release supplies macOS 14, 15 and 26 wheels; the local installer selected the 26 wheel. Older supported macOS versions were not tested on this machine.\n\nRun the terminal demo:\n\n```bash\npip install 'laya-mlx[demo]'\nhf download aac6fef/laya-multilingual-mlx\nlaya-snake\n```\n\nDownload once before the offline demo. Use a terminal at least 104 × 35 cells. Space pauses, ↑/↓ changes speed, R resets and Q quits. `laya-snake --max-speed` makes a fresh decision for every move without pacing. [Recording, controls and exact metric meanings](https://github.com/mizorewww/laya-mlx/blob/main/docs/SNAKE_DEMO.md).\n\n`laya-snake --optimize --max-speed` enables the tested compilation and prefix-reuse path: **75.40 moves/s across 2,400 moves**, zero deaths and 2 visible safety interventions in the paired M3 Max test. This was about **6.5% faster** than its same-run eager control. [Gameplay, performance and correctness evidence](https://github.com/mizorewww/laya-mlx/blob/main/docs/SNAKE_OPTIMIZATION.md).\n\n## Performance on M3 Max\n\n| FP16, end-to-end | Laya 421M | Multilingual 322M |\n|---|---:|---:|\n| One short question, P50 | **13.42 ms** | **7.39 ms** |\n| One short question, P95 | **13.92 ms** | **7.79 ms** |\n| 50-question throughput | **146.8 q/s** | **395.0 q/s** |\n| Peak MLX allocation, one short question | **943.6 MiB** | **687.6 MiB** |\n\nM3 Max, 40 GPU cores, 128 GiB memory. Timing includes prompt preparation, tokenization, tensors, synchronized inference, calibration and result formatting; model loading is excluded. The 50-question measurement uses `batch_size=64`; the API defaults to 16. Different lengths, question counts and runtime conditions change latency. [Full method and every timing sample](https://github.com/mizorewww/laya-mlx/blob/main/BENCHMARKS.md).\n\n**Port fidelity:** all three checkpoints matched the upstream selected answer on **63/63 validation questions in both FP32 and FP16** — 378/378 comparisons. Each configuration also passed 100 repeated finite, deterministic calls with zero measured active-memory growth. This measures fidelity on those fixtures, not accuracy on every possible question. [Probability errors and validation](https://github.com/mizorewww/laya-mlx/blob/main/BENCHMARKS.md#numerical-parity-and-stability).\n\n## Why typed decisions?\n\nSoftware often needs a choice, a rubric score or a probability. Laya answers those constrained questions in a bidirectional forward pass, without token-by-token decoding or generated JSON.\n\n```text\nstate + typed question → bidirectional encoder → decision heads → probabilities\n```\n\n- `choice`: probabilities over named options.\n- `score`: probabilities over ordered rubric levels and their expected score.\n- `noul`: P(true) for a proposition.\n\nQuestion rows are batched independently. Their bidirectional encoder representations depend on both state and question; this runtime does not claim to encode the state once and reuse its hidden states across arbitrary questions.\n\nThe encoder, decision Transformer, scoring head and action head all run in MLX. Tokenization uses Hugging Face's Rust tokenizer. The original pretrained weights, question formatting, calibration",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:51.508436"
+  },
+  {
+    "basic_info": {
+      "name": "reef",
+      "full_name": "Human-Agent-Society/reef",
+      "owner": "Human-Agent-Society",
+      "description": "Infrastructure for continually self‑improving agents",
+      "url": "https://github.com/Human-Agent-Society/reef",
+      "clone_url": "https://github.com/Human-Agent-Society/reef.git",
+      "ssh_url": "git@github.com:Human-Agent-Society/reef.git",
+      "homepage": "https://reefinfra.ai",
+      "created_at": "2026-08-31T01:39:18Z",
+      "updated_at": "2026-09-27T05:59:55Z",
+      "pushed_at": "2026-09-27T05:49:07Z"
+    },
+    "stats": {
+      "stars": 6122,
+      "forks": 545,
+      "watchers": 6122,
+      "open_issues": 107,
+      "size": 32982
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 9348590,
+        "TypeScript": 86641,
+        "Dockerfile": 49011,
+        "Shell": 45620,
+        "Jupyter Notebook": 14988,
+        "JavaScript": 8863
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-infrastructure",
+        "ai-agents",
+        "continual-learning",
+        "inference",
+        "llm",
+        "llm-training",
+        "reinforcement-learning",
+        "self-improving-agents"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<picture>\n  <source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/assets/reef-logo-dark.svg\">\n  <img src=\"docs/assets/reef-logo-light.svg\" alt=\"Reef\" width=\"220\">\n</picture>\n\n<h3>Infrastructure for continually self‑improving agents</h3>\n\n[![CI](https://github.com/Human-Agent-Society/reef/actions/workflows/ci.yml/badge.svg)](https://github.com/Human-Agent-Society/reef/actions/workflows/ci.yml)\n[![PyPI package: reef-infra](https://img.shields.io/pypi/v/reef-infra?label=PyPI%3A%20reef-infra&logo=pypi&logoColor=white)](https://pypi.org/project/reef-infra/)\n[![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)\n[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)\n\n<a href=\"https://trendshift.io/repositories/204783?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-204783\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/204783/daily?language=Python\" alt=\"Human-Agent-Society%2Freef | Trendshift\" width=\"250\" height=\"55\"/></a>\n\nEnglish | [中文](README.zh.md)\n\n<div align=\"left\">\n\nReef is the first open-source infrastructure for continual self-improving agents.\nIt connects agent inference, feedback, learning, and versioned delivery. Use it\nto train model weights with Slime and SGLang, or improve an agent's harness, including its prompts, rules, and skills.\n\n\n</div>\n\n**🚀 [Get started](https://reefinfra.ai/docs/getting-started/quickstart/) |\n🗺️ [Roadmap](https://github.com/Human-Agent-Society/reef/issues/25) |\n📣 [Launch post](https://x.com/ao_qu18465/status/2094867930081337730) |\n💬 [Join Discord](https://discord.gg/5y8e5f937k) |\n📱 [Join WeChat Group](docs/community/wechat.md)**\n\n</div>\n\n\n## 🎯 When to use Reef\n\nUse Reef when you want your agent to keep improving simply by learning from how you interact with your agent.\n\n| Your goal | Learning path | What you need |\n|---|---|---|\n| Keep getting stronger model designed for you | Model weight training | A trainable model, a supported GPU stack, and feedback your recipe can use |\n| Get your harness to self-improve | Harness optimization | A model endpoint, representative tasks, and an evaluator; no local training GPUs |\n| Scientific discoveries | Test-time training | An execution environment, a correctness checker, and a measurable objective |\n\n\n## 🧩 How Reef fits your stack\n\n| Ability | Inference engine (vLLM, SGLang, …) | RL training framework (Slime, veRL, AReaL, …) | **Reef** |\n|---|:---:|:---:|:---:|\n| Serves live traffic | ✅ | ❌ | ✅ |\n| Trains weights | ❌ | ✅ | ✅ |\n| Version management | ❌ | ❌ | ✅ |\n| Stays live through updates | ❌ | ❌ | ✅ |\n| Evolves beyond weights (skills, harness) | ❌ | ❌ | ✅ |\n\n\n## 🔄 How it works\n\n<div align=\"center\">\n<picture>\n  <source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/assets/loop-animation-dark.svg\">\n  <img src=\"docs/assets/loop-animation-light.svg\" alt=\"Reef serves requests, records feedback, produces updates, and commits accepted updates to a version history.\" width=\"76%\">\n</picture>\n</div>\n\nReef processes each learning cycle in four steps. The table also shows which\nmodules implement each step.\n\n| Step | What happens | Where it lives |\n|---|---|---|\n| **1&nbsp;·&nbsp;Serve** | Serve agent requests and record interactions. | [`service/`](reef/service) — agent requests and interaction records<br>[`runtime/`](reef/runtime) — inference and artifact updates |\n| **2&nbsp;·&nbsp;Observe** | Match feedback to recorded interactions. | [`storage/records.py`](reef/storage/records.py) — stored interactions and feedback<br>[`train/processors/`](reef/train/processors) — feedback matching and eligibility |\n| **3&nbsp;·&nbsp;Grow** | Produce an update from eligible records. | [`recipe/`](reef/recipe) — recipe integration<br>[`train/`](reef/train) — batches and update jobs |\n| **4&nbsp;·&nbsp;Commit** | Apply the configured selection policy and publish accepted updates. | [`train/evaluation/`](reef/train/evaluation) — candidate evaluation<br>[`artifact/`](reef/artifact) — version history<br>[`surface/`](reef/surface) — artifact delivery |\n\n\n## 📦 Installation\n\n> 💡 **Note**\n>\n> Reef's artifact and checkpoint functionality requires the `git-lfs` system\n> package. Reef initializes Git LFS locally for its artifact repositories.\n\nWe recommend [uv](https://docs.astral.sh/uv/) for managing packages, and the\ncommands below use it.\n\n### From PyPI\n\n```bash\nuv venv && source .venv/bin/activate\nuv pip install reef-infra\npython3 -c \"import reef; print(reef.__version__)\"\n```\n\n### From source\n\n```bash\ngit lfs install\ngit clone https://github.com/Human-Agent-Society/reef.git\ncd reef\nuv venv && source .venv/bin/activate\nuv pip install -e .\npython3 -c \"import reef; print(reef.__version__)\"\n```\n\nUse the source checkout for development and for the training examples below.\n\n\n## 🔧 Using Reef\n\nReef supports two learning surfaces: model **weights** and agent **harnesses**.\nThe ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:52.709431"
+  },
+  {
+    "basic_info": {
+      "name": "SemIf-OpenJev",
+      "full_name": "TheoLeeCJ/SemIf-OpenJev",
+      "owner": "TheoLeeCJ",
+      "description": "Semantic ifs from open models, on a 3090 at home. Independent; not affiliated with Jev or TypeSafe.",
+      "url": "https://github.com/TheoLeeCJ/SemIf-OpenJev",
+      "clone_url": "https://github.com/TheoLeeCJ/SemIf-OpenJev.git",
+      "ssh_url": "git@github.com:TheoLeeCJ/SemIf-OpenJev.git",
+      "homepage": "openjev.com",
+      "created_at": "2026-09-16T03:51:21Z",
+      "updated_at": "2026-09-27T05:59:37Z",
+      "pushed_at": "2026-09-23T18:48:22Z"
+    },
+    "stats": {
+      "stars": 4406,
+      "forks": 307,
+      "watchers": 4406,
+      "open_issues": 41,
+      "size": 9507
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 243965,
+        "JavaScript": 23466,
+        "HTML": 11505
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# SemIf (formerly OpenJev)\n\n<div align=\"center\">\n\n**Semantic ifs from open models, on a 3090 at home.**\n\n*Independent project; not affiliated with Jev or TypeSafe.*\n\n**Wow! No waitlist.** [Run it in your browser today.](webgpu-demo/index.html)\n\n[![Measured replay: typed decisions appear together while JSON streams token by token](demo/assets/semif-phase1-replay.gif)](demo/index.html)\n\n*Same frozen 4B model · same state · same 21 questions · measured separately, aligned at t=0 in the replay*\n\n</div>\n\n> **Independent research project.** SemIf was formerly called OpenJev. It is not affiliated with or endorsed by TypeSafe. Jev, TypeSafe, and other names and marks are the property of their respective owners. No infringement is intended.\n\n![Some AI company asks you to join a waitlist; SemIf runs in your browser today](assets/semif-no-waitlist.png)\n\nMost agent decisions are small: *route this*, *retry that*, *does the evidence support X?* A chat model can answer them, but it spends time generating text that software immediately parses back into an `if` statement.\n\nJev is TypeSafe's closed service for runtime-defined semantic decisions. This project reproduces that **interface pattern** with open models; it does not reproduce Jev's undisclosed model or training.\n\nThis baseline reads typed option probabilities directly from a model. No answer sentence, JSON repair, or decoding loop.\n\n### Latest changes\n\n**2026-09-22**\n\n- Added PyTorch/MPS scoring for Apple Silicon — [@dp-IED](https://github.com/dp-IED) in [#15](https://github.com/TheoLeeCJ/SemIf/pull/15).\n- Added a Qwen3.8-27B EXL3 bridge with corrected, committed evidence — [@jkyamog](https://github.com/jkyamog) in [#9](https://github.com/TheoLeeCJ/SemIf/pull/9).\n- Added per-workload temperature calibration and calibrated prediction outputs — [@samarthpatel24](https://github.com/samarthpatel24) in [#19](https://github.com/TheoLeeCJ/SemIf/pull/19).\n\n**2026-09-18**\n\n- Added MiniCPM5 2B and Qwen3.5 4B to the browser demo.\n- Added **Unsloppify site**, a switch to a conventional interface.\n\n## Quick start\n\n**Apple Silicon:** use the native [MLX backend](docs/MLX.md) for direct scoring,\nserial prefix reuse, and parallel shared-state decisions on macOS arm64.\nInstall `pip install -e '.[test,mlx]'` and add `--backend mlx` to the scorer command.\nPyTorch/MPS (`--device mps`) is also supported for direct, serial, and shared modes — see\n[Apple Silicon](docs/APPLE_SILICON.md).\n\nPython 3.10+, CUDA, and a GPU that can hold a 4B BF16 model:\n\n```bash\npython -m venv .venv\n. .venv/bin/activate\nexport HF_HOME=/path/to/large-drive/huggingface\npip install -e '.[test]'\n```\n\n**CPU only:** the llama.cpp backend scores the same prompts from a local GGUF\ncheckpoint with no CUDA device. Install `pip install -e '.[test,llamacpp]'`,\nfetch a GGUF (for example `Qwen_Qwen3.5-4B-Q4_K_M.gguf` from\n`bartowski/Qwen_Qwen3.5-4B-GGUF`), and add `--backend llamacpp --gguf\n/path/to/model.gguf`; `--llama-threads` caps the CPU threads. Prompt\nconstruction stays on the pinned reference tokenizer, so `prompt_sha256`\nmatches the Torch backend row for row; scores carry the GGUF checksum and are\nconditional on the quantized weights. Direct and prefix-cached execution can\nhave small numerical differences from different llama.cpp evaluation paths;\ncompare decisions or probabilities with a tolerance rather than raw logits\nbit for bit. One loaded backend owns one stateful scoring context. For a much\nslower full-precision Torch reference path, explicitly pass\n`--device cpu --dtype float32` to the standard scorer command.\n\nRun the owned examples:\n\n```bash\nCUDA_VISIBLE_DEVICES=0 semif-score \\\n  --mode direct \\\n  --model Qwen/Qwen3.5-4B \\\n  --revision 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a \\\n  --input examples/decisions.jsonl \\\n  --output results.jsonl\n```\n\nEach result contains typed option scores, timing, the exact model revision, and a prompt hash.\n\nIf every row has the same exact state, switch to `--mode shared` to prefill it once and evaluate the criteria in parallel.\n\n## How it works\n\n```mermaid\nflowchart LR\n    S[Unstructured state] --> M[4B model]\n    C[Runtime criteria] --> M\n    O[Typed options] --> M\n    M -- native option logits --> P[Probabilities]\n```\n\n- **Runtime-defined:** criteria and option descriptions arrive with the request.\n- **Decision-native:** one forward pass reads declared option logits; no answer token is sampled.\n- **Shared-state aware:** one long state can be prefetched once, then branched across many criteria.\n- **Auditable:** the owned fixture, exact runners, row-level outputs, revisions, prompts, and known failures are committed.\n\n## Speed\n\n### Decisions versus a compact generated array\n\nSame frozen Qwen3.5-4B, same owned state, same 21 binary criteria, one RTX 3090:\n\n| Output path | Time | Output tokens | Result |\n|---|---:|---:|---|\n| Direct typed logits, median of 3 | **1.023 s** | **0** | 21 probability pairs |\n| Autoregressive JSON array, median of 3 | 5.332 s | 111 | Valid ordered ",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-09-27T06:00:53.896408"
+  },
+  {
+    "basic_info": {
+      "name": "commerce-agents",
+      "full_name": "anthropics/commerce-agents",
+      "owner": "anthropics",
+      "description": "Reference blueprint for building shopping and merchant agents with Claude. Examples in retail, commerce, telecom, and entertainment included.",
+      "url": "https://github.com/anthropics/commerce-agents",
+      "clone_url": "https://github.com/anthropics/commerce-agents.git",
+      "ssh_url": "git@github.com:anthropics/commerce-agents.git",
+      "homepage": "https://claude.com/solutions/commerce",
+      "created_at": "2026-09-01T12:30:12Z",
+      "updated_at": "2026-09-27T05:49:55Z",
+      "pushed_at": "2026-09-11T07:03:32Z"
+    },
+    "stats": {
+      "stars": 3058,
+      "forks": 589,
+      "watchers": 3058,
+      "open_issues": 30,
+      "size": 1211
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1017449,
+        "Shell": 5300
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Claude Commerce Agents\n\nTwo commerce agents built on Claude: a **shopping agent** a business embeds in its app for\ncustomers, and a **merchant agent** its staff use to run the back office. Each is defined\nonce (prompt, skills, tool contracts, gates) and runs on the Messages API, the Claude Agent\nSDK, and Managed Agents; four runnable verticals show both over the same libraries.\n\n> [!NOTE]\n> Every company, brand, product, and person here is fictional; the only company is ACME.\n> Nothing places an order, charges a card, or changes a live listing: `checkout` renders\n> the cart for the host to complete, and every merchant write is staged until a person\n> approves it. Business rules, authorization, and compliance are the deployment's.\n\n## Quick start: run the demos\n\nPython 3.11+ and Node 22. Clone, install, add a key, run a vertical:\n\n```bash\ngit clone https://github.com/anthropics/commerce-agents.git && cd commerce-agents\npython3 -m venv .venv && source .venv/bin/activate\npip install -r requirements.txt       # the seven packages and their pinned dependencies\ncp .env.example .env                  # add ANTHROPIC_API_KEY\n(cd examples && npm ci)               # the eight web apps share one workspace\npython scripts/run_demo.py retail     # API :8000 + storefront :3000\n```\n\n`--merchant` starts the portal instead of the storefront and `--all` starts both. The\nverticals are `retail` (:3000, portal :3100), `travel` (:3001, :3101), `telecom` (:3002,\n:3102), and `entertainment` (:3003, :3103); each README lists prompts to try on both surfaces.\n\n## Quick start: build your own\n\nThe Claude Code plugin scaffolds an agent on these packages against your systems, or reviews\none you have. With the repo cloned as above (the plugin reads it as the reference):\n\n```bash\nclaude plugin marketplace add anthropics/commerce-agents\nclaude plugin install commerce-builder@claude-commerce-agents\nclaude\n/scaffold-commerce-agent a shopping assistant for our store\n```\n\nThe command asks about your stack, plays the plan back, and builds the project; `/add-commerce-flow`\nand `/author-commerce-evals` continue from there, and `/review-commerce-agent` starts from an agent\nthat already exists ([`plugins/commerce-builder/`](plugins/commerce-builder/)). Each command also\nruns when a request matches its description, so naming it is optional.\n\n## The two agents\n\nThe **shopping agent** searches, compares, plans, fills the cart, answers order and policy\nquestions, and remembers what a customer tells it. Its five flows are the skills in\n[`shopping-agent/skills/`](shopping-agent/skills/); a deployment implements\n[`StorefrontBackend`](shopping-agent/core/shopping_agent/backend.py) over its catalog,\ncart, order, and policy systems.\n\nThe **merchant agent** explains performance, maintains listings, acts on inventory and order\nalerts, prices and promotes, and drafts campaigns; every write is a staged change the host's\napproval surface applies. Its five flows are the skills in [`merchant-agent/skills/`](merchant-agent/skills/);\na deployment implements [`MerchantBackend`](merchant-agent/core/merchant_agent/backend.py) over\nits analytics, catalog, inventory, pricing, and campaign systems.\n\n## Layout\n\n| Directory | Contents | pip package, `import` name |\n|---|---|---|\n| [`commerce-common/`](commerce-common/) | What both roles share: config, fencing, memory, skills, grounding, presentation, executor frame, events | `commerce-common`, `commerce_common` |\n| [`shopping-agent/core/`](shopping-agent/core/) | Shopping types, `StorefrontBackend`, prompt, tool contracts, gates, executor | `shopping-agent-core`, `shopping_agent` |\n| [`shopping-agent/runtime-messages-api/`](shopping-agent/runtime-messages-api/) | `ShoppingAgent`, the turn loop on the Messages API | `shopping-agent-runtime`, `shopping_agent_runtime` |\n| [`shopping-agent/runtime-agent-sdk/`](shopping-agent/runtime-agent-sdk/) | The shopping agent on the Agent SDK, with a console | `shopping-agent-sdk`, `shopping_agent_sdk` |\n| [`shopping-agent/managed-agents/`](shopping-agent/managed-agents/) | Manifest and storefront MCP server for Managed Agents | — |\n| [`merchant-agent/core/`](merchant-agent/core/) | Merchant types, `MerchantBackend`, prompt, tool contracts, change guardrails, gates, executor | `merchant-agent-core`, `merchant_agent` |\n| [`merchant-agent/runtime-messages-api/`](merchant-agent/runtime-messages-api/) | `MerchantAgent` and the analysis delegate on the Messages API | `merchant-agent-runtime`, `merchant_agent_runtime` |\n| [`merchant-agent/runtime-agent-sdk/`](merchant-agent/runtime-agent-sdk/) | The merchant agent on the Agent SDK, with an approving console | `merchant-agent-sdk`, `merchant_agent_sdk` |\n| [`merchant-agent/managed-agents/`](merchant-agent/managed-agents/) | Manifest, merchant MCP server, scheduled digest for Managed Agents | — |\n| [`examples/`](examples/) | Four verticals, shared host code (`demo_common/`), shared web code (`web-shared/`) | — |\n| [`plugins/commerce-builder/`](plug",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:55.107081"
+  },
+  {
+    "basic_info": {
+      "name": "printfilm",
+      "full_name": "yi1108/printfilm",
+      "owner": "yi1108",
+      "description": "PRINTFILM：AI 视频获客与 AI短剧创作平台",
+      "url": "https://github.com/yi1108/printfilm",
+      "clone_url": "https://github.com/yi1108/printfilm.git",
+      "ssh_url": "git@github.com:yi1108/printfilm.git",
+      "homepage": "https://www.printfilm.com",
+      "created_at": "2026-09-10T02:08:47Z",
+      "updated_at": "2026-09-27T05:14:15Z",
+      "pushed_at": "2026-09-24T11:10:32Z"
+    },
+    "stats": {
+      "stars": 3036,
+      "forks": 335,
+      "watchers": 3036,
+      "open_issues": 1,
+      "size": 35214
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 2156142,
+        "TypeScript": 1682803,
+        "CSS": 386104,
+        "HTML": 1556,
+        "Dockerfile": 1555,
+        "PowerShell": 429,
+        "Shell": 415
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# PRINTFILM\n\n[![GitHub stars](https://img.shields.io/github/stars/yi1108/printfilm?style=social)](https://github.com/yi1108/printfilm)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n\n> **把故事做成能播的片子** — AI 漫剧与 AI 短视频，从文案到成片。\n\n模板驱动的创作平台：主题 / 剧本 → 分镜 → 生图 → 生视频 → 成片。口播由 Seedance 出片时生成，无需单独配音。\n\n**源码**：[github.com/yi1108/printfilm](https://github.com/yi1108/printfilm) · **版本** 0.2.0\n\n## 界面预览\n\n**工作台**\n\n![工作台](docs/images/image-20260910-home.png)\n\n**AI 短视频** — 历史、分镜、成片\n\n| 项目历史 | 分镜工作台 | 成片预览 |\n|:---:|:---:|:---:|\n| ![科普历史](docs/images/image-20260910-history.png) | ![分镜工作台](docs/images/image-20260910-studio.png) | ![成片预览](docs/images/image-20260910-preview.png) |\n\n**AI 漫剧** — 项目、分集、剧本、分镜、资产\n\n| 项目列表 | 分集工作台 | 剧本解析 |\n|:---:|:---:|:---:|\n| ![漫剧项目列表](docs/images/image-20260917-drama-list.png) | ![分集工作台](docs/images/image-20260917-drama-episode.png) | ![剧本解析](docs/images/image-20260917-drama-script.png) |\n\n| 分镜编辑 | 资产库 | 管理后台 |\n|:---:|:---:|:---:|\n| ![分镜编辑](docs/images/image-20260917-drama-storyboard.png) | ![漫剧资产库](docs/images/image-20260917-drama-assets.png) | ![管理后台](docs/images/image-20260910-admin.png) |\n\n## 核心功能\n\n### 1. AI 漫剧\n\n从一句话到分集成片，角色与场景可复用。\n\n- 大纲 / 剧情摘要 / 剧本内容\n- 资产库：角色、场景、道具\n- 解析成镜后进入分镜编辑与画布\n- 细则见 [docs/EPISODE_RULES.md](docs/EPISODE_RULES.md)\n\n### 2. AI 短视频\n\n选模板后沿分镜流水线出片，适合获客与科普。\n\n- 20+ 内置风格模板\n- `full`（图 + 视频 + 合成）或 `image_text`（静图，更快更省）\n- 单镜重绘、重生视频；任务离开页面也会继续跑\n- 成片由 FFmpeg 合成\n\n### 3. 工具中心\n\n不走完整流水线的单点能力：文生图、图生图、图生产品、文生视频、视频生视频、电商拼图。\n\n### 4. 管理后台与开放 API\n\n用户、订单、模板、任务中心、模型路由。开放接口 `/api/v1` 生图 / 生视频（Bearer 或 `X-Api-Key`）。\n\n## 工作流程\n\n```\n输入主题或剧本\n    → 分镜\n    → 生图\n    → 生视频（Seedance 自带口播）\n    → FFmpeg 合成成片\n```\n\n每个阶段都可以回头重做单镜；进度在历史页查看。\n\n## 技术特点\n\n- **两条产品线共用一套生成能力** — 漫剧与短视频走同一上游\n- **进程内任务平台** — scheduler / executor / poller，无需单独 Celery Worker\n- **模型可换** — 管理后台配置 TokenFree Key 与模型，不必改代码\n- **Docker 一键启动** — 公开镜像，拉取无需登录\n- **可选计费** — 默认关闭；开启后按用量结算，见 [docs/BILLING.md](docs/BILLING.md)\n\n## 技术栈\n\n| 层 | 选型 |\n|----|------|\n| 后端 | Python 3.12 · FastAPI · SQLAlchemy · PostgreSQL · Redis |\n| 前端 | React 19 · TypeScript · Vite 8（管理端 Tailwind + shadcn） |\n| AI | TokenFree New API（文字 / 图 / 视频） |\n| 部署 | Docker 全栈镜像，或本机三进程 + 中间件容器 |\n\n## 快速开始（Docker 一键启动）\n\n本机只需安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)（或 Docker Engine + Compose）。镜像在阿里云 ACR `gcc` 公开命名空间，**拉取无需登录**。\n\n### 1. 克隆并准备环境变量\n\n```bash\ngit clone https://github.com/yi1108/printfilm.git\ncd printfilm\n\ncp deploy/.env.docker.example deploy/.env.docker\n```\n\n编辑 `deploy/.env.docker`，至少改这三项：\n\n| 变量 | 说明 |\n|------|------|\n| `POSTGRES_PASSWORD` | 数据库密码（勿用示例默认值） |\n| `SECRET_KEY` | 任意长随机串（会话 / 密钥加密） |\n| `OPENAI_API_KEY` / `ARK_API_KEY` | TokenFree API Key（同一把填两处即可） |\n\n无 Key 想先看界面：把 `ARK_MOCK=true`。\n\n### 2. 一键启动\n\n```bash\ndocker compose --env-file deploy/.env.docker up -d\n```\n\n等约半分钟（API 健康检查通过后，web / admin 才会起来）。\n\n| 服务 | 地址 |\n|------|------|\n| 用户端 | http://localhost:8080 |\n| 管理后台 | http://localhost:8081 |\n| API / 文档 | http://localhost:8000 · `/docs` |\n| 健康检查 | http://localhost:8000/api/health |\n\n常用：\n\n```bash\ndocker compose --env-file deploy/.env.docker ps          # 状态\ndocker compose --env-file deploy/.env.docker logs -f api # 看日志\ndocker compose --env-file deploy/.env.docker down        # 停止（保留数据卷）\n```\n\n### 3. 注册与管理员\n\n| 角色 | 怎么拿 |\n|------|--------|\n| 普通用户 | 打开用户端 → `/auth` 邮箱注册 |\n| 管理员 | 先用该邮箱注册 → 在 `.env.docker` 设 `ADMIN_BOOTSTRAP_EMAILS=你的邮箱` → `docker compose --env-file deploy/.env.docker up -d --force-recreate api`（**只提权，不造号**） |\n\n仓库无内置演示账号；生产请立刻改掉密钥。\n\n### 4. 更新到最新镜像\n\n```bash\ndocker compose --env-file deploy/.env.docker pull\ndocker compose --env-file deploy/.env.docker up -d\n```\n\n### 5. 从源码构建（可选）\n\n改过前后端代码，或拉不到 ACR 时：\n\n```bash\ndocker compose --env-file deploy/.env.docker -f docker-compose.full.yml up -d --build\n```\n\n## 配置 TokenFree API Key\n\n开源版文字 / 图 / 视频统一走 **TokenFree New API**（OpenAI 兼容：`https://www.tokenfree.com/v1`）。没有 Key 时只能 `ARK_MOCK=true` 看界面，不能真实生图 / 生视频。\n\n### A. 在 TokenFree 拿到 Key\n\n1. 打开 [https://www.tokenfree.com](https://www.tokenfree.com) 注册并登录。\n2. 进入控制台的 **API 密钥 / Tokens**（部分部署路径为 `/token` 或 `/keys`）。\n3. 点击 **创建**，填名称（如 `printfilm`），按需设额度 / 过期时间。\n4. **立刻复制完整 Key**（形如 `sk-…`，只显示一次）。\n5. 确认账户有余额或可用额度；模型列表里能看到你要用的对话 / 生图 / 视频模型。\n\n> Key 等同密码，不要提交到 Git、不要发到群聊。泄露后在 TokenFree 控制台作废并重建。\n\n### B. 写入 Docker 环境（推荐自托管首次启动）\n\n编辑 `deploy/.env.docker`：\n\n```env\nOPENAI_API_KEY=sk-你的密钥\nOPENAI_BASE_URL=https://www.tokenfree.com/v1\nARK_API_KEY=sk-你的密钥\nARK_MOCK=false\nMODEL_LLM=kimi-k2.6\nMODEL_IMAGE=seedream-5-0-pro\nMODEL_VIDEO=seedance-2-5\n```\n\n`OPENAI_API_KEY` 与 `ARK_API_KEY` 填**同一把**即可。然后重建 API 容器使环境生效：\n\n```bash\ndocker compose --env-file deploy/.env.docker up -d --force-recreate api\n```\n\n打开 http://localhost:8000/api/health ，`ark_mock` 应为 `false`。\n\n### C. 在管理后台填写（推荐日常改 Key）\n\n1. 用管理员登录 http://localhost:8081 。\n2. 打开 **系统设置 → 模型**（路由 / TokenFree 渠道）。\n3. 在 TokenFree 渠道填入 API Key 并保存。\n4. 按需调整默认文字 / 图 / 视频模型；保存后即时生效，一般不必改 `.env`。\n\n后台保存的 Key 会加密进数据库；换机器迁移时记得一并备份库，或重新在后台填写。\n\n### D. 联调排查\n\n| 现象 | 处理 |\n|------|------|\n| 生图 / 生视频报未配置 Key | 检查 `.env.docke",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:56.299824"
+  },
+  {
+    "basic_info": {
+      "name": "sepia",
+      "full_name": "Nanako0129/sepia",
+      "owner": "Nanako0129",
+      "description": "De-AI writing skill for any Agent Skills-compatible agent (77+ via the Skills CLI), with native plugins for Claude Code, Codex, Grok Build, and Antigravity. Narrative-architecture repair for fiction, venue-matched rules for professional prose. Based on StoryScope (arXiv:2604.03136).",
+      "url": "https://github.com/Nanako0129/sepia",
+      "clone_url": "https://github.com/Nanako0129/sepia.git",
+      "ssh_url": "git@github.com:Nanako0129/sepia.git",
+      "homepage": null,
+      "created_at": "2026-08-28T05:56:49Z",
+      "updated_at": "2026-09-27T06:00:01Z",
+      "pushed_at": "2026-09-23T20:03:22Z"
+    },
+    "stats": {
+      "stars": 2870,
+      "forks": 185,
+      "watchers": 2870,
+      "open_issues": 11,
+      "size": 663
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 97770
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "ai-writing",
+        "antigravity",
+        "claude-code",
+        "codex",
+        "developer-tools",
+        "fiction",
+        "grok",
+        "humanizer",
+        "llm",
+        "prompt-engineering",
+        "writing-tools"
+      ]
+    },
+    "content": {
+      "readme": "# sepia\n\n**English** | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md)\n\n[![behavioral eval](https://github.com/Nanako0129/sepia/actions/workflows/behavioral-eval.yml/badge.svg)](https://github.com/Nanako0129/sepia/actions/workflows/behavioral-eval.yml) [![version consistency](https://github.com/Nanako0129/sepia/actions/workflows/version-consistency.yml/badge.svg)](https://github.com/Nanako0129/sepia/actions/workflows/version-consistency.yml) [![release](https://img.shields.io/github/v/release/Nanako0129/sepia)](https://github.com/Nanako0129/sepia/releases/latest) [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n\n> De-AI writing at the layer that actually gives AI away. Fiction gets its narrative architecture repaired before anyone touches word choice; professional documents (release notes, PR replies, postmortems, tickets, technical articles) each get rules matched to their venue.\n\nA portable [Agent Skill](https://agentskills.io/specification): any agent that speaks the standard can load it, and the [Skills CLI](https://skills.sh), which supports 77+ agents, installs it with one command. Claude Code, Codex, Grok Build, Antigravity, and QwenPaw additionally get native plugin packaging. One canonical `SKILL.md`, no per-platform forks. Four operations: **write**, **review** (diagnose only), **refactor** (minimal edits), **recreate** (full rewrite).\n\n## Table of Contents\n\n- [Why another humanizer](#why-another-humanizer)\n- [Operation entries](#operation-entries)\n- [Experimental: composing with voice skills](#experimental-composing-with-voice-skills)\n- [Sentence rhythm and Chinese calibration](#sentence-rhythm-and-chinese-calibration)\n- [Install](#install)\n- [Uninstall](#uninstall)\n- [Layout](#layout)\n- [Star History](#star-history)\n- [Sources](#sources)\n- [Support](#support)\n- [License](#license)\n\n---\n\n## Why another humanizer\n\nEvery popular humanizer edits word choice and syntax. [StoryScope](https://arxiv.org/abs/2604.03136) (Russell et al., 2026: 61,608 stories, human + 5 frontier LLMs) showed that a classifier using **narrative-structure features alone** detects AI fiction at 93.2% macro-F1. In the same study's LAMP-edited condition, where human editors had rewritten the surface style, detection dropped only from 95.5% to 93.9%. The tells that survive are architectural: themes explained by the narrator, single-track causally-tidy plots, emotions rendered only as bodily sensation, no real-world references, no reader, linear time, endings resolved by protagonist growth and acceptance.\n\nsepia turns those measured gaps, together with the related studies digested in [`research/`](research/), into a three-pass writing and revision protocol for fiction:\n\n| Pass | Layer | Examples |\n|---|---|---|\n| 1 | Narrative architecture (fiction) | stop explaining the theme, loosen the causal chain, back-load revelations, mix emotion modes, sparse character networks, name real things |\n| 2 | Discourse flow | de-template the paragraph-question sequence, fix the mid-story sag, vary rhythm and positions |\n| 3 | Surface style | the classic layer: clichés, syntax templates, vocabulary, register |\n\nA 30-feature diagnosis rubric and per-model fingerprints across two layers apply when the writing or executing model is known:\n\n| Model family | Narrative layer (StoryScope) | Sentence-level prose layer (Vendor prompting guides) |\n|---|---|---|\n| Claude | Measured | Claude Fable 5.1 and Mythos 5.1, Fable 5 and Mythos 5, Opus 5, Opus 4.8 |\n| GPT | Measured | GPT-5.6, GPT-6 Astra |\n| Gemini | Measured | Gemini 3 and 3.1 |\n| DeepSeek | Measured | Consulted (no guidance published) |\n| Kimi | Measured | Consulted (no guidance published) |\n\n> **Notice:** Vendors that publish no prompt guidance are recorded as consulted, not guessed.\n\nProfessional prose fails differently, and the structure-level finding holds there too: a 2026 replication of StoryScope on 2,250 company blog posts against 11,250 AI mirrors separated them at 98.0 macro-F1 from structural features alone, with the AI shape described as tidy and self-announcing (`SLOPSHAPE-2026` in the ledger, arXiv:2609.15369; a preprint whose features are LLM-scored; it tested detection of original and model-self-reworded posts, never human editing). The studies digested in [`research/`](research/) point at filler that carries no information, hedging where a judgment was needed, chatbot leftovers, register that ignores the venue, and formatting that looks stamped out. Each document type gets a thin rule file on top of one shared checklist:\n\n| Domain | The gist |\n|---|---|\n| Release notes / announcements | user impact first, artifacts per claim, no marketing inflation |\n| PR / issue replies | answer first, cite `file:line`, no reflex praise, length ∝ stakes |\n| Postmortems | blameless toward people, merciless toward mechanisms; timestamps, dead ends, owned action items |\n| Tickets / work orders | title = outcome, testable acceptance criteria, link don't repeat |\n| Tech",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:57.507230"
+  },
+  {
+    "basic_info": {
+      "name": "jianying-headless",
+      "full_name": "mcncarl/jianying-headless",
+      "owner": "mcncarl",
+      "description": "Private source preview: native Jianying drafts, isolated editing/export, and standalone Agent Skill.",
+      "url": "https://github.com/mcncarl/jianying-headless",
+      "clone_url": "https://github.com/mcncarl/jianying-headless.git",
+      "ssh_url": "git@github.com:mcncarl/jianying-headless.git",
+      "homepage": null,
+      "created_at": "2026-09-15T11:51:15Z",
+      "updated_at": "2026-09-27T05:53:21Z",
+      "pushed_at": "2026-09-27T01:50:33Z"
+    },
+    "stats": {
+      "stars": 2753,
+      "forks": 1915,
+      "watchers": 2753,
+      "open_issues": 15,
+      "size": 10426
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 603016,
+        "C++": 34647
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Jianying Headless\n\n面向剪映专业版 macOS 的本地自动化工具。通过结构化剪辑计划生成可编辑草稿，\n在独立副本中修改多轨工程，并调用本机剪映引擎导出 MP4。\n\n**主要适配版本：11.5.0 · 兼容版本：11.4.2**\n\n**首次使用请从 [从零生成第一个剪映草稿](docs/GETTING-STARTED.md) 开始。**\n教程包含安装前提、环境检查、拖入自己的视频、首页登记、保存重开和常见报错处理。\n11.5.0 仍需匹配具体安装身份与工具链，尚不保证任意电脑安装即用。\n\n项目适用于 AI 视频工作流的工程交接、批量草稿生成和 Agent 辅助剪辑。\n提供 Python 命令行入口及配套 Agent Skill。它不是剪映官方 SDK，运行时需要安装匹配版本的剪映。\n\n## 核心功能\n\n| 功能 | 支持范围 |\n| --- | --- |\n| 生成可编辑草稿 | 视频分段、多轨组合、变速、音量、画中画、字幕和标题 |\n| 导入本地素材 | 视频、PNG、JPEG、GIF、配音、音乐和音效 |\n| 本地字体 | 新建文字或在副本中换字体，静态 OTF/TTF 随草稿保存；详见[字体说明](docs/LOCAL-FONTS.md) |\n| 基础动画 | 位置、缩放、旋转、透明度和音量的线性关键帧 |\n| 原生效果 | 六类静态几何蒙版、叠化转场、轻微抖动；需要匹配的本机资源与使用权限 |\n| 编辑已有工程 | 检查源草稿，在独立副本中修改，不覆盖原项目 |\n| 原生视频导出 | 通过本机剪映引擎将已验证快照导出为 H.264/AAC MP4 |\n| 环境与工程检查 | 核对运行版本、组件身份、素材完整性和草稿保存结果 |\n\n核心流程为：**素材与剪辑计划 → 可编辑剪映草稿 → 原生引擎导出**。\n剪映中后续手工修改的内容不会自动同步回原计划或旧导出快照。\n\n## Windows 可选 MP4 导出\n\nWindows 另提供独立的 FFmpeg 路径：从剪辑计划生成已校验的渲染快照，\n再输出 MP4。它**不需要安装剪映，也不生成可在剪映中编辑的草稿**；\n只支持已说明的视频、音频和基础文字能力，不等同于上方的 macOS 原生流程。\nWindows 云端使用本仓库公开 IG 案例验证了完整解码、帧数与音量；\n使用方法和限制见 [Windows FFmpeg 导出](docs/windows-ffmpeg.md)。\n\n该独立导出后端由 [@instantgoing](https://github.com/instantgoing) 在 [PR #1](https://github.com/mcncarl/jianying-headless/pull/1) 中贡献。\n\n## Hypit 协作案例\n\n一个约 **50.23 秒**的 IG 滚动动画教程展示了从 Hypit 到剪映的工程交接。\n转换使用原工程的独立画面、配音、图片和文字时间安排，而不是仅导入一条最终成片。\n\n| 工程内容 | 数量 |\n| --- | --- |\n| 原始素材 | 39 份 |\n| 视频与图片 | 8 条轨道、38 个片段 |\n| 独立配音 | 1 条轨道、7 个片段 |\n| 可编辑文字 | 14 条轨道、109 个片段 |\n| 合计 | 23 条轨道、154 个片段 |\n\n该案例已在剪映 11.5.0 完成构建、打开播放、保存、完全退出、冷重开和结构回读，\n并通过原生导出的 **1507 / 1507 帧**检查与完整解码检查。\n\n### 画面对照\n\n| Hypit 原成片 | 剪映工程原生导出 |\n| --- | --- |\n| ![Hypit 原成片六帧](docs/media/hypit-original-frames.png) | ![剪映导出六帧](docs/media/jianying-import-frames.png) |\n\n两组图片均取自真实案例的 1、8、17、28、37、48 秒。展示的是可编辑工程交接，\n**不是视觉无损转换**：特殊字体、逐词颜色动画、部分裁切与阴影未原样保留，\n第 37 秒的补充画面也存在差异。完整主观视听验收尚未完成。\n\n详见 [Hypit 协作案例](docs/HYPIT-COLLABORATION.md) 和 [媒体说明](docs/media/README.md)。\n当前转换是单向、按项目实现；不提供任意 Hypit 工程的一键无损转换或双向同步。\n\n## 运行环境\n\n- Apple Silicon Mac，macOS 26.0+；已验证环境为 macOS 26.5.1。\n- 剪映专业版 11.5.0，或兼容配置对应的 11.4.2。\n- Python 3.9+、FFmpeg / ffprobe、Xcode Command Line Tools。\n- 已验证桥接工具链：Apple clang 21.0.0 / macOS SDK 26.5。\n\n应用版本、build、官方库哈希、签名与开发者身份均有检查。\n未知版本或不匹配组件会被拒绝，不通过放宽校验强行运行。干净机器安装验收尚未完成。\n官方引擎、账号数据、原始工程素材库和效果资源不随源码分发。\n\n构建工具选择、安装诊断、登记恢复及字体支持的进展和待验限制见\n[Issue 修复进展](docs/ISSUE-REMEDIATION.md)。环境检查通过不等于任意电脑兼容。\n\n## 快速开始\n\n```bash\ngit clone https://github.com/mcncarl/jianying-headless.git\ncd jianying-headless\npython3 tools/build_native_codec.py\npython3 skills/yichen-jianying-edit/scripts/headless_draft.py doctor\n```\n\n`doctor` 是**环境检查命令**：检查剪映版本、组件身份和必要工具。\n检查通过表示环境符合运行条件，不代表任意草稿都已通过画面、声音或导出验收。\n\n桥接构建只编译项目源码并链接本机已安装程序库，不下载剪映、不修改官方库或账号权益。\n编译结果必须匹配固定哈希，否则停止。\n\n按 [计划格式](skills/yichen-jianying-edit/references/headless-macos.md) 准备 JSON，\n或参考 [基础计划](examples/basic.plan.json) 和 [Hypit 交接格式示例](examples/hypit-handoff.plan.json)。\n示例中的素材路径须替换为有权使用的本地文件。\n\n```bash\npython3 skills/yichen-jianying-edit/scripts/headless_draft.py build \\\n  --plan /absolute/path/to/plan.json --out \"$PWD/work/new-build\"\npython3 skills/yichen-jianying-edit/scripts/headless_draft.py verify-build \\\n  --build \"$PWD/work/new-build\"\n```\n\n保存当前工作并完全退出剪映后，将新草稿登记到本机首页：\n\n```bash\npython3 skills/yichen-jianying-edit/scripts/headless_draft.py publish \\\n  --build \"$PWD/work/new-build\" --audit \"$PWD/work/new-publish-audit\"\n```\n\n`publish` 在此仅指本机首页登记，不是互联网发布。生成的草稿仍需实际打开、播放和保存检查。\n需要成片时，可独立导出已验证快照：\n\n```bash\npython3 skills/yichen-jianying-edit/scripts/headless_draft.py export \\\n  --build \"$PWD/work/new-build\" --out \"$PWD/work/new-export\"\n```\n\n输出目录须不存在，成片为该目录下的 `render.mp4`。\n导出在隔离进程中运行，默认不联网、不读取账号数据。\n\n## Agent Skill\n\n`skills/yichen-jianying-edit/` 提供 Agent 调用入口、口播计划辅助脚本与操作参考。\nSkill 不包含剪映引擎；独立安装后仍需检出核心项目，并指定其路径：\n\n```bash\nexport JIANYING_HEADLESS_ROOT=\"/absolute/path/to/jianying-headless\"\n```\n\n安装说明见 [独立 Skill](skills/yichen-jianying-edit/README.md)。\nSkill 另收录于 [yichen-skills](https://github.com/mcncarl/yichen-skills/tree/main/yichen-jianying-edit)。\n\n## 当前限制\n\n- 复合片段仅支持实验性的离线修改与冻结快照导出，尚不能交付为保存可靠的可编辑嵌套草稿。\n- 图片/GIF 样本曾出现间歇少一帧；严格帧数检查会拒绝缺帧输出，根因尚未解决。\n- 不支持任意剪映版本、任意效果组合、在线模板、资源下载、云端工程或账号权益获取。\n- 高清黑白滤镜与橙色描边花字已退出支持范围；含这些效果的计划或旧快照会明确报错。\n- 工程结构检查、原生播放、视觉一致性、主观听感与素材许可是不同的验收项目。\n\n详细结果及已知问题见 [验证状态](docs/VERIFICATION.md)。\n\n## 项目结构与验证\n\n| 目录 | 内容 |\n| --- | --- |\n| `engine/` | 草稿构建、独立副本编辑、资源校验与原生导出 |\n| `bridge/` | 文件与管道桥接源码、保留来源声明的接口头文件 |\n| `skills/` | Agent Skill 及配套参考 |\n| `tools/`、`tests/` | 构建、源码包装检查与可移植测试 |\n| `licenses/` | 第三方许可证 |\n\n```bash\npython3 tools/check_package.py\npython3 -m unittest discover -s tests -v\n```\n\n专项原生测试的本机素材与证据不随仓库分发；源码检查不能替代实际工程验收。\n\n## 许可与来源\n\n原创部分采用 [个人学习和非商业使用许可](LICENSE)；商业使用需取得作者书面授权。\n第三方内容继续适用原许可证，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。\n本项目不是 MIT / Apache-2.0 整包授权，代码许可也不包含剪映集成授权、账号权益或素材许可。\n分发边界见 [分发范围](docs/DISTRIBUTION-SCOPE.md)。\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:58.697919"
+  },
+  {
+    "basic_info": {
+      "name": "wechat-intelligence-hub",
+      "full_name": "Rion-Wu-tech/wechat-intelligence-hub",
+      "owner": "Rion-Wu-tech",
+      "description": "Local-first WeChat intelligence system with a read-only CLI, Codex skills, searchable chat history, daily briefings, follow-ups and opportunity tracking.",
+      "url": "https://github.com/Rion-Wu-tech/wechat-intelligence-hub",
+      "clone_url": "https://github.com/Rion-Wu-tech/wechat-intelligence-hub.git",
+      "ssh_url": "git@github.com:Rion-Wu-tech/wechat-intelligence-hub.git",
+      "homepage": null,
+      "created_at": "2026-09-04T15:00:53Z",
+      "updated_at": "2026-09-27T04:27:43Z",
+      "pushed_at": "2026-09-21T18:24:42Z"
+    },
+    "stats": {
+      "stars": 2546,
+      "forks": 2727,
+      "watchers": 2546,
+      "open_issues": 8,
+      "size": 1593
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 986316,
+        "HTML": 62966,
+        "Shell": 23244,
+        "CSS": 1712
+      },
+      "license": "GNU Affero General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# WeChat Intelligence Hub\n\n微信个人情报库：把本地微信聊天变成可检索、可核查、可行动的个人情报，包括联系人历史、群聊主题、待回复、承诺、商机、复联线索，以及任意指定时间范围的情报报告。\n\n这不是 Prompt 大礼包，而是一个独立的微信旗舰项目。仓库同时提供只读数据入口和情报工作流，并配有可执行入口、边界、测试和全虚构样例。\n\n当前首发版本为 `v0.9.2-preview.2`。微信相关代码已经具备公开测试条件，但不是“安装后自动读取所有人的完整微信历史”：完整数据库模式需要本人授权的本地数据库和访问材料。Reader 核心不获取密钥、不重签名、不注入、不 Hook 微信；可选的实验性接入助手有独立授权和副作用边界，见下文。\n\n## 一个产品，两个 Skill\n\n| Skill / Project | 作用 | 状态 |\n|---|---|---|\n| `wechat-cli` | Rion 自有的只读 Reader 入口；v0.9.2-preview.2 已覆盖旧版接口、schema-2 salt-key 授权导入、WCDB 压缩消息与本机实读验收 | 依赖层 / Preview |\n| `wechat-intelligence-hub` | 把微信记录转成日报、待回复、承诺、商机和复联线索 | 用户入口 / Flagship |\n\n微信能力在代码中分成四层，方便独立测试和维护；对用户仍是一套产品、一次安装：\n\n- `projects/rion-wechat-reader/`：Rion 自有的 clean-room 只读 Reader 核心。\n- `skills/wechat-cli/`：Reader 的统一 Agent 入口，默认只调用 Rion 自有 Reader；只有使用者显式设置 `RION_WECHAT_CLI_BIN` 时才调用兼容后端。\n- `skills/wechat-intelligence-hub/`：Agent 的调用入口与判断规则。\n- `projects/wechat-intelligence-hub/`：确定性本地引擎、虚构样例和测试。\n\nRion 的通用 Skill 合集 `rionwu-skills` 只负责收录、发现和链接本项目，不复制微信读取器源码或 Git 历史。\n\n## 安装\n\n**9月22日接入更新：** 已增加材料编码/格式兼容、明确错误码、独立解密计数和`diagnose`诊断。JEV可选辅助分流，但不参与密钥验证；Windows首次获取仍待真机验收。见[更新与排障提示词](docs/access-upgrade-2026-09-22.md)。\n\n向维护者反馈前，让本地Codex运行`access.sh diagnose --support-summary`；Windows用Reader环境的Python运行`rion_wechat_access.py diagnose --support-summary`。它只输出允许分享的版本、状态、计数和错误码，仍请本人检查后再发。只有网页对话、没有本机文件及命令执行能力时，无法直接接入本机微信。另一个工具已能读取时，优先验证已有材料或已解密数据库，不要求重新获取；见[常见卡点处理](docs/access-support.md)。\n\n### 直接让Codex安装和配置\n\n把下面这段发给Codex即可，不需要自己逐条执行命令：\n\n```text\n请从 https://github.com/Rion-Wu-tech/wechat-intelligence-hub 安装微信CLI和微信个人情报库，接入这台电脑上我自己的微信。\n先读取仓库说明，检查是否已经安装、当前配置是否可用；已有可用配置或key就复用，不覆盖我的个人Profile和数据。\n缺少依赖由你处理；确实缺key时，由你核验并准备固定版本工具，说明影响、经我确认后执行。我负责登录微信和完成系统授权，不会把密码或key发给你。\n完成数据库验证和配置后，告诉我能读取哪些范围、还有什么未就绪；再协助初始化个人情报库。遇到错误请定位并修复，不要把一堆命令交给我，也不要无限重试。\n```\n\n这是有人确认关键操作的接入工作流，不是无条件、无人值守的解密。已有安装如何升级、微信升级后如何排障，见[配置与排障提示词](docs/USAGE.md#让codex处理配置与排障)。\n\n### 手动安装入口\n\n**先确认接入条件：安装成功不等于已能读取聊天。** 已有本机访问材料可直接验证、导入；没有key时，由Codex按[五步首次接入工作流](skills/wechat-cli/references/access-onboarding.md)准备固定版本工具，经审核和明确确认后尝试获取，可能重启微信和重签名副本。用户只需登录、确认影响和完成系统授权，不需要复制key。仓库不捆绑获取工具，安装和日常日报均不会触发获取；macOS新机器获取路径尚未实测，不保证所有版本可用。请勿向维护者、社群或Issue发送key、密码和数据库。\n\n克隆仓库：\n\n```bash\ngit clone https://github.com/Rion-Wu-tech/wechat-intelligence-hub.git\ncd wechat-intelligence-hub\n```\n\n安装完整产品：\n\n```bash\n./scripts/install.sh --with-sqlcipher --with-html\n```\n\n不传 Skill 名称时会安装 `wechat-cli`、`wechat-intelligence-hub` 及其本地引擎。即使只指定 `wechat-intelligence-hub`，安装器也会自动补齐它依赖的 `wechat-cli`；用户不需要手工拼装两套组件。\n\n`--with-html` 在 Hub 自己的 `.venv` 安装固定版本的 HTML 净化依赖 `nh3`，不修改全局 Python；HTML 还需要本机 Pandoc。没有该依赖时，HTML 生成会明确报错，不降级为未净化页面；纯 Markdown/检索仍可用。已有安装请让 Codex 先确认实际引擎路径、备份代码再升级，保留 Profile、数据库和 key。安装器不会覆盖已有目录。安全改动、影响和回归方法见[升级说明](docs/upgrade-2026-09-14.md)。\n\n安装后可以直接对Codex说：\n\n> 用 $wechat-cli 帮我接入这台电脑上我自己的微信。已有配置或key就复用；没有就帮我准备工具，说明影响并确认后获取，再完成验证和配置。\n\n安装 `wechat-cli` Skill 时会同时安装 Rion 自有的 `rion-wechat-reader` 核心。新用户无需第三方二进制即可检查本机覆盖范围，并在 macOS 上读取系统实际保留的微信通知预览；该模式只覆盖入站预览，不能代表完整聊天记录。v0.9.2-preview.2 的公开接口已与旧 `wechat-cli 1.6.19` 的 29 项只读工具、266 个输入字段对齐，可读取用户显式提供的 schema-2 salt-key 授权材料，并安装隔离 SQLCipher 与 Zstandard 运行依赖。当前本机已完成新旧 CLI 真实数据对照、当前 macOS 图片/视频/文件路径验证和微信个人情报库端到端索引验证；其他微信版本仍按能力矩阵逐项积累。\n\n需要独立命令行入口时只安装一个 CLI：\n\n```bash\nprojects/rion-wechat-reader/install.sh --with-sqlcipher\nrion-wechat-cli self-test\nrion-wechat-cli self-test --require-sqlcipher\nrion-wechat-cli access-plan --pretty\n```\n\n`ready` 表示复用已有配置；`ready_to_configure` 才继续用相同输入运行 `setup`；`needs_access` 表示缺少访问材料，不要重复运行setup。JSON顶层 `ok: true` 仅表示诊断完成，请查看 `data.state`。部分覆盖、驱动缺失、多账号和权限问题会分别给出下一步。\n\n**卡在找key、反复退出微信？** 先让Codex运行`access.sh status`，根据失败阶段继续处理。新助手支持账号目录自动适配、相对路径材料转换、Reader `salt_keys`复用，以及获取前的文件/调试器检查。不要上传原始日志或key。具体见[接入排障表](skills/wechat-cli/references/access-troubleshooting.md)和[本轮接入升级及仍未解决的兼容项](docs/access-upgrade-2026-09-14.md)。这些改动不代表任意Mac/Windows版本都能自动取得key。\n\n维护者和兼容测试用户可查看[macOS接入候选补丁](providers/wxkey/README.md)：包含上游Intel修复、进程身份核验、等待超时与清理改进。仓库只附补丁和准备脚本，不附可执行获取工具；它尚未通过新机器真实微信获取验收，不是默认安装步骤。\n\n**Windows反馈更新（9月17日）：** 社区报告微信4.1.13.12接通，但本地获取分支未合入，不能宣称Windows一键可用。Reader新增真实ACL检查与私有输出保护；目前通过模拟测试，Windows真机仍待验收。具体排障与Codex提示词见[Windows接入指引](skills/wechat-cli/references/windows-access.md)。\n\n接入助手还会提示复用已存在的wxcli材料，并在启动获取工具前检查LLDB关键接口。数据库验证成功后仍需确认微信恢复；`finish-recovery`只在用户事后确认和进程检查通过后移除恢复锁，正常查询不受该锁影响。\n\n完整历史和实时数据库读取要求有权访问的本地数据库与访问材料，且仅覆盖已同步到本机的数据。只读 Reader 与可选接入助手的边界见 [Reader 说明](projects/rion-wechat-reader/README.md)。没有数据库读取条件时，仍可运行全虚构 Demo，验证索引、判断与报告链路。\n\n安装 `wechat-intelligence-hub` 时，脚本会同时把经过隐私扫描的本地引擎放进 Codex 目录，正常调用无需再配置 `WECHAT_HUB_HOME`。先用虚构数据运行 Demo：\n\n```bash\nbash projects/wechat-intelligence-hub/scripts/run_demo.sh\n```\n\n只有在开发或调试仓库源码时，才需要临时指定引擎路径：\n\n```bash\nexport WECHAT_HUB_HOME=\"$PWD/projects/wechat-intelligence-hub\"\n```\n\n安装 `wechat-cli` 和 `wechat-intelligence-hub` 后，建议先做一次个性化初始化。它会把你正在做的事、个人背景和关系标签变成日报的排序依据：\n\n```bash\ncd projects/wechat-intelligence-hub\npython3 wechat_intelligence_hub.py profile-init \\\n  --owner-alias \"你的微信昵称\" \\\n  --personal-doc \"/path/to/个人说明.md\" \\\n  --plan-doc \"/path/to/本月计划.md\" \\\n  --priority-label \"你的重点联系人标签\"\n```\n\n个人说明可以包含身份、业务、擅长领域、资源",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:00:59.897048"
+  },
+  {
+    "basic_info": {
+      "name": "NanoJev",
+      "full_name": "TianyuCodings/NanoJev",
+      "owner": "TianyuCodings",
+      "description": "A nano replica of Jev: parallel decisions, dynamic candidates, and an end-to-end training pipeline.",
+      "url": "https://github.com/TianyuCodings/NanoJev",
+      "clone_url": "https://github.com/TianyuCodings/NanoJev.git",
+      "ssh_url": "git@github.com:TianyuCodings/NanoJev.git",
+      "homepage": null,
+      "created_at": "2026-09-17T16:08:30Z",
+      "updated_at": "2026-09-27T05:56:50Z",
+      "pushed_at": "2026-09-21T09:58:28Z"
+    },
+    "stats": {
+      "stars": 2319,
+      "forks": 243,
+      "watchers": 2319,
+      "open_issues": 7,
+      "size": 64035
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1997266,
+        "JavaScript": 351062,
+        "HTML": 42894,
+        "CSS": 6170
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# NanoJev — A nano replica of [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev)\n\n**English** | [简体中文](README.zh-CN.md)\n\n**A 0.6B parallel decision model: states and questions in, complete probability distributions out. Zero output-token decoding.**\n\n> **New project: [JevHarness](https://github.com/TianyuCodings/JevHarness)** — Let an LLM build task-specific decision harnesses with [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev), with optional refinement using rewards and execution traces. Includes an interactive Pokémon demo.\n\n[Play ViZDoom](https://nanojev-dev.tianyuchen99.chatgpt.site/?autoplay=1) · [Maze & Snake](https://nanojev-dev.tianyuchen99.chatgpt.site/side-by-side?autoplay=1#maze) · [Model](https://huggingface.co/C-Tianyu/NanoJev) · [Dataset](https://huggingface.co/datasets/C-Tianyu/NanoJev-Data)\n\n**Now playing ViZDoom:** one shared checkpoint handles Basic aiming and Predict Position's moving-target rocket shots, alongside Maze and Snake.\n\n**4 tasks · 18,760 decision questions per data variant · 896 Predict Position expert episodes**\n\n## What's new\n\n**September 20, 2026 — One model, four games.**\n\n- **ViZDoom Basic:** **128/128** test successes, compared with **56/128** for [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev).\n- **ViZDoom Predict Position:** **27/128** test successes, up from **11/128** before this round; the matched [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) run also scores **11/128**. The policy learns when to turn, wait and fire at a moving target.\n- **16,333 ViZDoom questions** within an **18,760-question** mixed-task dataset per target variant, spanning train, dev, calibration, test and OOD.\n- **One model, four games:** the same step-400 checkpoint also completes the 50×50 maze in **225 attempts** and collects **30 food items** during a full 256-step Snake run.\n\n## Three models, side by side\n\nReal browser replays of **[Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev), NanoJev and Untuned Qwen**. These animations loop automatically; click either one to open its interactive player. All four demos use the same current NanoJev checkpoint. The interactive development site currently requires access; all recordings can also be played locally using the commands below.\n\n### ViZDoom Basic · Aim, then fire\n\n[![NanoJev eliminates the target with one shot while Jev and Untuned Qwen fail, shown side by side on the same game clock](assets/basic_unified_autoplay.gif)](https://nanojev-dev.tianyuchen99.chatgpt.site/?autoplay=1)\n\nMove into position, line up the target, fire. NanoJev eliminates the target with **one shot in 1.40 s**; [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) and Untuned Qwen each fire **19 shots** without an elimination before the deadline. The three panels share the same game clock and show original frames and action probabilities.\n\n### Find the exit · 50×50 Maze\n\n[![Jev, current NanoJev and Untuned Qwen explore the same 50×50 maze in the live three-panel viewer](assets/maze_unified_autoplay.gif)](https://nanojev-dev.tianyuchen99.chatgpt.site/side-by-side?autoplay=1#maze)\n\nNanoJev reaches the exit in **225 attempts**, versus **2,738** for [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) and **4,726** for Untuned Qwen. Each system combines local safety probabilities with the same exploration code and remembered open paths.\n\n[Play Snake](https://nanojev-dev.tianyuchen99.chatgpt.site/side-by-side?autoplay=1#snake) · [Play Predict Position](https://nanojev-dev.tianyuchen99.chatgpt.site/predict-position?autoplay=1)\n\n## What NanoJev does\n\n- **Parallel decisions:** batch independent states, questions and candidate paths in one backbone forward.\n- **Dynamic candidates:** Choice returns a distribution over 2–255 supplied candidates using a shared scoring head.\n- **Boolean and ordered scores:** predict a proposition's probability, or a distribution and expectation over 2–10 ordered levels.\n- **Direct probabilities:** rank, select or sample actions without generating answer tokens.\n- **One small backbone:** Qwen3-0.6B with decision heads, reused across all four game tasks and a persistent inference service.\n\nEach request supplies a **state**, a **question** and its **candidates**. The backbone encodes candidate paths; shared heads produce the requested probabilities. Choice uses set attention and a softmax, Boolean uses a sigmoid, and Score returns a probability-weighted level.\n\n## Held-out gameplay\n\nSuccessful episodes on the complete **274-case test set**, using the same observation interface, candidate actions and seeded epsilon-greedy controller across systems:\n\n| Model | Maze | Snake | Basic | Predict Position |\n|---|---:|---:|---:|---:|\n| **NanoJev** | **4/10** | **8/8** | **128/128** | **27/128** |\n| [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) | 7/10 | 8/8 | 56/128 | 11/128 |\n| Untuned Qwen3-0.6B | 2/10",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:01:01.077309"
+  },
+  {
+    "basic_info": {
+      "name": "apk-reverse",
+      "full_name": "newliver666/apk-reverse",
+      "owner": "newliver666",
+      "description": "Suitable for Android APK reverse engineering analysis",
+      "url": "https://github.com/newliver666/apk-reverse",
+      "clone_url": "https://github.com/newliver666/apk-reverse.git",
+      "ssh_url": "git@github.com:newliver666/apk-reverse.git",
+      "homepage": "",
+      "created_at": "2026-09-19T13:12:54Z",
+      "updated_at": "2026-09-27T06:00:32Z",
+      "pushed_at": "2026-09-24T09:22:21Z"
+    },
+    "stats": {
+      "stars": 2235,
+      "forks": 481,
+      "watchers": 2235,
+      "open_issues": 0,
+      "size": 1424
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 1146910,
+        "JavaScript": 69070,
+        "Java": 15124
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"assets/banner-dark.svg\">\n    <img src=\"assets/banner-light.svg\" alt=\"apk-reverse\" width=\"100%\">\n  </picture>\n</p>\n\n<p align=\"center\">\n  <b>English</b> · <a href=\"README.zh-CN.md\">简体中文</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/newliver666/apk-reverse/stargazers\"><img src=\"https://img.shields.io/github/stars/newliver666/apk-reverse?style=flat-square&label=stars&color=49454F\" alt=\"stars\"></a>\n  <a href=\"https://github.com/newliver666/apk-reverse/network/members\"><img src=\"https://img.shields.io/github/forks/newliver666/apk-reverse?style=flat-square&label=forks&color=49454F\" alt=\"forks\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/github/license/newliver666/apk-reverse?style=flat-square&color=49454F\" alt=\"license\"></a>\n  <img src=\"https://img.shields.io/badge/python-3.9%2B-49454F?style=flat-square&logo=python&logoColor=white\" alt=\"python\">\n  <img src=\"https://img.shields.io/badge/platform-android-49454F?style=flat-square&logo=android&logoColor=white\" alt=\"android\">\n  <a href=\"https://github.com/newliver666/apk-reverse/actions/workflows/ci.yml\"><img src=\"https://img.shields.io/github/actions/workflow/status/newliver666/apk-reverse/ci.yml?style=flat-square&label=ci&color=49454F\" alt=\"ci\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"#what-it-is-good-at\">Capabilities</a> · <a href=\"#structure\">Structure</a> · <a href=\"#install\">Install</a> · <a href=\"#requirements\">Requirements</a> · <a href=\"#read-this-first\">Failure catalogue</a> · <a href=\"#scope\">Scope</a> · <a href=\"#repository-maintenance\">Maintenance</a> · <a href=\"#disclaimer\">Disclaimer</a>\n</p>\n\n# apk-reverse\n\nAn Agent Skill for Android APK reverse engineering, debloating, ad removal, surgical\ndex patching, repacking, and runtime/server analysis.\n\nIt is a **skill**, not a tutorial: it is written to be loaded by an agent (Claude Code,\nCodex, or any harness that supports the Agent Skills format) while it works, so it is\norganized for progressive disclosure — a short decision-oriented `SKILL.md`, detailed\nreferences loaded only when a step needs them, and parameterized scripts you can run\ndirectly.\n\n## How an agent is expected to consume this\n\n`SKILL.md` is deliberately written as a **procedure with gates** rather than as advice, because the\nobserved failure mode is not ignorance — it is a model reading the whole thing, agreeing with it, and\nthen reasoning from first principles anyway.\n\nSo there are four things in the body that are meant to be *acted on*, not read:\n\n- **Four override rules (R1–R4).** Where they conflict with the current plan, they win until evidence\n  overrides them.\n- **A symptom index.** Each row is a failure that has already been paid for. **A matching row is a\n  stop signal**: load that file before running another command, rather than after a few more attempts.\n  Reasoning past a known symptom is how the same hours get spent twice.\n- **Four gates (G1–G4),** each an action with a pass criterion. \"I understand the idea\" does not clear\n  a gate. They exist so that classification, environment truth and a control build happen *before*\n  the first patch, not after the third failure.\n- **A two-strike rule and stop conditions.** Two failures of the same shape mean the model is wrong,\n  not the parameters. The third variant of a hypothesis that already failed twice is where rounds go\n  to die.\n\nAnd one thing at the end that is meant to be *withheld*: **\"done\"** has a definition (six items). A\nclean log is not one of them. Anything short of all six is a checkpoint, and should be reported as a\ncheckpoint with what remains.\n\nIf you are an agent reading this: the cheapest possible first command is\n`python skills/apk-reverse/scripts/doctor.py`. It tells you which of these tools exist here, which\nscripts can actually run, and whether something in the environment is already poisoning your\nmeasurements.\n\n## What it is good at\n\n- Deciding **fast** whether a request is even achievable client-side, instead of\n  burning hours on a paywall that is enforced by a server.\n- Deciding **what form the deliverable must take** before any work starts — an\n  unrooted, self-contained artifact is a different problem from \"make it work on this\n  machine\", and confusing the two is the most expensive drift in this domain.\n- Choosing the **safest patch layer** for a given change, and avoiding the layers that\n  break the app.\n- Catching the repack failure that looks like success: an app that installs, launches and\n  renders perfectly while **every signed request is rejected**, because the client derives its\n  request-signing key from its own signing certificate.\n- Separating **your own mistakes from the app's or the server's problems** — a\n  feature-scoped failure (login, registration, payment) is often a TLS/certificate issue on\n  one code path, not a consequence of the patch you just built. Device state, a dead device\n  server and clock drift masquerade the same",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:01:02.275396"
+  },
+  {
+    "basic_info": {
+      "name": "Edge0",
+      "full_name": "Edge0-AI/Edge0",
+      "owner": "Edge0-AI",
+      "description": null,
+      "url": "https://github.com/Edge0-AI/Edge0",
+      "clone_url": "https://github.com/Edge0-AI/Edge0.git",
+      "ssh_url": "git@github.com:Edge0-AI/Edge0.git",
+      "homepage": null,
+      "created_at": "2026-09-08T13:41:47Z",
+      "updated_at": "2026-09-27T05:40:58Z",
+      "pushed_at": "2026-09-20T08:04:43Z"
+    },
+    "stats": {
+      "stars": 2103,
+      "forks": 190,
+      "watchers": 2103,
+      "open_issues": 23,
+      "size": 1460
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 397090
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"assets/20260908-223115.jpg\" alt=\"edge0\" width=\"100%\">\n\n# edge0\n\n**An open-source streaming MoE inference framework — SSD expert offload + Recover-LoRA + prerouter routing prediction.**\n\n[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Edge0--35B--A3B--preview-yellow?style=for-the-badge)](https://huggingface.co/Edge0/Edge0-35B-A3B-preview)\n[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Edge0--8B--A1B--preview-yellow?style=for-the-badge)](https://huggingface.co/Edge0/Edge0-8B-A1B-preview)\n[![ModelScope](https://img.shields.io/badge/ModelScope-Edge0--35B--A3B--preview-624AFF?style=for-the-badge)](https://www.modelscope.cn/models/Edge0/Edge0-35B-A3B-preview)\n[![ModelScope](https://img.shields.io/badge/ModelScope-Edge0--8B--A1B--preview-624AFF?style=for-the-badge)](https://www.modelscope.cn/models/Edge0/Edge0-8B-A1B-preview)\n[![arXiv](https://img.shields.io/badge/arXiv-2609.18063-B31B1B?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2609.18063)\n[![GitHub](https://img.shields.io/badge/GitHub-Edge0--AI%2FEdge0-black?style=for-the-badge&logo=github)](https://github.com/Edge0-AI/Edge0)\n[![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)](LICENSE)\n\nEnglish | [中文](README_zh.md)\n\n</div>\n\n**edge0** is an open-source streaming MoE inference framework. It\ngeneralizes the production-proven recipe — **SSD expert offload +\nRecover-LoRA + prerouter routing prediction** — into an extensible\nframework. The backend is isolated by design: the current MLX backend\nruns on Apple Silicon, and additional platforms (CUDA, …) plug into the\nsame core abstractions.\n\nTwo model tiers ship with the framework. Each tier is an end-to-end\nrelease: the released checkpoint, the trained LoRA adapters, and the\ntrained prerouter heads work together as one unit.\n\n| Tier | Released checkpoint | Inference profile |\n|---|---|---|\n| `edge0-35b` | [`Edge0/Edge0-35B-A3B-preview`](https://huggingface.co/Edge0/Edge0-35B-A3B-preview) · [ModelScope](https://www.modelscope.cn/models/Edge0/Edge0-35B-A3B-preview) | 4-bit, 40 layers, 256 experts, prerouter K=4 |\n| `edge0-8b` | [`Edge0/Edge0-8B-A1B-preview`](https://huggingface.co/Edge0/Edge0-8B-A1B-preview) · [ModelScope](https://www.modelscope.cn/models/Edge0/Edge0-8B-A1B-preview) | 4-bit, 24 layers, 128 experts, prerouter K=8 |\n\nBoth checkpoints are built on open sparse-MoE base models (Qwen3.6-35B-A3B\nand the Ling 3.0 bailing hybrid respectively) and ship with the\nLoRA and prerouter training done for this framework — the adapter files\nare co-located with each checkpoint and load automatically, so\n`edge0 serve <tier>` runs the trained pipeline out of the box.\n\n## Requirements\n\n- **OS / hardware**: the MLX backend runs on macOS with Apple Silicon\n  (M1/M2/M3/M4). The CUDA backend is on the roadmap — no other\n  platforms are supported yet.\n- **Python**: 3.10+ (3.12 recommended).\n- **MLX**: `mlx==0.30.6` / `mlx-metal==0.30.6` with `mlx-lm==0.31.0` (see\n  `pyproject.toml`). Garbled, mixed-language output on Apple A18 / A18 Pro\n  means an older `mlx`: `pip install 'mlx==0.30.6' 'mlx-metal==0.30.6'`\n  ([#8](https://github.com/Edge0-AI/Edge0/issues/8)).\n- **Memory**: ~2.9 GB peak active memory for `edge0-35b`, ~1.0 GB for\n  `edge0-8b` (short contexts; see [Benchmark](#benchmark)). Add\n  headroom for the OS, tokenizer, and long-context KV growth.\n- **Disk**: the 4-bit checkpoints are ~23 GB (`edge0-35b`) and ~4.2 GB\n  (`edge0-8b`); expert weights are mmapped and read on demand, they are\n  not loaded into RAM up front.\n\n## Design\n\n- **transformers-style usage**: `AutoModel` / `AutoConfig` / `AutoEngine`\n  resolve the tier from the model name;\n- **Backend isolation**: all MLX code lives under `edge0/backends/mlx/`;\n  the core logic (model specs, prerouter, streaming expert pool, server)\n  depends only on the backend facade (`edge0/backends/base.py`), so a new\n  backend implements the same facade (`backends/cuda/` is a reserved\n  slot) with zero changes to core code;\n- **Adapters as safetensors**: LoRA and prerouter weights are\n  `.safetensors` files with provenance metadata (source, version, owner\n  layers), resolved from the model directory or `artifacts/`;\n- **Model + adapters in one directory**: a model directory holds both\n  the base checkpoint (`config.json` / `model*.safetensors` / tokenizer)\n  and that model's adapters; upgrading adapters swaps adapter\n  files only — the base stays read-only and is never merged.\n\n## Core mechanisms\n\n- **SSD expert offload**: expert weights are streamed from storage on\n  demand; peak memory is bounded by the active set, not the parameter\n  count.\n- **Prerouter**: a trained head predicts expert routing one step\n  ahead, so expert loads overlap the forward pass instead of stalling\n  it — **up to +59%** decode throughput; the gain grows with storage\n  latency, model size, and routed width *K*.\n- **Recover-LoRA**: the int4 base is frozen and",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:01:03.464930"
+  },
+  {
+    "basic_info": {
+      "name": "nimble",
+      "full_name": "bespokelabsai/nimble",
+      "owner": "bespokelabsai",
+      "description": "Local typed decisions, contrastive data curation, and model evaluation.",
+      "url": "https://github.com/bespokelabsai/nimble",
+      "clone_url": "https://github.com/bespokelabsai/nimble.git",
+      "ssh_url": "git@github.com:bespokelabsai/nimble.git",
+      "homepage": null,
+      "created_at": "2026-09-18T09:07:48Z",
+      "updated_at": "2026-09-27T04:52:14Z",
+      "pushed_at": "2026-09-24T06:05:31Z"
+    },
+    "stats": {
+      "stars": 1850,
+      "forks": 146,
+      "watchers": 1850,
+      "open_issues": 5,
+      "size": 6242
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 940233,
+        "HTML": 4741
+      },
+      "license": null,
+      "topics": []
+    },
+    "content": {
+      "readme": "# Bespoke Nimble\n\n**Data, Model, Recipe for an open Jev**\n\n[Model](https://huggingface.co/bespokelabs/Bespoke-Nimble-9B) · [Updates](#updates) · [Capabilities](#capabilities) · [Quickstart](#quickstart) · [Methodology](#methodology) · [Documentation and development](#documentation-and-development) · [Citation](#citation)\n\n![Introducing Bespoke Nimble. Serving reads the prompt once and then scores one answer token per question. Data curation changes one fact so that the correct answer flips. Training fine-tunes Qwen3.5-9B with LoRA on the answer tokens only. On 324 held-out examples, Bespoke-Nimble-9B matches 90.1% of the reference labels, compared with 66.4% for its base model and 93.2% for Jev 1.13.0.](assets/diagrams/nimble-infographic.svg)\n\nNimble takes some text and a schema, and makes typed decisions about the text.\nThe schema is the list of questions to answer. Each question is either a choice\nfrom a list that you give or a true or false question. For each question, Nimble\nreturns the answer it picked and the probability of each allowed answer.\n\nNimble makes each decision in one step and does not write out any reasoning\nfirst, so it is fast (blazing fast!). Nimble is\ninspired by the System One approach of\n[TypeSafe's Jev](https://docs.typesafe.ai/primitives/choice). In this repository,\nwe share our recipe for training such a model.\n\nNote that we did not distill from Jev. The point of the repository is to show how to curate data, how to train, and to serve such a model, and encourage more research!\n\nYou can run [Bespoke-Nimble-9B](https://huggingface.co/bespokelabs/Bespoke-Nimble-9B)\non a Mac with Apple Silicon or on a machine with an NVIDIA GPU.\n\n## Updates\n\n- September 24, 2026: [Bespoke-Nimble-9B](https://huggingface.co/bespokelabs/Bespoke-Nimble-9B) now contains the latest checkpoint, with an 8,192-token context and up to 255 choices per field. Its default is T=1.0; the original release is preserved under the `original-2676` tag, and the separate v2 repository is unchanged. Update this checkout before loading the new release.\n\n- On September 22, 2026, we fitted a temperature for Bespoke-Nimble-9B. With\n  this temperature, the probabilities better match how often the answers are\n  right. The model picks the same answers as before. Noul probabilities and\n  Score values do change, so if you compare them with a threshold, test the\n  threshold again. See [Probability temperature](#probability-temperature) and\n  [PR #7](https://github.com/bespokelabsai/nimble/pull/7).\n- On September 20, 2026, we published the 2,676 training examples and the 324\n  held-out examples for Bespoke-Nimble-9B. We had left them out of the first\n  release by mistake. See the [dataset guide](docs/DATASET.md) and\n  [PR #5](https://github.com/bespokelabsai/nimble/pull/5).\n- On September 19, 2026, we raised the prompt limit of the hosted API to 8,192\n  tokens for each question. The model was trained on prompts of up to 2,048\n  tokens, so shorter prompts are better tested. See the\n  [SGLang deployment guide](docs/MODAL_SERVING.md) and\n  [PR #4](https://github.com/bespokelabsai/nimble/pull/4).\n- On September 18, 2026, [Edgar Dyck](https://github.com/eddited17) added a\n  public benchmark suite. With it, you can run Bespoke-Nimble-9B and Jev on the\n  same records from 13 public subsets with human labels. The\n  [public benchmarks guide](docs/PUBLIC_BENCHMARKS.md) has the steps and the\n  results. See [PR #2](https://github.com/bespokelabsai/nimble/pull/2).\n\n## Capabilities\n\nWe built Nimble in one day, so expect some rough edges. What Nimble can do comes\nfrom two sources: the first is the base model, Qwen3.5-9B, the second is our\ntraining data, which we curated for a few specific domains.\n\n### What you can build\n\n| Task | You define | You get back |\n| --- | --- | --- |\n| Route a request | The destinations and when each one applies | The chosen destination and the probability of each destination |\n| Check a condition | A yes or no question and the evidence | True or false, and the probability of each |\n| Apply a policy | The rules and the allowed outcomes | A typed decision based on the text you supply |\n| Rate an outcome | Ordered levels, each with clear criteria | The chosen level and the probability of each level |\n\nYou supply a context, which is the text to judge, and a schema. The schema must\nbe flat, which means that it has no nested fields. Each field is an enum or a\nboolean. An enum field has a fixed list of string choices, and a boolean field\nis true or false.\n\nEach allowed answer has a code that is one token long. The scorer reads the\nmodel's logits for these codes. Logits are the raw scores that the model gives\nto each token. The scorer turns the logits into probabilities with the softmax\nfunction. Our Python code then builds the output from these probabilities, so\nthere is no generated JSON to parse. If a field is an ordered rating scale, your\napplication can use the probabilities to calculate an expected level.\n\nOn a Mac, `Paral",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:01:04.650365"
+  },
+  {
+    "basic_info": {
+      "name": "holo-card-studio",
+      "full_name": "EverettFish/holo-card-studio",
+      "owner": "EverettFish",
+      "description": "Turn the user's description or uploaded reference into a finished, editable Blender card and an interactive Three.js page. Preserve the requested subject, style, typography and destination. This skill contains code and text only; generated artwork belongs in the user's output project.",
+      "url": "https://github.com/EverettFish/holo-card-studio",
+      "clone_url": "https://github.com/EverettFish/holo-card-studio.git",
+      "ssh_url": "git@github.com:EverettFish/holo-card-studio.git",
+      "homepage": null,
+      "created_at": "2026-09-07T00:41:18Z",
+      "updated_at": "2026-09-27T03:44:44Z",
+      "pushed_at": "2026-09-22T06:51:32Z"
+    },
+    "stats": {
+      "stars": 1808,
+      "forks": 243,
+      "watchers": 1808,
+      "open_issues": 4,
+      "size": 146
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 134790,
+        "JavaScript": 15548,
+        "HTML": 8416,
+        "CSS": 3855
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "# 🃏 Holo Card Studio\n\n[English](README.en.md)\n\n实现教程来源（感谢大佬！）：小红书@乌托邦的香蕉🍌\n\n> 一个 **Codex Skill**：对 Codex 说一句话，收获一张会随视角流光溢彩的 3D 全息闪卡。\n> 能在浏览器里拖着转、翻到背面、拉滑块看它闪；还附赠一个可以随便改的 Blender 工程。\n\n小时候在文具店门口舍不得买的那种闪卡，现在你想印谁就印谁。\n\n---\n\n## ✨ 三十秒看懂\n\n```\n你：「给我做一张赛博朋克风的机械猫闪卡，背景霓虹雨夜，编号 No.007」\n\nCodex：\n  🎨 画好四层图（主体 / 背景 / 线稿 / 文字）\n  🧊 搭好 Blender 场景，视差、镭射、星光一次到位\n  🌐 组装成 Three.js 网页，本地跑起来\n  📦 递给你：网页链接 + card.blend + 渲染图\n```\n\n你只负责想，剩下的它来。\n\n---\n\n## 🎬 你可以拿它做什么\n\n### 🐱 给自家毛孩子发一张\"传说级\"卡\n上传一张猫主子的照片，加一句\"传说稀有度、金色边框、名字叫布丁\"。\n主体保留它本猫的神态和构图，背景和线稿全新绘制。拖一拖，猫在卡里往前凸，背景往后退，镭射彩虹随角度流动——朋友圈晒图请自便。\n\n### 🎮 给独立游戏做角色卡牌\n一个角色一句描述，批量出一整套：战士、法师、盗贼、Boss。\n每张卡自带 `card-config.json`，稀有度、编号、属性文字都在里面，改完重新跑一遍流水线就更新。发售前发一波\"抽卡预告\"，玩家会疯。\n\n### 🏢 团队周年纪念 / 新人入职卡\n把同事做成卡牌：头像当主体、部门色当背景、Slogan 当文字层。\n每人一张，网页链接一发，大家在浏览器里翻自己的卡翻一下午。比 PPT 里的\"团队介绍\"页好玩一百倍。\n\n### 🎁 情人节 / 生日 / 纪念日\n\"复古胶片风、粉金配色、背面写一句话\"。\n做好之后发一个链接过去，对方在手机上转着看，翻到背面看到那句话。仪式感这东西，闪光效果拉满就有了。\n\n### 🎤 演讲 / 发布会的\"彩蛋物料\"\n产品发布做一张产品卡，讲到最后一页丢一个链接：\"扫码看会闪的那种\"。\n响应式网页，手机横竖屏都能玩，观众当场就转起来了。\n\n### 🖌️ 设计师的材质实验场\n不只是网页，`card.blend` 是真正可编辑的 Blender 工程。\n共享节点组里有中文命名的 `缩放`、`深度`、`视差效果`，镭射条纹、星光、线稿发光都是独立可调的材质节点。想研究全息卡是怎么\"闪\"起来的，打开它就是最好的教材。\n\n---\n\n## 🧱 一张闪卡是怎么叠出来的\n\n四层图叠在同一块画布上，视差把它们在空间里\"撑开\"：\n\n```\n        👀 你的视线\n         │\n   ┌─────┴──────┐\n   │  text.png  │  文字层     ─ 稳稳贴在表面\n   ├────────────┤\n   │ lineart.png│  线稿层     ─ 发光的轮廓\n   ├────────────┤\n   │ subject.png│  主体层     ─ 往前凸出来\n   ├────────────┤\n   │ background │  背景层     ─ 往后缩进去\n   └────────────┘\n```\n\n再铺上镭射彩虹（相位跟着视角走，转到哪闪到哪）、Voronoi 星光、金色卡边。\n浏览器端用 Three.js 按同一套 UV 公式重建这四层合成，呈现相同类型的视差和镭射效果；网页着色与 Blender 离线灯光不同，颜色、辉光和背面装饰会有差异。\n镭射卡默认查看器采用纯白无边框画布、黑色无衬线排版和扁平控件，只保留卡片标题、直接操作与材质/景深滑杆，让卡片本身成为视觉中心。\n\n---\n\n## 🚀 怎么用\n\n### 安装\n把这个目录放进 Codex 的 skills 目录即可：\n\n```\n~/.codex/skills/holo-card-studio/\n```\n\n### 环境\n- Python 3 + Pillow\n- Node.js + npm\n- Blender **不用自己装** —— 流水线会自动把官方便携版放到 `<project>/tools/`，校验 SHA-256，项目自带、互不干扰\n\n已有 Blender 时会优先复用，也可用 `--blender` 指定可执行文件。全息路线适配旧版合成节点和新版合成节点组，macOS 可使用 Metal；偏好设置保存在项目的 `tools/blender-config/`。\n\n准备好素材与配置后，可以直接运行：\n\n```sh\npython scripts/run_pipeline.py --project <project-dir> --mode holographic\n```\n\n不写 `--mode` 时读取配置中的 `mode`，配置也没有时默认 `holographic`。`--skip-render` 跳过静态渲染，`--skip-npm` 跳过网页依赖安装。查看[验收说明](references/verification.md)了解实际运行、渲染和浏览器检查的范围。\n\n### 开口\n然后在 Codex 里直接说人话：\n\n> \"用 holo-card-studio 给我做一张水墨风的锦鲤闪卡，文字用书法体，编号 No.001\"\n\n或者上传参考图：\n\n> \"照这张图做一张闪卡，保留人物和构图，背景换成星空\"\n\nCodex 会先把卡片规格和它推断的细节说给你听，然后开工：画图 → 生成文字层 → 写配置 → 跑流水线 → 起本地服务 → 真正打开页面测拖拽、翻面、滑块和手机布局 → 交付。\n\n### 你会收到\n| 东西 | 用来干嘛 |\n|---|---|\n| 本地网页链接 | 拖、转、翻、拉滑块 |\n| `card.blend` | 在 Blender 里继续调材质、换灯光、出渲染 |\n| `assets/` 四层图 | 想换哪层换哪层，重跑流水线即可 |\n| `card-config.json` | 改名字、改编号、改稀有度 |\n| 渲染图 | 直接发 |\n\n### 多张卡：自动分类展厅\n\n需要持续生成和分发多张卡时，可以把每张流水线产物归档为独立目录，再由清单生成器汇总成瀑布流展厅。每张卡保留永久 URL，主页则按人物、风格、主题和稀有度自动生成筛选项。\n\n- 在线示例：<https://card.waterq.us/>\n- 配套项目：<https://github.com/chenweilie/holo-card-gallery>（私有仓库，需要所有者授权）\n- 接入规范：[多卡展厅与自动分类](references/gallery-distribution.md)\n\n---\n\n## 🔧 可以调的旋钮\n\n流水线出厂就是一套顺手的参数，也都留了口子：\n\n- **视差强度**：主体默认 scale 1.25 / depth 0.4，背景 depth -0.25，想更\"跳\"就往上加\n- **镭射条纹**：条纹密度、扭曲度、角度，以及粉-黄-蓝-白的渐变\n- **线稿发光**：强度和遮罩密度，可以从\"淡淡勾边\"到\"霓虹描边\"\n- **星光**：Voronoi 尺度 + 动画噪声，从零星几颗到满天星\n- **Blender 界面语言**：默认简体中文，存在项目本地配置里，一句话可换\n\n---\n\n## 📁 目录一览\n\n```\nholo-card-studio/\n├── SKILL.md                    # Codex 读的\"操作手册\"\n├── references/\n│   ├── art-direction.md        # 分层画图的提示词写法、参考图处理\n│   ├── config.example.json     # 卡片配置示例\n│   └── verification.md         # 交付前的验收清单\n├── scripts/\n│   ├── ensure_blender.py       # 自动获取官方 Blender 便携版\n│   ├── build_card.py           # 生成可编辑的 Blender 场景\n│   ├── export_web.py           # 导出卡片几何\n│   ├── generate_typography.py  # 精确的透明文字层\n│   ├── validate_assets.py      # 四层图体检\n│   ├── run_pipeline.py         # 一键流水线\n│   └── package_skill.py        # 纯文本打包成可分享的 ZIP\n└── assets/\n    └── web-template/           # 响应式 Three.js 查看器\n```\n\nskill 本体只有代码和文字，轻得很。你生成的画作、`.blend`、模型都待在你自己的输出项目里。\n\n---\n\n## 🤝 分享这个 skill\n\n想发给朋友或放进仓库？\n\n```bash\npython scripts/package_skill.py\n```\n\n它按白名单只打包文本文件，打出来的 ZIP 干干净净，拿走就能用。\n\n## 🔀 新功能：双图光栅卡\n\n现在除了原有的单图全息镭射卡，还可以制作光栅卡、翻转卡、双形态卡和一念神魔。\n\n这条路线使用两张**完整卡面**：A 图与 B 图会随观看角度切换整张画面，不是把一张图切成左右两半。无参考图时默认采用全彩日式浮世绘构成与水墨动漫勾线；有参考图时先生成 A，再以 A 为身份锚点编辑出 B，锁定脸型、比例、服装锚点、镜头与主体尺度。\n\nBlender 工程包含实体卡基、图像层、柱镜光栅、镭射膜、轮廓光、闪钻粒子等独立层。网页加载 Blender 导出的 GLB，用同一套视角公式驱动整卡切换，并支持鼠标与触控倾斜。\n\n~~~bash\npython scripts/run_pipeline.py --project <project-dir> --mode lenticular\n~~~\n\n光栅项目使用：\n\n~~~text\nassets/image_a.png\nassets/image_b.png\nassets/text.png\ncard-config.json\n~~~\n\n流水线会交付 card.blend、正视/倾斜渲染、web/assets/card.glb、白底 Three.js 查看器和验证报告。原有全息路线继续使用 --mode holographic，也可以通过 card-config.json 的 mode 自动选择。\n\n---\n\n*想好第一张卡画谁了吗？* ✨\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:01:05.842893"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-jev",
+      "full_name": "yibie/awesome-jev",
+      "owner": "yibie",
+      "description": "A curated list of public projects, integrations, and discussions built on Jev — TypeSafe AI's System One model for typed decisions.",
+      "url": "https://github.com/yibie/awesome-jev",
+      "clone_url": "https://github.com/yibie/awesome-jev.git",
+      "ssh_url": "git@github.com:yibie/awesome-jev.git",
+      "homepage": "",
+      "created_at": "2026-09-17T14:23:21Z",
+      "updated_at": "2026-09-27T06:00:39Z",
+      "pushed_at": "2026-09-26T22:03:41Z"
+    },
+    "stats": {
+      "stars": 1775,
+      "forks": 263,
+      "watchers": 1775,
+      "open_issues": 14,
+      "size": 666
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 71968,
+        "Shell": 16516
+      },
+      "license": null,
+      "topics": [
+        "awesome",
+        "awesome-list",
+        "jev",
+        "llm"
+      ]
+    },
+    "content": {
+      "readme": "# awesome-jev\n\n<!-- Generated by scripts/build-readme.py. Edit category files, then rebuild README. -->\n\nA curated awesome list of public projects and practices built on [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev), TypeSafe AI's System One model for typed decisions.\n\nThis README is the homepage aggregate of the current category files, so the latest accepted entries are visible here without drilling into subpages.\n\nJev is not a chat model. It takes unstructured state plus a **typed question** and returns a **typed decision** — a choice, a score, or a boolean, each with a confidence. That makes it a drop-in decision layer for software: classification, routing, rubric scoring, verification, and agent guardrails. This list tracks who is actually building with it, and which patterns transfer across industries.\n\nThe repository treats all categories equally — each entry lives in exactly one category, chosen by its direct Jev application domain. A dedicated **Related Practices / Discussions** category captures credible public practice signals — X threads, Reddit discussions, and interviews — that describe real Jev usage even when no strong standalone case page exists yet.\n\n> [!WARNING]\n> **A listing is not an endorsement.** This project applies *inclusion* rules only — public, citable, genuinely uses Jev for a typed decision, one-sentence summary. It does **not** review code quality, security, maturity, or whether a project runs at all.\n>\n> **Treat same-day bulk submissions with particular care.** Several repositories published together by one author, sharing a scaffold and a thin commit history, can satisfy every inclusion rule and still be unproven. Volume is not evidence of quality. See [Curation is not endorsement](#curation-is-not-endorsement) for a checklist to run before adopting anything here.\n\n## Why this list\n\nMost Jev discussion is scattered across launch threads, model-gateway listings, and one-off prototypes. This list answers two practical questions quickly:\n\n- Where is Jev already making real decisions in production workflows?\n- Which decision patterns transfer across industries?\n\nThis is not a comprehensive database. It is a high-signal, fast-scanning field guide.\n\n## Inclusion criteria\n\nAn entry should meet all of the following:\n\n- The source is public and citable.\n- The example **uses Jev** (or a documented Jev port/derivative) for a concrete decision task — not a generic classifier, router, or LLM judge with no Jev involvement.\n- The source explicitly names `Jev`/`jev`, cites TypeSafe AI's System One models, or shows a typed-decision loop (typed question → typed answer with confidence → accept/reject/escalate).\n- The summary explains the scenario, method, and value in one sentence.\n\nWe do **not** include:\n\n- Generic classifiers, routers, or research agents that merely resemble the pattern without using Jev.\n- Pure theory or opinion without a concrete practice.\n- Launch-hype commentary with no working artifact or reproducible result.\n- Long write-ups inside the list itself.\n- Sources that are private, inaccessible, or too vague to classify.\n\n## Curation is not endorsement\n\nInclusion means one thing: the entry satisfies the inclusion rules above. It is not a quality review, a security audit, or a recommendation. We do not verify that a project compiles, that its tests pass, that its published numbers reproduce, or that its license permits your use.\n\nThis matters most for projects that arrive in bulk. When one author releases several repositories on the same day, they commonly share a single scaffold — the same `AGENTS.md`, `CLAUDE.md`, `STATE.md`, and `CHANGELOG.md` — land in one or two commits each, and may ship considerably more prose than code. Such projects can be entirely legitimate; they are simply **unproven**. Treat them as leads, not as validated tools.\n\nBefore adopting an entry, check it yourself:\n\n| Check | Why it matters |\n| --- | --- |\n| Does the code actually call the Jev API? | An entry can read well on a README alone. Look for a real request carrying typed questions, and a parsed answer coming back. |\n| Is there a runnable check? | A test, an example with expected output, or a public demo. No check means no evidence that it works. |\n| Do the numbers have a source? | Any accuracy, latency, cost, or volume figure should be traceable to the linked page. We strip claims we cannot verify, but the project page itself may still carry them. |\n| How much of the repository is code? | Some projects are mostly prompt documents. That can be legitimate — just know which one you are getting. |\n| Is there a license? | A few entries have none, which limits reuse and redistribution. |\n\nFound something wrong? Open an issue or a pull request — **removal is as valid a contribution as addition.** Rules for AI-assisted work, project depth, and submission rate live in [CONTRIBUTING.md](CONTRIBUTING.md#ai-assisted-work-and-bulk-submissions).\n\n## Current coverage\n\n- [Classification ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:01:07.076698"
+  },
+  {
+    "basic_info": {
+      "name": "ZDTaichu5.0-9B",
+      "full_name": "Taichu-AI/ZDTaichu5.0-9B",
+      "owner": "Taichu-AI",
+      "description": null,
+      "url": "https://github.com/Taichu-AI/ZDTaichu5.0-9B",
+      "clone_url": "https://github.com/Taichu-AI/ZDTaichu5.0-9B.git",
+      "ssh_url": "git@github.com:Taichu-AI/ZDTaichu5.0-9B.git",
+      "homepage": null,
+      "created_at": "2026-09-04T03:06:00Z",
+      "updated_at": "2026-09-27T05:42:15Z",
+      "pushed_at": "2026-09-17T06:47:25Z"
+    },
+    "stats": {
+      "stars": 1752,
+      "forks": 295,
+      "watchers": 1752,
+      "open_issues": 2,
+      "size": 533391
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 96205
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ZDTaichu5.0-9B\n\nEnglish | [简体中文](README_zh.md)\n\n[Blog](https://taichu-ai.github.io/ZDTaichu5.0-9B/) | [ModelScope](https://www.modelscope.cn/models/TaichuAI/ZDTaichu5.0-9B) | [Hugging Face](https://huggingface.co/TaichuAI/ZDTaichu5.0-9B)\n\n## Model Downloads\n\n| Model | Hugging Face | ModelScope |\n| --- | --- | --- |\n| ZDTaichu5.0-9B | [Hugging Face](https://huggingface.co/TaichuAI/ZDTaichu5.0-9B) | [ModelScope](https://www.modelscope.cn/models/TaichuAI/ZDTaichu5.0-9B) |\n| ZDTaichu5.0-9B-FP8 | [Hugging Face](https://huggingface.co/TaichuAI/ZDTaichu5.0-9B-FP8) | [ModelScope](https://www.modelscope.cn/models/TaichuAI/ZDTaichu5.0-9B-FP8) |\n| ZDTaichu5.0-9B-NVFP4 | [Hugging Face](https://huggingface.co/TaichuAI/ZDTaichu5.0-9B-NVFP4) | [ModelScope](https://www.modelscope.cn/models/TaichuAI/ZDTaichu5.0-9B-NVFP4) |\n| ZDTaichu5.0-9B-DSpark | [Hugging Face](https://huggingface.co/TaichuAI/ZDTaichu5.0-9B-DSpark) | [ModelScope](https://www.modelscope.cn/models/TaichuAI/ZDTaichu5.0-9B-DSpark) |\n\n## Introduction\n\nZDTaichu5.0-9B is a multimodal foundation model for general visual understanding, spatial reasoning, agentic tool use, and embodied-AI research. It combines a Qwen3.5-9B language backbone with a C-RADIOv4-H vision encoder, supports text, images and videos with any-resolution visual input.\n\nWithin the 10B-scale general-purpose VLMs compared in this release blog, ZDTaichu5.0-9B retains first-tier general visual understanding while supporting spatial reasoning, high-level embodied VLM reasoning, and agent tasks under the reported evaluation settings. Rather than trading broad visual competence for specialization, it layers a more comprehensive spatial, embodied, and agent capability profile on top of a strong general-vision foundation.\n\nThe model accepts text, one or more images, and video. It is designed for:\n\n- general image, document, chart, diagram, and OCR understanding;\n- visual mathematics and knowledge-grounded visual question answering;\n- fine-grained 2D relations, multi-view association, 3D scene understanding, perspective taking, and mental transformation;\n- multi-step and multi-turn tool use;\n- spatial perception, affordance understanding, and planning for VLA and embodied-AI adaptation.\n\nMore demos and showcases are provided at \n[Blog](https://taichu-ai.github.io/ZDTaichu5.0-9B/).\n\n## Highlights\n\n- **Strong general vision and broad capabilities:** remains in the leading group of 10B-scale general-purpose VLMs across images, documents, charts, diagrams, OCR, visual mathematics, multiple images and video, while extending to spatial reasoning, high-level embodied understanding and multi-step agent tasks.\n- **Leading spatial reasoning and embodied understanding:** leads spatial capability among the compared 10B-scale general-purpose VLMs, with strong results on SparBench, ViewSpatial, MMSI-Bench and MindCube-tiny. Scores of 48 on ERQA and 56 on RoboSpatial cover scene reasoning, affordances and interaction-oriented understanding.\n- **Strongest agent capability among the compared 10B-scale general-purpose VLMs:** leads the reported TAU2-Bench (87.7) and Claw-Eval (71.4) comparisons, and reaches 93.7 on IFEval.\n- **Entropy-Gated Adaptive Recurrent Reasoning:** Dynamically allocates additional recurrent refinement steps in latent space to more challenging tokens, enabling greater computational depth where needed and improving reasoning performance on complex tasks. Details could be found [Here](https://github.com/Taichu-AI/ZDTaichu5.0-9B/blob/main/recurrent_reasoning/README.md)\n\n## Benchmark Results\n\nThe two figures compare ZDTaichu5.0-9B with open and closed models across general visual understanding, spatial and embodied capabilities, and agent and text capabilities.\n\n**Comparison with open models**\n\n![ZDTaichu5.0-9B benchmark comparison with open models](docs/assets/taichu-release-benchmark-comparison.svg)\n\n**Comparison with closed models**\n\n![ZDTaichu5.0-9B benchmark comparison with closed models](docs/assets/taichu-vs-closed-models.svg)\n\n### Spatial and embodied reasoning\n\n<table>\n  <thead>\n    <tr>\n      <th align=\"left\">Area</th>\n      <th align=\"left\">Benchmark</th>\n      <th align=\"right\">ZDTaichu5.0-9B</th>\n      <th align=\"right\">Qwen3.5-9B</th>\n      <th align=\"right\">STEP3-VL-10B</th>\n      <th align=\"right\">gemma4-8B-E4B</th>\n      <th align=\"right\">Gemini 3 Pro</th>\n      <th align=\"right\">Grok 4</th>\n      <th align=\"right\">GPT-5.2</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td rowspan=\"3\" align=\"left\" valign=\"middle\">Basic spatial perception</td>\n      <td align=\"left\">CV-Bench</td>\n      <td align=\"right\">86.82</td>\n      <td align=\"right\"><strong>87.19</strong></td>\n      <td align=\"right\">83.49</td>\n      <td align=\"right\">68.10</td>\n      <td align=\"right\"><ins>90.07</ins></td>\n      <td align=\"right\">—</td>\n      <td align=\"right\">86.84</td>\n    </tr>\n    <tr>\n      <td align=\"left\">3DSRBench</td>\n      <td align=\"right\"><strong>60.96</strong></td>\n      <td align=\"right\">56.78<",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:01:08.258674"
+  },
+  {
+    "basic_info": {
+      "name": "CLM",
+      "full_name": "Contrastive-LM/CLM",
+      "owner": "Contrastive-LM",
+      "description": null,
+      "url": "https://github.com/Contrastive-LM/CLM",
+      "clone_url": "https://github.com/Contrastive-LM/CLM.git",
+      "ssh_url": "git@github.com:Contrastive-LM/CLM.git",
+      "homepage": null,
+      "created_at": "2026-09-23T19:29:56Z",
+      "updated_at": "2026-09-27T05:57:59Z",
+      "pushed_at": "2026-09-24T23:10:28Z"
+    },
+    "stats": {
+      "stars": 1652,
+      "forks": 137,
+      "watchers": 1652,
+      "open_issues": 11,
+      "size": 893
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 132716,
+        "JavaScript": 36097,
+        "CSS": 22072,
+        "HTML": 11240,
+        "Shell": 1819
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<!-- markdownlint-disable MD001 MD041 -->\n<p align=\"center\">\n  <picture>\n    <img alt=\"CLM v0.1\" src=\"assets/logo.png\" width=45%>\n  </picture>\n</p>\n\n<h3 align=\"center\">\nContrastive Language Models\n</h3>\n\n<p align=\"center\">\n<i>A System One Model for Fast and Generalizable Decision-Making</i>\n</p>\n\n<p align=\"center\">\n| 📄 <a href=\"https://contrastive-lm.notion.site\"><b>Blog</b></a> | 🗣️ <a href=\"https://discord.gg/5dAQEDJBs\"><b>Discord</b></a> | 🤗 <a href=\"https://huggingface.co/Contrastive-LM\"><b>Data &amp; Models</b></a> | 📚 <a href=\"#api-reference\"><b>API Reference</b></a> | 🛠️ <a href=\"#fine-tuning-clm-on-your-own-data\"><b>Fine-Tuning Tutorial</b></a> |\n</p>\n\n🔥 **Contrastive Language Models (CLMs)** are a new class of **System One\nmodel** trained with a **contrastive learning** objective that connects\n**states and actions**. This repo serves **CLM-8B** behind a\nTypeSafe-compatible API.\n\n- **CLM-8B** is pre-trained on **60M Nemotron Q&A pairs**, mid-trained on\n  **30M synthetic hard negatives**, and post-trained on **1M agentic\n  trajectories**.\n- It performs on par with **Jev** across computer-use, gaming and tool-calling\n  tasks with up to **9× lower latency**. With lightweight fine-tuning it sets a\n  new SOTA as a verifier on agentic coding benchmarks: **Terminal-Bench 2.1\n  (87.6%)** and **DeepSWE (81.6%)**.\n- **States and actions are disaggregated**, so their embeddings are cached and\n  reused independently, which makes training and serving cheap and blazing fast!\n\nWe invite the community to plug it into their own agents and benchmarks!\n\n---\n\n## Installation\n\n```bash\npip install contrastive-lm\n```\n\nTo install the latest from a clone:\n\n```bash\npip install -e .\n```\n\n---\n\n## Quickstart\n\n### Serve\n\n```bash\n# 1. encoder (Qwen3-8B embeddings)\nvllm serve Qwen/Qwen3-8B --served-model-name qwen3-8b --runner pooling --max-model-len 2048 --port 8090 &\n\n# 2. CLM API on :8700 (downloads the 75 MB reference head on first run)\nclm-serve\n```\n\nStates longer than 2048 tokens are truncated. For longer states, raise both limits\ntogether, e.g. `--max-model-len 8192` on `vllm serve` and `clm-serve --max-tokens 8192`\n(needs more GPU memory).\n\n### Ask typed questions about a state\n\n```python\nfrom clm import CLMClient, Choice, Noul, Score\n\nclient = CLMClient()                          # CLM_BASE_URL (default http://127.0.0.1:8700), CLM_API_KEY\nr = client.system_one(\n    state=\"Customer: my invoice was charged twice and nobody answers the phone!\",\n    questions={\n        \"urgency\": Noul(instructions=\"Is this urgent?\"),\n        \"department\": Choice(instructions=\"Which team should handle this?\",\n                             criteria={\"billing\": \"Charges, invoices, refunds\",\n                                       \"technical\": \"Bugs and outages\"}),\n        \"frustration\": Score(instructions=\"How frustrated is the customer?\",\n                             criteria=[\"Calm\", \"Frustrated\", \"Very angry\"]),\n    },\n)\nprint(r.answers[\"urgency\"].noul)                # 0.41022     probability the statement is true\nprint(r.answers[\"department\"].choice)           # billing\nprint(r.answers[\"department\"].probabilities)    # {'billing': 0.93878, 'technical': 0.06122}\nprint(r.answers[\"frustration\"].score)           # 1.98386     expected level, 0..2\nprint(r.usage.input_tokens, r.latency_ms)       # 38 58.1     (106 tokens on a cold cache: option texts are embedded once)\n```\n\nQuestions may be `Noul` / `Choice` / `Score` objects or plain wire-format\ndicts, so a request written for TypeSafe replays as\n`client.system_one(state, questions)`.\n\n### Rank candidates directly\n\n`system_one` is built on one primitive: score a candidate against a state.\nFor free-form candidates (best-of-N answers, tool names, next moves) use the\nin-process engine's `rank`:\n\n```python\nfrom clm import Engine\n\nengine = Engine(emb_url=\"http://127.0.0.1:8090/v1/embeddings\")     # reference head, downloaded if missing\nengine.rank(\"What causes tides on Earth?\",\n            [\"The Moon's gravitational pull.\", \"Photosynthesis in plants.\", \"Because the Earth is round.\"])\n# [{'rank': 1, 'candidate': \"The Moon's gravitational pull.\", 'prob': 0.997}, ...]\n\nengine.answer(state, questions)      # the same dict the HTTP endpoint returns, no server needed\n```\n\n---\n\n## Playground\n\n`clm-serve` also serves a web UI at `/` (`http://localhost:8700/` by default).\nWrite a state, add typed questions, and see CLM's answer distributions; every\nrequest is also shown as JSON, `curl` and Python. A **Rank** tab ranks any\ncandidate set, and links are shareable.\n\n<p align=\"center\">\n  <picture>\n    <img alt=\"The CLM playground: a state on the left with three typed questions, their answer distributions on the right\"\n         src=\"assets/playground.png\" width=100%>\n  </picture>\n  <br>\n  <sub>Captured against a real <code>clm-serve</code> (<code>clm-latest</code>, Qwen3-8B encoder on one RTX 4090).</sub>\n</p>\n\nRemote server? `ssh -L 8700:localhost:8700 <host>`. API only: `clm-serve --no-ui`.\n\n---\n\n## Results\n\n### Ze",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:01:09.435453"
+  },
+  {
+    "basic_info": {
+      "name": "codex-astra-luna-orchestrator",
+      "full_name": "donvito/codex-astra-luna-orchestrator",
+      "owner": "donvito",
+      "description": "Use Astra or Sol as orchestrator and Luna for subagents in Codex",
+      "url": "https://github.com/donvito/codex-astra-luna-orchestrator",
+      "clone_url": "https://github.com/donvito/codex-astra-luna-orchestrator.git",
+      "ssh_url": "git@github.com:donvito/codex-astra-luna-orchestrator.git",
+      "homepage": "",
+      "created_at": "2026-09-05T16:03:06Z",
+      "updated_at": "2026-09-27T04:34:10Z",
+      "pushed_at": "2026-09-23T05:16:27Z"
+    },
+    "stats": {
+      "stars": 1643,
+      "forks": 131,
+      "watchers": 1643,
+      "open_issues": 6,
+      "size": 85
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 26389,
+        "PowerShell": 13423,
+        "Shell": 9310
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Codex Sol/Astra Orchestrator + Luna Subagents\n\nInstall a Codex profile with GPT-6 Astra, Sol, or Luna as the orchestrator,\nGPT-6 Luna execution subagents, and an independent reviewer.\n\n## Orchestration topology\n\nThe diagram shows the Astra (Pro) and Sol orchestrators. Plus uses a Luna\nroot, as shown in the profile table below. Execution roles use GPT-6 Luna;\nthe reviewer uses Astra for Pro/Plus and Sol for Sol profiles.\n\n```text\n              GPT-6 Astra / Sol\n             root / orchestrator\n                      |\n      +---------------+---------------+\n      |               |               |\n   explorer          worker         researcher\n  GPT-6 Luna       GPT-6 Luna       GPT-6 Luna\n      |               |\n      +-------+-------+\n              |\n           tester\n         GPT-6 Luna\n              |\n          reviewer\n      GPT-6 Astra / Sol\n              |\n              v\n           root agent\n      integrate + verify\n```\n\n## Setup\n\n1. Clone this repository and enter it:\n\n   ```sh\n   git clone https://github.com/donvito/codex-astra-luna-orchestrator.git\n   cd codex-astra-luna-orchestrator\n   ```\n\n2. Run the installer for your platform:\n\n   macOS/Linux:\n\n   ```sh\n   ./setup.sh\n   ```\n\n   Windows PowerShell:\n\n   ```powershell\n   powershell -ExecutionPolicy Bypass -File .\\setup.ps1\n   ```\n\n   PowerShell 7:\n\n   ```powershell\n   pwsh -File .\\setup.ps1\n   ```\n\n3. When prompted, enter an **existing target repository other than this one**,\n   choose a profile by number or name (Enter selects Pro), and confirm which\n   components to install. For example:\n\n   ```text\n   Target repository path: ../my-project\n   Select Profile [1-6] (default 1): 5\n   ```\n\nThe installer copies the selected configuration to `.codex/`, its skill to\n`.agents/`, and project instructions to `AGENTS.md`. Existing component files\nare updated only after confirmation; existing `AGENTS.md` content is preserved.\nCodex loads project-scoped configuration only for trusted projects.\n\n### Installed target project\n\nIf you install all three components into `../my-project`, the installer adds\nthese paths alongside the project's existing files:\n\n```text\nmy-project/\n├── .codex/\n│   ├── config.toml\n│   └── agents/\n│       ├── explorer.toml\n│       ├── researcher.toml\n│       ├── reviewer.toml\n│       ├── tester.toml\n│       └── worker.toml\n├── .agents/\n│   └── skills/\n│       └── astra-orchestrator/\n│           └── SKILL.md\n└── AGENTS.md\n```\n\n`profiles/<profile>/codex/` becomes `.codex/`, and\n`profiles/<profile>/agents/` becomes `.agents/`. The root `AGENTS.md` is\ncopied to the target, or its instructions are appended if that file exists.\n\n## How to use the skill\n\nFrom the target repository, launch Codex CLI. For the example above:\n\n```sh\ncd ../my-project\ncodex\n```\n\nFor complex work, Codex may select the skill automatically, or you can invoke\nit explicitly:\n\n```text\n$astra-orchestrator\nImplement the invoice export endpoint. Use the explorer to map the path,\na worker to implement it, and the tester and reviewer to verify it.\n```\n\nThe skill keeps the `astra-orchestrator` name in every profile so the shared\n`AGENTS.md` works; the Sol profiles use Sol according to their configuration.\n\n## Profiles\n\n| Choice | Profile | Root | Execution roles | Reviewer | Concurrent subagents |\n|---|---|---|---|---|---:|\n| 1 (default) | `pro` | Astra medium | Luna max | Astra low | 4 |\n| 2 | `plus` | Luna max | Luna medium | Astra low | 4 |\n| 3 | `pro-max-2-subagents` | Astra medium | Luna max | Astra low | 2 |\n| 4 | `plus-max-2-subagents` | Luna max | Luna medium | Astra low | 2 |\n| 5 | `GPT6-SolMax-LunaMax` | Sol max | Luna max | Sol max | 4 |\n| 6 | `GPT6-SolMedium-LunaMax` | Sol medium | Luna max | Sol medium | 4 |\n\nAll models above are GPT-6. Execution roles are explorer, worker, tester,\nand researcher; named roles pin their models and reasoning levels independently\nof the default subagent settings. Each ready-to-copy profile lives under\n`profiles/<profile>/`.\n\nFor manual project setup, copy the selected profile's `codex/` and `agents/`\nto the target repository as `.codex/` and `.agents/`, and add this repository's\n`AGENTS.md`. For personal/global setup, copy its `codex/agents/` into\n`~/.codex/agents/`, its `agents/skills/astra-orchestrator/` into\n`~/.agents/skills/`, and **merge**, rather than replace, its `codex/config.toml`\nsettings into `~/.codex/config.toml`. Do not overwrite other existing Codex\nsettings.\n\n## Key directory structure\n\n```text\n.\n├── profiles/\n│   ├── pro/\n│   ├── plus/\n│   ├── pro-max-2-subagents/\n│   ├── plus-max-2-subagents/\n│   ├── GPT6-SolMax-LunaMax/\n│   └── GPT6-SolMedium-LunaMax/\n├── guides/\n├── scripts/\n│   └── token_usage.py\n├── tests/\n│   ├── test_profiles.py\n│   └── test_token_usage.py\n├── AGENTS.md\n├── setup.sh\n├── setup.ps1\n├── README.md\n└── LICENSE\n```\n\nEach profile contains `codex/config.toml`, `codex/agents/*.toml`, and\n`agents/skills/astra-orchestrator/SKILL.md`.\n\n## Guides\n\n- [Pro orchestration and manual configuration](guides/full",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-09-27T06:01:10.675116"
+  }
+]

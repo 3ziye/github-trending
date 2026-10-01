@@ -1,0 +1,248 @@
+# WARP MASQUE 配置生成器
+
+一键生成 Cloudflare WARP 的 mihomo 配置，57 个节点，跑在 GitHub Actions 上。
+不用自己装环境，不用服务器。
+
+仓库里有两条流水线：
+
+- **生成 WARP MASQUE 配置** — 纯 WARP，57 个节点。下面讲的就是这条。
+- **Opera over MASQUE（套娃）** — 在 WARP 外面再叠一层 Opera VPN 落地，
+  换个出口国家。见文末[套娃那条](#套娃opera-vpn-叠在-warp-上)。
+
+另外 `worker/` 目录是套娃那条的 Worker 版本，部署到 Cloudflare 上自己每 4 小时
+更新，带个状态页。见[跑在 Worker 上](#跑在-worker-上)。
+
+## 怎么用
+
+**1. Fork 这个仓库**
+
+点右上角 Fork。
+
+**2. 打开 Actions 页面**
+
+Fork 过来的仓库默认不开 Actions，会看到一个提示，点
+`I understand my workflows, go ahead and enable them` 就行。
+
+**3. 跑一次**
+
+左边选 `生成 WARP MASQUE 配置`，右边点 `Run workflow`，绿色按钮再点一次。
+等一分钟左右。
+
+**4. 下载**
+
+跑完点进这次运行的页面，最下面 `Artifacts` 里有个 `warp-masque-config`，
+下载解压。
+
+**5. 导入客户端**
+
+解压出来三个文件：
+
+- `warp-masque.yaml` —— mihomo 配置，57 个节点，直接导入 Clash Verge / ClashMi 这类客户端
+- `warp-masque-shadowrocket.txt` —— Shadowrocket 用的 `masque://` 链接，一行一个，挑一条复制进去
+- `usque-config.json` —— 原始密钥，想自己折腾别的客户端时用得上
+
+## 必须用 mihomo Alpha 内核
+
+masque 只有 mihomo 的 Alpha 分支才有，稳定版导进去会直接报错说不认识这个类型。
+所以客户端不光要是 mihomo 内核，还得能切到 Alpha。
+
+**Windows / macOS / Linux**
+
+[Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev) —— 装完打开
+`设置 → Clash 内核`，把内核换成 Alpha，等它下载完自动重启。
+
+> 切内核和升级 Verge 本身是两回事。把程序更新到最新版**不会**让内核变成 Alpha，
+> 得手动在这个页面切。没切就导入会报 `unsupport proxy type: masque`。
+
+**Android**
+
+[ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid/releases/tag/Prerelease-alpha)
+—— 认准 `Prerelease-alpha` 那个 tag，正式版不行。
+
+**iOS**
+
+[ClashMi](https://github.com/KaringX/clashmi) —— 内置 mihomo 内核，
+把 `warp-masque.yaml` 直接导进去就行。同一个 App 也有 macOS / Android /
+Windows / Linux 版本。
+
+Shadowrocket 也能用。它不吃 yaml，但 artifact 里已经带了
+`warp-masque-shadowrocket.txt`，一行一个 `masque://` 链接，
+挑一条复制进 Shadowrocket 就行。
+
+**跨平台，也可以看看**
+
+[FlClash](https://github.com/chen08209/FlClash) —— 界面比较新，Windows / macOS /
+Linux / Android 都有。内核版本在设置里换。
+
+**不用图形界面**
+
+直接下 [mihomo Alpha](https://github.com/MetaCubeX/mihomo/releases/tag/Prerelease-Alpha)
+二进制，`mihomo -d 配置目录` 跑起来就行。
+
+### 这些用不了
+
+Surge、Quantumult X、Karing 不是 mihomo 内核，也不认 masque，导进去没用。
+
+## 关于节点
+
+57 个节点是同一个 WARP 账号的不同接入地址，**出口 IP 是一样的**。
+多节点是为了某个地址被墙时能自动换一个，不是多国家落地。
+想选国家得用 WARP+ 或 ZeroTrust，这个仓库不支持。
+
+里面有 28 个 IPv6 节点，你没 IPv6 的话它们会连不上，但客户端会自动跳过，
+不影响用。
+
+## 几个提醒
+
+配置里的 `private-key` 相当于账号密码，别往外发。artifact 默认存 7 天，
+公开仓库的 artifact 谁都能下载，介意就把 fork 出来的仓库设成私有。
+
+想换一套密钥就重新跑一次 workflow，每次都是全新账号。
+
+别写成定时任务高频跑，WARP 会风控封号。
+
+## 常见问题
+
+### 导入报「unsupport proxy type: masque」
+
+完整报错长这样：
+
+```
+订阅配置校验失败，请检查订阅配置文件，变更已撤销
+level=error msg="proxy 0: unsupport proxy type: masque"
+```
+
+**内核还是稳定版，没切到 Alpha。** 这是目前最多人踩的一个。
+
+Clash Verge Rev 的切法：打开「设置 → Clash 内核」，选 Alpha，点切换，
+等它下载完会自动重启内核。然后再导入配置。
+
+注意切内核和更新程序本身是两回事，把 Verge 升到最新版并不会让内核变成 Alpha。
+
+### Actions 页面有个黄色警告，要紧吗
+
+如果你看到的是这个：
+
+```
+Node.js 20 is deprecated. The following actions target Node.js 20 ...
+```
+
+不影响结果，配置照样能生成。这个仓库已经升级到 node24 的 action 版本，
+重新 Fork 或者同步一下上游就没有了。
+
+Fork 早了的话，把 `.github/workflows/warp-masque.yml` 里这两行改一下：
+
+```yaml
+uses: actions/checkout@v6
+uses: actions/upload-artifact@v6
+```
+
+### 为什么节点延迟不一样，但测速结果都差不多
+
+57 个节点是同一个 WARP 账号的不同接入地址，**出口 IP 是同一个**。
+延迟差异来自你到接入点的网络路径，真正落地的还是那台 Cloudflare 机器。
+
+所以挑延迟最低的用就行，不用一个个试速度。
+
+### artifact 过期了怎么办
+
+重新跑一次 workflow，会生成一套全新的密钥和配置。artifact 默认存 7 天，
+想留久一点在 Run workflow 的时候把保留天数改大。
+
+### iOS 怎么用
+
+用 [ClashMi](https://github.com/KaringX/clashmi)，它内置 mihomo 内核，
+`warp-masque.yaml` 直接导入就行，和桌面端一样。
+
+Shadowrocket 也支持 masque。它不认 yaml，但 artifact 里的
+`warp-masque-shadowrocket.txt` 就是现成的 `masque://` 链接，
+一行一个，复制一条导进去即可。
+
+Surge、Quantumult X、Karing 不行。
+
+### 能选国家吗
+
+不能。免费 WARP 账号的出口由 Cloudflare 任播决定，你在哪就近落哪。
+要指定落地得用 WARP+ 或者 ZeroTrust，这个仓库不支持。
+
+### 跑 workflow 报 login failed
+
+```
+Failed to connect tunnel: login failed!
+```
+
+账号被 Cloudflare 风控了，通常是短时间内建连太频繁导致的。
+重新跑一次 workflow 拿新账号就行，另外别把 workflow 改成定时高频跑。
+
+## 想改配置
+
+`scripts/gen_masque.py` 顶部三个常量控制节点池：
+
+```python
+V4    = [...]   # IPv4 接入地址
+V6    = [...]   # IPv6 接入地址
+PORTS = (...)   # 端口
+```
+
+分流规则用的是 ACL4SSR，改 `RULESETS` 那个列表。
+
+---
+
+## 套娃：Opera VPN 叠在 WARP 上
+
+纯 WARP 的出口是 Cloudflare 自己的 IP，任播决定落地，选不了国家。
+想换出口就得在后面再接一跳。
+
+Opera 浏览器自带的免费 VPN 正好能干这个：底层是 SurfEasy 的标准 HTTPS 代理，
+匿名注册、不限流量、连账号都不用。
+
+```
+本机 -> MASQUE 接入点 -> Opera 落地 -> 目标
+```
+
+### 为什么要套，不直接用 Opera
+
+单用 Opera，你的机器直接连 `77.111.x.x`，这个段一查就知道是什么。
+套上 MASQUE 之后本机只跟 `162.159.198.x` 这类 Cloudflare 地址通信，
+Opera 的地址整个封在 QUIC 隧道里。抓包对比过，直连能看到 Opera 服务器，
+套娃之后完全看不到。
+
+### 全组合
+
+57 个 MASQUE 接入点和每个 Opera 落地都配一遍。落地通常 9 到 11 个，
+最终 400 上下的节点。
+
+这么做是为了任一环失效都还有路走：某个接入点被墙了换个端口或换个段，
+某个落地挂了同地区还有别的。节点名直接写明链路，`欧洲1@198.1-443`
+就是欧洲第 1 个落地经 `162.159.198.1:443` 接入。
+
+组合太多没法平铺着选，按地区收成了 `亚洲线路`、`欧洲线路`、`美洲线路`
+三个 url-test 组，各自在本地区所有组合里挑最快的。都开了 `lazy`，
+不会一进去就把四百多条全测一遍。
+
+### 怎么跑
+
+Actions 里选 `Opera over MASQUE（套娃）`，点 Run workflow。
+
+跑完配置有两个地方：仓库里的 `configs/opera-masque.yaml`（流水线自动提交回来），
+或者运行页面下面的 Artifacts。只想下载不想提交的话，跑之前把 `commit` 勾去掉。
+
+### Opera 凭据会过期
+
+匿名注册的凭据会失效。opera-proxy 自己默认每 4 小时刷一次，
+但 API 不返回真实过期时间，给不了准数。连不上就重跑一次换新的。
+
+### 落地只有三个大区
+
+Opera VPN 只提供亚洲、欧洲、美洲，没有国家级选项。实测落地分别是
+新加坡、阿姆斯特丹、美东。
+
+### 这条流水线也要 Alpha 内核
+
+`dialer-proxy` 和 `masque` 一样只有 Alpha 分支支持。
+Shadowrocket、Stash 不认 `dialer-proxy`，用不了套娃配置——
+它们可以用上面纯 WARP 那份。
+
+### 改配置
+
+`scripts/gen_op

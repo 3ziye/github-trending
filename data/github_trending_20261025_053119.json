@@ -1,0 +1,886 @@
+[
+  {
+    "basic_info": {
+      "name": "DeepInfer",
+      "full_name": "deepseek-ai/DeepInfer",
+      "owner": "deepseek-ai",
+      "description": "DeepInfer: High-performance, large-scale inference framework for DeepSeek models",
+      "url": "https://github.com/deepseek-ai/DeepInfer",
+      "clone_url": "https://github.com/deepseek-ai/DeepInfer.git",
+      "ssh_url": "git@github.com:deepseek-ai/DeepInfer.git",
+      "homepage": null,
+      "created_at": "2026-10-16T07:47:23Z",
+      "updated_at": "2026-10-25T05:29:31Z",
+      "pushed_at": "2026-10-21T04:55:44Z"
+    },
+    "stats": {
+      "stars": 21975,
+      "forks": 2513,
+      "watchers": 21975,
+      "open_issues": 203,
+      "size": 2965
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 2345620,
+        "C++": 278292,
+        "Shell": 8961,
+        "Makefile": 983
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# DeepInfer\n\nDeepInfer is the high-performance inference framework that powers DeepSeek's large-scale production services. This open-source release provides offline inference with the core features needed for serving at scale.\n\nSupported models:\n\n- DeepSeek-V4.1-Flash\n\nSupported features:\n\n- Optimized kernels, model and sampler runtime\n- Parallelism: Attention DP / balanced CP, MoE EP + EPLB\n- DSpark and confidence-scheduled verification\n- SWA bounded replay\n- Asynchronous scheduling (zero-overhead batch scheduler)\n- Batch-invariant inference\n- Deterministic sampling\n- Structured outputs\n\n<details>\n<summary>Feature details and configuration</summary>\n\n- **Optimized kernels:** [FlashMLA](https://github.com/deepseek-ai/FlashMLA), [DeepGEMM](https://github.com/deepseek-ai/DeepGEMM), [DeepEP](https://github.com/deepseek-ai/DeepEP), [TileKernels](https://github.com/deepseek-ai/TileKernels), [DeepSelect](https://github.com/deepseek-ai/DeepSelect), and custom [TileLang kernels](deepinfer/model_executor/layers/tilelang_ops).\n- **DSpark and confidence-scheduled verification:** accelerate decoding with draft tokens and use confidence estimates to schedule verification. Set `DEEPINFER_ENABLE_MTP_VARLEN=1`; `DEEPINFER_USE_NEXTN_DECODE` controls the maximum draft length (default: 5).\n- **Decoder SWA bounded replay:** reduce decoder prefill work by replaying only a bounded suffix. Set `DEEPINFER_YOCO_PREFILL_TRUNCATION_MODE=compact` and `DEEPINFER_YOCO_PREFILL_KEEP_TOKENS=140` for the default V4.1 settings; the retained suffix must cover the SWA window plus the maximum backtracking length.\n- **Asynchronous scheduling:** overlap CPU batch scheduling with device execution. Enabled by default.\n- **Batch-invariant inference:** keep model results identical across different batch compositions. Enable with `DEEPINFER_BATCH_INVARIANT=1` (NVIDIA only).\n- **Deterministic sampling:** produce identical outputs for identical input tokens and sampling parameters. Set `DEEPINFER_BATCH_INVARIANT=1 DEEPINFER_ENABLE_MTP_VARLEN=0` and pass a fixed `seq_seed` to `SamplingParams` (NVIDIA only).\n- **Structured outputs:** constrain generation to a regex, JSON schema, or EBNF grammar. Pass `so_args={\"schema_type\": ..., \"schema\": ...}` to `SamplingParams`; see [examples](examples/_structured_output.py).\n\n</details>\n\nSupported hardware:\n\n- NVIDIA SM100 GPUs\n- Huawei Ascend 950 NPUs\n\nRequired for a complete inference service (not included in this release):\n\n- A KV cache system\n- VE/Prefill/Decode disaggregation (most required engine functionality is already implemented)\n- Load balancing across data-parallel replicas for both prefill and decode\n\n## Getting started\n\n### Prerequisites\n\n- Linux\n- GCC >= 13.0\n- Python 3.12\n- CUDA 13 (NVIDIA only)\n- CANN 9.2 (Ascend only)\n\n### Build from source\n\nBefore building DeepInfer, please create and activate an empty Python 3.12 environment.\n\n``` bash\n# Use `ascend` instead for the Ascend platform\n# Keep it exported in the environment where you run DeepInfer\nexport DEEPINFER_ACCELERATOR=nvidia\n./build.sh\n```\n\n### Offline inference\n\nThe default checkpoint, [`deepseek-ai/DeepSeek-V4.1-Flash-1017`](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017), is\ndownloaded into the Hugging Face cache on the first run; set `DEEPINFER_HF_MODEL_DIR=/path/to/DeepSeek-V4.1-Flash-1017` to\nrun from a local copy instead.\n\n``` bash\npython examples/offline_inference.py\n```\n\nSee [examples](examples/README.md) for details.\n\n## Performance benchmarks\n\n| Prefill | Decode |\n| :---: | :---: |\n| [![Prefill: non-cached input throughput vs. latency](doc/images/prefill_pareto.png)](doc/images/prefill_pareto.png) | [![Decode: output throughput vs. per-user speed](doc/images/decode_pareto.png)](doc/images/decode_pareto.png) |\n\nMeasured on 4 SM100 GPUs for prefill and 64 for decode — each within one scale-up domain. To reproduce the benchmarks, see [run_sweep.sh](examples/sweep/run_sweep.sh).\n\n## Evaluation benchmarks\n\nSee [eval/README.md](eval/README.md).\n\n## License\n\nDeepInfer is released under the Apache License 2.0. See [LICENSE](LICENSE) for details.\n\n## Acknowledgments\n\nDeepInfer was originally built primarily on [vLLM](https://github.com/vllm-project/vllm), with additional inspiration from [SGLang](https://github.com/sgl-project/sglang) and [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM). We thank their developers.\n\n## Citation\n\n```bibtex\n@misc{deepinfer2026,\n  title = {DeepInfer: High-performance, large-scale inference framework for DeepSeek models},\n  author = {DeepSeek-AI},\n  year = {2026},\n  publisher = {GitHub},\n  howpublished = {\\url{https://github.com/deepseek-ai/DeepInfer}},\n}\n```\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:20.011100"
+  },
+  {
+    "basic_info": {
+      "name": "harness2",
+      "full_name": "google-research/harness2",
+      "owner": "google-research",
+      "description": null,
+      "url": "https://github.com/google-research/harness2",
+      "clone_url": "https://github.com/google-research/harness2.git",
+      "ssh_url": "git@github.com:google-research/harness2.git",
+      "homepage": null,
+      "created_at": "2026-10-06T21:48:11Z",
+      "updated_at": "2026-10-25T05:20:19Z",
+      "pushed_at": "2026-10-14T02:22:51Z"
+    },
+    "stats": {
+      "stars": 19191,
+      "forks": 1887,
+      "watchers": 19191,
+      "open_issues": 132,
+      "size": 7298
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 535919,
+        "Shell": 4249
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<h3 align=\"center\">\n  <img src=\"assets/Harness2-wordmark.png\" alt=\"Harness²\" width=\"360\"><br>\n  Recursive Agent Harnessing for an Open World\n</h3>\n\n<p align=\"center\">\n  <a href=\"https://arxiv.org/pdf/2610.14224\"><img src=\"https://img.shields.io/badge/Paper-arXiv-EA4335?logo=arxiv&logoColor=white\" alt=\"Paper\"></a>\n  <a href=\"https://harness2.github.io\"><img src=\"https://img.shields.io/badge/Website-harness2.github.io-4285F4?logo=googlechrome&logoColor=white\" alt=\"Website\"></a>\n  <a href=\"docs/BENCHMARKS.md\"><img src=\"https://img.shields.io/badge/Docs-Benchmark%20guides-FBBC04\" alt=\"Benchmark guides\"></a>\n  <a href=\"LICENSE\"><img src=\"https://img.shields.io/badge/License-Apache%202.0-34A853\" alt=\"License\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"docs/BENCHMARKS.md#jobbench\">\n    <img src=\"assets/harness2-setup.gif\" alt=\"Install, set up, and run JobBench: uv pip install -e '.[render]', harness2-setup jb, then harness2 --bench jb --k 1 --mode parallel. Click for prerequisites and commands.\" width=\"640\">\n  </a>\n</p>\n\nA **harness** is the system around a model that enables it to act as an agent:\nprompts, tools, memory, skills, orchestration, and more. **Harnessing** is the\nprocess of optimizing that system.\n\nHarness² is a plug-and-play framework for **recursive agent harnessing** in an\nopen world, where agents encounter tasks unseen during harness design. It\nconnects two levels of recursion while keeping model weights fixed:\n\n* **Task-level recursion** refines the execution harness for the current task\n  through a contrastive **Propose–Probe–Compose** step: propose edits, probe\n  their effects on the same task, and compose a refined harness from behavioral\n  contrasts between executions, without ground-truth feedback.\n* **Harnessing-level recursion** updates a persistent *improvement harness*\n  with adopted harnesses and evidence-supported lessons from each task to guide\n  future refinement.\n\n<p align=\"center\">\n  <a href=\"assets/harness2_pipeline.png\">\n    <img src=\"assets/harness2_pipeline.png\" alt=\"Harness² pipeline. Task-level recursion: an agent executor runs the initial harness, a harness editor proposes invariant and domain edits, candidate probes execute them, and a harness composer combines them into the final harness. Harnessing-level recursion: an experience reflector reflects on the step and updates the improvement harness used for the next task.\" width=\"100%\">\n  </a>\n</p>\n\nAcross three professional benchmarks and four model–harness configurations, a\nsingle Harness² step improves GLM-5 and Gemini 3.5 Flash over their base\nharnesses, with gains of up to 11.5 points on WorkBuddy-Bench, 4.5 points on\nJobBench, and 11.8 percentage points on LAB's partial pass rate. Increasing the\ntask-level recursion budget brings further gains.\n\nThe release supports **parallel and sequential recursion**, **OpenCode and\nCodex executors**, and **JobBench, LAB, and WorkBuddy-Bench**.\n\n## Video overview\n\nhttps://github.com/user-attachments/assets/76b10548-b14b-4c8f-9aa5-a93662df4d56\n\n## Contents\n\n- [Video overview](#video-overview)\n- [Harness components](#harness-components)\n- [Install](#install)\n- [Run a benchmark](#run-a-benchmark)\n- [Experiments](#experiments)\n- [Web access](#web-access)\n- [Results and resume](#results-and-resume)\n- [Citation](#citation)\n- [Contributing](#contributing)\n- [License](#license)\n- [Disclaimer](#disclaimer)\n\n## Harness components\n\nHarness² exposes eight editable components around the model: **system prompt,\nguardrails, memory, tool guidance, subagents, skills, scripts, and plugins**.\nThey control context construction, the tool interface, delegation, and behavior\ninside the tool loop.\n\n<p align=\"center\">\n  <a href=\"assets/components.png\">\n    <img src=\"assets/components.png\" alt=\"Eight harness components grouped by runtime role: system prompt, guardrails, memory, and skills construct context; tool guidance and scripts define the tool interface; subagents orchestrate delegated work; plugins control middleware.\" width=\"100%\">\n  </a>\n</p>\n\n## Install\n\nUse **Linux, Python 3.12, and [uv](https://docs.astral.sh/uv/getting-started/installation/)**.\nFrom the repository root:\n\n```bash\nuv venv --python 3.12 .venv\nsource .venv/bin/activate\nuv pip install -e '.[render]'\nharness2-demo --output runs/demo --k 2\n```\n\nThe local demo runs both recursion modes with deterministic editors and real\nPython executions. It requires no model credentials.\n\nFor model-backed benchmarks, install **Node.js 20+, the Google Cloud CLI**, and\nthe [benchmark dependencies](docs/SETUP.md#requirements). LAB needs Pandoc and\nPoppler; WorkBuddy-Bench needs Docker. Then configure your models:\n\n```bash\ncp .env.example .env\n# Edit .env with your Vertex AI project and model IDs.\ngcloud auth application-default login\n```\n\nSee the [setup guide](docs/SETUP.md) for model settings, authentication\nalternatives, and the [Codex executor](docs/SETUP.md#codex-executor).\n\n## Run a benchmark\n\nThe following example installs LAB and runs one task, then e",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:21.237172"
+  },
+  {
+    "basic_info": {
+      "name": "universal-modder",
+      "full_name": "rehan-remade/universal-modder",
+      "owner": "rehan-remade",
+      "description": "Point Claude at any game. Skills, tools and the fal MCP that let Claude Code mod almost any PC game you own: recon, reverse engineering, fal-generated art/3D/audio, in-game testing, showcase videos.",
+      "url": "https://github.com/rehan-remade/universal-modder",
+      "clone_url": "https://github.com/rehan-remade/universal-modder.git",
+      "ssh_url": "git@github.com:rehan-remade/universal-modder.git",
+      "homepage": null,
+      "created_at": "2026-09-30T05:00:35Z",
+      "updated_at": "2026-10-25T05:20:46Z",
+      "pushed_at": "2026-10-25T04:36:52Z"
+    },
+    "stats": {
+      "stars": 8897,
+      "forks": 984,
+      "watchers": 8897,
+      "open_issues": 38,
+      "size": 40137
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 426701,
+        "PowerShell": 22583,
+        "TypeScript": 7157,
+        "Shell": 1584,
+        "Batchfile": 1028
+      },
+      "license": "MIT License",
+      "topics": [
+        "age-of-empires",
+        "claude-code",
+        "claude-code-plugin",
+        "fal",
+        "game-assets",
+        "game-modding",
+        "mcp",
+        "modding",
+        "reverse-engineering",
+        "tmodloader"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/media/banner.png\" alt=\"universal-modder: mod any game. Point any AI coding agent at the PC games you own. Publish your mods, remix other people's, and make new ones.\" width=\"100%\">\n</p>\n\n<p align=\"center\">\n  <b>Skills, tools and a shared knowledge base that let any AI coding agent mod almost any PC game you own.</b><br>\n  The agent finds the game, works out the engine and the route, reads the real code, builds the mod, makes art, 3D and sound\n  with <a href=\"https://fal.ai\">fal</a>, tests it in the running game, cuts the video, and writes down what it learned for the next agent.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://discord.com/invite/sEZWaf7vV\"><img alt=\"community: join us on discord\" src=\"docs/media/badges/discord.png\" height=\"26\"></a>\n  <a href=\"#install\"><img alt=\"works with Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and OpenCode\" src=\"docs/media/badges/agents.png\" height=\"26\"></a>\n  <a href=\"knowledge/INDEX.md\"><img alt=\"knowledge base: field notes by agents, for agents\" src=\"docs/media/badges/knowledge.png\" height=\"26\"></a>\n  <a href=\"https://fal.ai\"><img alt=\"assets: fal\" src=\"docs/media/badges/fal.png\" height=\"26\"></a>\n  <a href=\"LICENSE\"><img alt=\"license: MIT\" src=\"docs/media/badges/license.png\" height=\"26\"></a>\n</p>\n\n<p align=\"center\">\n  <img src=\"docs/media/mods-teaser.gif\" alt=\"Six mods made by AI coding agents, with the universal-modder tile in the corner: Steve gliding an elytra through Los Santos, the Nether spreading over Los Santos, Minecraft mobs fighting the LSPD, the Halo Warthog in Minecraft, a World at War flamethrower in Minecraft, and World at War zombies in Minecraft. It ends on the universal-modder logo and &quot;mod any game.&quot;\" width=\"560\">\n</p>\n\n<p align=\"center\"><b>Coming next: the mod hub at <a href=\"https://universalmodder.com\">universalmodder.com</a>.</b> Publish your mods, remix other people's, and make new ones.<br>\n  Share what you make, get help, and follow along:</p>\n<p align=\"center\">\n  <a href=\"https://discord.com/invite/sEZWaf7vV\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/media/discord-dark.svg\"><img src=\"docs/media/discord-light.svg\" height=\"32\" alt=\"join the discord\"></picture></a>\n</p>\n\n## Install\n\nPick your agent. Each gets the same skills (Agent Skills format), the fal MCP server, and the `um` CLI.\n\n| Agent | Install |\n|---|---|\n| **Claude Code** | `/plugin marketplace add rehan-remade/universal-modder`<br>`/plugin install universal-modder@universal-modder` |\n| **Codex** | `codex plugin marketplace add rehan-remade/universal-modder`<br>`codex plugin add universal-modder@universal-modder` |\n| **Gemini CLI** | `gemini extensions install https://github.com/rehan-remade/universal-modder` |\n| **VS Code / Copilot** | Enable `chat.plugins.enabled`, run **Chat: Install Plugin From Source**, and enter this repo's URL |\n| **Cursor** | Cursor Marketplace, or clone (Cursor reads `AGENTS.md` and `.cursor/mcp.json`) |\n| **OpenCode** | Clone and run `opencode` inside it (`opencode.json` adds the skills and the fal MCP server)<br>or, on OpenCode 2, `opencode plugin add 'github:rehan-remade/universal-modder#main::path:plugins/opencode'` (the `um` tool and fal MCP; add the skills with **Skills only**) |\n| **Skills only**<br>(any agent) | `npx skills add https://github.com/rehan-remade/universal-modder` |\n| **Anything else** | `git clone https://github.com/rehan-remade/universal-modder` and start your agent inside it |\n\nInside a clone, each agent finds the skills where it looks for them: `.agents/skills` (Codex, Gemini CLI,\nCopilot, Cursor, OpenCode) and `.claude/skills` (Claude Code) are copies of `skills/`. Instructions are in\n`AGENTS.md`, which `CLAUDE.md` and `GEMINI.md` point to. MCP config is in `.mcp.json`, `.codex/config.toml`,\n`.cursor/mcp.json`, `.vscode/mcp.json` and `opencode.json` (which also points OpenCode at `skills/`).\n\nWithout a clone, OpenCode 2 installs the plugin in `plugins/opencode/` with `opencode plugin add`: one\n`um_run` tool that passes its arguments straight to the CLI and runs `um` from PATH (see below), plus the\nfal MCP server when `FAL_KEY` is set and none is configured. A clone doesn't need it. See\n`plugins/opencode/README.md`.\n\n**The `um` CLI.** The Claude Code plugin puts it on PATH (its SessionStart hook), and so does a clone opened in\nClaude Code (`.claude/settings.json`); in a clone with another agent, `export PATH=\"$PWD/bin:$PATH\"`. Other\nagents' plugin installs (Codex, Cursor, Gemini CLI, OpenCode) don't, so install it once:\n```bash\nuv tool install git+https://github.com/rehan-remade/universal-modder     # or: pipx install git+...\n```\n**For assets,** get a [fal API key](https://fal.ai/dashboard/keys). It powers both the fal MCP server and\n`um fal`. Rather than exporting it from a shell profile or a `.env`, store it once with `um fal key set`: on\nLinux it goes into the desktop keyring (libsecret's `secret-tool`), elsewhere into an owner-only\n`~/.secrets/fal-key",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:22.455810"
+  },
+  {
+    "basic_info": {
+      "name": "replica-skill",
+      "full_name": "Jakeschincariol/replica-skill",
+      "owner": "Jakeschincariol",
+      "description": "Eleven free Claude skills that clone any app: reverse-engineer it, rebuild it, test it for bugs, then fix what its users hate. Free, MIT.",
+      "url": "https://github.com/Jakeschincariol/replica-skill",
+      "clone_url": "https://github.com/Jakeschincariol/replica-skill.git",
+      "ssh_url": "git@github.com:Jakeschincariol/replica-skill.git",
+      "homepage": "https://opusjake.ai",
+      "created_at": "2026-10-03T12:07:49Z",
+      "updated_at": "2026-10-25T05:23:47Z",
+      "pushed_at": "2026-10-03T12:07:53Z"
+    },
+    "stats": {
+      "stars": 5304,
+      "forks": 931,
+      "watchers": 5304,
+      "open_issues": 13,
+      "size": 66
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 88573,
+        "TypeScript": 1882
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent",
+        "agent-skills",
+        "app-clone",
+        "claude",
+        "claude-code",
+        "claude-skills",
+        "indie-hacker",
+        "reverse-engineering",
+        "saas"
+      ]
+    },
+    "content": {
+      "readme": "# The Replica skill\n\nEleven Claude skills that clone any app. Free, MIT, no signup, no API key,\nnothing to connect.\n\nOne reverse-engineers the app you want to clone. One rebuilds it. One tests it\nfor bugs. And one is the Entrepreneur: it reads what the app's users hate and\nfixes it in yours, so you have an app you can sell.\n\nIn between, the others plan the stack and the database, rebuild the design\nsystem, wire up auth and payments, score your clone against the original, give\nit a name and a brand of its own, write the landing page and the store\nlisting, and put it live on your domain.\n\n**It rebuilds what an app does, never what it owns.** Features and flows,\nclean-room style. Not its code, its logo, its copy or its content. The\nfine print is at the bottom, and the skills enforce it.\n\n## Install\n\nPaste this into Claude:\n\n```\nhttps://github.com/Jakeschincariol/replica-skill\n\ninstall skill\n```\n\nOr as a plugin, in Claude Code:\n\n```\n/plugin marketplace add Jakeschincariol/replica-skill\n/plugin install replica-skill@replica-skill\n```\n\nClaude Code namespaces plugin skills, so installed as a plugin they show up as\n`/replica-skill:replica-recon` and so on. Copy the folders instead if you want\nplain `/replica-recon`:\n\n```bash\ngit clone https://github.com/Jakeschincariol/replica-skill.git\ncp -r replica-skill/replica-* ~/.claude/skills/\n```\n\nProject-local instead of global: copy the same folders into your repo's\n`.claude/skills/`. No Claude Code at all? Paste any single `SKILL.md` at the\ntop of a chat and it runs as a mode. You lose the Python tools, but the\nmethod works.\n\nThe tools need Python 3.8 or newer. Nothing to pip install.\n\n## The eleven\n\n| command | what it does |\n| --- | --- |\n| `/replica-recon` | Reverse-engineers any app: screens, flows, components, data model. From public pages, screenshots, store listings and your own account. |\n| `/replica-architect` | Plans the stack, database schema and API for your clone. |\n| `/replica-design` | Rebuilds the design system: colours, type, spacing, components. As tokens, with your own assets. |\n| `/replica-build` | Rebuilds the app screen by screen from the recon map. |\n| `/replica-backend` | Auth, database, payments and integrations. |\n| `/replica-test` | Clicks through every flow and tests it for bugs. |\n| `/replica-diff` | Compares your clone against the original. A parity score and what is missing. |\n| `/replica-entrepreneur` | Reads what the app's users hate in real reviews and turns it into fixes and a positioning angle. |\n| `/replica-brand` | Names and rebrands your version so it is yours. |\n| `/replica-launch` | Landing page, pricing and App Store listing. |\n| `/replica-deploy` | Ships it live on your own domain. |\n\n## How to use it\n\nRun them in order. Each one reads what the last one wrote, in a `replica/`\nfolder in your project.\n\n```\nrecon -> architect -> design -> build -> backend -> test -> diff -> entrepreneur -> brand -> launch -> deploy\n```\n\nAn example: cloning a scheduling app, the kind where you share a link and\npeople book a time with you.\n\n1. **`/replica-recon`** with the app's URL. It reads the help center, the\n   pricing page, the store listing and public walkthroughs, and you click\n   through your own account with it. Out comes `replica/recon.md`: 18\n   screens, 7 flows (guest books a meeting, host sets availability, guest\n   reschedules...), the components, an inferred data model (users, event\n   types, availability, bookings) and `features.csv`. The partner\n   marketplace is marked out of scope: that is their network, not a feature.\n2. **`/replica-architect`** picks Next.js, Postgres, Stripe and Resend, writes\n   the schema (with a constraint so two guests can never book the same slot)\n   and orders the build: the booking flow end to end first.\n3. **`/replica-design`** measures the screenshots into tokens: colour roles,\n   type scale, 8px spacing, the date picker and slot button specs. Open\n   icons, an open font, your own words.\n4. **`/replica-build`** builds the shell, then the booking flow, then every\n   screen with all its states, ticking off `features.csv` as it goes.\n5. **`/replica-backend`** adds sign up, Google Calendar through Google's own\n   API with your keys, Stripe for paid bookings, reminder emails.\n6. **`/replica-test`** writes a test plan from the 7 flows, Playwright specs\n   for the happy paths and edge cases (time zones, a slot taken mid-booking,\n   double submit), and logs bugs by severity until no S1 or S2 is open.\n7. **`/replica-diff`** scores it. Features 86, all must-haves done, booking\n   page layout 91. Missing: round-robin for teams, the website embed.\n8. **`/replica-entrepreneur`** reads 140 real reviews across the App Store,\n   G2, Capterra and Reddit. Top complaints: per-seat price jumps, no text\n   reminders, guests confused by time zones. Each with counts and linked\n   quotes. Fix plan: flat pricing, SMS reminders, a time zone confirm step.\n   Angle: booking links for small teams that hate per-seat pricing.\n9. **`",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:23.669460"
+  },
+  {
+    "basic_info": {
+      "name": "iPhone-use",
+      "full_name": "zhongerxin/iPhone-use",
+      "owner": "zhongerxin",
+      "description": "让 Codex 通过 USB 操作真实 iPhone：引导安装、App 自动化、实时屏幕与截图回退。",
+      "url": "https://github.com/zhongerxin/iPhone-use",
+      "clone_url": "https://github.com/zhongerxin/iPhone-use.git",
+      "ssh_url": "git@github.com:zhongerxin/iPhone-use.git",
+      "homepage": null,
+      "created_at": "2026-10-06T15:09:33Z",
+      "updated_at": "2026-10-25T05:23:59Z",
+      "pushed_at": "2026-10-22T13:45:15Z"
+    },
+    "stats": {
+      "stars": 4604,
+      "forks": 459,
+      "watchers": 4604,
+      "open_issues": 29,
+      "size": 44977
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 866734,
+        "HTML": 558074,
+        "JavaScript": 62775,
+        "TypeScript": 34479,
+        "Objective-C": 1177,
+        "Shell": 933
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# iPhone Use\n\n**中文** · [English](README.en.md)\n\n![iPhone Use 在 Codex 中操作真实 iPhone 并实时展示手机屏幕](assets/iphone-use-demo.png)\n\n让 Codex、WorkBuddy 或豆包工作通过 USB 操作你的真实 iPhone。用自然语言描述任务，助手就能打开 App、读取页面、点击、滚动、输入文字、整理列表，并在侧边栏展示手机屏幕。\n\niPhone Use 使用 [WebDriverAgent](https://github.com/appium/WebDriverAgent)（WDA）与 iPhone 通信，包含本地 MCP 服务、安装与使用技能，以及实时屏幕 widget。它优先复用现有连接与构建；控件定位失败时，指导模型查看截图并尝试坐标点击。\n\n插件默认向独立的 PostHog 项目及 GA4 属性发送匿名使用统计，包括实际使用开始、工具调用、连接状态、耗时、错误类别，以及显式启动的 App 标识和公开目录名称（含 batch 中已完成的启动）。使用随机安装标识，不上传手机画面、输入内容、设备标识或已安装 App 清单。设置 `IPHONE_USE_ANALYTICS=0` 或 `DO_NOT_TRACK=1` 并重启 MCP 服务可关闭。详见 [埋点与分析说明](ANALYTICS.md)。\n\n**使用前，需要先在你自己的 iPhone 上安装、签名并启动 WDA Runner。** WDA 是运行在手机上的执行服务；下面的提示词和 setup 流程可以让所用宿主的助手协助完成首次安装，已有健康的 WDA 可直接复用。\n\n## 最近更新\n\n2026-10-09 至 2026-10-13，完整记录见 [更新记录](CHANGELOG.md)。\n\n- **预览直接操作**：支持点击画面、鼠标拖动和触控板双指滚动。\n- **微信点击优化**：已知导航目标直接看图点击，通讯录和会话列表按需轻量读取。\n- **AirDrop 文件传输**：使用技能新增传输指引，将手机图片、视频和文档传回 Mac。\n- **页面读取优化**：精简控件树，默认最多返回 200 个节点，支持按需限制快照。\n- **连接恢复改进**：完善超时与断线指引，自动恢复临时快照设置。\n- **长文本续传保护**：续传绑定原输入框，切换 App 或焦点后停止，避免误写。\n\n## 用一段提示词让 Codex 安装\n\n将下面这段话复制到本机 Codex：\n\n```text\n请帮我安装和配置 iPhone Use：\nhttps://github.com/zhongerxin/iPhone-use\n\n先读取仓库 README 和安装脚本，检查本机 Codex CLI、Python、Node.js、npm、\n完整 Xcode，以及通过 USB 连接的 iPhone。把项目放到合适的本机目录，\n运行 sh scripts/install.sh 安装插件。\n\n如果当前聊天还没有加载新工具，明确告诉我重连或新开聊天后继续。\n工具可用后读取 iphone-use-setup 技能，检查现有配置，优先复用已有 WDA。\n首次配置时发现我的设备，使用我自己的 Apple 开发团队和可签名 bundle ID，\n获取固定版本 WDA、配置签名、构建并启动，直到 pua_ready 返回 ready=true，\n然后打开手机屏幕。不要照搬作者的设备标识或签名信息。\n\n缺少依赖时说明具体缺项并帮助安装。Apple 账号登录、设备信任、开发者模式\n或解锁需要我操作时，告诉我明确步骤，等我完成再继续。\n```\n\n安装插件后，当前聊天可能需要重新连接才能加载工具，流程可在重连后继续。Apple 账号登录、设备信任、开发者模式及手机解锁仍需本人在系统界面完成。\n\n仓库目前为私有，需要有 GitHub 访问权限，或者使用已取得的源代码包。\n\n## 在 WorkBuddy 和豆包工作中安装\n\n两者都支持通过 USB 操作真实 iPhone，并在侧边栏显示实时画面；共用本机的设备配置、WDA 构建和操作锁，已配置过的手机优先复用。依赖仍是 macOS、完整 Xcode、Python、Node.js / npm 和 USB iPhone，安装这两个适配版无需 Codex CLI。适配版默认关闭匿名使用统计。\n\n| 宿主 | 在源码目录运行 | 安装后的接入 |\n| --- | --- | --- |\n| [WorkBuddy](https://github.com/zhongerxin/iPhone-use/blob/main/workbuddy/README.md) | `python3 workbuddy/install.py` | 在「连接器管理」信任 `iphone_use`，新开会话 |\n| [豆包工作](https://github.com/zhongerxin/iPhone-use/blob/main/doubao/README.md) | `python3 doubao/install.py` | 按安装器输出新建 STDIO 连接器，上传两个技能，新开「本地电脑」任务 |\n\n将对应提示词发给本机的 WorkBuddy 或豆包工作。助手可执行本地安装；宿主界面的接入步骤若无法自动操作，会说明需要你完成的具体步骤。首次签名仍使用你自己的 Apple 账号和开发团队。\n\n### 发给 WorkBuddy 的提示词\n\n```text\n请在这台 Mac 上安装 iPhone Use，让 WorkBuddy 通过 USB 操作我的真实 iPhone：\nhttps://github.com/zhongerxin/iPhone-use\n\n先读取 README.md、workbuddy/README.md 和安装脚本，检查 Python、Node.js、npm、\n完整 Xcode 和 USB iPhone。克隆或复用本地源码，保留已有改动，\n在源码目录运行 python3 workbuddy/install.py；不要运行 Codex 安装脚本。\n在 WorkBuddy「连接器管理」里信任并启用 iphone_use，然后新开会话加载工具和技能。\n如果这些界面步骤需要我操作，给出具体位置，等我完成后继续。\n\n工具可用后读取 iphone-use-setup，先查询 setup status，复用已有配置、健康 WDA\n或正在运行的启动任务；首次配置使用我自己的设备和 Apple 开发团队完成签名与启动。\n确认 pua_ready 返回 ready=true 后调用一次 pua_screen()，在侧边栏显示实时手机画面，\n再在 iPhone 计算器中验证 12×34=408。Apple 登录、信任、开发者模式或解锁\n需要我接管时，说明具体步骤并等我完成；不要照搬作者的设备标识或签名信息。\n```\n\n### 发给豆包工作的提示词\n\n```text\n请在这台 Mac 上安装 iPhone Use，让豆包工作通过 USB 操作我的真实 iPhone：\nhttps://github.com/zhongerxin/iPhone-use\n\n在「本地电脑」任务中先读取 README.md、doubao/README.md 和安装脚本，\n检查 Python、Node.js、npm、完整 Xcode 和 USB iPhone。克隆或复用本地源码，\n保留已有改动，在源码目录运行 python3 doubao/install.py；不要运行 Codex 安装脚本。\n按安装器输出，在「插件 · 技能 · 伙伴」中新建名为 iphone_use 的 STDIO 连接器，\n命令和参数使用输出的绝对路径，并分别上传安装目录下的 iphone-use、iphone-use-setup\n两个技能文件夹。启用连接器和技能，再新开「本地电脑」任务；已有连接器更新后关闭再打开。\n如果这些界面步骤需要我操作，给出具体位置和路径，等我完成后继续。\n\n工具可用后读取 iphone-use-setup，先查询 setup status，复用已有配置、健康 WDA\n或正在运行的启动任务；首次配置使用我自己的设备和 Apple 开发团队完成签名与启动。\n确认 pua_ready 返回 ready=true 后调用一次 pua_screen()，在右侧 MCP App 显示实时手机画面，\n再在 iPhone 计算器中验证 12×34=408。Apple 登录、信任、开发者模式或解锁\n需要我接管时，说明具体步骤并等我完成；不要照搬作者的设备标识或签名信息。\n```\n\n如果工具没有加载，先确认连接器已启用，再新开会话 / 本地电脑任务。两个宿主同时使用同一部手机时，按共享操作锁的提示等待，避免同时操作。详细安装、更新和排查步骤见上表链接。\n\n## 安装依赖\n\n| 依赖 | 用途 |\n| --- | --- |\n| macOS 与 Codex、WorkBuddy 或豆包工作 | 运行本地 MCP 服务与屏幕侧边栏；Codex 版安装另需 Codex CLI |\n| 完整 Xcode，已完成首次启动配置 | 编译、签名、部署和运行 WDA；仅 Command Line Tools 不够 |\n| 可在 Xcode 中使用的 Apple 账号和开发团队 | 签名手机端 WDA Runner |\n| USB 连接的真实 iPhone | 信任此 Mac，开启设备要求的开发者模式，安装与启动期间保持解锁 |\n| Python 3.9+ | 运行 MCP 服务；Python 端使用标准库 |\n| Node.js 20.19+、22.12+ 或 24+，npm 10+ | USB 转发与屏幕流；支持范围以项目 engines 和 doctor 检查为准 |\n\nXcode 需要支持手机当前的 iOS 版本。无需越狱，也无需单独启动 Appium Server。WDA 固定使用已验证的 16.14.0 提交，下载、依赖安装、签名和构建由 setup 流程管理。\n\n### 先在自己的 iPhone 上安装并启动 WDA\n\n手机端使用 [Appium 维护的 WebDriverAgent](https://github.com/appium/WebDriverAgent)。首次使用时，须通过 Xcode 用你自己的 Apple 账号与开发团队签名、安装并启动 `WebDriverAgentRunner`。\n\n推荐使用上面的安装提示词和下面的 `iphone-use-setup` 流程：Codex 获取本项目固定版本的 WDA，配置你的设备和签名，再完成构建、部署与启动；需要你完成 Apple 登录、设备信任、开发者模式或解锁时，会提示具体步骤。\n\n如需在 Xcode 手动处理：\n\n1. 用 USB 连接自己的 iPhone，信任这台 Mac，按系统要求开启开发者模式，并在 Xcode 中配置自己的 Apple 账号。\n2. 打开获取的 WDA 源码中的 `WebDriverAgent.xcodeproj`，选择 `WebDriverAgentRunner` scheme 和自己的 iPhone；在 Runner target 的 **Signing & Capabilities** 中选择自己的 Team 与可签名的 Bundle Identifier。\n3. 使用 **Product → Test** 构建、安装并运行 WDA Runner，按手机上的实际提示完成信任。运行测试会启动 WDA 服务；安装后仍需要该服务处于运行状态。\n\n本对话首次使用先调用 `pua_setup(action=\"status\")`，复用健康服务或活动工作；缺少服务才 start 一次。start 默认最多等待 20 秒，超时后按同一 job 查询，不重复启动。服务就绪后，以 `p",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:24.881085"
+  },
+  {
+    "basic_info": {
+      "name": "vibe-wise",
+      "full_name": "nykooi1/vibe-wise",
+      "owner": "nykooi1",
+      "description": "A Claude Code / Codex plugin that helps you learn how to build while AI writes the code.",
+      "url": "https://github.com/nykooi1/vibe-wise",
+      "clone_url": "https://github.com/nykooi1/vibe-wise.git",
+      "ssh_url": "git@github.com:nykooi1/vibe-wise.git",
+      "homepage": null,
+      "created_at": "2026-09-29T01:29:57Z",
+      "updated_at": "2026-10-25T04:55:05Z",
+      "pushed_at": "2026-10-09T09:37:21Z"
+    },
+    "stats": {
+      "stars": 3923,
+      "forks": 154,
+      "watchers": 3923,
+      "open_issues": 24,
+      "size": 161
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 33040
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<img src=\".claude-plugin/icon.svg\" alt=\"VibeWise brain with code brackets\" width=\"96\" height=\"96\">\n\n# VibeWise\n\n**You build. AI writes.**\n\nA plugin for **Claude Code** and **Codex** that puts learning first and keeps you in control while AI writes the code you designed. The AI **asks for your approach first**, helps you examine tradeoffs, and explains unfamiliar concepts. You shape the design and decide when it's ready to implement. The AI writes the code, then explains what it changed and why.\n\nFor anyone who wants to learn as they build—whether you're an aspiring engineer, a junior developer, or an experienced engineer exploring an unfamiliar stack. Practice planning how the pieces fit together, anticipating failures, and checking the result while keeping ownership of the decisions.\n\n## Table of Contents\n\n- [Get started](#get-started)\n  - [Claude Code](#claude-code)\n  - [Codex](#codex)\n- [What it feels like](#what-it-feels-like)\n- [Make it yours](#make-it-yours)\n- [Updating](#updating)\n- [License](#license)\n\n## Get started\n\nYou need an up-to-date [Claude Code](https://code.claude.com/docs/en/setup) or\n[Codex](https://developers.openai.com/codex), and\n[Python 3](https://www.python.org/downloads/). In Claude Code, VibeWise uses Python\nto restore learning context and reset learning notes. In Codex, only reset needs it.\nNo extra Python packages are needed.\n\n### Claude Code\n\nInstall from the built-in **Anthropic Directory**. In Claude Code, run:\n\n```text\n/plugin install vibe-wise@anthropic-plugin-directory\n```\n\nChoose an installation scope and confirm. No marketplace setup is needed.\n\nRestart Claude Code in the project you want to work on, then run:\n\n```text\n/vibe-wise:learn\n```\n\nSetup asks one question at a time. Use the arrow keys and Enter for choices; pick **Use defaults** to skip preference setup. Then ask Claude to build something. Starting fresh or joining an unfamiliar repository both work. For an existing repository, Claude first inspects the code and sketches a small system map.\n\n<details>\n<summary>Alternative: install through GitHub</summary>\n\nIf Anthropic Directory isn't available in your Claude Code version, use the GitHub\nmarketplace. Choose one installation method; you don't need both.\n\nRun these commands **one at a time** in Claude Code. First, add the marketplace:\n\n```text\n/plugin marketplace add nykooi1/vibe-wise\n```\n\nAfter it finishes, install the plugin:\n\n```text\n/plugin install vibe-wise@vibe-wise\n```\n\nEnable automatic updates through `/plugin` → **Marketplaces** → **vibe-wise** →\n**Enable auto-update**. This is off by default for third-party marketplaces.\nRestart Claude Code, then run `/vibe-wise:learn` in your project.\n\n</details>\n\n### Codex\n\nIn a terminal, run these commands **one at a time**. First, add the marketplace:\n\n```sh\ncodex plugin marketplace add nykooi1/vibe-wise\n```\n\nAfter it finishes, install the plugin:\n\n```sh\ncodex plugin add vibe-wise@vibe-wise\n```\n\nStart Codex in your project and run `$vibe-wise:learn`. Run it again at the start\nof each Codex session, and whenever Codex seems to have lost track of learning\nmode. It resumes from your saved notes without repeating setup. To reset, run\n`$vibe-wise:reset`. Claude Code and Codex share the same `.vibe-wise/` notes.\n\nIn Codex, the commands in this guide use `$` instead of `/`: `/vibe-wise:learn`\nbecomes `$vibe-wise:learn`.\n\n## What it feels like\n\nYou're building a Notion-style notes app: users sign in, create and edit private\nnotes, and organize them into folders. Here, you're working through how notes and\nfolders relate—and what should happen when someone deletes a folder.\n\nThis condensed example is adapted from a real learning session. Later implementation\nsteps are illustrative; intervening design discussions are omitted.\n\n**You:**\n\n```text\nA note can be in several folders. Deleting a folder should delete its notes.\n```\n\n**Claude / Codex:**\n\n```text\n✦ Build checkpoint: Deleting a shared note\n\n\"Trip ideas\" is in both Travel and Summer. Deleting it removes it from both.\n\nWhen someone deletes Travel, what should happen to that note in Summer?\n```\n\n**You:**\n\n```text\nKeep it in Summer. If it has no folders left, keep the note outside any folder.\n```\n\n**Claude / Codex:**\n\n```text\nThat separates deleting a folder from deleting a note.\n\n✦ Build checkpoint: Connecting notes and folders\n\nHow would you represent which folders a note belongs to, without copying the note?\n```\n\n**You:**\n\n```text\nA links table with note_id and folder_id. Deleting a folder removes its links,\nnot the notes.\n```\n\n**Claude / Codex:**\n\n```text\nEach link records one membership. Several links can point to the same note;\na note with no links is unfiled.\n\nnotes ← folder links → folders\n\n✦ Design checkpoint: Folder membership\n\nProposed: store notes once and track folder membership in a links table.\nDeleting a folder removes its links and keeps the notes. This supports multiple\nfolders per note; loading a folder's notes needs a lookup through those links.\n\nConfirmin",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:26.091565"
+  },
+  {
+    "basic_info": {
+      "name": "qwen21-nsfw-pose-skill",
+      "full_name": "Arekejoker/qwen21-nsfw-pose-skill",
+      "owner": "Arekejoker",
+      "description": "Qwen-Image 2.1 NSFW/姿势出图 skill：作者级提示词配方 + NSFW LoRA + 136 姿势 VNCCS 人偶控制；适用 Claude Code / Codex / Cursor / OpenClaw",
+      "url": "https://github.com/Arekejoker/qwen21-nsfw-pose-skill",
+      "clone_url": "https://github.com/Arekejoker/qwen21-nsfw-pose-skill.git",
+      "ssh_url": "git@github.com:Arekejoker/qwen21-nsfw-pose-skill.git",
+      "homepage": null,
+      "created_at": "2026-10-13T03:09:42Z",
+      "updated_at": "2026-10-25T05:05:06Z",
+      "pushed_at": "2026-10-20T07:03:30Z"
+    },
+    "stats": {
+      "stars": 3710,
+      "forks": 657,
+      "watchers": 3710,
+      "open_issues": 6,
+      "size": 36974
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 62882
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "agent-skill",
+        "comfyui",
+        "image-generation",
+        "openclaw",
+        "pose-control",
+        "qwen-image"
+      ]
+    },
+    "content": {
+      "readme": "# qwen21-nsfw-pose\n\n[![Package checks](https://github.com/Arekejoker/qwen21-nsfw-pose-skill/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/Arekejoker/qwen21-nsfw-pose-skill/actions/workflows/validate.yml)\n\n[English](README.en.md) | 中文\n\n**Qwen-Image 2.1 本地 NSFW / 姿势出图完整配方** — 作者级提示词结构 + NSFW LoRA + 136 个 3D 姿势库 + VNCCS 人偶精确姿势控制。\n\n基于 ComfyUI + `qwen_image_2.1_int8_convrot` 底模（与 Civitai 作者同款底模），复刻并验证过 Civitai 作者样图（2026-10-12）。\n\n- 适用：Claude Code / Codex / Cursor / OpenClaw（agent 技能）+ 人类手动使用\n- 内容：可跟跑的作者案例、强制配方、姿势大胆度阶梯（L0–L3）、完整依赖与安装指南\n\n**演示**（3D 人偶调姿势 → 一键生成 → 成品，Route ④）：\n\n<img src=\"references/demo_pose_studio.gif\" width=\"100%\" alt=\"演示：3D 人偶变形 → 实时生成 → 成品\" />\n\n---\n\n## 效果展示\n\n### 本配方输出：同一海边场景的三级对照（L0 → L1 → L2）\n\n| L0 · 全着装，无 LoRA（提示词即全部） | L1 · 湿身泳装 + LoRA@1.0 | L2 · 极低机位 + 湿身蹲姿 + LoRA@1.0 |\n| --- | --- | --- |\n| <img src=\"references/pose_examples/01_seaside.png\" width=\"290\" /> | <img src=\"references/pose_examples/01b_seaside_lora.png\" width=\"290\" /> | <img src=\"references/pose_examples/06_l2_squat_lowangle.png\" width=\"290\" /> |\n\n三张图同场景递进：L0 只有提示词；L1 加 LoRA + 显式皮肤/水珠描写；L2 再加低机位与开合姿态。**LoRA 负责质感，提示词负责信息密度，机位负责大胆度。**\n\n### NSFW 效果（⚠️ 以下图片包含裸露内容）\n\n<details>\n<summary><picture><img src=\"references/author_samples_cover_cursor.gif?v=3\" width=\"100%\" alt=\"作者原图（NSFW）· 点击卡片展开\" /></picture><br/><b>👇 点击上方卡片展开作者原图（含裸露内容 · 18+，再点收起）</b></summary>\n\n**作者原图**（Civitai showcase，本配方复刻的目标）：\n\n| 作者 · 淋浴（tawsLoRa） | 作者 · 按摩（tawsLoRa） | 作者 · 自拍（TheseAlpacas） |\n| --- | --- | --- |\n| <img src=\"downloads/samples/taws_v13_shower_author.jpg\" width=\"300\" /> | <img src=\"downloads/samples/taws_v13_massage_author.jpg\" width=\"300\" /> | <img src=\"downloads/samples/thesealpacas_v2_selfie_author.jpg\" width=\"300\" /> |\n\n</details>\n\n用 §「快速开始」的命令可复刻淋浴那张（复刻输出已验证与作者原图同场景同构图，见 `downloads/samples/phase5_meta.json` 与本文快速开始一节）。\n\n### 3D 人偶精确姿势（Route ④，136 姿势库）\n\n默认人物图 `references/src_standing.png`；姿势 = 骨骼旋转 JSON（MakeHuman 网格 + three.js 渲染），\n换姿势且保身份。姿势库来源：HuggingFace 4 个公开仓库（`Totemistyk/General_Poses`、\n`Totemistyk/Ballet_PoseStudio`、`MIUProject/VNCCS_PoseLibrary_Main`、\n`MIUProject/MySuperPoseRepo`）+ 55 个手工精选，共 **136 个**。\n\n---\n\n## 快速开始（作者案例跟跑）\n\n前置安装见 [install/setup.md](install/setup.md)。装好后先跑一次自检（只读，不改动任何东西）：\n\n```bash\npython3 scripts/doctor.py\n```\n\n它逐项检查 ComfyUI 连通性、底模/LoRA、VNCCS 节点、姿势库、浏览器后端，并给出缺失项的修复指引。\n全绿后一条命令复刻作者淋浴样图（~5 分钟）：\n\n```bash\npython3 scripts/qwen_pose_test.py \\\n  --mode t2i --name author_case_shower \\\n  --prompt \"$(cat prompts/taws_v13_shower.txt)\" \\\n  --seed 80964 \\\n  --steps 50 --cfg 2.5 --sampler er_sde --scheduler beta \\\n  --width 1152 --height 1728 \\\n  --lora \"qwen2_1-femaledVaginus-nsfw-v1_3-fine_L22-31.safetensors\" \\\n  --lora-strength 1.0 \\\n  --out outputs/author_case/shower.png\n```\n\n对比对象：`downloads/samples/taws_v13_shower_author.jpg`。\n完整元数据（提示词/参数/seed/完整工作流）：`downloads/samples/phase5_meta.json`。\n\n### 硬件要求（参考）\n\n底模为 Qwen-Image 2.1 int8 套件，模型文件合计约 16GB（diffusion 6.8GB / text encoder 8.7GB / VAE 0.6GB），LoRA 各自 ≤608MB。\n\n- **最低**：NVIDIA 12GB 显存 + 32GB 内存——能跑，ComfyUI 会自动把部分模型卸载到内存，出图慢一些\n- **推荐**：24GB 显存（3090/4090 级）+ 32–64GB 内存——模型基本常驻，体验最顺\n- **8GB 显存**：建议用 GGUF 量化版（社区实测 12–16GB 显存可跑 Q4；8GB 靠 offload 会明显更慢）\n- 纯 CPU 不推荐（单张图耗时过长）\n- 硬盘预留 ~40GB；CPU 无特殊要求（现代 x86_64/ARM 均可）；Linux 最省事；Windows 可原生运行基础脚本（doctor / `--list-poses` / 媒体锁回退，社区贡献），完整流程仍建议 WSL2；Mac（Apple Silicon）见下方单独小节\n- 路线④额外需要一个可连接的桌面浏览器（Playwright/CDP，见 `install/setup.md`）\n\n本仓库案例图与实测数据来自统一内存设备（DGX Spark）：1024×1024、40 步约 32 秒/张，峰值增量约 7–10GB。\n\n### macOS（Apple Silicon）\n\n- 适用 M 系芯片（M1 及以上）；Intel Mac 不建议\n- **模型选择看统一内存**：≥32GB 直接用本仓库原版 int8 套件（ComfyUI + MPS）；16–32GB 建议改用 GGUF 量化版（搭配 ComfyUI-GGUF；社区实测 Q8 更快、Q4 更省内存）\n- **速度预期：分钟级/张**——社区报告：M5 Pro 48GB 跑 int8 约 144 秒/1024；M1 Max 64GB 约 7–10 分钟/张（加缓存优化节点如 Comfyui-Spectrum-Qwen2.1 可提速 2–3 倍）。对比本仓库 DGX Spark 实测 32 秒/张，仅供参考\n- 已知坑：编辑模式在 MPS 上偶发 VAE 编码异常，可用 ComfyUI 的 `--cpu-vae` 绕过（ComfyUI issue #16433，已有修复讨论）；内存紧张时建议单张生成、关闭其他大内存应用\n- 路线兼容：①②③ 脚本在 macOS 可直接运行（纯 Python 标准库、POSIX 兼容）；④ 需 `playwright install chromium`（macOS 版），`install/setup.md` 中的 AppArmor 提示不适用\n- ⚠️ 以上 Mac 数据来自社区报告，维护者没有 Mac 硬件、未经实测；如果你在 Mac 上跑通或遇到问题，欢迎开 issue 反馈，我们会持续更新本说明\n\n## 四条路线\n\n| 需求 | 路线 | 命令 |\n| --- | --- | --- |\n| 新 NSFW/性感图（文字出图） | ① T2I + NSFW LoRA（必开） | `scripts/qwen_pose_test.py --mode t2i` |\n| 已有角色图换姿势（保脸/保服装） | ② Edit | `scripts/qwen_pose_test.py --mode edit` |\n| 已有 3D 人偶姿势渲染图，脚本换姿势（不开浏览器） | ③ 脚本姿势迁移（人偶参考 + VNCCS LoRA） | `scripts/run_pose_transfer.py --char <角色图> --pose-ref <人偶渲染图> --out <出图.png>` |\n| 指定 3D 姿势库里的精确姿势 | ④ VNCCS PoseStudio | `scripts/run_vnccs_ui.py --pose <name> [--prompt \"<场景>\"]` |\n\n路线③的人偶参考图可由路线④的运行自动保存（输出目录里的 `doll_*.png`），或任何 3D 姿态渲染图。\n不要用照片/插画当姿势参考——模型会把参考人物拼进画面，或直接重画参考人物；请使用无身份特征的 3D 人偶渲染图（路线③/④）。\n\n姿势怎么选（大胆度阶梯 L0–L3、用户要求→姿势族映射表）：见 `SKILL.md` §4，或\n`scripts/run_vnccs_ui.py --list-poses` 列出全部 136 个姿势。\n\n## 配方要点（摘要）\n\n- `er_sde` + `beta`，CFG 2.5，50 步，1152×1728 竖版\n- **NSFW LoRA 永远开**（默认 `femaledVaginus v1.3b` @ 1.0）\n- 提示词必须按作者结构写满 7 要素、300–1500 字符、含 LoRA 触发词\n- 弱化配方（无 LoRA/短提示词/减步数）前必须告知用户代价，不许默默减弱\n\n完整规则与证据：`SKILL.md`。\n\n## 目录结构\n\n```\n├── SKILL.",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:27.291888"
+  },
+  {
+    "basic_info": {
+      "name": "cn-math-taxonomy",
+      "full_name": "xiaoyang111222/cn-math-taxonomy",
+      "owner": "xiaoyang111222",
+      "description": "数学（小学到高中）、英语（三年级到高中）、初中物理的知识图谱：1644 个知识点、2403 条先修边、6723 道题，对齐课标，附自适应前置诊断。",
+      "url": "https://github.com/xiaoyang111222/cn-math-taxonomy",
+      "clone_url": "https://github.com/xiaoyang111222/cn-math-taxonomy.git",
+      "ssh_url": "git@github.com:xiaoyang111222/cn-math-taxonomy.git",
+      "homepage": "https://math.pansgo.com/",
+      "created_at": "2026-10-18T09:04:43Z",
+      "updated_at": "2026-10-25T05:31:11Z",
+      "pushed_at": "2026-10-25T00:30:35Z"
+    },
+    "stats": {
+      "stars": 3367,
+      "forks": 793,
+      "watchers": 3367,
+      "open_issues": 9,
+      "size": 35972
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 2779098,
+        "JavaScript": 397943,
+        "CSS": 43462,
+        "HTML": 31440,
+        "Shell": 1573
+      },
+      "license": "Other",
+      "topics": [
+        "chinese",
+        "curriculum",
+        "diagnostic",
+        "edtech",
+        "education",
+        "elementary-school",
+        "english",
+        "high-school",
+        "junior-high-school",
+        "k12",
+        "knowledge-graph",
+        "math",
+        "mathematics",
+        "middle-school",
+        "open-data",
+        "primary-school"
+      ]
+    },
+    "content": {
+      "readme": "# 中小学·高中知识图谱（数学 + 语文 + 英语 + 物理）\n\n对齐《义务教育数学课程标准（2022 年版 2025 年修订）》（教育部《中小学课程方案和课程标准日常修订版》，教材〔2025〕1 号）、《普通高中数学课程标准（2017年版2025年修订）》的**必修和选择性必修**，以及《义务教育英语课程标准（2022年版）》一级、二级和三级（7–9 年级）和《普通高中英语课程标准（2017年版2025年修订）》的必修、选择性必修。数学教材是人教版一–九、人教 A 版（2019）必修两册和选择性必修三册；英语按人教 PEP（三年级起点，根据2022年版课程标准修订的新版）三上到六上（五下、六下新版未上线，暂按旧版）、人教版 Go for it! 新版七上到九上（九下新版未上线，暂按旧版九年级全一册第 9–14 单元等），以及人教版（2019）高中必修三册和选择性必修四册。初中物理按人教版新版（根据2022年版课程标准修订）八年级上册、八年级下册、九年级全一册，对齐《义务教育物理课程标准（2022年版2025年修订）》；高中物理按人教版（2019年审定）必修第一至三册和选择性必修第一至三册，对齐《普通高中物理课程标准（2017年版2020年修订）》。附**自适应前置诊断**与题库。数学答错会沿先修边从高中、初中一直回溯到具体的小学知识点。英语单独成图，不和数学连边；初中英语会连回小学英语，高中英语主要连回初中英语。物理也单独成图，用到的数学写在知识点的 `mathLinks` 字段里，不算先修边。仓库名仍是 `cn-math-taxonomy`。\n\n**范围：数学高中做到必修和选择性必修，并且只用人民教育出版社 A 版（2019）；英语做到三年级到高中（人教版 2019 必修三册、选择性必修四册）。这是 AI 生成的初稿。** 7.3「复数的三角表示」仍按教材选学处理，没有单独建点。定积分不在选择性必修的内容要求里，没有建点。英语不出听力和口语题。\n\n[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)\n[![在线试用](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E8%AF%95%E7%94%A8-math.pansgo.com-2ea44f)](https://math.pansgo.com/)\n[![GitHub Pages 备份](https://img.shields.io/badge/备份-GitHub%20Pages-lightgrey)](https://xiaoyang111222.github.io/cn-math-taxonomy/)\n\n**[→ 在线试用诊断（演示：配方法）](https://math.pansgo.com/diagnose/?target=cnm_221&demo=1)** · [首页](https://math.pansgo.com/) · [知识图谱](https://math.pansgo.com/explore/) · [诊断工具](https://math.pansgo.com/diagnose/) · [GitHub Pages 备份](https://xiaoyang111222.github.io/cn-math-taxonomy/)\n\n![首页：三步说明、实时统计和年级入口](screenshots/06-home.png)\n\n![知识图谱：配方法附近的先修（向上 2 层，向下 1 层）](screenshots/07-explore-221.png)\n\n![诊断结果示例：配方法 → 回溯到完全平方公式](screenshots/03-result.png)\n\n![知识图谱：高中「函数的概念」附近的先修](screenshots/21-explore-h027.png)\n\n![诊断：高中函数概念回溯到初中二次函数](screenshots/23-diagnose-h027.png)\n\n![知识图谱：选择性必修「导数的概念」](screenshots/28-explore-der.png)\n\n![诊断：选择性必修第二册整册筛查](screenshots/30-diagnose-xuanbi2.png)\n\n| | 知识点 | 先修边 | 课标条目 | 题库 |\n| --- | ---: | ---: | ---: | ---: |\n| 小学（1–6 年级） | 242 | 366（小学内部） | 77（第一至三学段；2026-10-21 按 2025 修订版补齐 4 条） | 968 |\n| 初中（7–9 年级） | 315 | 563（初中内部，未改） | 157（第四学段） | 1407 |\n| 高中必修 | 143 | 144（高中内部） | 48（2017 必修，待核） | 572 |\n| 高中选择性必修 | 128 | 148（选择性必修内部） | 32（2017 选择性必修，待核） | 512 |\n| 数学合计 | 828 | 1366（另有初中→小学 45、必修跨学段 54、选择性必修跨模块 46） | 314 | 3459 |\n| 小学英语（3–6 年级） | 208 | 254（hard 60，soft 194；不与数学相连） | 35（2022 英语一级、二级，全部待核） | 832 |\n| 初中英语（7–9 年级） | 257 | 361（hard 117，soft 244；其中 29 条硬边指向小学英语） | 37（2022 英语三级，全部待核） | 1028 |\n| 高中英语（必修三册、选择性必修四册） | 259 | 299（hard 44，soft 255；其中 22 条指向初中英语） | 44（2017 高中英语，全部待核） | 1036 |\n| 初中物理（八上、八下、九年级全一册） | 92 | 123（hard 100，soft 23；不与数学相连，另有 34 条 `mathLinks`） | 89（2022年版2025年修订，OCR 后校对） | 368 |\n| 高中物理（必修三册、选择性必修三册） | 177 | 514（hard 277，soft 237；其中 105 条指向初中物理；不与数学相连，另有 64 条 `mathLinks`） | 108（2017年版2020年修订：内容要求 87 + 学生必做实验 21，待核） | 708 |\n\n数据格式参考 [Marble os-taxonomy](https://github.com/withmarbleapp/os-taxonomy)（`topics` + `dependencies`）。\n\n**反馈 / 挑错：** 题干、答案或先修关系有问题，或想提功能建议，请 [提交 Issue](https://github.com/xiaoyang111222/cn-math-taxonomy/issues/new/choose)（已提供「题目纠错」「功能建议」模板）。\n\n> **状态声明：这是 AI 生成的初稿，未经任何教师审核。** 小学、初中、高中数学，以及小学、初中、高中英语都一样。\n> 知识点的拆分粒度、掌握标准、诊断题答案，尤其是**先修关系（哪些是 hard、哪些是 soft，甚至某条边该不该存在）都需要一线教师审核**后才能用于教学、诊断或学习路径推荐。小学和初中数学的诊断题有自动核验，初中数学另有盲解复核，小学数学有独立程序复核；**高中题和英语题没有做盲解**，`verify` 和答案来自同一条表达式。小学册次目录、高中课标正文和高中章节目录多数不是官方逐页核对。英语课标正文、人教 PEP、Go for it! 和人教版（2019）高中英语的单元目录都没有逐页核对，标了「待核」的不要当成官方原文或页码。\n>\n> **册次标注：** 人教 A 版必修第二册通常在高一下学期讲授。本仓库为了把两册分成两个 `grade`，把必修第一册标成 10 / 高一，必修第二册标成 11 / 高二必修。选择性必修三册继续用 12 / 选必一、13 / 选必二、14 / 选必三，页面上不写成高三、高四。英语高中的 grade 10–12 是必修第一至三册，13–16 是选择性必修第一至四册，页面写成必修一至必修三、选必一至选必四，不写成高一到高四。这都不是教学进度的规定，待教师调整。\n\n## 数据来源与对齐依据\n\n- **课程标准**：教育部《义务教育数学课程标准（2022年版）》第一至第四学段（1—9 年级）的【内容要求】，以及《普通高中数学课程标准（2017年版2025年修订）》必修五个主题和选择性必修（函数、几何与代数、概率与统计、数学建模与数学探究）的公开转述。`data/cn-curriculum-standards.json` 现有 **314** 条（义务教育 234 + 高中必修 48 + 高中选择性必修 32）。小学部分于 2026-10-21 按《（2022年版2025年修订）》复核并补齐漏收条款（见 [docs/moe2025-alignment.md](docs/moe2025-alignment.md)），`source.revision*` 记录了现行版次与核对范围。第四学段条文仍是原先从教育部 PDF 识别的原文；第一至三学段和高中条目都**未与教育部 PDF 逐页核对**，高中条目一律 `verbatim: false`、`page_or_ref` 为「待核」。来源、规则、覆盖率与局限见 [docs/standards-mapping.md](docs/standards-mapping.md)。高中编号是本图谱自编的 `cms-2017:H.<PRE|FUN|GA|PS|MI>.NN`，不是教育部原编号。\n- **教材顺序**：人民教育出版社（人教版）义务教育教科书数学。**初中**采用 2024 年审定的新版，章节目录取自第三方电子课本目录站 dzskb.com（非人教社官方页面），核对情况如下（小学各册见下文「小学册次目录」）：\n\n  | 册次 | 采用的目录 | 核实情况 |\n  |---|---|---|\n  | 七上 | 第一章 有理数 … 第六章 几何图形初步 | **官方已核**：国家中小学智慧教育平台 2026-10-22 核对目录页预览（书名标「根据2022年版课程标准修订」，人教版书号 540ac93d），章、节与本图谱一致 |\n  | 七下 | 第七章 相交线与平行线 … 第十二章 数据的收集、整理与描述 | **官方已核**：国家中小学智慧教育平台 2026-10-22 核对目录页预览（书名标「根据2022年版课程标准修订」，人教版书号 81d65033），章、节与本图谱一致 |\n  | 八上 | 第十三章 三角形 … 第十八章 分式（2024 审定版） | **官方已核**：国家中小学智慧教育平台 2026-10-22 核对目录页预览（书名标「根据2022年版课程标准修订」，人教版书号 81264e9e），章、节与本图谱一致 |\n  | 八下 | 第十九章 二次根式 … 第二十四章 数据的分析（2024 审定版） | **官方已核**：国家中小学智慧教育平台 2026-10-22 核对目录页预览（书名标「根据2022年版课程标准修订」，人教版书号 e91a6f80），章、节与本图谱一致 |\n  | 九上 | 第二十五章 一元二次方程 … 第三十章 直线与圆的位置关系（2024 审定版） | **官方已核**：国家中小学智慧教育平台 2026-10-22 核对目录页预览（书名标「根据2022年版课程标准修订」，人教版书号 93",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:28.538180"
+  },
+  {
+    "basic_info": {
+      "name": "onetake",
+      "full_name": "feitangyuan/onetake",
+      "owner": "feitangyuan",
+      "description": "Motion films that never cut to the next slide: every beat grows out of the one before, one continuous camera, continuity measured by an oracle. Product launch films and feature demos, made with a coding agent.",
+      "url": "https://github.com/feitangyuan/onetake",
+      "clone_url": "https://github.com/feitangyuan/onetake.git",
+      "ssh_url": "git@github.com:feitangyuan/onetake.git",
+      "homepage": "https://onetakemotion.com",
+      "created_at": "2026-09-26T05:35:17Z",
+      "updated_at": "2026-10-25T05:07:42Z",
+      "pushed_at": "2026-10-21T17:58:00Z"
+    },
+    "stats": {
+      "stars": 3198,
+      "forks": 215,
+      "watchers": 3198,
+      "open_issues": 3,
+      "size": 128600
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 118992,
+        "JavaScript": 52870,
+        "HTML": 52676
+      },
+      "license": "Other",
+      "topics": [
+        "agent-skill",
+        "animation",
+        "canvas",
+        "claude-skill",
+        "launch-video",
+        "motion-graphics",
+        "video"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"assets/logo/onetake-icon.svg\" alt=\"onetake icon\" width=\"120\">\n</p>\n\n<h1 align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"assets/logo/onetake-wordmark-on-cream.svg\">\n    <img src=\"assets/logo/onetake-wordmark.svg\" alt=\"onetake\" height=\"90\">\n  </picture>\n</h1>\n\n> **Motion films that never cut to the next slide.** A Claude Agent Skill that makes product launch films, teasers and feature demos where every beat grows out of the one before — one continuous take, not a stack of scenes.\n> **一镜到底的连贯动效。** 做产品发布片、预告片、功能演示：每一个画面都从上一个画面里长出来，是一整条连续的镜头，而不是一张张轮流出场的\"PPT\"。\n\n[![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-lightgrey.svg)](LICENSE)\n[![Type](https://img.shields.io/badge/Type-Agent%20Skill-333.svg)](SKILL.md)\n[![Cases](https://img.shields.io/badge/Cases-11%20films-orange.svg)](cases/)\n[![Continuity](https://img.shields.io/badge/Continuity-measured%20per%20boundary-brightgreen.svg)](scripts/verify_promo.py)\n\n**▶ See the films and get onetake Pro → [onetakemotion.com](https://onetakemotion.com)**\n**▶ 看成片、获取 onetake Pro → [onetakemotion.com](https://onetakemotion.com)**\n**▶ New films every week → [@paojiaofty](https://x.com/paojiaofty) on X**\n\n![onetake launch](assets/hero.gif)\n\n<sub>From onetake's own launch film. A prompt bar opens into the ad it asked for; the next prompt collapses into a line that shoots across the desk and opens into a festival screen. No cut. [Full film with sound →](cases/onetake-launch-30s/onetake-launch.mp4)</sub>\n\n---\n\n[English](#english) | [中文说明](#chinese)\n\n---\n\n<a name=\"english\"></a>\n## English\n\n### The problem: motion that falls apart\n\nMost motion videos an AI makes today — and most template tools — come out **loose**. Title card, fade, UI shot, fade,\nfeature card, fade, logo. Each shot can look fine and the whole still reads like a slideshow, because nothing\nconnects one beat to the next: scenes *replace* each other.\n\n### What onetake does differently: every beat is carried\n\nonetake treats the boundary between two beats as the thing to design. At every boundary, **something on screen\nsurvives and visibly becomes the next beat**:\n\n- the prompt bar **opens into** the app window; the window **reflows into** the phone;\n- a bar **collapses into a line**, the line **shoots across** the desk and **becomes the first grid line** of the next film;\n- a card **grows into** the page; a stage **opens from** the character; the camera **pushes through** a card until it *is* the next scene;\n- at the end, the cast **folds into** the lockup — in the launch film, the block cursor **writes the name** in one stroke.\n\nAnd **one camera holds it all together**. It never cuts: it follows the subject a beat ahead, whips to where the next\nthing will land, floats like a hand-held operator and shakes when something hits — then holds dead still, because rests\nare what make the moves land.\n\n### Continuity is measured, not hoped for\n\nEvery film is checked by an oracle before a human watches it. `probe.py` records what is on screen in every frame, finds\neach boundary, and asks what carried across it. A film whose beats replace each other fails.\n\n| film | verdict | continuity (carry score) |\n|---|---|---|\n| an earlier launch film, v1 — perfect rhythm, still a slideshow | rejected | **0.00** |\n| the same film, v2 | rejected | **0.40** |\n| the same film, v3 — every beat grows out of the last | accepted | **0.75** |\n| onetake launch film | accepted | **0.83** |\n\nThe same oracle fails uniform cadence (shots all the same length), no stillness, clipped audio, fast moves without\nmotion blur, and a subject that leaves the frame.\n\n### What makes it look finished\n\n- **Real UI, rebuilt.** The product's interface is rebuilt in HTML from screenshots and sits on the camera's plane, so the camera can fly into it at any zoom. No screen recording.\n- **Measured moves.** ~38 moves (springs, entrances, carries, contact, sims, camera, fluid grounds), each a pure function of time with its speed curve measured — never a hand-rolled ease.\n- **Real motion blur.** Every moving frame is several captures across an open 180° shutter, averaged in linear light. Fast moves smear instead of strobing.\n- **Sound in one room.** Foley and synthesis placed from the film's own events, in one reverb, ducking the music under the hits.\n- **Deterministic.** Seek to any time, get the same frame. Drafts at 1080p30, finals at 4K60.\n\n### 🌟 Films made with it\n\nEvery case ships the finished film and a breakdown (concept, beat sheet, numbers, what was rejected and why). The\nfilms' source code is not included.\n\n<table>\n  <tr><th colspan=\"3\" align=\"left\">Concept ad</th></tr>\n  <tr>\n    <td width=\"33%\" align=\"center\"><b>domino</b><br/><img src=\"assets/cases/domino.gif\" width=\"100%\"/><br/>\n      <sub>One phone is one pixel: 12,346 phones fall and a picture resolves, 1 → 100×100, one take in 3D</sub><br/>\n      <a href=\"cases/domino-25s/domino.mp4\">▶ ",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:29.758373"
+  },
+  {
+    "basic_info": {
+      "name": "jumper",
+      "full_name": "KingKongRobotics/jumper",
+      "owner": "KingKongRobotics",
+      "description": "🦀 Jumper — an crab robot.",
+      "url": "https://github.com/KingKongRobotics/jumper",
+      "clone_url": "https://github.com/KingKongRobotics/jumper.git",
+      "ssh_url": "git@github.com:KingKongRobotics/jumper.git",
+      "homepage": "https://kingkong.tech/jumper",
+      "created_at": "2026-09-28T05:56:04Z",
+      "updated_at": "2026-10-25T04:53:35Z",
+      "pushed_at": "2026-10-19T02:03:02Z"
+    },
+    "stats": {
+      "stars": 2879,
+      "forks": 312,
+      "watchers": 2879,
+      "open_issues": 9,
+      "size": 205310
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 5841361,
+        "Rust": 811536,
+        "Jupyter Notebook": 59955,
+        "JavaScript": 47989,
+        "Shell": 13919,
+        "Dockerfile": 8253,
+        "C": 622
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "crab-robot",
+        "robot",
+        "robotics"
+      ]
+    },
+    "content": {
+      "readme": "![Jumper](docs/media/jumper-hero-en.png)\n\n# Jumper\n\n**English** | [简体中文](README.zh.md)\n\n**Jumper is a 22-DoF crab robot.** [View hardware →](docs/HARDWARE.md)\n\nThis repo is Jumper’s AI toolkit for appearance, motion, and scene creation. Open this repo in an AI coding assistant and try the prompts below.\n\n> 🦀 **Get a free Jumper!** [Find out how →](https://beunlimited.me/zh/events/crab-robot-challenge-2026)\n\n## One sentence to design an appearance\n\n> Design a warm sand ranger appearance for Jumper with coordinated body and limb colors, then export a `.skin`.\n\n| | | |\n|:-:|:-:|:-:|\n| ![Warm sand ranger appearance](docs/media/design-warm-sand.png) | ![Silver armor appearance](docs/media/design-silver-armor.png) | ![Raphael Turtle appearance](docs/media/design-raphael.png) |\n| [**Warm sand ranger**](https://github.com/KingKongRobotics/jumper-design/blob/be74e0f2e5e2433d24a3a7b1c1aa0dbeae480356/library/skins/warm-sand-ranger-integrated-v2.skin) | [**Silver armor**](https://github.com/KingKongRobotics/jumper-design/blob/be74e0f2e5e2433d24a3a7b1c1aa0dbeae480356/library/skins/mecha-tripo-v3.skin) | [**Raphael Turtle**](https://github.com/KingKongRobotics/jumper-design/blob/be74e0f2e5e2433d24a3a7b1c1aa0dbeae480356/library/skins/raphael-turtle-v1.skin) |\n\n[Browse all skins](https://github.com/KingKongRobotics/jumper-design/tree/main/library/skins)\n\n## One sentence to train a motion\n\n> Train a stable tripod gait for Jumper, replay and evaluate the result, then package it as an `.app`.\n\n| | | |\n|:-:|:-:|:-:|\n| ![Jumper walking](docs/media/walk.gif) | ![Jumper changing posture](docs/media/posture.gif) | ![Jumper waving](docs/media/gesture.gif) |\n| **Walk** | **Posture** | **Gesture** |\n| ![Dance simulation](docs/media/dance.gif)<br>![Dance website showcase](docs/media/official-dance.gif) | ![Jump simulation](docs/media/jump.gif)<br>![Jump website showcase](docs/media/official-jump.gif) | ![Grasp simulation](docs/media/claw.gif)<br>![Grasp website showcase](docs/media/official-grasp.gif) |\n| **Dance** | **Jump** | **Grasp** |\n\n## One sentence to create a scene\n\n> Create a park pump-track scene for Jumper with rolling terrain, trees and benches, then export a `.map`.\n\n| | | |\n|:-:|:-:|:-:|\n| ![Park pump track scene](docs/media/design-park.png) | ![Bedroom scene](docs/media/design-bedroom.png) | ![Soccer scene](docs/media/design-soccer.png) |\n| [**Park pump track**](https://github.com/KingKongRobotics/jumper-design/blob/be74e0f2e5e2433d24a3a7b1c1aa0dbeae480356/library/maps/park-pump-track.map) | [**Bedroom**](https://github.com/KingKongRobotics/jumper-design/blob/be74e0f2e5e2433d24a3a7b1c1aa0dbeae480356/library/maps/bedroom.map) | [**Soccer**](https://github.com/KingKongRobotics/jumper-design/blob/be74e0f2e5e2433d24a3a7b1c1aa0dbeae480356/library/maps/soccer.map) |\n\n[Browse all maps](https://github.com/KingKongRobotics/jumper-design/tree/main/library/maps)\n\n## Where to find things\n\n| Resource | Purpose |\n|---|---|\n| [jumper-design](https://github.com/KingKongRobotics/jumper-design) | Appearance and scene creation; your assistant reads its [instructions](https://github.com/KingKongRobotics/jumper-design/blob/main/AGENTS.md) and uses its tools as needed. |\n| [Training tutorial](docs/TUTORIAL.md) | Motion training, replay and policy export in this repository. |\n| [Colab training](docs/COLAB.md) | GPU training in a notebook, checkpoint backup, resume, ONNX export and MP4 simulation replay. |\n| [Motion bundles](deploy/BUNDLE.md) | Package trained motions and their controller as an `.app`; see the [build guide](deploy/README.md) for prerequisites. |\n| [Project guide](docs/PROJECT_GUIDE.md) | Setup, current capabilities and further documentation. |\n\nTraining builds on [mjlab](https://github.com/mujocolab/mjlab),\n[rsl_rl](https://github.com/leggedrobotics/rsl_rl), [MuJoCo](https://github.com/google-deepmind/mujoco)\nand [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp).\nExample appearance and scene images come from jumper-design; [image sources](docs/media/DESIGN_SOURCES.md)\nand [third-party notices](NOTICE) record attribution.\n\n## License\n\nCopyright 2026 KingKong Robotics.\n\nMaintainer-owned project materials are licensed under Apache-2.0. See [LICENSE](LICENSE),\n[NOTICE](NOTICE), and [licensing details](docs/PROJECT_GUIDE.md#license).\nThird-party materials remain under their respective terms, and generated outputs do not\nautomatically inherit this repository's license.\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:30.967049"
+  },
+  {
+    "basic_info": {
+      "name": "earshot",
+      "full_name": "Leonxlnx/earshot",
+      "owner": "Leonxlnx",
+      "description": "Ears for coding agents: let AI hear, review and make sound. CPU-only, open source.",
+      "url": "https://github.com/Leonxlnx/earshot",
+      "clone_url": "https://github.com/Leonxlnx/earshot.git",
+      "ssh_url": "git@github.com:Leonxlnx/earshot.git",
+      "homepage": null,
+      "created_at": "2026-10-15T06:52:46Z",
+      "updated_at": "2026-10-25T04:54:27Z",
+      "pushed_at": "2026-10-22T23:12:59Z"
+    },
+    "stats": {
+      "stars": 2647,
+      "forks": 162,
+      "watchers": 2647,
+      "open_issues": 8,
+      "size": 4425
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 3343622,
+        "JavaScript": 4488
+      },
+      "license": "MIT License",
+      "topics": [
+        "ai-agents",
+        "audio",
+        "claude-code",
+        "mcp",
+        "sound-design"
+      ]
+    },
+    "content": {
+      "readme": "# earshot\n\n**Ears for coding agents.**\n\n<!-- launch video -->\n[**Watch the 22 s launch film**](https://github.com/Leonxlnx/earshot/releases/tag/v0.1.0) - every sound in it was made\nin code by `earshot forge`; no recordings, no music track.\n\n![Frames from the launch film](docs/media/launch_frames.png)\n\nAI coding agents can now write the code that renders a film, a product demo or a game. They still cannot hear what\nthey made. They cannot tell a premium key press from a cheap one, notice that a hit lands 80 ms after the cut, or\nhear that the music swells in the wrong place.\n\nearshot turns sound into evidence an agent can reason about: what a file sounds like in words, how well it fits a\ndescription, the best moment inside a long recording, whether it is a real recording or code-synthesized, a\nsecond-by-second listening transcript of a whole film, an annotated picture of it, and a scorecard against\nprofessional launch films. It runs locally on CPU, as a CLI, a Python API and an MCP server.\n\nWith ears, an agent can also **make its own sounds in code** and improve them by listening (`earshot forge`), and\n**translate a recording into code** it can vary (`earshot fit`). Both below.\n\n**New in 0.4: the sound of a music-led launch film.** 51 new sounds made in code for the soft, short, mid-register\nstyle those films use: rounded UI pops, wood and plastic knocks, short cut hits and sub hits with a kick, gated\nglockenspiel / celesta / marimba notes and chime runs, water drops, camera shutters, reverse cymbals, a thump-whoosh,\nshort dark risers, bright swishes, burst glitches and mid dings (the bank now holds 252). A new `launch` kit preset\nmixes every effect against the music bed instead of at a fixed level, says where each one sits against the cut (taps\nlead it, whoosh peaks land after it) and how close a run may go. And `earshot fit` was re-made against professional\nsound effects and measured on held-out clips ([below](#earshot-fit-audio-to-code)).\n\n**New in 0.3: sound for code-made films.** A bank of sound effects stored as code that render by id in seconds,\nwith no models and no network: `earshot sfx` aims a whoosh, hit, click or note at a moment in the picture, and\n`earshot kit` renders a whole film's effects with measured sync points ([below](#sound-for-films-bank-sfx-kits)).\n\n```\n$ earshot describe enter.ogg\n  0.56 s short transient (attack 3 ms, decays in 190 ms). Sounds most like: a single mechanical keyboard key press\n  (z +5.4), a soft key release click (z +3.6) ... [clear reading]. peak -0.1 dBFS, brightness 1.5 kHz ...\n\n$ earshot match key.ogg \"a deep thocky mechanical keyboard press\" --alts \"a clicky blue switch keyboard\" \"a mouse click\"\n  -> strong (z +3.7; would rank #2 among 322 vocabulary descriptions) ...\n\n$ earshot find keys.ogg \"a single mechanical key press\" --top 4\n  0:03.94-0:04.19 (0.24 s stroke, z +4.1 strong); 0:10.60-0:10.86 ...\n\n$ earshot critique film.mp4\n  VERDICT: close - 21 of 23 scored metrics in range ... FIX FIRST: 1. [major] nothing reaches body level until 0:01.01 ...\n```\n\n## What it does\n\n| command | what an agent gets |\n|---|---|\n| `describe FILE` | what it sounds like: calibrated tags (z) with the closest alternative readings, AudioSet labels, measurements |\n| `match FILE QUERY [--alts ...]` | how well a description fits: cosine, z among the vocabulary, a verdict (strong / plausible / weak / no match) with held-out evidence |\n| `rank QUERY PATHS...` | many candidate files sorted by a description (pick the best download) |\n| `find FILE QUERY` | the best moments inside a long recording, as sample trims (start / end seconds) |\n| `compare FILE --refs DIR` / `ab A B` | nearest reference recordings and typicality; A/B two sounds or two trims, the differences in words |\n| `realness FILE...` | real recording / pro-produced vs code-synthesized, with evidence and per-window scores |\n| `timeline FILE [--video V] [--cues C]` | the listening transcript: events (time, level, tag), sections, loudness, beat grid, sync of sound to picture cuts and cue frames |\n| `sheet FILE -o out.png` | an annotated PNG (video frames, sections, labelled events, spectrogram, waveform, loudness, sync markers) for agents that read images |\n| `critique FILE [--video V]` | a launch-video scorecard against a profile of 7 professional launch films, with timestamped fixes |\n| `profile REFS... -o p.json` | build your own reference profile from films you admire |\n| `measure FILE` | objective measurements only (no models): LUFS, true peak, LRA, envelope, spectrum, tempo / key |\n| `forge RECIPE --refset CAT` | make a sound in code and improve it by listening (see below) |\n| `fit FILE -o recipe.py` | translate a recording into a forge recipe module that re-renders it, with knobs and morphs (see below) |\n| `sfx render ID -o x.wav` | a sound from the shipped bank of 252, aimed at the picture (`--dur`, `--apex`, `--pitch`) and audited; `sfx list`, `sfx check` (no models) |\n| `kit init / render / check` | a film's sound kit: on",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:32.193305"
+  },
+  {
+    "basic_info": {
+      "name": "yomiyasu",
+      "full_name": "nanaism/yomiyasu",
+      "owner": "nanaism",
+      "description": "AI生成の日本語を自然な日本語へ推敲するAgent Skill / Agent Skill for Refining AI-Generated Japanese into Natural Japanese",
+      "url": "https://github.com/nanaism/yomiyasu",
+      "clone_url": "https://github.com/nanaism/yomiyasu.git",
+      "ssh_url": "git@github.com:nanaism/yomiyasu.git",
+      "homepage": "",
+      "created_at": "2026-09-30T11:49:32Z",
+      "updated_at": "2026-10-25T04:51:55Z",
+      "pushed_at": "2026-10-25T02:04:52Z"
+    },
+    "stats": {
+      "stars": 2503,
+      "forks": 64,
+      "watchers": 2503,
+      "open_issues": 0,
+      "size": 5175
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 5522940
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "ai-writing",
+        "antigravity",
+        "claude-code",
+        "codex",
+        "cursor",
+        "gemini",
+        "japanese",
+        "linter",
+        "llm",
+        "nlp",
+        "writing",
+        "writing-assistant",
+        "writing-tool"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"./assets/yomiyasu_logo.jpg\" alt=\"yomiyasu logo\" width=\"700\">\n</p>\n\n# yomiyasu（よみやす）\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)\n[![GitHub release](https://img.shields.io/github/v/release/nanaism/yomiyasu)](https://github.com/nanaism/yomiyasu/releases)\n\n[English](./README.en.md)\n\n## これは何？\n\n『**yomiyasu（よみやす）**』はAIが生成した日本語の不自然な比喩、曖昧な主述関係、不要な装飾を直し、読みやすい文章に整えるスキルです。\n\n主に技術記事、設計書・仕様書、PR説明文、社内レポートなどの実務的な文章を対象として設計されています。\n\nClaude Code、Codex、CursorをはじめとするAIコーディング環境に読み込ませて使用してください。本体を入れられない環境のために、本体を短くした yomiyasu-mini と yomiyasu-pocket も公開しています（[本体を入れられない環境では](#本体を入れられない環境では)）。\n\n開発の背景、AI生成文の読みにくさ、コーパスを使った検証については、次の解説記事で紹介しています。\n\n- [AI-Slopな日本語を構造レベルで読みやすくするSkill『yomiyasu（よみやす）』を作りました（Zenn）](https://zenn.dev/algoartis/articles/0b1c731881b25c)\n\n*Built with curiosity at [ALGO ARTIS](https://www.algo-artis.com/)*\n\n[![ALGO ARTIS](./assets/algo-artis.png)](https://www.algo-artis.com/)\n\n<details>\n<summary>ALGO ARTISについて</summary>\n\n> 株式会社ALGO ARTISは、社会基盤の最適化に取り組むスタートアップです。\n> \n> 電力・海運・化学プラントといった現場では、膨大な制約が絡み合う複雑な運用計画を、今なお熟練者が手作業で組み立てています。\n> \n> そうした高度な現場業務を数理モデル化し、実用的なヒューリスティック最適化アルゴリズムと業務システムを一貫して開発しています。\n> \n> 最適化技術を用いた社会インフラの変革に興味がある方は、[公式ウェブサイト](https://www.algo-artis.com/)や[採用情報](https://www.algo-artis.com/career/)をご覧ください。\n</details>\n\n## 背景と課題\n\n文章を生成するAIは日常的な道具となりました。\n一方で、AIで生成された文章には独特のクセが残りやすく、そのままでは実務や技術発信に使いにくい場面が多くあります。\n\nこれまでに様々な文体調整プロンプトやスキルが試されてきましたが、依然として「AI特有の読みにくさ」が残るケースが見られます。\n\n従来のアプローチが抱えていた限界は、主に次の4点でした。\n\n1. 禁止語の置き換えにとどまる対処  \n   「手触り」「解像度」「泥臭い」といった表層の単語を禁止しても、別の曖昧な語へ置き換わるだけで、不自然な文構造そのものは解消されませんでした。\n2. 編集ルールの過剰適用  \n   修辞の規範を与えすぎると、モデルが指示を過剰に解釈し、かえって不自然な造語や大げさな文体を招いていました。\n3. 主述関係の曖昧さと非生物主語  \n   誰が何をどうするのかが省略されたまま、概念や道具が比喩的な動詞（壊れる、倒す、効くなど）と結びつき、読み手が文脈を大きく補って読む必要がありました。\n4. 形式の偏重と情報密度の低下  \n   太字や箇条書きが増える一方で、手順やコードの仕組みといった核心の部分は抽象的に書かれ、文章の量に比べて実際の情報が少なくなっていました。\n\n## 本スキルのアプローチ\n\n元の意味を保ったまま、読み違えやすい箇所や、文の関係を追うのに負担がかかる箇所を直します。自然に読める部分は残します。\n\n### 7つの変換原則\n\n1. 主述・修飾・条件の点検  \n   主語と述語、修飾語と掛かる先、指示語と指す対象を対応づけます。条件・例外・否定・並列・数量・順序も、書き直す前後で同じように追えるか確かめます。主体や対象を補うのは、原文や提供文脈から確定できる範囲に限ります。\n2. 文の働きと文体の保持  \n   文ごとに説明・依頼・助言・予定を区別し、働きに合わない文末だけを直します。完了した変更作業、現在の動作や方針、今後の予定を時制と役割に合わせて書き分け、語尾を散らすこと自体を目的にしません。常体・敬体は変更の指定がなければ保ち、技術記事という分野だけを理由に敬体へ変えません。\n3. 擬人化の整理  \n   道具や概念に感情や意志を持たせた表現を直します。道具やシステムの客観的な動作を述べる非生物主語は残します。\n4. 比喩を平易な言葉へ  \n   `壊れる`、`倒す`、`効く`、`溶かす`などを、元の含みや意味の広さを保って言い換えます。動詞を替えた後も、主体・対象・修飾先を変えず、語順を追いやすくできるか確かめます。\n5. 前置き・否定対比の役割の確認  \n   前置きを削るのは、削っても主張や比重が変わらない場合だけです。評価や必要な対比、比較から方針へ移る接続は残します。\n6. 情報を勝手に足さない  \n   主張・比重・言い切りの強さ・文の働きを保ち、原文にない主体・原因・条件・数値・感情などを足しません。ルールを「契約」、比較の基準を「正本」と大げさに呼ぶ場合は役割に合う語へ直し、文字どおりの意味や定義済みの専門用語は保ちます。意味を確定できない箇所は、原文にある未確定の状態や既知の動作を本文に残した暫定文とし、推敲の理由や確認事項は本文の後に添え、読者向けの本文には入れません。\n7. 文長・読点・装飾の調整  \n   平均文長30〜45文字、1文の読点0〜2個を目安にします。短い主語や主題のすぐあとに置いて間を作るだけの読点は外し、並んだ語句を区切る読点や、外すと掛かり先が変わる読点は残します。箇条書きの先頭のラベルとコロンは、値の項目や、物や作業の名前に説明が続く項目では残します。分類の語、出来事を名詞にまとめた語、短い述語のラベルは、外して説明と1文にまとめます。過剰な装飾記号を整理し、英単語や数値の前後の空白は元の書式や指定されたスタイルを保ちます。残す太字は表示される形に整えます。\n\nバージョンごとの変更は [CHANGELOG.md](./CHANGELOG.md) にあります。\n\n## Before → After 例\n\n2.0.0 のスキルで AI の文章を推敲した例です。Claude Code（Claude Opus 5.5）に「draft.md を yomiyasu で読みやすくして、結果を out.md に書いてください。」とだけ頼み、1回目の出力をそのまま載せています。\n\n### 例1: 業務・仕様解説\n\n#### Before\n> ここで**重要なのは、単なるパーツの共通化ではなく、組織の意思決定OSとしてのガバナンス**です。\n> \n> 従来の開発では、画面ごとに手触り感を探りながらパーツを作っていました。しかし、片方だけを見て画面を作ると、もう片方のアクセシビリティが**静かに壊れます**。そこでデザインシステムという**強固な土台**を置くことで、開発者の**解像度が一段上がります**。\n> \n> デザインシステム導入のメリットは、主に次の3点です。\n> - **開発速度の加速**: コンポーネントを再利用することで、時間を溶かさずに済みます。\n> - **仕様の収斂**: 判断に迷うスタイルは、あらかじめ**共通側に倒します**。\n> - **アクセシビリティの担保**: ガイドラインが規律を要求するため、事故を未然に防ぐことができます。\n> \n> もちろん、これは「デザイナーが不要になる」ことを意味しません。日々の開発に**地味に効いてきます**。ぜひ参考にしてみてください！\n\n#### After\n> ここでは、単なるパーツの共通化ではなく組織で意思決定をするときの枠組みとしてのガバナンスが重要です。\n> \n> 従来の開発では、画面ごとに操作感を探りながらパーツを作っていました。しかし、片方だけを見て画面を作ると、もう片方のアクセシビリティが気づかないうちに損なわれます。そこでデザインシステムをしっかりした基本として用意すると、開発者の理解が一段深まります。\n> \n> デザインシステム導入のメリットは主に次の3点です。\n> - コンポーネントを再利用することで開発が速くなり、時間を無駄にせずに済みます。\n> - 判断に迷うスタイルはあらかじめ共通のものに統一し、仕様をそろえます。\n> - ガイドラインが規律を求めるため、アクセシビリティを保ち、事故を未然に防ぐことができます。\n> \n> もちろん、これは「デザイナーが不要になる」ことを意味しません。日々の開発に目立たないながらも役立ってきます。ぜひ参考にしてみてください。\n\n#### 変更説明\nyomiyasu は比喩や造語（`意思決定OS`、`静かに壊れます`、`強固な土台`、`地味に効いてきます`）をふだんの言葉に直し、太字をすべて外しました。箇条書きは太字のラベルとコロンを外し、「開発が速くなり」のようにラベルの意味を説明の文に入れています。結びの「！」は「。」にしました。原文だけでは決められない`片方`と`もう片方`は書き換えず、何を指すかを書き手に確かめたい点として報告しています。\n\n### 例2: 技術解説\n\n#### Before\n> 非同期処理における**最大の落とし穴**は、ネットワークの瞬断です。\n> \n> **依存構造は分割できない。動かしながら引き返す。**\n> \n> 単にメッセージを流すだけでは、背後でデータが**静かに壊れます**。前提を、経路が代わりに添えてくれるわけではありません。\n> \n> そこで**地味に効いてくる**のが、以下の3つの原則です。\n> - **冪等性の担保**: 重複した処理は**黙ってスキップ**します。\n> - **安全なリトライ**: 指数バックオフを挟むことで、DBの負荷を逃がします。\n> - **DLQへの退避**: 破綻したメッセージは隔離し、原因を1つずつ**潰していきます**。\n> \n> デバッグで丸一日**時間を溶かさない**ためにも、この境界線を意識した設計が不可欠です。いかがでしたでしょうか。\n\n#### After\n> 非同期処理における最大の落とし穴は、ネットワークの瞬断です。\n> \n> 依存構造は分割できない。動かしながら引き返す。\n> \n> 単にメッセージを流すだけでは、気づかないうちにデータがおかしくなります。経路が前提を代わりに添えてくれるわけではありません。\n> \n> そこで目立たないながらも役立つのが、以下の3つの原則です。\n> - 冪等性の担保: 重複した処理は表に出さずにスキップします。\n> - 安全なリトライ: 指数バックオフを挟むことで、DBの負荷を逃がします。\n> - DLQへの退避: 破綻したメッセージは隔離し、原因を1つずつ取り除いていきます。\n> \n> デバッグで丸一日を無駄にしないためにも、この境界線を意識した設計が不",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:33.427286"
+  },
+  {
+    "basic_info": {
+      "name": "awesome-decomp-games",
+      "full_name": "SubmitGame/awesome-decomp-games",
+      "owner": "SubmitGame",
+      "description": "Rated, auto-refreshed list of decompiled, recompiled & reverse-engineered games: decomps, static recomps, source ports, engine remakes, browser ports.",
+      "url": "https://github.com/SubmitGame/awesome-decomp-games",
+      "clone_url": "https://github.com/SubmitGame/awesome-decomp-games.git",
+      "ssh_url": "git@github.com:SubmitGame/awesome-decomp-games.git",
+      "homepage": "https://submitgame.github.io/awesome-decomp-games/",
+      "created_at": "2026-10-09T15:15:18Z",
+      "updated_at": "2026-10-25T05:15:33Z",
+      "pushed_at": "2026-10-24T08:24:12Z"
+    },
+    "stats": {
+      "stars": 2368,
+      "forks": 121,
+      "watchers": 2368,
+      "open_issues": 34,
+      "size": 11685
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 71493,
+        "HTML": 12929,
+        "Shell": 2480
+      },
+      "license": "Creative Commons Zero v1.0 Universal",
+      "topics": [
+        "awesome",
+        "awesome-list",
+        "decompilation",
+        "game-preservation",
+        "recompilation",
+        "reverse-engineering",
+        "source-port"
+      ]
+    },
+    "content": {
+      "readme": "<!-- GENERATED FILE: edit data/ and run scripts/refresh, not this file -->\n# Awesome Decomp Games [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)\n\n<p align=\"center\">\n  <a href=\"https://games.omgithub.com/\">\n    <img src=\"assets/play-decomp-games.svg\" alt=\"Play Decomp Games\" width=\"800\">\n  </a>\n</p>\n\n> A rated, auto-refreshed list of **decompiled, recompiled and reverse-engineered games**: matching decompilations, static recompilations, source ports, engine remakes, disassemblies and browser ports.\n\n**2333 projects** covering **1994 games** · updated 2026-10-24 · browse and filter on the **[website](https://submitgame.github.io/awesome-decomp-games/)** · data in [`data/games.json`](data/games.json)\n\n> [!IMPORTANT]\n> This list only links to source code and project pages. It does **not** host or link to ROMs, ISOs, game assets or other copyrighted material. Most projects need files from a copy of the game you own. See the [disclaimer](#disclaimer).\n\n## Contents\n\n- [Play in your browser](#play-in-your-browser) (40)\n- [Top playable picks](#top-playable-picks)\n- [Static recompilations](#static-recompilations) (659)\n- [Source ports](#source-ports) (258)\n- [Engine remakes & reimplementations](#engine-remakes--reimplementations) (221)\n- [Browser ports](#browser-ports) (49)\n- [Decompilations](#decompilations) (677)\n- [Disassemblies](#disassemblies) (109)\n- [Tools & launchers](#tools--launchers) (9)\n- [Mods & mashups](#mods--mashups) (18)\n- [Inactive / unmaintained](#inactive--unmaintained) (351)\n- [How entries are rated](#how-entries-are-rated)\n- [Sources](#sources)\n- [Contributing](#contributing)\n- [Disclaimer](#disclaimer)\n- [License](#license)\n\n## Play in your browser\n\n40 games you can launch straight from a browser tab (WebAssembly/JS ports and recompilations). Links are re-checked daily in a real browser; ones that are taken down or broken are hidden. Some ask for files from your own copy of the game. Never install a launcher or extension a site pushes on you.\n\n<table>\n<tr><td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"http://ovz-game-production.up.railway.app\"><img src=\"screenshots/browser-call-of-duty-modern-warfare-2.jpg\" width=\"240\" alt=\"Call of Duty: Modern Warfare 2\"></a><br><b>Call of Duty: Modern Warfare 2</b><br><a href=\"http://ovz-game-production.up.railway.app\"><b>▶ Play in browser</b></a><br><sub>PC</sub></td><td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://generals.wasm.ltd\"><img src=\"screenshots/browser-command-conquer-generals-zero-hour.jpg\" width=\"240\" alt=\"Command & Conquer: Generals Zero Hour\"></a><br><b>Command & Conquer: Generals Zero Hour</b><br><a href=\"https://generals.wasm.ltd\"><b>▶ Play in browser</b></a><br><sub>PC · needs your game files · multiplayer</sub></td><td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://chronodivide.com/\"><img src=\"screenshots/browser-command-conquer-red-alert-2.jpg\" width=\"240\" alt=\"Command & Conquer: Red Alert 2\"></a><br><b>Command & Conquer: Red Alert 2</b><br><a href=\"https://chronodivide.com/\"><b>▶ Play in browser</b></a><br><sub>PC · multiplayer</sub></td></tr>\n<tr><td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://csjs.live\"><img src=\"screenshots/browser-counter-strike-1-6.jpg\" width=\"240\" alt=\"Counter-Strike 1.6\"></a><br><b>Counter-Strike 1.6</b><br><a href=\"https://csjs.live\"><b>▶ Play in browser</b></a><br><sub>PC · multiplayer</sub></td><td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://bunnyhop.lol\"><img src=\"screenshots/browser-counter-strike-source-bunnyhop-bunnyhop-lol.jpg\" width=\"240\" alt=\"Counter-Strike: Source Bunnyhop (bunnyhop.lol)\"></a><br><b>Counter-Strike: Source Bunnyhop (bunnyhop.lol)</b><br><a href=\"https://bunnyhop.lol\"><b>▶ Play in browser</b></a><br><sub>PC · plays instantly · multiplayer</sub></td><td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"http://surfd.net\"><img src=\"screenshots/browser-counter-strike-source-surf-surfd.jpg\" width=\"240\" alt=\"Counter-Strike: Source Surf (Surfd)\"></a><br><b>Counter-Strike: Source Surf (Surfd)</b><br><a href=\"http://surfd.net\"><b>▶ Play in browser</b></a><br><sub>PC · plays instantly · multiplayer</sub></td></tr>\n<tr><td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://crashbash.app/\"><img src=\"screenshots/browser-crash-bash-online.jpg\" width=\"240\" alt=\"Crash Bash Online\"></a><br><b>Crash Bash Online</b><br><a href=\"https://crashbash.app/\"><b>▶ Play in browser</b></a><br><sub>PS1 · plays instantly · multiplayer</sub></td><td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"http://johnimril.github.io/diablo_web/\"><img src=\"screenshots/browser-diablo.jpg\" width=\"240\" alt=\"Diablo (diablo_web)\"></a><br><b>Diablo (diablo_web)</b><br><a href=\"http://johnimril.github.io/diablo_web/\"><b>▶ Play in browser</b></a><br><sub>PC · free demo, no game files needed</sub></td><td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://silentspacemarine.com/\"><img src=\"screenshots/browser-doom-multiplayer-silent-space-marine.jpg\" width=\"240",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:34.729567"
+  },
+  {
+    "basic_info": {
+      "name": "leanrea",
+      "full_name": "aicodeking/leanrea",
+      "owner": "aicodeking",
+      "description": "One 8 KB skill that replaces REA (Reverse Engineer Anything): plain CLI tools, no MCP. Benchmarked: 38% faster, 35% cheaper.",
+      "url": "https://github.com/aicodeking/leanrea",
+      "clone_url": "https://github.com/aicodeking/leanrea.git",
+      "ssh_url": "git@github.com:aicodeking/leanrea.git",
+      "homepage": null,
+      "created_at": "2026-10-17T02:53:24Z",
+      "updated_at": "2026-10-25T05:24:48Z",
+      "pushed_at": "2026-10-19T11:34:21Z"
+    },
+    "stats": {
+      "stars": 2245,
+      "forks": 341,
+      "watchers": 2245,
+      "open_issues": 7,
+      "size": 24
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 4454,
+        "Shell": 2838
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# leanrea\n\n**One 8 KB skill file that does what [REA](https://github.com/morluto/rea) does: no MCP server, no 207 tools, no setup.**\n\nREA (Reverse Engineer Anything) puts an MCP layer between your agent and tools it can already use: asar, otool, nm, `go version -m`, jadx, apktool, Ghidra, tshark, binwalk, sqlite3. leanrea drops that layer. It tells the agent which command is fastest for each kind of target, gives it ready-to-paste recon commands, and lists the traps that REA's code handles for you. The agent then runs the real tools itself.\n\n|  | REA 6.5.0 | leanrea |\n|---|---|---|\n| What gets installed | 25 MB npm package + MCP server | one `SKILL.md` |\n| Instructions | 23.5 KB skill + 48.8 KB references | 8 KB |\n| Tools added to the agent | 207 (3.35 MB of definitions) | 0 (uses Bash) |\n| Context for \"Reply OK\", all tools loaded | 400.7k tokens, $1.60 | 34.5k tokens, $0.09 |\n\n## Benchmark\n\nClaude Code headless (`claude -p`), Sonnet 5.5, macOS arm64. 4 reverse-engineering tasks × 3 reps × 3 arms, with the arms run side by side. Answers are graded against hand-made keys.\n\n| arm | total wall time | cost | turns | tokens | score |\n|---|---|---|---|---|---|\n| **leanrea** | **388 s** | **$2.17** | **55** | **2.40 M** | 74/75 |\n| no skill | 479 s | $2.21 | 81 | 3.11 M | 67/75 (one refusal) |\n| REA (MCP + its skill) | 627 s | $3.36 | 124 | 5.93 M | 75/75 |\n\nAgainst REA, leanrea had **38% less wall time, 35% lower cost, 56% fewer turns and 60% fewer tokens, at the same accuracy**. Its one partial miss named an older IPC channel instead of the v2 one (both channels exist).\n\nThe tasks:\n- **electron**: trace a feature through a real Electron app's app.asar (native function → main-process class → IPC channels).\n- **native**: inventory the exports, a TCC permission check and the single-instance lock of that app's native addon (`.node`).\n- **go**: toolchain and dependency versions of a stripped `gh` binary.\n- **deep**: from disassembly alone, the exact socket path format, wire protocol and peer authentication of that lock.\n\nThe same operation run through REA's CLI vs the raw command:\n\n| operation | REA | raw |\n|---|---|---|\n| Go build info | 0.56 s | `go version -m`: 0.06 s |\n| Mach-O overview | 3.32 s | otool + dyld_info + nm: 0.04 s |\n| Electron app analysis (real desktop app) | fails on asar integrity until you pass a flag, then **47.9 s and 140 MB of JSON** | asar extract + `rg -uu`: 4.8 s, 24 KB |\n\nFull tables, the context-overhead runs and caveats: [bench/BENCHMARK.md](bench/BENCHMARK.md). Raw per-run metrics: [bench/results/final.jsonl](bench/results/final.jsonl).\n\n**Caveats:**\n- Only 3 reps per cell, one model, one machine.\n- REA was tested in its best case: Claude Code's deferred tool search loads MCP tools on demand. Agents that load every tool pay the 400k-token row.\n- Ghidra, Hopper and jadx weren't installed, so the native tasks ran on Xcode tools for both arms.\n- The plain model is already good at this. leanrea's gain over no skill (about 19% faster, 32% fewer turns) is smaller than its gain over REA.\n\n## Install\n\n```sh\nnpx skills add aicodeking/leanrea\n```\n\nThis uses the [skills CLI](https://skills.sh). It finds the `leanrea` skill and asks which agents to install it for: Claude Code, Codex, Cursor, Gemini CLI, OpenCode and the others it supports.\n\nCommon variants:\n```sh\nnpx skills add aicodeking/leanrea -g                    # install for your user, in every project\nnpx skills add aicodeking/leanrea -a claude-code -y     # Claude Code only, no prompts\nnpx skills add aicodeking/leanrea -g -a '*' -y          # every supported agent, user level\nnpx skills update leanrea                               # pull the latest version later\n```\n\nManual install, if you prefer:\n```sh\ngit clone https://github.com/aicodeking/leanrea\nmkdir -p ~/.claude/skills && cp -R leanrea/leanrea ~/.claude/skills/\n```\nIf an agent has no skills support, paste `leanrea/SKILL.md` into its rules or system prompt; it is plain text.\n\nUse it:\n```\n/leanrea How does the search feature in Foo.app work? Show the evidence.\n```\n\n## What's in the skill\n\n- **Rules:**\n  - Work on a copy.\n  - Route by `file` and magic bytes first.\n  - Slice minified files instead of reading them.\n  - Batch probes into one shell call.\n  - Search extracted trees with `rg -uu`, because bundlers hide code in dot-folders like `.webpack/`.\n  - Mark each claim as seen, inferred or unknown.\n- **Router:** the fastest command for each target type:\n  - Electron/asar (IPC, preload, `contextBridge`, fuses)\n  - minified web bundles and source maps\n  - Hermes/bytenode\n  - Mach-O (exports, imports, entitlements, ObjC/Swift)\n  - native disassembly, ELF/PE\n  - Go buildinfo, Rust cargo-auditable, .NET, Android APKs, the Flutter snapshot hash\n  - WASM, SQLite, plists, pcap/HAR, firmware\n  - websites and runtime tracing\n- **First moves:** one paste-and-run command each for native binaries and Electron apps. Each gets the whole inventory in a single tool call.\n- **Speed patterns:** start f",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:35.949106"
+  },
+  {
+    "basic_info": {
+      "name": "oil-ui",
+      "full_name": "oil-oil/oil-ui",
+      "owner": "oil-oil",
+      "description": "UI design skill for Claude Code, Codex and other AI agents: explore distinct directions, compare them side by side, refine against real screenshots. 给 AI Agent 用的 UI 设计 Skill。",
+      "url": "https://github.com/oil-oil/oil-ui",
+      "clone_url": "https://github.com/oil-oil/oil-ui.git",
+      "ssh_url": "git@github.com:oil-oil/oil-ui.git",
+      "homepage": "https://ui.oiloil.org",
+      "created_at": "2026-09-30T03:55:35Z",
+      "updated_at": "2026-10-25T04:55:20Z",
+      "pushed_at": "2026-10-24T16:19:43Z"
+    },
+    "stats": {
+      "stars": 2113,
+      "forks": 117,
+      "watchers": 2113,
+      "open_issues": 1,
+      "size": 3156
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 392758,
+        "JavaScript": 260717,
+        "HTML": 39479,
+        "Shell": 1254
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "ai-design",
+        "claude-code",
+        "claude-skills",
+        "codex",
+        "frontend",
+        "ui-design",
+        "ux-design"
+      ]
+    },
+    "content": {
+      "readme": "English · [中文](README.zh-CN.md)\n\n<p align=\"center\">\n  <img src=\"./assets/readme/hero.en.webp\" width=\"100%\" alt=\"oil-ui: push AI UI design to its limits. A person pins a yellow pushpin to the middle of three previews in different styles\">\n</p>\n\n<p align=\"center\">\n  <a href=\"https://ui.oiloil.org/en/?utm_source=github&utm_medium=referral&utm_campaign=readme-en\"><img src=\"./assets/readme/showcase.en.webp\" width=\"100%\" alt=\"Gallery highlights: an English learning app, a music year in review, hardware and component library websites, a project management tool, a ride-hailing app, a voice assistant, a checkout flow, and a film camera\"></a>\n</p>\n\nOil UI is an interface design skill for AI agents. It explores a few genuinely different design directions side by side, lets you choose one, then refines it against real screenshots. It works for websites, apps, dashboards, and components. See more designs at [ui.oiloil.org](https://ui.oiloil.org/en/?utm_source=github&utm_medium=referral&utm_campaign=readme-en).\n\n## How it designs\n\n1. **Understand what the product is.** Before drawing anything, it names the product category, finds two or three peers with the most distinctive styles, and looks at what they do and why. Then it decides what to keep and what to change.\n2. **Turn “premium” and “clean” into real decisions.** Everyone uses these words, but they don't tell you what to put on the screen. It first sets the tone from the subject, audience, and brand voice, such as lively or calm, polished or raw, dense or airy. Then it turns that tone into visible choices: which typefaces, how much white space, and how much of the page uses color.\n3. **Start each direction from something concrete.** That could be a material in its setting, a scene, a character, or the visual language of another field. Ideas come from the product itself, not from adjectives like “minimal” or “bold.”\n4. **Decide who the first screen is for.** On pages where people browse, shop, or get work done, the first screen should be the content itself. Only pages meant to persuade need a designed opening layout, settled before the copy is written.\n5. **Make the directions truly different.** Of layout, typography, color, and key imagery, any two directions may share at most one. Once the previews exist, it puts them side by side and squints at the light and dark shapes of each first screen. If two look alike, it changes the layout instead of just swapping colors.\n6. **Leave one moment people remember.** Instead of pushing every part of the page, it makes one or two details exceptional, such as the response to a tap, a successful payment, AI at work, or a 404 page. Everything else stays quiet.\n7. **You decide what looks right.** The previews go on one comparison page. You pick one and say what you like and dislike, and it tightens the design around your feedback before going further.\n8. **Trust the real screen.** When a page is done, it opens it at desktop and mobile sizes and checks screenshots. You can also bring in a reviewer who hasn't seen the work in progress. Last comes a round of subtraction: one focal point per page, and no copy, lines, or boxes that don't help you understand it.\n\nFor more usable interfaces, existing project redesigns, or effects such as light trails and dot patterns, see [Oil UI Pro](https://ui.oiloil.org/en/pro/?utm_source=github&utm_medium=referral&utm_campaign=readme-en). The differences are listed [below](#open-source-and-pro).\n\n## Installation\n\nSend this to an agent that can install skills:\n\n```text\nInstall this skill for me: run npx skills add oil-oil/oil-ui\n```\n\nOr run this in your terminal:\n\n```bash\nnpx skills add oil-oil/oil-ui\n```\n\nIt's ready to use right after installation, with nothing to configure. When a new version is out, your agent mentions it at the end of a reply; ask it to update whenever you like. If you already have Oil UI Pro, you don't need the open-source version. Installing both makes them compete for the same requests.\n\nIf you use DeepSeek Harness, install the native plugin [dsh-oil-ui](https://github.com/oil-oil/dsh-oil-ui) (`dsh plugin --profile web add github:oil-oil/dsh-oil-ui`; it includes the free edition and automatically detects a local Oil UI Pro installation).\n\n## Usage\n\nTell your agent what you need, for example:\n\n- “Use oil-ui to explore a few design directions for this course booking product and build pages I can preview.”\n- “Create three designs with different typography, colors, and compositions. Put them on a comparison page so I can choose.”\n- “Polish this page using the project’s existing design guidelines.”\n- “Review this homepage and explain what to change and how. Leave the files untouched.”\n- “Recreate this page from the screenshot and add a mobile layout too.”\n\nShare any brand assets, screenshots, or existing project you have. It can start without references and only asks you questions when the deliverable is unclear.\n\nIntermediate candidates, screenshots, and media caches live in the pro",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:37.163301"
+  },
+  {
+    "basic_info": {
+      "name": "manimgx",
+      "full_name": "academa-labs/manimgx",
+      "owner": "academa-labs",
+      "description": "The animation engine for agents: blazingly fast math and 3D videos with Manim's Python API, on a Rust GPU core.",
+      "url": "https://github.com/academa-labs/manimgx",
+      "clone_url": "https://github.com/academa-labs/manimgx.git",
+      "ssh_url": "git@github.com:academa-labs/manimgx.git",
+      "homepage": "https://manimgx.academa.ai",
+      "created_at": "2026-10-05T20:57:05Z",
+      "updated_at": "2026-10-25T05:23:51Z",
+      "pushed_at": "2026-10-24T22:24:14Z"
+    },
+    "stats": {
+      "stars": 2094,
+      "forks": 151,
+      "watchers": 2094,
+      "open_issues": 24,
+      "size": 159178
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 4021205,
+        "Rust": 752982,
+        "WGSL": 178218,
+        "TypeScript": 68960,
+        "LLVM": 63468,
+        "Svelte": 30586,
+        "JavaScript": 24410,
+        "C": 11465,
+        "Just": 10362,
+        "HTML": 6430,
+        "Shell": 5451,
+        "Dockerfile": 2154,
+        "CSS": 1618,
+        "Typst": 323
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <a href=\"https://manimgx.academa.ai\">\n    <picture>\n      <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/logo-dark.svg\">\n      <source media=\"(prefers-color-scheme: light)\" srcset=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/logo-light.svg\">\n      <img alt=\"ManimGX\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/logo-light.svg\" width=\"640\">\n    </picture>\n  </a>\n</p>\n\n<p align=\"center\">\n  <b>Blazingly fast 3D animation engine for agents, compatible with <a href=\"https://www.manim.community\">Manim CE's API</a>.</b><br>\n  Powered by Rust and wgpu. Install with a prompt or pip. Run in the browser.\n</p>\n\n<p align=\"center\">\n  <b><a href=\"https://manimgx.academa.ai\">Documentation</a></b> ·\n  <a href=\"https://manimgx.academa.ai/user-guide/quickstart/\">Quickstart</a> ·\n  <a href=\"https://manimgx.academa.ai/gallery/\">Examples</a> ·\n  <a href=\"https://manimgx.academa.ai/reference/\">API Reference</a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://coverage.manimgx.academa.ai\"><img alt=\"Test coverage\" src=\"https://img.shields.io/endpoint?url=https%3A%2F%2Fcoverage.manimgx.academa.ai%2Fbadge.json&label=coverage\"></a>\n  <a href=\"https://pypi.org/project/manimgx/\"><img alt=\"PyPI version\" src=\"https://img.shields.io/pypi/v/manimgx?color=58c4dd&label=PyPI\"></a>\n  <a href=\"https://www.npmjs.com/package/manimgx\"><img alt=\"npm version\" src=\"https://img.shields.io/npm/v/manimgx?color=58c4dd\"></a>\n  <a href=\"https://pepy.tech/projects/manimgx\"><img alt=\"PyPI total downloads\" src=\"https://img.shields.io/pepy/dt/manimgx?color=58c4dd&label=PyPI%20downloads\"></a>\n  <a href=\"https://www.npmjs.com/package/manimgx\"><img alt=\"npm monthly downloads\" src=\"https://img.shields.io/npm/dm/manimgx?color=58c4dd&label=npm%20downloads\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/academa-labs/manimgx/blob/main/examples/quadratic_formula.py\"><img alt=\"The quadratic formula: completing a square by moving colored rectangles and equation terms\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/quadratic_formula.gif\" width=\"32%\"></a>\n  <a href=\"https://github.com/academa-labs/manimgx/blob/main/examples/fourier_pi.py\"><img alt=\"Fourier series: a chain of rotating arrows draws the outline of π\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/fourier_pi.gif\" width=\"32%\"></a>\n  <a href=\"https://github.com/academa-labs/manimgx/blob/main/examples/linear_maps.py\"><img alt=\"A matrix moves the plane: a grid, basis arrows and a unit square transform together\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/linear_maps.gif\" width=\"32%\"></a>\n  <br>\n  <a href=\"https://github.com/academa-labs/manimgx/blob/main/examples/derivative.py\"><img alt=\"A tangent slides along a curve as its slope traces the derivative\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/derivative.gif\" width=\"32%\"></a>\n  <a href=\"https://github.com/academa-labs/manimgx/blob/main/examples/complex_maps.py\"><img alt=\"Complex functions bend a grid into parabolas, circles and rays\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/complex_maps.gif\" width=\"32%\"></a>\n  <a href=\"https://github.com/academa-labs/manimgx/blob/main/examples/lorenz_attractor.py\"><img alt=\"The Lorenz attractor: nearby trajectories separate as they trace a butterfly in three dimensions\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/lorenz_attractor.gif\" width=\"32%\"></a>\n  <br>\n  <a href=\"https://github.com/academa-labs/manimgx/blob/main/examples/heavy_top.py\"><img alt=\"Three spinning tops precess and nod as their axes trace curves on glass spheres\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/heavy_top.gif\" width=\"32%\"></a>\n  <a href=\"https://github.com/academa-labs/manimgx/blob/main/examples/hopf_fibration.py\"><img alt=\"The Hopf fibration: colorful linked circles form nested tori as beads travel along them\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/hopf_fibration.gif\" width=\"32%\"></a>\n  <a href=\"https://github.com/academa-labs/manimgx/blob/main/examples/catenoid_helicoid.py\"><img alt=\"A rainbow helicoid bends into a catenoid while preserving its intrinsic curvature\" src=\"https://raw.githubusercontent.com/academa-labs/manimgx/main/docs/content/showcase/catenoid_helicoid.gif\" width=\"32%\"></a>\n</p>\n\n**36.2 seconds of video, rendered in 3.08 seconds.** Across five scenes at 1080p60 on an Apple M4 Pro, ManimGX is **90.6× faster than ManimCE**, **11.5× faster than ManimGL**, and **18.7× faster than Blender Workbench**, from launch to finished MP4. [How it was measured](https://github.com/academa-labs/manimgx/tree/main/benchm",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:38.384251"
+  },
+  {
+    "basic_info": {
+      "name": "mg-styles-15",
+      "full_name": "Vincentwei1021/mg-styles-15",
+      "owner": "Vincentwei1021",
+      "description": "15 motion design styles, each made by Claude Opus 5.5 writing code from one prompt: watch the films, copy the prompts, read the full source.",
+      "url": "https://github.com/Vincentwei1021/mg-styles-15",
+      "clone_url": "https://github.com/Vincentwei1021/mg-styles-15.git",
+      "ssh_url": "git@github.com:Vincentwei1021/mg-styles-15.git",
+      "homepage": "https://vincentwei1021.github.io/mg-styles-15/",
+      "created_at": "2026-10-02T09:43:06Z",
+      "updated_at": "2026-10-25T05:22:44Z",
+      "pushed_at": "2026-10-05T11:23:17Z"
+    },
+    "stats": {
+      "stars": 2052,
+      "forks": 279,
+      "watchers": 2052,
+      "open_issues": 2,
+      "size": 567916
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 379312,
+        "JavaScript": 196857,
+        "CSS": 21305,
+        "HTML": 11676,
+        "Shell": 243
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# 15 Motion Design Styles\n\n**Fifteen styles, one 10-second film each, all made by Claude Opus 5.5 writing code.**<br>\n**15 种 MG 动态设计风格，每种一支 10 秒成片，全部由 Claude Opus 5.5 写代码做出来。**\n\nEvery film comes with its style notes, its full prompt and its complete source.<br>\n每支片都附风格说明、完整提示词和全部源码。\n\n<a href=\"https://vincentwei1021.github.io/mg-styles-15/\"><img src=\"docs/readme/cover.webp\" width=\"100%\" alt=\"15 Motion Design Styles: all fifteen films playing side by side\"></a>\n\n[**▶ Watch all 15 films with sound · 在线观看**](https://vincentwei1021.github.io/mg-styles-15/)\n\n**English** | [简体中文](README.zh-CN.md)\n\n![films](https://img.shields.io/badge/films-15-ff8a3d) ![length](https://img.shields.io/badge/length-10%20s%20each-555) ![made with](https://img.shields.io/badge/made%20with-Claude%20Opus%205.5-d97757) [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-live-2ea44f)](https://vincentwei1021.github.io/mg-styles-15/)\n\n</div>\n\n> **中文用户请看这里：[完整中文说明 README.zh-CN.md](README.zh-CN.md)**<br>\n> English readers: keep reading below.\n\n## What it is\n\nFifteen 10-second motion-design films, one style each, from frame-by-frame cel animation to a 9:16 variety-show edit. Claude Opus 5.5 made every film by writing code from a prompt: the picture, the animation, the music and the sound effects. This repository publishes all of it, so you can watch a style, read how it was made, copy its prompt and make a film of your own.\n\n- **No image or video generation.** The picture is code: SVG, Canvas, WebGL and Three.js, with Blender for the 3D film. A few films use CC0 or public-domain photos.\n- **The sound is code too.** Each film's `audio.py` synthesises its music and sound effects; the 15 soundtracks draw on 103 recorded instrument samples.\n- **Everything is published.** The film, the style notes, the full prompt and the complete source, for all 15 styles.\n\n## How a film is made\n\n<p align=\"center\"><img src=\"docs/readme/flow-en.webp\" width=\"100%\" alt=\"How a film is made: one prompt per style, then Claude writes the film as a web page that can draw any moment, headless Chrome renders every frame, audio.py synthesises the music and effects on the same cues, ffmpeg muxes an exact 10-second MP4, and a second AI reviews it with rubric.md for two rounds of revision\"></p>\n\nEvery film is a web page that draws the frame for any time you give it (`window.renderAt(t)`). The renderer captures each frame in headless Chrome, then ffmpeg joins the frames and the soundtrack. The 3D film is the one exception: Blender renders its picture, and a web page adds the type and grain. Each film went through two rounds of review and revision. Final scores from the AI jury run from 7.57 to 8.21 out of 10.\n\n## The 15 styles\n\nClick a film to watch it with sound on the page.\n\n<table>\n<tr>\n<td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://vincentwei1021.github.io/mg-styles-15/#05-cel-boil\"><img src=\"docs/readme/films/05-cel-boil.webp\" width=\"100%\" alt=\"Frame-by-Frame / Line Boil: HAND MADE\"></a><br><b>01 · Frame-by-Frame / Line Boil</b><br><sub>HAND MADE</sub><br><sub><a href=\"prompts/05-cel-boil.md\">Prompt</a> · <a href=\"demos/05-cel-boil\">Source</a></sub></td>\n<td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://vincentwei1021.github.io/mg-styles-15/#03-isometric\"><img src=\"docs/readme/films/03-isometric.webp\" width=\"100%\" alt=\"Isometric 2.5D: ISOPOLIS — Let the City Grow\"></a><br><b>02 · Isometric 2.5D</b><br><sub>ISOPOLIS — Let the City Grow</sub><br><sub><a href=\"prompts/03-isometric.md\">Prompt</a> · <a href=\"demos/03-isometric\">Source</a></sub></td>\n<td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://vincentwei1021.github.io/mg-styles-15/#01-flat-vector\"><img src=\"docs/readme/films/01-flat-vector.webp\" width=\"100%\" alt=\"Flat Vector: popwise — One Dot\"></a><br><b>03 · Flat Vector</b><br><sub>popwise — One Dot</sub><br><sub><a href=\"prompts/01-flat-vector.md\">Prompt</a> · <a href=\"demos/01-flat-vector\">Source</a></sub></td>\n</tr>\n<tr>\n<td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://vincentwei1021.github.io/mg-styles-15/#02-line-art\"><img src=\"docs/readme/films/02-line-art.webp\" width=\"100%\" alt=\"Line Art: ATELIER LINEA — One Line\"></a><br><b>04 · Line Art</b><br><sub>ATELIER LINEA — One Line</sub><br><sub><a href=\"prompts/02-line-art.md\">Prompt</a> · <a href=\"demos/02-line-art\">Source</a></sub></td>\n<td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://vincentwei1021.github.io/mg-styles-15/#04-3d-render\"><img src=\"docs/readme/films/04-3d-render.webp\" width=\"100%\" alt=\"3D Render: soft. — Soft Landing · C4D / Blender look\"></a><br><b>05 · 3D Render</b><br><sub>soft. — Soft Landing · C4D / Blender look</sub><br><sub><a href=\"prompts/04-3d-render.md\">Prompt</a> · <a href=\"demos/04-3d-render\">Source</a></sub></td>\n<td align=\"center\" valign=\"top\" width=\"33%\"><a href=\"https://vincentwei1021.github.io/mg-styles-15/#08-morph\"><img src=\"do",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:39.602599"
+  },
+  {
+    "basic_info": {
+      "name": "new-term-radar",
+      "full_name": "zhuyansen/new-term-radar",
+      "owner": "zhuyansen",
+      "description": "Daily radar for new AI terms: names of new models, products and repos, caught on X, Hugging Face, GitHub and sitemaps before keyword tools list them.",
+      "url": "https://github.com/zhuyansen/new-term-radar",
+      "clone_url": "https://github.com/zhuyansen/new-term-radar.git",
+      "ssh_url": "git@github.com:zhuyansen/new-term-radar.git",
+      "homepage": null,
+      "created_at": "2026-10-12T07:11:01Z",
+      "updated_at": "2026-10-25T03:53:16Z",
+      "pushed_at": "2026-10-24T14:49:17Z"
+    },
+    "stats": {
+      "stars": 1775,
+      "forks": 545,
+      "watchers": 1775,
+      "open_issues": 2,
+      "size": 2797
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 295373
+      },
+      "license": "MIT License",
+      "topics": [
+        "agent-skills",
+        "ai",
+        "aisa",
+        "claude-code",
+        "claude-skills",
+        "google-trends",
+        "keyword-research",
+        "mcp",
+        "mcp-server",
+        "seo",
+        "trends"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n<img src=\"docs/logo.svg\" width=\"128\" alt=\"new-term-radar logo: a radar sweep catching a new blip\">\n\n# new-term-radar\n\n**Catch the names AI people are about to search for, the day they appear, before keyword tools list them.**\n\n[![PyPI](https://img.shields.io/pypi/v/new-term-radar?color=0ea5e9&label=PyPI)](https://pypi.org/project/new-term-radar/)\n[![Python](https://img.shields.io/badge/python-3.10%2B-3776ab)](https://pypi.org/project/new-term-radar/)\n[![License: MIT](https://img.shields.io/badge/license-MIT-eab308)](LICENSE)\n[![Stars](https://img.shields.io/github/stars/zhuyansen/new-term-radar?logo=github&color=0f172a)](https://github.com/zhuyansen/new-term-radar/stargazers)\n[![Forks](https://img.shields.io/github/forks/zhuyansen/new-term-radar?logo=github&color=0f172a)](https://github.com/zhuyansen/new-term-radar/network/members)\n[![Downloads](https://img.shields.io/pepy/dt/new-term-radar?color=22c55e&label=downloads)](https://pepy.tech/projects/new-term-radar)\n[![Last commit](https://img.shields.io/github/last-commit/zhuyansen/new-term-radar?color=64748b)](https://github.com/zhuyansen/new-term-radar/commits/main)\n\n[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.zhuyansen%2Fnew--term--radar-0ea5e9)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.zhuyansen/new-term-radar)\n[![Tessl registry](https://img.shields.io/badge/Tessl-registry-22c55e)](https://tessl.io/registry/skills/github/zhuyansen/new-term-radar)\n[![LobeHub](https://lobehub.com/badge/mcp/zhuyansen-new-term-radar)](https://lobehub.com/mcp/zhuyansen-new-term-radar)\n[![Security-graded by Agent Skills Hub](https://agentskillshub.top/badge/zhuyansen/new-term-radar.svg)](https://agentskillshub.top/skill/zhuyansen/new-term-radar/)\n[![Cursor Directory](https://img.shields.io/badge/Cursor%20Directory-new--term--radar-000000)](https://cursor.directory/plugins/new-term-radar)\n[![ClawHub](https://img.shields.io/badge/ClawHub-new--term--radar-f97316)](https://clawhub.ai/skills/new-term-radar)\n[![skills.sh](https://img.shields.io/badge/skills.sh-zhuyansen%2Fnew--term--radar-0f172a)](https://skills.sh/zhuyansen/new-term-radar)\n\n⭐ **700+ stars on its first day, 1,000 in just over three** · on PyPI, the official MCP Registry, Cursor Directory, LobeHub, Tessl, ClawHub and skills.sh\n\n[Quick start](#quick-start) · [What it reads](#what-it-reads) · [The keyword table](#the-keyword-table) · [Agents and MCP](#use-it-from-an-agent-skills-and-an-mcp-server) · [config.json](#configjson) · [中文说明](README.zh-CN.md)\n\n</div>\n\nA daily report of the names that are starting to surge in AI: new models, products, tools and repos, caught where they are said first, before they show up in keyword tools.\n\nBuilt for people who make pages, posts or products around new terms: SEO for AI tool sites, newsletters, directories, anyone who wants to know about \"Strata\" or \"Seedance\" the day it appears and not two weeks later.\n\n## Why\n\nA new name leaves a trail, in this order:\n\n1. A lab or a well-followed account says it on X; a model enters Hugging Face's trending list.\n2. One GitHub repo takes off on its own.\n3. Directories and competitors add pages for it; someone registers a domain for it and the site starts to rank.\n4. Your own site gets its first search impressions for it.\n5. Google Trends shows the curve, days or weeks later.\n\nKeyword tools read step 5. This radar reads steps 1 to 4 every day and uses step 5 only to check itself.\n\nOne example it was built around: [Niko1221/Strata](https://github.com/Niko1221/Strata) was created on 2026-09-24 and had 7,700 stars nine days later. People were searching \"niko strata\" from 9/26, while no second repo carried the name and no keyword tool listed it. A single repo gaining 800 stars a day is the whole signal, and it is public.\n\n## What it reads\n\n![How the radar works: six signals, a name judge, the keyword table with its page-one check, a daily report and a 14-day check; used from the command line, three Agent Skills, an MCP server or the pains command. What 0.3 to 0.5 added is purple and tagged NEW](docs/radar.en.gif)\n\nPurple, tagged NEW: what 0.3 to 0.5 added (⑥ revenue, ⑦ Reddit asks, ⑧ sellers, the page-one check, the format and ⚡ marks, the `pains` command).\n\n| Signal | What it catches | Needs | Cost |\n|---|---|---|---|\n| ① X | Names the accounts in your list used for the first time in 60 days | AIsa key | $0.003 per account per run |\n| ① Hugging Face | Models and Spaces (the demos people try) new to the trending top 50; quantised copies and a model's own demo grouped under the base name | nothing | free |\n| ② GitHub breakout | A repo under 14 days old averaging 200+ stars a day, or +400 since yesterday; adds the search variants people use (\"niko strata\") | nothing (a GitHub token raises the rate limit) | free |\n| ③ Sitemaps | Words that several new URLs on a site share and its older URLs rarely carried. The example config watches eight AI tool directories (toolify, aixploria,",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:40.813811"
+  },
+  {
+    "basic_info": {
+      "name": "MOSS-Image",
+      "full_name": "OpenMOSS/MOSS-Image",
+      "owner": "OpenMOSS",
+      "description": "Official repository for MOSS-Image, a 5B-parameter base DiT model with high-quality text rendering, layout generation, and efficient fine-tuning.",
+      "url": "https://github.com/OpenMOSS/MOSS-Image",
+      "clone_url": "https://github.com/OpenMOSS/MOSS-Image.git",
+      "ssh_url": "git@github.com:OpenMOSS/MOSS-Image.git",
+      "homepage": "http://openmoss.ai/MOSS-Image/",
+      "created_at": "2026-10-16T01:18:13Z",
+      "updated_at": "2026-10-25T05:25:01Z",
+      "pushed_at": "2026-10-20T16:42:45Z"
+    },
+    "stats": {
+      "stars": 1769,
+      "forks": 89,
+      "watchers": 1769,
+      "open_issues": 21,
+      "size": 86006
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 87859,
+        "HTML": 17862,
+        "Shell": 1805,
+        "JavaScript": 812
+      },
+      "license": "Apache License 2.0",
+      "topics": [
+        "controllable-generation",
+        "foundation-models",
+        "image-generation",
+        "text-rendering",
+        "text-to-image"
+      ]
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n  <p>\n    <img src=\"assets/lockup-light.svg#gh-light-mode-only\" alt=\"MOSS-Image\" width=\"520\">\n    <img src=\"assets/lockup-dark.svg#gh-dark-mode-only\" alt=\"MOSS-Image\" width=\"520\">\n  </p>\n  <p>\n    <a href=\"https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base\"><img alt=\"Hugging Face · MOSS-Image-Base\" src=\"https://img.shields.io/badge/🤗%20Hugging%20Face-MOSS--Image--Base-ffc107?style=flat-square\"></a>\n    &nbsp;\n    <a href=\"https://huggingface.co/OpenMOSS-Team/MOSS-Image-SFT\"><img alt=\"Hugging Face · MOSS-Image-SFT\" src=\"https://img.shields.io/badge/🤗%20Hugging%20Face-MOSS--Image--SFT-ffc107?style=flat-square\"></a>\n    &nbsp;\n    <a href=\"https://modelscope.cn/models/openmoss/MOSS-Image-Base\"><img alt=\"ModelScope · MOSS-Image-Base\" src=\"assets/modelscope-base-badge.svg\"></a>\n    &nbsp;\n    <a href=\"https://modelscope.cn/models/openmoss/MOSS-Image-SFT\"><img alt=\"ModelScope · MOSS-Image-SFT\" src=\"assets/modelscope-sft-badge.svg\"></a>\n    &nbsp;\n    <a href=\"https://huggingface.co/spaces/OpenMOSS-Team/MOSS-Image\"><img alt=\"Hugging Face Spaces · Demo\" src=\"https://img.shields.io/badge/🤗%20Spaces-Demo-4f46e5?style=flat-square\"></a>\n    &nbsp;\n    <a href=\"https://platform.mosi.cn/?utm_source=github&amp;utm_medium=readme&amp;utm_campaign=imageapi\"><img alt=\"MOSI API Platform\" src=\"https://img.shields.io/badge/🔌%20MOSI-API%20Platform-0f766e?style=flat-square\"></a>\n    &nbsp;\n    <a href=\"https://openmoss.github.io/MOSS-Image/\"><img alt=\"Homepage\" src=\"https://img.shields.io/badge/🌐%20Project-Homepage-2563eb?style=flat-square\"></a>\n    &nbsp;\n    <a href=\"paper/MOSS_Image_Technical_Report.pdf\"><img alt=\"Technical Report\" src=\"https://img.shields.io/badge/📄%20Paper-Technical_Report-b31b1b?style=flat-square\"></a>\n    &nbsp;\n    <a href=\"https://arxiv.org/abs/2610.23374\"><img alt=\"arXiv: 2610.23374\" src=\"https://img.shields.io/badge/arXiv-2610.23374-b31b1b?style=flat-square&amp;logo=arxiv&amp;logoColor=white\"></a>\n    &nbsp;\n    <a href=\"https://x.com/Open_MOSS\"><img alt=\"Follow OpenMOSS on X\" src=\"https://img.shields.io/badge/Follow-OpenMOSS-000000?style=flat-square&amp;logo=x&amp;logoColor=white\"></a>\n    &nbsp;\n    <a href=\"https://qm.qq.com/q/hphM7VhaDu\"><img alt=\"MOSS-Image QQ 交流群：755535143\" src=\"https://img.shields.io/badge/QQ-755535143-12B7F5?style=flat-square&amp;logo=qq&amp;logoColor=white\"></a>\n    &nbsp;\n    <a href=\"https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=7a3m2007-815f-409b-9c3d-a4129f5c058e\"><img alt=\"MOSS-Builders Feishu Community\" src=\"assets/feishu-builders-badge.svg\"></a>\n    &nbsp;\n    <a href=\"https://discord.gg/nXFWEyvbb\"><img alt=\"MOSS-Image Discord Community\" src=\"https://img.shields.io/badge/Discord-Community-5865F2?style=flat-square&amp;logo=discord&amp;logoColor=white\"></a>\n  </p>\n  <p>\n    <strong>English</strong> &nbsp; | &nbsp; <a href=\"README_ZH.md\">简体中文</a>\n  </p>\n</div>\n\n\n## News\n\n- **[2026-10-20]** 🚀 The **MOSS-Image** series is now available on the [MOSI API Platform](https://platform.mosi.cn/?utm_source=github&utm_medium=readme&utm_campaign=imageapi). Try it in the Playground or integrate it through the API.\n\n- **[2026-10-19]** 📄 The [MOSS-Image Technical Report](https://arxiv.org/abs/2610.23374) is now available on arXiv. If you find our work useful, please support us with an [upvote on Hugging Face Papers](https://huggingface.co/papers/2610.23374)! 🤗\n\n- **[2026-10-18]** 🛠️ [KohakuMossTrainer](https://github.com/KohakuBlueleaf/KohakuMossTrainer) has been released, offering full fine-tuning and LyCORIS training (including LoRA) for **MOSS-Image-Base** and **MOSS-Image-SFT**. It features extensive optimizer support, mixed-precision training (BF16/FP16/FP8/MXFP8/INT8), multi-GPU training (DDP/FSDP/pipeline parallelism), optimized kernels, and CPU offloading, enabling adapter training with as little as **6GB VRAM**. It supports Windows, Linux, NVIDIA GPUs (SM70–SM120), and Intel Arc GPUs. See the [GitHub repository](https://github.com/KohakuBlueleaf/KohakuMossTrainer) for details.\n\n- **[2026-10-16]** 🚀 MOSS-Image has day-0 support in [SGLang](https://docs.sglang.io/cookbook/diffusion/OpenMOSS/MOSS-Image), [vLLM-Omni](https://recipes.vllm.ai/OpenMOSS-Team/MOSS-Image-Base), and [ComfyUI](https://huggingface.co/Comfy-Org/MOSS-Image).\n\n- **[2026-10-16]** 🎉 We are introducing **MOSS-Image-Base** and **MOSS-Image-SFT**! Code and model weights are publicly available.\n\n  **Our key highlights:**\n\n  - 📐 **Layout control:** Control the placement of text and visual elements.\n  - ✍️ **Strong text rendering:** Generate clear, accurate text within images.\n  - 📜 **Long-prompt support:** Accept text prompts of up to 4K tokens.\n  - 🎨 **Versatile visual styles:** Create high-quality anime and photorealistic images.\n  - 🛠️ **Easy to fine-tune:** Adapt the base model to custom tasks and domains.\n  - ⚡ **Compact and efficient:** Efficient image generation with a 5B backbone.\n  - 🖥️ **Heterogeneous GPU training**: Trained on alternative GPU platforms.\n\n<a id=\"c",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:42.026182"
+  },
+  {
+    "basic_info": {
+      "name": "php2shell-poc",
+      "full_name": "ikow/php2shell-poc",
+      "owner": "ikow",
+      "description": "CVE-2026-109618/109619 — 5 RCE chains + detection rules (Suricata, Sigma, ModSecurity). PHP session.upload_progress pre-auth exploit research.",
+      "url": "https://github.com/ikow/php2shell-poc",
+      "clone_url": "https://github.com/ikow/php2shell-poc.git",
+      "ssh_url": "git@github.com:ikow/php2shell-poc.git",
+      "homepage": null,
+      "created_at": "2026-10-21T07:55:16Z",
+      "updated_at": "2026-10-25T05:17:46Z",
+      "pushed_at": "2026-10-22T22:41:36Z"
+    },
+    "stats": {
+      "stars": 1763,
+      "forks": 611,
+      "watchers": 1763,
+      "open_issues": 6,
+      "size": 2716
+    },
+    "tech_info": {
+      "language": "Python",
+      "languages": {
+        "Python": 62693,
+        "Shell": 17579,
+        "PHP": 5172,
+        "Lua": 3925
+      },
+      "license": "MIT License",
+      "topics": [
+        "cve-2026-109618",
+        "cve-2026-109619",
+        "detection-rules",
+        "exploit",
+        "php-exploit",
+        "php-security",
+        "php2shell",
+        "poc",
+        "rce",
+        "session-upload-progress",
+        "suricata-rules",
+        "vulnerability-research",
+        "waf-rules",
+        "wordpress-security"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/cover.png\" alt=\"php2shell\" width=\"700\">\n</p>\n\n<h1 align=\"center\">php2shell</h1>\n<p align=\"center\">\n  <strong>CVE-2026-109618 & CVE-2026-109619 — PHP Pre-Auth RCE Exploit & Detection Toolkit</strong>\n</p>\n<p align=\"center\">\n  <a href=\"https://github.com/ikow/php2shell-poc/stargazers\"><img src=\"https://img.shields.io/github/stars/ikow/php2shell-poc?style=flat-square\" alt=\"Stars\"></a>\n  <img src=\"https://img.shields.io/badge/CVSS-9.2%20Critical-red?style=flat-square\" alt=\"CVSS 9.2\">\n  <img src=\"https://img.shields.io/badge/PHP-5.4%E2%80%938.5-orange?style=flat-square\" alt=\"Affected Versions\">\n  <img src=\"https://img.shields.io/badge/Fixed-8.2.35%20%7C%208.3.36%20%7C%208.4.27%20%7C%208.5.12-green?style=flat-square\" alt=\"Fixed Versions\">\n  <img src=\"https://img.shields.io/badge/Exploits-3%20public%20%7C%202%20paid-blue?style=flat-square\" alt=\"Exploits\">\n</p>\n\n<p align=\"center\">\n  <a href=\"#exploits\">Exploits</a> · <a href=\"#detection-rules\">Detection</a> · <a href=\"#quick-start\">Lab</a> · <a href=\"https://qideng.substack.com/p/php2shell-dissecting-phps-critical\">Writeup</a>\n</p>\n\n---\n\nFive independent RCE chains exploiting PHP's `session.upload_progress` and the Zend engine's OOM bailout. **14 years of vulnerable code** — PHP 5.4.0 (2012) through 8.5.11. Pre-auth. No application vulnerability required for some chains.\n\nImpacts **78% of all websites** — including WordPress (43%), Joomla, Drupal, Laravel, Magento, and every default PHP installation.\n\n**Author:** [Qi Deng](https://github.com/ikow) &nbsp;|&nbsp; **Writeup:** [Substack](https://qideng.substack.com/p/php2shell-dissecting-phps-critical) &nbsp;|&nbsp; **Date:** 2026-10-21\n\n## CVE Details\n\n| CVE | GHSA | CVSS | Description |\n|-----|------|------|-------------|\n| CVE-2026-109618 | [GHSA-w8hw-w9fx-j79w](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w) | 9.2 | OOM → `longjmp()` leaves Zend engine state invalid → RCE |\n| CVE-2026-109619 | [GHSA-6wmf-4rv5-p3rp](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp) | 9.2 | Stale global state across FPM worker requests → UAF → RCE |\n\n**Patch:** [Commit 3584a98](https://github.com/php/php-src/commit/3584a98bda) — 300 files changed across the Zend engine.\n\n## Attack Chains\n\n| Chain | Vector | Pre-auth | Conditions | SAPI |\n|-------|--------|:--------:|------------|------|\n| **A** | Session injection + LFI | Yes | App has any LFI sink | All |\n| **B** | var_destroy UAF → handler overwrite | No | App calls `unserialize()` | All |\n| **C** | Handler mismatch → `__destruct` | Yes | Two dirs with different serialize_handler | FPM |\n| **D** | OOM corruption → stale `EG()` | Yes | **None** — any endpoint | mod_php |\n| **E** | FPM session OOM → stale `BG()` | Yes | Producer: any `session_start()` endpoint; Consumer: **any** endpoint | FPM |\n\nChain D is the most critical: **zero-dependency pre-auth RCE** against any Apache mod_php installation.\n\nChain E is nearly as broad on FPM: the producer needs any endpoint that calls `session_start()` (near-universal — WordPress, Laravel, Joomla, Drupal all do), and the **consumer can be any PHP endpoint** — the `rfc1867` upload_progress handler runs during SAPI startup before application code. Verified: `nosession.php` (no `session_start()` in code) triggers 502 crash when consuming stale `BG(unserialize)` state.\n\n## Exploits\n\nThree RCE exploits (Chains A, B, C) are included in [`exploit/`](exploit/):\n\n| File | Chain | What It Does |\n|------|-------|-------------|\n| `chain_a_session_lfi.py` | A | Injects PHP code via upload filename → LFI includes session file → RCE |\n| `chain_b_uaf_rce.php` | B | var_destroy UAF → discovers `zif_system` via EG() → overwrites `var_dump` handler via `/proc/self/mem` → RCE |\n| `chain_c_mismatch_rce.py` | C | Pollutes FPM worker `PS(serializer)` → injects serialized object via filename → `__destruct` fires on decode failure → RCE |\n\nChains D and E exploits are available to [paid subscribers](https://qideng.substack.com/p/php2shell-dissecting-phps-critical).\n\n```bash\n# Chain A: Session injection + LFI → RCE\npython3 exploit/chain_a_session_lfi.py --host TARGET --port 80 --command 'id'\n\n# Chain B: var_destroy UAF → RCE (run on target or via uploaded webshell)\nphp exploit/chain_b_uaf_rce.php\n\n# Chain C: Handler mismatch → __destruct → RCE\npython3 exploit/chain_c_mismatch_rce.py --host TARGET --port 80 --command 'id'\n```\n\n## Detection Rules\n\nPre-built IDS / WAF / SIEM rules in [`detection/`](detection/):\n\n| File | Format | Signatures |\n|------|--------|-----------|\n| `php2shell.rules` | Suricata / Snort | 13 rules — request, response, and recon |\n| `php2shell.yaml` | Sigma | 5 rules — web logs, process creation, file events |\n| `modsecurity.conf` | ModSecurity v2/v3 | 7 rules — drop-in for Apache/Nginx |\n| `php2shell.lua` | OpenResty Lua | Lightweight reverse proxy module |\n\n**Fastest mitigation:** block `PHP_SESSION_UPLOAD_PROGRESS` in multipart POST bodies. Near-zero legitimate use",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-25T05:31:43.240313"
+  }
+]

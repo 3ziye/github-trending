@@ -1,0 +1,915 @@
+[
+  {
+    "basic_info": {
+      "name": "bloodborne_pc",
+      "full_name": "deadinside28/bloodborne_pc",
+      "owner": "deadinside28",
+      "description": null,
+      "url": "https://github.com/deadinside28/bloodborne_pc",
+      "clone_url": "https://github.com/deadinside28/bloodborne_pc.git",
+      "ssh_url": "git@github.com:deadinside28/bloodborne_pc.git",
+      "homepage": null,
+      "created_at": "2026-10-01T05:50:31Z",
+      "updated_at": "2026-10-26T05:26:13Z",
+      "pushed_at": "2026-10-19T06:31:22Z"
+    },
+    "stats": {
+      "stars": 3626,
+      "forks": 1013,
+      "watchers": 3626,
+      "open_issues": 165,
+      "size": 6271
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 8319639,
+        "C": 753983,
+        "Python": 517703,
+        "Shell": 77640,
+        "PHP": 50812,
+        "CMake": 29242,
+        "Nix": 14352,
+        "GDB": 5271,
+        "Perl": 4885,
+        "GLSL": 4320
+      },
+      "license": "GNU General Public License v2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "THIS PROJECT IS NOT RELATED TO SHADPS4. ALL QUESTIONS RELATED TO THIS PROJECT SHOULD BE SENT TO THE DISCORD SERVER https://discord.gg/KYZRKk9CB, NOT TO THE SHADPS4 SERVER.\n\n\n# bbport — a native Linux port of Bloodborne\n\n**English** · [Русский](README.ru.md)\n\nbbport is the counterpart of Wine + DXVK for a single game: *Bloodborne* for PlayStation 4\n(CUSA03173, game version 1.09) on an x86-64 Linux PC. The game's original executable runs\ndirectly on the PC:\n\n- **as in Wine**, the game's x86-64 code runs on the CPU directly, and a runtime written for\n  this one game replaces the PS4 system libraries;\n- **as in DXVK**, the game's graphics are translated to Vulkan — by the port's own renderer and\n  shader translator (they started from [shadPS4](https://github.com/shadps4-emu/shadPS4)'s and were\n  rewritten), including temporal upscaling with AMD FSR 3.1, FSR 4, FSR 4.1.1 and NVIDIA DLSS;\n- memory and the GPU's work follow the PC model on every GPU by default (the new memory and\n  translation model, since 0.6); the old memory model of 0.3 stays as a launcher option\n  (*Memory model → Old*).\n\nWhat remains to the full Wine + DXVK model: removing the old memory model once the new one is\nconfirmed on NVIDIA and Intel (see below).\n\n> **No game files are included.** You need your own dump of Bloodborne with update 1.09: any retail\n> release (CUSA00900 in the US, CUSA03173 for the European Game of the Year edition, ...), as they\n> share the same executable.\n> This project is not affiliated with Sony Interactive Entertainment, FromSoftware or AMD.\n\n**Status: experimental, playable.** The game boots, loads saves and plays (the Hunter's Dream\nand several areas of Yharnam were played with it) with sound, gamepad and saving.\nA full play-through has not been verified, and only one machine (Linux, AMD Radeon RX 7800 XT,\nMesa/RADV) has been tested thoroughly.\n\n## Highlights\n\n- **Native execution.** The eboot is converted offline into a flat memory image; PS4 libc and\n  libSceFios2 are linked into it as native code. No CPU emulation and no per-instruction\n  translation: the game code runs at full speed.\n- **Two memory models** (launcher → *Mode → Memory and translation model*; *Auto*, the default,\n  is the new one on every GPU):\n  - **The new memory and translation model — the default on every GPU (0.6).** The game's memory lives\n    in system RAM and the GPU reads it where it is, as a PC game's buffers; data it reads often\n    is kept in VRAM and given back when unused (textures after 20 s, buffers after 60 s). The\n    layer's memory module tracks CPU writes to mirrored blocks to keep those copies coherent;\n    it does not copy the whole GPU-visible memory. The PS4 command processor's work\n    is translated into Vulkan commands rather than emulated on the CPU: memory writes\n    (`WRITE_DATA`, DMA) are done by the GPU in command-stream order, and fences are written by the\n    GPU itself at the end of the pipeline, at the same point of the stream as the PS4's command\n    processor writes them. On every GPU the game's memory goes through the layer's memory module:\n    bound in place, VRAM copies as separate buffers, no sparse binding (NVIDIA's sparse binding\n    froze the GPU for seconds; on AMD the module is faster than the former sparse arena too);\n    `BB_LAYER_MEMORY=0` gives AMD's sparse arena. Tested thoroughly on an RX 7800 XT; on NVIDIA\n    by testers. A driver that fails the startup checks falls back to VRAM copies by itself.\n    Without the launcher: `BB_PC_MODEL=1/0` (unset: the new one, as *Auto*).\n  - **The old memory model, as in 0.3** (*Old*). VRAM copies of the game's memory, writes\n    tracked through page protection, with every fix made since 0.3.\n\n  [Changes in 0.6](docs/CHANGES_0.6.md), [0.6-pre1](docs/CHANGES_0.6-pre1.md),\n  [0.51](docs/CHANGES_0.51.md), [0.5](docs/CHANGES_0.5.md).\n\n  Unused textures are freed in both modes, so VRAM no longer grows with every area visited.\n- **Unlocked frame rate.** Hooks in the game's code make the simulation use the real frame time\n  (the community patches in `patches/Bloodborne.xml` remain for comparison, `BB_FRAME_HOOKS=0`);\n  ~90 FPS at 4K with FSR 4 Balanced on an RX 7800 XT, ~150 FPS at 1440p with FSR 4 Quality.\n  Also 30/60/90 FPS modes; **F3** switches a 30 FPS limit on and off while playing (some\n  cinematics, e.g. Laurence's, are safest at 30).\n- **Any aspect ratio, live.** 4:3, 16:10, 16:9, 21:9 and 32:9 with the HUD at the screen's edges,\n  through hooks (the game's code is not patched); cinematics are wide too.\n- **Keyboard and mouse.** Mouse look turns the game's camera directly; a mouse pointer in the\n  game's menus (F1 releases the mouse); a layout close to Dark Souls III's (Space dodge, Left\n  Shift run, Shift+Space jump); movement keys ramp up like a stick; button prompts show the bound\n  key, or the buttons of the gamepad in use (Xbox and others), PlayStation icons only with a\n  PlayStation pad.\n- **Online play and seamless co-op.** Two pools on shadPS4 0.2",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-10-26T05:36:55.069656"
+  },
+  {
+    "basic_info": {
+      "name": "pt-pc",
+      "full_name": "LoreanXavier/pt-pc",
+      "owner": "LoreanXavier",
+      "description": "Native PC port of P.T. (runs from your own PS4 game files)",
+      "url": "https://github.com/LoreanXavier/pt-pc",
+      "clone_url": "https://github.com/LoreanXavier/pt-pc.git",
+      "ssh_url": "git@github.com:LoreanXavier/pt-pc.git",
+      "homepage": "https://www.patreon.com/loreanxavier",
+      "created_at": "2026-10-07T09:33:31Z",
+      "updated_at": "2026-10-26T00:53:51Z",
+      "pushed_at": "2026-10-24T13:56:17Z"
+    },
+    "stats": {
+      "stars": 2191,
+      "forks": 138,
+      "watchers": 2191,
+      "open_issues": 0,
+      "size": 40346
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 7796518,
+        "Python": 875293,
+        "GLSL": 255744,
+        "CMake": 127345,
+        "Objective-C++": 39292,
+        "C#": 12779,
+        "C": 9786,
+        "Shell": 8580,
+        "Batchfile": 2914,
+        "PowerShell": 2526
+      },
+      "license": "Other",
+      "topics": []
+    },
+    "content": {
+      "readme": "<div align=\"center\">\n\n# P.T. for PC\n\n**A native PC port of P.T., the 2014 PS4 teaser by Kojima Productions. Windows, Linux and macOS.**\n\n<a href=\"https://www.patreon.com/loreanxavier\"><img src=\"https://img.shields.io/badge/Support%20the%20port%20on%20Patreon-F96854?style=for-the-badge&logo=patreon&logoColor=white\" alt=\"Support the port on Patreon\" height=\"48\"></a>\n\n<a href=\"https://github.com/LoreanXavier/pt-pc/releases/latest\"><img src=\"https://img.shields.io/github/v/release/LoreanXavier/pt-pc?style=for-the-badge&label=Download&color=2b2b2b\" alt=\"Download the latest release\"></a>\n<a href=\"https://github.com/LoreanXavier/pt-pc/releases\"><img src=\"https://img.shields.io/github/downloads/LoreanXavier/pt-pc/total?style=for-the-badge&color=2b2b2b\" alt=\"Downloads\"></a>\n<a href=\"https://discord.gg/3vKwUf2eTb\"><img src=\"https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white\" alt=\"Discord\"></a>\n\n![Lisa in the hallway](docs/media/lisa.gif)\n\n</div>\n\n> [!IMPORTANT]\n> **This port is made by one person in their spare time.** If it gave you a good scare, please consider supporting it on [**Patreon**](https://www.patreon.com/loreanxavier). It pays for the testing hardware and keeps the updates coming.\n\n> [!NOTE]\n> **Bug reports:** I've closed GitHub Issues because of ongoing spam attacks. Please join the [Discord server](https://discord.gg/3vKwUf2eTb) to report bugs.\n\nThis is a native PC port of P.T., the 2014 PS4 teaser by Kojima Productions. It is not an emulator. The game logic was\nrebuilt in C++ from the original's behaviour, with Vulkan and DirectX 12 renderers; every level, model, texture, sound,\nscript and cutscene is read at run time from your own copy of the PS4 game. There is no game data in this repository\nand none in the installer.\n\nThe port runs on its own engine, Hallway Engine.\n\nI made this in my spare time, with AI tools (see AI Disclosure at the end), because P.T. deserved to keep existing\nsomewhere other than on consoles that still have it installed. It plays the whole teaser from the first wake-up to\nthe street, with the voice part included.\n\n## What you need\n\n- Your own copy of P.T. The port is built and tested with the US release, CUSA01127, as a dump folder from your console\n  or a fake PKG made from that dump. The folder can have any name: the game recognises it by its files. Other releases,\n  such as the European CUSA01114, are accepted the same way, but I have not seen their data myself; the game logs at its\n  start what differs from the US data. A store PKG cannot be used: it is encrypted for the console that owns it, and nothing here\n  decrypts it.\n- Windows 10 or 11 (x64), Linux x86-64 with glibc 2.38 or newer (Ubuntu 24.04, Debian 13, Fedora 39, current Arch\n  and SteamOS), or macOS 14 or newer on an Apple silicon or Intel Mac.\n- A GPU and driver with Vulkan 1.3; on macOS the port brings MoltenVK, which runs Vulkan on Metal. The optional\n  ray-traced shadows, ambient occlusion and reflections need a GPU with Vulkan ray queries (not on macOS). DLSS needs a\n  GeForce RTX card. Available upscalers depend on the platform and renderer; see docs/upscaling.md. The settings page greys out what your machine\n  cannot run and says why.\n- A microphone for one part of the game, as on the PS4. If you have none, `key = J` under `[voice]` in `pt.ini` lets a\n  key stand in for the spoken word.\n\n## Installing\n\nDownload the installer from the Releases page: `P.T.PC.Port.Setup.exe` on Windows, the Linux setup binary on Linux.\nPoint it at your dump folder or fake PKG and at a destination folder (the default on Windows is\n`%LocalAppData%\\Programs\\P.T. PC Port`). It copies the three game archives it needs (`chunk1.psarc`,\n`texture.qar`, `pathid_list_ps4.bin`) next to the port and makes a shortcut if you want one. The eboot, modules and\nsystem files are not used.\n\nLinux: `chmod +x` the setup and run it from a terminal. The game needs only glibc and the system's Vulkan driver. On a Steam Deck\ninstall from desktop mode and add `pt` as a non-Steam game; it runs on SteamOS as it is.\n\nmacOS: download `P.T.PC.Port-macOS-arm64.zip` (M1 and later) or `P.T.PC.Port-macOS-x64.zip` (Intel), unzip `P.T. PC Port.app`,\nopen it once and allow it under System Settings > Privacy & Security (it is not signed with a Developer ID), then pick your\ndump folder when it asks. A fake PKG has to be extracted on Windows or Linux first. Intel Macs need a GPU that MoltenVK can\nrun the renderer on; the port was written without a Mac at hand and the Intel app has not been run on one yet. More in\ndocs/macos.md.\n\nWindows and Linux releases include installers and portable ZIPs. To update an existing installation, use the game's update\nbutton or run the new installer over it. Your game archives, settings, saves and mods stay.\n\nOn Windows and Linux, settings, saves, logs and cache live in `data/` beside the executable. The game migrates\nexisting user data without overwriting newer files. On macOS, these stay i",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:36:56.363663"
+  },
+  {
+    "basic_info": {
+      "name": "uncharted_pc",
+      "full_name": "Supermedo/uncharted_pc",
+      "owner": "Supermedo",
+      "description": "Uncharted: The Nathan Drake Collection running natively on Windows - by SuperMedo",
+      "url": "https://github.com/Supermedo/uncharted_pc",
+      "clone_url": "https://github.com/Supermedo/uncharted_pc.git",
+      "ssh_url": "git@github.com:Supermedo/uncharted_pc.git",
+      "homepage": null,
+      "created_at": "2026-10-15T00:17:23Z",
+      "updated_at": "2026-10-26T05:30:51Z",
+      "pushed_at": "2026-10-24T18:47:25Z"
+    },
+    "stats": {
+      "stars": 1983,
+      "forks": 118,
+      "watchers": 1983,
+      "open_issues": 383,
+      "size": 5838
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 6523687,
+        "C": 925319,
+        "Python": 795374,
+        "Shell": 36009,
+        "CMake": 23272,
+        "Nix": 7524,
+        "Perl": 4885,
+        "GLSL": 3992,
+        "PowerShell": 1491
+      },
+      "license": "GNU General Public License v2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Uncharted: The Nathan Drake Collection for Windows\n\n**Uncharted 1, 2 and 3 from the PS4 collection running natively on Windows 10 and 11, by [SuperMedo](https://github.com/Supermedo).** Mohammed Albarghouthi\n\nSame idea as my [Bloodborne port](https://github.com/Supermedo/bloodborne_pc): the original PS4 game\ncode runs directly on your PC and the graphics are translated to Vulkan. Unpack the zip, start\n`Uncharted.exe`, pick your game folder, choose a game and press **PLAY**.\n\n**[Download the latest version](https://github.com/Supermedo/uncharted_pc/releases/latest)** · **[Join the Discord](https://discord.gg/s3RgH6cRfJ)**\n\n> **No game files are included.** You need your own decrypted dump of the collection\n> (CUSA02343, CUSA02320, ...: the folder with eboot.bin, big2-ps4_Shipping.elf,\n> big3-ps4_Shipping.elf, sce_sys, u1data, u2data and u3data).\n> This project is not affiliated with Sony Interactive Entertainment or Naughty Dog.\n\n## Features\n\n- All three games from one launcher: Drake's Fortune, Among Thieves and Drake's Deception.\n- 60 FPS like on PS4, or 120 FPS (higher rates are experimental).\n- Render resolution above 1080p (up to 3200x1800) and ultrawide aspect ratios: the games draw a real larger or wider picture, set in the launcher.\n- Anti-aliasing with TAA, AMD FSR 3.1, AMD FSR 4 or NVIDIA DLSS (DLAA).\n- Frame generation: AMD FSR 3 (any GPU) or NVIDIA DLSS (RTX 40 2x, RTX 50 up to 4x).\n- Keyboard, mouse and controller together, all remappable. Mouse look in U3.\n- Stereo, 5.1 or 7.1 sound: the games are told the real speaker layout (it follows the Windows setting, or pick it in the launcher).\n- Trophies: the games' own trophy lists in the launcher, and a notice in the game when you earn one.\n- Button prompts for keyboard and mouse, Xbox or PlayStation controllers; controller vibration settings.\n- Cheats page (infinite health and ammo per game), launcher languages, your own covers and Steam art.\n- A Fixes page for fixes that cost speed: Automatic turns each one on only where it helps.\n- Add to Steam and desktop shortcuts from the launcher, automatic updates.\n\n## Requirements\n\n- Windows 10 (1903 or later) or Windows 11, 64-bit.\n- An Intel Core 3rd generation (Ivy Bridge) or newer, an AMD Ryzen, or an AMD FX. Older Intel CPUs\n  with AVX (Core 2nd and 3rd generation, Xeon E3 v1/v2): experimental, see Known problems.\n- A graphics card with Vulkan 1.3 and a current driver, with **6 GB of video memory or more**.\n  4 GB cards (GTX 1650, RX 570) run out of video memory and crash after a while; on those, keep\n  Anti-aliasing and Frame generation off.\n- About 8 GB of free memory (RAM + page file).\n\n## Known problems\n\n- **Uncharted 3, Cartagena square (chapter 2):** at high frame rates (240 Hz setting, ~80 FPS)\n  the game could freeze and close with \"GPU crash: the graphics device was lost\". It came from\n  the speed fix for that area and is fixed in 0.3. If it still happens to you, set Frame rate to\n  60 on the Display page and open an issue with your `user\\last_run.log`.\n- **Uncharted 3:** green or black shapes flashing on Sully's shirt in Cartagena: the cloth\n  solvers raced on NVIDIA's 32-lane groups. Fixed in 0.3.9 with BilalReloaded's fix.\n- **Crash with \"ASSERTION: GetRenderFrameParams(frameToFreeInstancesFor)->m_gfxEopTick\"**\n  (mostly U1 after the first cutscene): the game expected the GPU side to be done with a frame it\n  wanted to reuse, and stopped when it wasn't yet (shaders building on a first run). Fixed in\n  0.3.2 (0.3.4 for the 1.02 versions): the game now waits for it. If you still see it, open an\n  issue with your log.\n- **Intel HD / UHD graphics:** a black screen on the HD 630 is fixed in 0.3.3. Older Intel chips\n  (HD 520) can still crash inside Intel's own driver.\n- **Uncharted 3 London bar crash** (fault at `0xd9c59b`, or device lost in the bar fight): fixed in\n  0.3.4.\n- **Uncharted 2 loading crashes** (`ReadSync file (req/read: ...)`, white textures then\n  `iSubMesh < m_numSubMeshInstances`): file reads could come back cut short. Fixed in 0.3.5.\n- **Older CPUs:** the games use instructions of the PS4's processor (AVX, BMI1, MOVBE, LZCNT).\n  Since 0.3.7 they are rewritten on CPUs that lack them, so Intel Core 3rd generation (Ivy Bridge)\n  runs, as does AMD FX. Sandy Bridge (2nd generation) also lacks F16C and is not supported.\n- **Random crashes with \"execute access to 0\" or a fault at `0x63f5d0` (U1):** Windows wrote its\n  exception data over values the game keeps just below the stack pointer. Fixed in 0.3.7.\n- **Uncharted 2, train wreck:** `IsFinite(deltaTransform)` in character-leg-ik.cpp, fixed in 0.3.6\n  for the EU 1.00 version.\n- Frame rates above 120 are experimental.\n\n## Building\n\nMSYS2 CLANG64 on Windows: `bash build.sh` builds `out\\bb-probe.exe`, and\n`bash packaging/windows/package.sh` makes `dist\\uncharted-windows` and the zip.\n\n## Credits\n\nBuilt on [bbport](https://github.com/deadinside28/bloodborne_pc), the native Linux port of\nBloodborne by deadinside28, and on the [shadPS4",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:36:57.636096"
+  },
+  {
+    "basic_info": {
+      "name": "project-maya",
+      "full_name": "mw00/project-maya",
+      "owner": "mw00",
+      "description": "Project Maya - run GLM-5.3-Flash (321B MoE) and DeepSeek-V4.1-Flash-1017 (748B MoE) privately on your own GPU(s), from one card to 16, NVIDIA or AMD, Linux or Windows. Engine, server, dashboard, OpenAI- and Anthropic-compatible API, quant tools.",
+      "url": "https://github.com/mw00/project-maya",
+      "clone_url": "https://github.com/mw00/project-maya.git",
+      "ssh_url": "git@github.com:mw00/project-maya.git",
+      "homepage": "https://huggingface.co/peasantsmith",
+      "created_at": "2026-10-06T22:55:13Z",
+      "updated_at": "2026-10-26T05:26:26Z",
+      "pushed_at": "2026-10-25T18:27:22Z"
+    },
+    "stats": {
+      "stars": 1901,
+      "forks": 246,
+      "watchers": 1901,
+      "open_issues": 120,
+      "size": 34155
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 4729191,
+        "Cuda": 4369402,
+        "Python": 2357007,
+        "C": 262023,
+        "JavaScript": 141892,
+        "CMake": 85806,
+        "CSS": 56599,
+        "Jinja": 37815,
+        "HTML": 26133,
+        "NASL": 14805,
+        "Shell": 9497,
+        "Batchfile": 4392
+      },
+      "license": "MIT License",
+      "topics": [
+        "cuda",
+        "deepseek",
+        "deepseek-v4",
+        "glm",
+        "glm-5",
+        "llm",
+        "llm-inference",
+        "local-llm",
+        "mixture-of-experts",
+        "moe",
+        "openai-api",
+        "quantization",
+        "rocm",
+        "self-hosted"
+      ]
+    },
+    "content": {
+      "readme": "<h1 align=\"center\">Project Maya</h1>\n\n<p align=\"center\"><b>GLM-5.3-Flash (321 B) and DeepSeek-V4.1-Flash-1017 (748 B) on your own GPU</b><br>\nprivate and fast · one NVIDIA GPU or up to 16 · AMD and Windows (experimental) · chat, pictures, OpenAI- and\nAnthropic-compatible API · several requests at once</p>\n\n<p align=\"center\">\n<a href=\"https://huggingface.co/peasantsmith/GLM-5.3-Flash-Maya-GGUF\"><img src=\"https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fhuggingface.co%2Fapi%2Fmodels%2Fpeasantsmith%2FGLM-5.3-Flash-Maya-GGUF%3Fexpand%3DdownloadsAllTime&amp;query=%24.downloadsAllTime&amp;label=GLM-5.3-Flash%20Maya%20downloads\" alt=\"GLM-5.3-Flash Maya downloads\"></a>\n<a href=\"https://huggingface.co/peasantsmith/GLM-5.3-Flash-Maya-M-Derisked-IQ2_S-GGUF\"><img src=\"https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fhuggingface.co%2Fapi%2Fmodels%2Fpeasantsmith%2FGLM-5.3-Flash-Maya-M-Derisked-IQ2_S-GGUF%3Fexpand%3DdownloadsAllTime&amp;query=%24.downloadsAllTime&amp;label=Maya-M-Derisked%20downloads\" alt=\"Maya-M-Derisked downloads\"></a>\n<a href=\"https://huggingface.co/peasantsmith/DeepSeek-V4.1-Flash-1017-Maya-GGUF\"><img src=\"https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fhuggingface.co%2Fapi%2Fmodels%2Fpeasantsmith%2FDeepSeek-V4.1-Flash-1017-Maya-GGUF%3Fexpand%3DdownloadsAllTime&amp;query=%24.downloadsAllTime&amp;label=DeepSeek-V4.1-Flash%20Maya%20downloads\" alt=\"DeepSeek-V4.1-Flash Maya downloads\"></a>\n</p>\n\n<p align=\"center\">Created and led by <b>Peasant Smith</b> (<a href=\"https://github.com/mw00\">@mw00</a>), co-maintained\nwith <b><a href=\"https://github.com/needmorevram\">@needmorevram</a></b></p>\n\n<p align=\"center\"><a href=\"https://buymeacoffee.com/peasantsmith\"><img src=\"https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png\" alt=\"Buy Me A Coffee\" height=\"50\"></a><br>\n<sub>Project Maya is free. If it runs well on your PC, a coffee keeps the work on it going.</sub></p>\n\nModels this size usually need a datacenter. Maya runs **[GLM-5.3-Flash](https://huggingface.co/zai-org/GLM-5.3-Flash)**\n(zai-org, MIT license; 321 B parameters, about 18 B active per token, a context of up to 1 M tokens) and\n**[DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017)** (DeepSeek, MIT license;\n748 B parameters) on the hardware you already have. Each model has an engine built for it. It keeps the experts your\nconversation uses most on the GPU, the next ones in RAM and the rest on your NVMe SSD, and moves them as you chat. It\nmeasures your GPUs, CPU, RAM and SSD and tunes itself to them. Nothing leaves your machine.\n\n- **Fast:** up to 124 tokens/s on two H100s, 118 on four RTX 4090s, 81 on one RTX PRO 6000, 30+ on a single RTX 5090. Real numbers from\n  real users below.\n- **Close to the original:** Maya's own quants of GLM-5.3-Flash keep 97.7-99.2% of the FP8 model's zero-shot\n  accuracy; Maya-S of DeepSeek-V4.1-Flash-1017 picks the same next token as the original 92.6% of the time.\n- **Plugs into your tools:** OpenAI- and Anthropic-compatible API with tool calls, ready for coding agents.\n- **Several requests at once:** up to 8 answered together - for agents that run several sessions, or several people\n  on one PC.\n- **Everything in the box:** a chat and a live monitor in the browser, pictures, thinking levels, a one-command setup.\n\n## The models\n\nProject Maya's own quants of GLM-5.3-Flash, made from Z.ai's FP8 release with statistics from the FP8 model. Each keeps\nthe model's MTP block, which drafts tokens ahead.\n\n| Model | Size | Made for | Against the FP8 model |\n| --- | ---: | --- | --- |\n| **Maya-S** (default) | 96.5 GB | PCs with a smaller memory pool (RAM and VRAM together) | 97.9% of its zero-shot accuracy; the same next token 83% of the time |\n| **Maya-S24** | 94.7 GB | cards of 24 GB or less: 4-bit attention leaves ~1.5 GB more of the card for experts, decode +14% | 97.7%; 83% |\n| **Maya-M** | 116 GB | a bigger memory pool; more bits where they count, calibrated toward tool calls and front-end code | 97.9%; 86% |\n| **Maya-M-Derisked** | 116 GB | Maya-M with a weight edit by [Blackfrost_AI](https://x.com/Blackfrost_AI) that reduces blanket refusals ([its repo](https://huggingface.co/peasantsmith/GLM-5.3-Flash-Maya-M-Derisked-IQ2_S-GGUF)); experimental | not measured yet |\n| **Maya-L** | 156.3 GB | the biggest memory pools | **99.2%**; 90% |\n\nThe setup asks which one to download and recommends one for your PC. How they're made and measured: [MAYA-S](bench/results/MAYA-S.md),\n[MAYA-S24](bench/results/MAYA-S24.md), [MAYA-M](bench/results/MAYA-M.md), [MAYA-L](bench/results/MAYA-L.md). On\n[Hugging Face](https://huggingface.co/peasantsmith/GLM-5.3-Flash-Maya-GGUF).\n\n### DeepSeek-V4.1-Flash-1017 (new)\n\nThe setup also offers **[DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017)**\n(DeepSeek, MIT license; 748 B parameters) on an engine of its own (`maya-ds4`): `./setup.sh --setup` and pick it, or\n`./setup.sh --model DeepSeek-V4.1-Flas",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:36:58.936728"
+  },
+  {
+    "basic_info": {
+      "name": "usd-brep",
+      "full_name": "NVIDIA-Omniverse/usd-brep",
+      "owner": "NVIDIA-Omniverse",
+      "description": "USD BRep is a standalone C++ and Python library for NURBS-based boundary representation (BRep) solid modeling",
+      "url": "https://github.com/NVIDIA-Omniverse/usd-brep",
+      "clone_url": "https://github.com/NVIDIA-Omniverse/usd-brep.git",
+      "ssh_url": "git@github.com:NVIDIA-Omniverse/usd-brep.git",
+      "homepage": "https://nvidia-omniverse.github.io/usd-brep/",
+      "created_at": "2026-10-08T17:27:36Z",
+      "updated_at": "2026-10-26T03:36:16Z",
+      "pushed_at": "2026-10-22T17:07:41Z"
+    },
+    "stats": {
+      "stars": 1850,
+      "forks": 274,
+      "watchers": 1850,
+      "open_issues": 19,
+      "size": 22162
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 45263183,
+        "Python": 1722213,
+        "C": 465379,
+        "Shell": 68182,
+        "Lua": 61771,
+        "PowerShell": 31324,
+        "Batchfile": 26678,
+        "NewLisp": 4402
+      },
+      "license": "Apache License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# USD BRep\n\nSolid modeling for [OpenUSD](https://openusd.org/). USD BRep creates and edits\nboundary-representation (BRep) solids and reads and writes them in USD as\n`BrepArray` prims.\n\nBRep faces and edges can be NURBS or analytic geometry. Plane, cylinder, cone, sphere\nand torus faces are written to USD as analytic surfaces. Edge curves are written as\nNURBS; analytic line, circle and ellipse edges in USD from other tools are read as\nanalytic curves. Other SMLib types, such as parabolas and surfaces of revolution, are\nwritten as NURBS. See [supported geometry](.agents/operations/usd_import_export.md#supported-geometry)\nfor the SMLib class names.\n\n## Repo contents\n\n### USD\n\nLibraries and tools that work on BReps stored in USD files:\n\n- **[USD BRep schema](source/schema/README.md) (omniSolid):** defines the `BrepArray` prim, which stores BReps in\n  USD with their full topology and NURBS or analytic geometry; see the\n  [proposal](proposals/UsdSolid/README.md) and its\n  [problem statement](proposals/cad_geometry/README.md).\n- **[Import/export](source/SM_API_USD/inc/SmApiUsd.h):** reads `BrepArray` prims into\n  SMLib BReps and writes SMLib BReps back to USD.\n- **[USD Validator](tools/brep_validator/README.md):** checks that the BReps in a USD file comply with the BRep\n  schema.\n- **[Healer](source/SM_API_USD/inc/SmApiUsdHeal.h):** heals the BReps across a whole USD scene, preserving layers,\n  references, instancing, transforms and materials.\n- **[Geometry validator](tools/brep_geometry_validator/README.md):** runs AssertValid (see [Kernel](#kernel)) on every\n  `BrepArray` prim in a USD file.\n- **[Tessellator](source/SM_API_USD/inc/SmApiUsdTessellate.h):** writes a `UsdGeomMesh` for each BRep in the `BrepArray`\n  prims of a USD file.\n- **Viewers:**\n  - **[hdUsdBrep](source/HYDRA_USD_BREP/README.md):** Hydra plugin for viewing USD BReps in usdview.\n  - **[view_usd](tools/scripts/view_usd.py):** shows a USD file's BReps, tessellated, in a PyVista window.\n  - **[smlib_gui](tools/smlib_gui/README.md):** desktop app for opening, inspecting and editing USD and SMLib BReps.\n- **Converters:**\n  - **OpenCASCADE:** [occt_to_usd](tools/occt_to_usd/README.md) and [usd_to_occt](tools/usd_to_occt/README.md)\n    convert between OpenCASCADE and USD BReps.\n  - **Utility libraries:** [BREP_USD_DATA](source/BREP_USD_DATA/README.md),\n    [BREP_STAGING](source/BREP_STAGING/README.md) and [USD_BREP_UTILS](source/USD_BREP_UTILS/README.md)\n    support writing USD converters to and from other formats.\n- **APIs:** [C++](source/SM_API_USD) and [Python](tools/pyproject/README.md) (USD).\n\n### Kernel\n\nThe SMLib kernel, and tools that work on BReps in memory:\n\n- **[Kernel (SMLib)](source/SMLib):** creates and edits BRep solids, with booleans, fillets,\n  sweeps and offsets.\n- **[Healer](source/SM_API/inc/SmApiHeal.h):** fixes common geometric and topological defects in BReps.\n- **[Tessellator](source/SMLib/inc/SmTess.h):** meshes BReps into triangles. The Hydra plugin uses it to draw\n  BReps in usdview.\n- **Geometry validator (AssertValid):** checks the geometric quality and topological\n  consistency of BReps in memory.\n- **APIs:** [C++](source/SM_API) and [Python](tools/pyproject/README.md) (SMLib).\n- **[Examples](Examples/README.md):** runnable Python and C++ examples for each API layer.\n\n### Agents\n\nGuidance for coding agents, starting from [AGENTS.md](AGENTS.md):\n\n- **[Docs](.agents/docs/OVERVIEW.md):** the library's layers and key concepts, what each\n  error code means and how to fix it.\n- **[Operations](.agents/operations/INDEX.md):** a guide for each API area, such as booleans,\n  fillets, tessellation, healing and USD import/export.\n- **[Skills](.agents/skills):** workflows for debugging kernel operations, using and\n  maintaining the C++ and Python APIs, working with the USD schema and converters, choosing\n  tests and writing bug reports.\n\n## Documentation\n\n[nvidia-omniverse.github.io/usd-brep](https://nvidia-omniverse.github.io/usd-brep/), including the Python and C++ API reference.\n\n## Quick start\n\nThe Python package is on PyPI for CPython 3.12 on Linux (x86_64, aarch64) and Windows:\n\n```bash\npip install usd-brep\n```\n\n```python\nimport usd_brep\n\nsphere = usd_brep.primitives.create_sphere((0.0, 0.0, 0.0), 1.0)\nbox = usd_brep.primitives.create_box((0.0, 0.0, 0.0), 1.0, 1.0, 1.0)\ncut = usd_brep.booleans.boolean_difference(sphere, box)  # a sphere missing one octant\n\nusd_brep.usd.export_brep(cut, \"cut.usda\")\n(brep,) = usd_brep.usd.import_breps(\"cut.usda\")\n```\n\nTo repair the BReps in an existing USD scene, `usd.heal_file` heals the `BrepArray`\ngeometry in the layers the scene uses and writes the scene with its layers,\nreferences, instancing, transforms and materials kept:\n\n```python\nusd_brep.usd.heal_file(\"input.usdc\", \"input_healed.usdc\")\n```\n\nSee the [package README](tools/pyproject/README.md) for the API's submodules and\n[Examples](Examples/README.md) for runnable examples in Python and C++.\n\n## Issues\n\n- **Known issues:** [KNOWN_ISSUES.m",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:00.244655"
+  },
+  {
+    "basic_info": {
+      "name": "ShadowOfTheColossus-PC",
+      "full_name": "AjncSystem/ShadowOfTheColossus-PC",
+      "owner": "AjncSystem",
+      "description": "Native Windows port of Shadow of the Colossus (PS4, CUSA08809) - bring your own game dump. Port nativo para PC.",
+      "url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
+      "clone_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC.git",
+      "ssh_url": "git@github.com:AjncSystem/ShadowOfTheColossus-PC.git",
+      "homepage": null,
+      "created_at": "2026-10-12T13:11:53Z",
+      "updated_at": "2026-10-26T05:16:02Z",
+      "pushed_at": "2026-10-22T16:44:30Z"
+    },
+    "stats": {
+      "stars": 1492,
+      "forks": 83,
+      "watchers": 1492,
+      "open_issues": 175,
+      "size": 4303
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 4389877,
+        "C": 851123,
+        "Python": 488361,
+        "Shell": 35734,
+        "CMake": 22573,
+        "Pawn": 14645,
+        "PowerShell": 10240,
+        "Nix": 6807,
+        "Perl": 4885,
+        "GLSL": 3774,
+        "Batchfile": 135
+      },
+      "license": "GNU General Public License v2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# Shadow of the Colossus — PC native port · v0.60.6\n\n[Releases](../../releases) · [Changelog](CHANGELOG.md)\n\n> **No game or Sony files are included.** You need your own game dump and, for sound, two\n> modules from your own console. This project is not affiliated with Sony Interactive\n> Entertainment or Bluepoint Games.\n\n---\n\n**Status: the game can be finished from start to end** (v0.60.3: played through the last\ncolossus, the ending and the credits, with high quality textures, PS4 Pro mode and 60 FPS on).\n\nA native Windows port of the PS4 **Shadow of the Colossus** (Bluepoint, 2018; CUSA08809, EU 1.01)\nfor **Windows 10/11**. The game's own x86-64 code runs directly on the PC's CPU and the PS4 GPU\nis translated to Vulkan. It is not a full emulator: it is a loader with the system functions the\ngame needs, in the style of [bloodborne_pc](https://github.com/Supermedo/bloodborne_pc).\n\n### What's new\n\n| Version | Improvements and fixes |\n|---|---|\n| **0.60.6** | **No more rainbow garbage on textures and far fewer \"closed out of nowhere\" crashes** (the cause: speculative GPU readbacks written over memory the game had reused, after loading a save or a new area), **no more black dots on sandy ground**, **in-game menu cleaned up** (FPS, upscaler and sharpening now change at once; Bloodborne leftovers removed), **hard disk read-ahead** (fewer stalls in new areas on HDDs), textures refreshed on every load, a readable session event log (`user/events.log`). |\n| **0.60.5** | **Texture quality selector: Off / High / Maximum** (#235: sharp again), **memory leak fixed** (~60 MB/min, long-session stutter), **+3% average and +12% minimum FPS** (descriptor binds reused), **loading after a GPU driver update: 106 s → 7 s**, possible fix for **white characters on AMD GCN** (RX 470–590, Vega), **4-thread CPUs** no longer stuck loading, a hang watchdog, short hitches no longer flash a black loading screen, code review fixes. |\n| **0.60.4** | **No more cyan blocks on stone or blinking flowers** with high quality textures (the 0.60.3 crash protection switched the texture detail every second or two; now with hysteresis). |\n| **0.60.3** | **The game can be finished from start to end** (played from the last colossus through the ending and credits): fix for the high quality textures crash in wide views (#186), fix for the crash on the load after the credits, +2.7% FPS at the Shrine. |\n| **0.60.2** | **Quick settings in the in-game menu** (60 FPS, frame generation, high quality textures, far shadows, volume: apply at once and are kept), **the mouse works in the menu**, **animated loading screen while the shaders are prepared** at start. |\n| **0.60.1** | **In-game menu** (Insert / F1 / L3+R3: FPS, GPU and VRAM, fullscreen, resolution, sharpening, mouse camera, effects), **Bloodborne leftovers removed** (~11,700 lines), the game exe has the SotC icon. |\n| **0.60** | **Textures on GTX 10xx**, no title-screen hang, **starts on low-memory PCs**, **60 FPS through the game's own Performance mode** (right physics), **each copy has its own `user` folder**, +6% FPS at the Shrine, FSR 3 without black tiles on RX 7000. |\n| **0.59.1** | **Far shadows no longer blink** (AMD and NVIDIA; new launcher option), **AMD stripes** on shadows and water fixed, Intel fixes, the log shows the GPU and driver. |\n| **0.59** | **More FPS** (Oussama268's fork: draw thread, shaders translated in parallel; bridge 30 → 37–40 FPS), **fix for the ending and save-load crash** (still being tested: report in the issues), **F11 fullscreen**, **video memory use** and **volume** options, launcher **self-update**, ultrawide with PS4 Pro mode, fixes for 6 GB cards and Chinese Windows. |\n| **0.58.1** | **High quality textures** (sharp leaves and rocks; the game had not streamed its high resolution versions since 0.0.13) and the **game window's own icon** (or the game's, or a picture of yours). |\n| **0.58** | **Community release** (Lucas-blip-png, Gabriell-os, Oussama268, jownatan, xeodeo, nakaionyt/y7ngboy, tabnul): **fewer crashes** (out of video memory, game freezing, post-colossus crash in PS4 Pro mode), **+15% FPS** and less video memory, AMD fixes (RDNA3/4 black tiles), **21:9/32:9 widescreen**, **FPS 30/60/unlimited**, **Xbox button icons**, FSR 3 / DLSS-G frame generation (experimental), launcher in Spanish, Chinese, Korean and Russian. |\n| **0.57** | **AMD cards:** fix for the green/pink fog and characters (AMD now uses the NVIDIA 32-lane path; diagnosis from issue #7, not yet tested on an AMD card). **New launcher option** to turn off direct memory access: ~10% more FPS, flatter distant water. |\n| **0.56** | **Open-world water with waves:** lakes and rivers below the waterfalls are no longer flat as a mirror (a shader instruction, `S_WQM_B64`, was ignored). **The upper lake ripples and reflects far away** (direct memory access on by default, as in Pink-shadPS4). Distant trees without \"colored garbage\". |\n| **0.0.13** | **No more crashes:** fixed the 0.0.12 crash in the intro",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:01.532627"
+  },
+  {
+    "basic_info": {
+      "name": "ReSkate",
+      "full_name": "Dingo-Shenanigans/ReSkate",
+      "owner": "Dingo-Shenanigans",
+      "description": null,
+      "url": "https://github.com/Dingo-Shenanigans/ReSkate",
+      "clone_url": "https://github.com/Dingo-Shenanigans/ReSkate.git",
+      "ssh_url": "git@github.com:Dingo-Shenanigans/ReSkate.git",
+      "homepage": null,
+      "created_at": "2026-10-02T15:15:28Z",
+      "updated_at": "2026-10-26T04:28:32Z",
+      "pushed_at": "2026-10-25T19:54:27Z"
+    },
+    "stats": {
+      "stars": 1410,
+      "forks": 234,
+      "watchers": 1410,
+      "open_issues": 142,
+      "size": 95768
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 14468191,
+        "CMake": 115278,
+        "HTML": 49474,
+        "Assembly": 29615,
+        "HLSL": 19955,
+        "Rust": 18731,
+        "Python": 12144,
+        "Shell": 8180,
+        "Lua": 3430,
+        "C": 1723
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# ReSkate\n\nplay it offline, host your own lobbies and dedicated servers, and mod it.\nthe launcher, the runtime that loads into the game, and the dedicated server.\n\n> ReSkate is a fan project. It is not affiliated with or endorsed by Electronic Arts or Full Circle.\n> You need your own copy of skate. on Steam.\n\n## Features\n\n- **Offline play.** No EA servers needed. Your skater, outfits, unlocks and progress are saved on your PC,\n  and the game runs even with Steam closed.\n- **Multiplayer.**\n  - Host a Steam lobby for up to 32 players: public, or joined with a code, with an optional password.\n  - Join dedicated servers from the in-game server browser.\n  - Proximity voice chat, and text chat with emotes and an optional bad-word filter.\n  - Parties in lobbies and on dedicated servers: invite, join, leave, promote.\n  - Throwdowns with other players (Jam, Spot Battle and S.K.A.T.E.), and co-op challenges. Plugins add\n    throwdown modes of their own to the Throwdowns page ([contrib/throwdown-kit.md](contrib/throwdown-kit.md)).\n- **In-game menu and console.**\n  - Map and fast travel.\n  - World: time of day, population, district levels, rotating parks.\n  - The **Park Editor**: place, move and save objects with freecam, snapping and undo. Save a selection as a\n    set and place it again anywhere, on any map.\n  - Skater options: first person, movement, boosts, noclip.\n  - Hall of Meat, grind exit triggers, Board Break, Road Rash and the FPV drone are plugin mods now,\n    installed like any other mod. Board Break and Road Rash ship inside their asset mods.\n  - Progression, controls, graphics and multiplayer settings.\n- **Mods.**\n  - Drop a mod in `Mods/` and it is merged into the game at launch. Mods can add custom maps, loading\n    screens, cosmetics and scripts.\n  - Browse and install mods from the [Thunderstore community](https://thunderstore.io/c/reskate/) in the\n    launcher. A mod that needs others (a mod pack) brings them with it.\n  - Save sets of mods as profiles, switch between them, and share one as a code or a file.\n  - Most mod changes apply in game without a restart.\n- **Launcher.**\n  - Checks that you have the supported game build, and can download exactly that build with your Steam\n    account.\n  - Keeps ReSkate itself up to date.\n\n## Getting started\n\n1. Download the latest `ReSkate-<version>.zip` from\n   [Releases](https://github.com/Dingo-Shenanigans/ReSkate/releases).\n2. Extract `ReSkateLauncher.exe` and `ReSkate.dll` into **a new, empty folder of their own**, for\n   example `C:\\Games\\ReSkate`. Do **not** put them in Steam's skate. folder: ReSkate keeps its own\n   copy of the game there, so Steam updating skate. cannot break it.\n3. Run `ReSkateLauncher.exe`.\n   - It checks for ReSkate updates, then installs the supported build of the game into that folder\n     (about 14 GB of free space).\n   - Sign in to Steam when asked, with the account that owns skate. You can scan a QR code with the\n     Steam app, or use your username and password with Steam Guard.\n   - On later runs it checks the game files and downloads only what is missing.\n4. Press **PLAY**.\n\nReSkate supports one game build at a time (Steam build `25414733`).\n\n### Linux (Proton)\n\n1. Install skate. with Steam, and put `ReSkateLauncher.exe` and `ReSkate.dll` in a new, empty folder\n   of their own, for example `~/Games/ReSkate` (not Steam's skate. folder: the launcher refuses to\n   run from there).\n2. In Steam → skate. → Properties → Launch Options, enter this with your own folder's path:\n\n   ```\n   bash -c 'exec \"${@/*EAAntiCheat.GameServiceLauncher.exe//home/you/Games/ReSkate/ReSkateLauncher.exe}\"' -- %command%\n   ```\n\n3. Press **Play** on skate. in your Steam library. The launcher installs its own copy of the game\n   into that folder the first time.\n\nSteam starts EA's anti-cheat launcher (`EAAntiCheat.GameServiceLauncher.exe`), not `Skate.exe`, and the\nanti-cheat refuses to run under Proton (*E111000B … Wine, Proton, and Steam Deck are not supported*).\nThe launch option swaps it for ReSkate's launcher, which starts the game itself. Launching from the game's\nown Steam entry, rather than adding the launcher as a non-Steam game, keeps skate.'s app ID and its\nProton prefix.\n\nThe launcher in a folder of its own is new and has not been tested on Proton yet. With the launcher\nbeside `Skate.exe`, as it was set up before, ReSkate 1.1.3 was tested with Proton Experimental on\nCachyOS: the launcher, the server browser, joining a public server and hosting a lobby. Steam Deck should work the same way but is untested. If you load a\ncustom map and then join a server on another map, the screen can stay black\n([#31](https://github.com/Dingo-Shenanigans/ReSkate/issues/31)): load the server's map first.\n\n### macOS (NotProton / CrossOver)\n\nSteam for Mac with a Wine-based compatibility tool works much the same way; see\n[macOS](https://docs.reskate.dev/macos) in the docs for its launch option.\n\n### Multiplayer map downloads\n\nMissing multiplayer custom maps can be d",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:02.865845"
+  },
+  {
+    "basic_info": {
+      "name": "overdrive",
+      "full_name": "MyLuxy/overdrive",
+      "owner": "MyLuxy",
+      "description": "Overdrive, a PS5 homebrew game store with 1,800+ games.",
+      "url": "https://github.com/MyLuxy/overdrive",
+      "clone_url": "https://github.com/MyLuxy/overdrive.git",
+      "ssh_url": "git@github.com:MyLuxy/overdrive.git",
+      "homepage": "",
+      "created_at": "2026-10-14T00:07:08Z",
+      "updated_at": "2026-10-26T05:32:49Z",
+      "pushed_at": "2026-10-26T00:55:29Z"
+    },
+    "stats": {
+      "stars": 1341,
+      "forks": 292,
+      "watchers": 1341,
+      "open_issues": 9,
+      "size": 21689
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1864833,
+        "JavaScript": 1411110,
+        "Python": 377976,
+        "C": 77339,
+        "Shell": 19648,
+        "CMake": 12164,
+        "Go": 4068
+      },
+      "license": null,
+      "topics": [
+        "exfat",
+        "game-store",
+        "homebrew",
+        "jailbreak",
+        "ps5",
+        "ps5-homebrew",
+        "reverse-engineering",
+        "shadowmountplus"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\".github/readme/logo-dark.svg\">\n    <img src=\".github/readme/logo-light.svg\" alt=\"Overdrive\" width=\"440\">\n  </picture>\n</p>\n\n<p align=\"center\">\n  <b>English</b> ·\n  <a href=\"README.ru.md\">Русский</a>\n</p>\n\n<p align=\"center\">\n  <b>Your PS5 game store.</b><br>\n  Back from the dead, rebuilt from its own binary, with every line of source in the open.\n</p>\n\n<p align=\"center\">\n  <a href=\"https://github.com/MyLuxy/overdrive/releases/latest\"><img src=\"https://img.shields.io/github/v/release/MyLuxy/overdrive?style=for-the-badge&label=release&labelColor=0b0b0d&color=2a2a2f\" alt=\"Latest release\" width=\"197\"></a>\n  <a href=\"https://github.com/MyLuxy/overdrive/releases\"><img src=\"https://img.shields.io/github/downloads/MyLuxy/overdrive/total?style=for-the-badge&label=downloads&labelColor=0b0b0d&color=2a2a2f\" alt=\"Downloads\" width=\"183\"></a>\n  <a href=\"https://github.com/sponsors/MyLuxy\"><img src=\"https://img.shields.io/badge/sponsor-%E2%9D%A4-db61a2?style=for-the-badge&logo=githubsponsors&logoColor=white&labelColor=0b0b0d\" alt=\"Sponsor MyLuxy on GitHub\" width=\"180\"></a>\n</p>\n\n<p align=\"center\">\n  <a href=\"#install-in-four-steps\">Install</a> ·\n  <a href=\"#features\">Features</a> ·\n  <a href=\"#updates\">Updates</a> ·\n  <a href=\"#troubleshooting\">Troubleshooting</a> ·\n  <a href=\"#build-it-yourself\">Build it yourself</a>\n</p>\n\n> [!NOTE]\n> The original Overdrive project has been shut down so I decompiled the last released build,\n> recovered the complete source and rebuilt it.\n\n<p align=\"center\">\n  <img src=\".github/readme/discover.jpg\" alt=\"Overdrive's Discover page: a featured game with its description, the picks beside it, and the You might like row\" width=\"100%\">\n</p>\n<p align=\"center\">\n  <img src=\".github/readme/browse.jpg\" alt=\"Browse library: 2,105 games with filters, sorting, scores and sizes\" width=\"49.5%\">\n  <img src=\".github/readme/downloads.jpg\" alt=\"Downloads page with the From a link, From a torrent and Debrid services cards, activity and storage for internal storage and a USB drive\" width=\"49.5%\">\n</p>\n\n## Debrid services\n\nTorBox, Real-Debrid and Premiumize fetch a link or a magnet for you: pick one under\n**Downloads → Debrid services**, paste the link, and the console downloads what the service\nprepares. Each uses your own account key, typed once and kept on the console.\n\n<p align=\"center\">\n  <img src=\".github/readme/debrid.webp\" alt=\"Debrid services dialog on the Downloads page: TorBox, Real-Debrid and Premiumize, each asking for its own key\" width=\"70%\">\n</p>\n\n## Features\n\n- **2,100+ games** to discover, with **Top rated**, a hand-picked row and a featured spotlight\n- **Homebrew**: native PS5 apps and games from the community catalog at [prosperostore.net](https://prosperostore.net/), always up to date, installed from each developer's GitHub release\n- **Browse the whole library** with filters, sorting, scores and download sizes at a glance\n- **Downloads straight to the console**, to internal storage or any USB drive, with live speed and storage stats\n- **Favorites**, **search** with an on-screen keyboard, and a **Files** page to see and clean up what's on your drives\n- **18 languages**: English, Deutsch, Español, Français, Italiano, Nederlands, Português (Brasil), Português (Portugal), Русский, Bahasa Indonesia, 日本語, 简体中文, 繁體中文, العربية, فارسی, اردو, हिन्दी, বাংলা\n- **Updates itself**: a new version installs from the console, no PC needed\n- Made for the controller: <kbd>L1</kbd> <kbd>R1</kbd> to switch sections, <kbd>✕</kbd> to select, <kbd>○</kbd> to go back\n\n## Install in four steps\n\n<p align=\"center\">\n  <img src=\".github/readme/install-steps.svg\" alt=\"1 Download Overdrive.exfat · 2 Copy it into a homebrew folder on a USB drive · 3 Plug it in: ShadowMount+ installs it · 4 Play\" width=\"100%\">\n</p>\n\n### Before you start\n\nYou need a **jailbroken PS5** running two payloads: **[ShadowMount+](https://github.com/drakmor/ShadowMountPlus)**,\nwhich installs `.exfat` images by itself, and **[kstuff](https://github.com/EchoStretch/kstuff-lite/releases)**.\nIf ShadowMount+ shows its notification when the console starts, you are ready. You also need a\n**USB drive** and a **PC**.\n\n<p align=\"center\">\n  <a href=\"https://github.com/MyLuxy/overdrive/releases/latest/download/Overdrive.exfat\"><img src=\"https://img.shields.io/badge/Download-Overdrive.exfat-f2f2f3?style=for-the-badge&labelColor=0b0b0d\" alt=\"Download Overdrive.exfat\" width=\"347\"></a>\n</p>\n\n<table>\n<tr>\n<td width=\"64\" align=\"center\" valign=\"top\"><img src=\".github/readme/step-1.svg\" alt=\"1\" width=\"40\"></td>\n<td>\n\n**Download `Overdrive.exfat`** with the button above, or from the\n[latest release](https://github.com/MyLuxy/overdrive/releases/latest). It is the only file you\nneed. Leave it as it is: don't unzip it and don't change the `.exfat` at the end of its name.\n\n</td>\n</tr>\n<tr>\n<td align=\"center\" valign=\"top\"><img src=\".github/readme/step-2.svg\" alt=\"2\" width=\"40\"></td>\n<td>\n\n**C",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:04.164737"
+  },
+  {
+    "basic_info": {
+      "name": "ps2-web-recomp",
+      "full_name": "snuri00/ps2-web-recomp",
+      "owner": "snuri00",
+      "description": "PS2 games in the browser: static recompilation to WebAssembly with a native runtime",
+      "url": "https://github.com/snuri00/ps2-web-recomp",
+      "clone_url": "https://github.com/snuri00/ps2-web-recomp.git",
+      "ssh_url": "git@github.com:snuri00/ps2-web-recomp.git",
+      "homepage": "",
+      "created_at": "2026-10-08T07:06:56Z",
+      "updated_at": "2026-10-26T04:36:48Z",
+      "pushed_at": "2026-10-24T14:12:39Z"
+    },
+    "stats": {
+      "stars": 1297,
+      "forks": 113,
+      "watchers": 1297,
+      "open_issues": 9,
+      "size": 12487
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 904251,
+        "Python": 36790,
+        "WGSL": 34973,
+        "HTML": 31543,
+        "Shell": 11309,
+        "CMake": 6141
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# PS2 Web Recomp\n\nPlayStation 2 games running in the browser through static recompilation. The game's Emotion Engine machine code is translated ahead of time into C++ and compiled to WebAssembly, so the main CPU is never interpreted; the rest of the console, its operating system and hardware, is emulated by a runtime that draws with WebGPU.\n\n<p align=\"center\">\n  <img src=\"docs/media/demo.webp\" alt=\"Gran Turismo 4 running in a browser\" width=\"720\">\n  <br>\n  <a href=\"docs/media/demo.mp4\">Watch the full recording (1:24)</a>\n</p>\n\nThis is the sibling of [psp-web-recomp](https://github.com/snuri00/psp-web-recomp) and follows the same method. The first title brought up this way is Gran Turismo 4, chosen because it is one of the most demanding games on the system: it leans on both vector units, on exact floating point behaviour for its replays and license tests, and on graphics tricks that read rendered images back as palettes. It plays from boot through the opening movie, the menus and races, with music and sound effects, and saves to a memory card kept in the browser. A race runs at full speed, 50 frames per second for this PAL release, in Chrome on a laptop's integrated GPU at twice the PS2's resolution, which is how the recording above was made.\n\nGod of War II followed through the same scripts. It needed no game-specific code, but it found two bugs that Gran Turismo 4 had never triggered, one in the recompiler and one in the vector unit timing, and a few missing pieces of the PS2's input/output processor. It now plays from the menus through its cutscenes into combat, and holds 60 frames per second in heavy combat at the PS2's resolution in Chrome. At twice the resolution it runs at 48 to 60, limited by the laptop's integrated GPU.\n\nNo game data is included here. You bring a disc image of a game you own, and the scripts in this repository turn it into a web page on your machine.\n\n## How it works\n\n**Recompilation.** `eerecomp` reads the game's executable, follows its control flow to find the functions and emits C++ for them in units of 16 KiB of guest code. The output keeps the R5900's quirks: 128-bit registers and the multimedia instructions that work on them, branch delay slots, the PS2's floating point unit, which has no infinities or denormals and rounds differently from IEEE, and vector unit 0 used as a coprocessor. Jumps between units become tail calls, and a thread switch unwinds the host stack and resumes at the guest address, so the generated code never needs a stack per guest thread.\n\n**A small PS2 kernel.** The EE side of the operating system is answered by high-level emulation: threads, semaphores, interrupt handlers for the DMA controller and the vertical blank, alarms, and the SIF channel that connects the main CPU to the I/O processor. The I/O processor runs the game's own IRX modules, the sound driver, the disc streaming code and the controller and memory card drivers that ship on the disc, on an interpreter of its R3000 CPU, while the IOP kernel and the libraries those modules call are reimplemented in C++. The disc is read over HTTP Range requests, so only the executable is downloaded up front.\n\n**Vector units.** Most of a PS2 game's 3D work happens in microprograms the game uploads to vector unit 1. They run with the pipeline delays of the MAC, status and clip flags modelled, because games schedule their code around them, and with the PS2's float rules for special values: no infinities or NaNs, denormals flushed to zero and overflow clamped to the largest float. The arithmetic itself is the host's, so a result can differ from the console's in its last bit; the console truncates where the host rounds, and its multiplier is not exact. Microprograms seen during a test run are compiled ahead of time into SIMD C++; any the page meets for the first time are translated into a WebAssembly module on the spot, which takes a few milliseconds per program.\n\n**Graphics.** The Graphics Synthesizer's 4 MB of video memory lives on the GPU, in its native swizzled layouts, and drawing is done by WebGPU compute shaders: triangles are binned into tiles and rasterized with the GS's own rules for texturing, palettes, alpha blending, depth and destination alpha tests. Because everything stays in GS memory, effects that render into a texture or reinterpret a framebuffer as a palette work the way they do on the console. The internal resolution can be one, two or three times the native one. A software rasterizer of the same GS remains as the reference the GPU output is compared against.\n\n**Threads.** The emulation runs in a worker, vector unit 1 has a worker of its own the way it runs in parallel on the console, and the GS commands go through a ring buffer to the page thread, which owns the WebGPU device.\n\n**Sound and movies.** The SPU2 is reimplemented with its 48 voices of ADPCM, ADSR envelopes and the streaming DMA games use for music, and its output goes to an AudioWorklet through shared memory. Movies are decoded b",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:05.461010"
+  },
+  {
+    "basic_info": {
+      "name": "SkyCraft",
+      "full_name": "chasmlol/SkyCraft",
+      "owner": "chasmlol",
+      "description": "Play Skyrim as a Minecraft player: Minecraft physics, inventory, blocks and combat inside Skyrim's world (SKSE plugin + Fabric mod).",
+      "url": "https://github.com/chasmlol/SkyCraft",
+      "clone_url": "https://github.com/chasmlol/SkyCraft.git",
+      "ssh_url": "git@github.com:chasmlol/SkyCraft.git",
+      "homepage": null,
+      "created_at": "2026-09-30T16:40:20Z",
+      "updated_at": "2026-10-26T02:23:03Z",
+      "pushed_at": "2026-10-01T01:37:21Z"
+    },
+    "stats": {
+      "stars": 1264,
+      "forks": 98,
+      "watchers": 1264,
+      "open_issues": 44,
+      "size": 771
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 488662,
+        "Java": 357986,
+        "Python": 33593,
+        "PowerShell": 8106,
+        "CMake": 2231,
+        "Shell": 1191,
+        "Batchfile": 686
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# SkyCraft\n\n![SkyCraft: a Minecraft player walking through Riverwood with the Minecraft HUD](docs/screenshot.jpg)\n\nPlay Skyrim as a Minecraft player. You move with Minecraft's physics, carry Minecraft's inventory\nand HUD, and place and break blocks in Skyrim's world. You fight Skyrim's NPCs with Minecraft\nweapons, and they fight back.\n\nNeither game is rewritten. Minecraft runs its own game logic, and Skyrim runs its world, NPCs,\nquests and saves. A Skyrim SKSE plugin and a Minecraft Fabric mod talk to each other through\nshared memory. Minecraft runs hidden in the background, and Skyrim draws everything.\n\n> **Status: early and experimental.** Expect rough edges, and back up your saves.\n> This is a fan project. It isn't affiliated with Mojang, Microsoft, Bethesda or ZeniMax, and you\n> need to own both games.\n\n## What works\n\n- **Movement:** Minecraft movement on Skyrim's terrain and buildings. That covers walking,\n  sprinting, jumping, crouching, swimming and falling, and Skyrim's collision is fed into\n  Minecraft's own collision.\n- **Blocks:** place and break blocks anywhere in Skyrim. They're drawn inside Skyrim's frame\n  with its sun, shadows, fog and weather. Minecraft lights (torches, lava, glowstone and so on)\n  light up Skyrim.\n- **Digging into Skyrim:** mine Skyrim's ground, rocks, roads and objects like Minecraft blocks.\n  What you dig out drops as the block it's made of (dirt under grass, then stone with ores, then\n  bedrock), and the hole is real for you, NPCs and items. TNT, creepers and other explosions blow\n  craters into Skyrim. Interiors and caves are solid stone behind their walls. What you dig is\n  saved in your Minecraft world. **Skyrim destruction: On/Off** in the top left of the pause menu\n  (O) turns it off (holes already dug stay).\n- **Block entities:** chests, beds, banners, heads, shulker boxes and similar blocks are drawn,\n  and pistons move blocks.\n- **Water and lava:** they flow over Skyrim's terrain, and Skyrim water swims like Minecraft\n  water.\n- **Combat:** hit Skyrim NPCs with any Minecraft weapon, including bows, tridents and TNT.\n  Damage is scaled to NPC level, and NPCs fight back.\n  - NPCs collide with blocks and path around them.\n  - Lava and fire hurt NPCs, and NPCs press pressure plates.\n- **Skyrim progression:**\n  - Your Skyrim skills level up from Minecraft play. Swords, maces and tools train\n    One-Handed; axes and spears train Two-Handed; bows and anything thrown train Archery.\n  - Shields train Block, and hits taken train Light or Heavy Armor depending on what you wear.\n  - Crafting gear trains Smithing, and crouching is Skyrim sneak, which trains Sneak.\n- **Camera and death:** Minecraft's F5 camera modes show your skin and armor in Skyrim. Dying\n  gives Skyrim's death camera with your Minecraft body ragdolling.\n- **Skyrim's own animations:** chairs, crafting stations, beds, pull levers, horses and scripted\n  scenes hand control to Skyrim until they finish.\n- **Multiplayer (Minecraft side only):** friends who also run SkyCraft can join your Minecraft\n  world over the internet (see [Playing with friends](#playing-with-friends)).\n\n## Requirements\n\n**Skyrim**\n\n| | |\n|---|---|\n| Skyrim Special Edition, **Anniversary Edition runtime** (1.6.x / 1.7.x) | Developed and tested on **1.7.104**. Not SE 1.5.97, not VR. |\n| [SKSE64](https://skse.silverlock.org/) | For your game version |\n| [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444) | The \"All in one (Anniversary Edition)\" file |\n\n> **Heavily recommended: [Alternate Start - Live Another Life](https://www.nexusmods.com/skyrimspecialedition/mods/272).**\n> Skyrim's opening (the cart ride and Helgen) is heavily scripted and may not work with SkyCraft,\n> so you can get stuck. Alternate Start skips it and lets you choose where your new character\n> begins. Otherwise, play from a save made after Helgen.\n\n**Minecraft**\n\nYou only need **a Microsoft account that owns Minecraft: Java Edition**. SkyCraft comes with\neverything else: a portable [Prism Launcher](https://prismlauncher.org/) set up with Minecraft 26.3,\n[Fabric](https://fabricmc.net/), [Fabric API](https://modrinth.com/mod/fabric-api) and the SkyCraft\nMinecraft mod. Prism downloads Minecraft and Java itself.\n\nMinecraft runs hidden next to Skyrim. Budget about 3 GB of extra RAM, about 1.5 GB of disk for\nMinecraft's own files, and a GPU that runs Minecraft 26.3.\n\n## Installing\n\n1. **Install `SkyCraft-<version>.zip`** with Mod Organizer 2 or Vortex, like any SKSE plugin.\n2. **Start Skyrim through SKSE.** The first time, SkyCraft unpacks its Minecraft to\n   `%LOCALAPPDATA%\\SkyCraft` and a small **Prism Launcher** window asks you to sign in with your\n   Microsoft account. Alt-Tab to it, sign in, then go back to Skyrim. Prism downloads Minecraft,\n   Fabric and Java (a few minutes, first time only), and Skyrim's corner messages tell you when\n   Minecraft is ready.\n3. **After that it's automatic.** Minecraft starts with Skyrim with no wind",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:06.759641"
+  },
+  {
+    "basic_info": {
+      "name": "ZeldaWWHDRecomp",
+      "full_name": "ZeldaWWHDRecomp/ZeldaWWHDRecomp",
+      "owner": "ZeldaWWHDRecomp",
+      "description": "Zelda Wind Waker HD Recomp",
+      "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp",
+      "clone_url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp.git",
+      "ssh_url": "git@github.com:ZeldaWWHDRecomp/ZeldaWWHDRecomp.git",
+      "homepage": null,
+      "created_at": "2026-10-01T12:28:45Z",
+      "updated_at": "2026-10-26T05:29:45Z",
+      "pushed_at": "2026-10-26T04:50:59Z"
+    },
+    "stats": {
+      "stars": 1076,
+      "forks": 83,
+      "watchers": 1076,
+      "open_issues": 37,
+      "size": 20580
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 13595025,
+        "C": 6190539,
+        "Python": 2668842,
+        "Java": 688451,
+        "Objective-C++": 587307,
+        "CMake": 316354,
+        "Shell": 18023,
+        "Objective-C": 13954,
+        "Batchfile": 376
+      },
+      "license": "Mozilla Public License 2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# The Legend of Zelda: The Wind Waker HD — native port (macOS, Linux, Windows, Android)\n\nA static recompilation of the Wii U version (USA or European) that runs natively on **macOS** (Apple Silicon),\n**Linux**, **Windows** and **Android** (arm64; the setup app builds the game on the phone, see\n[Android](#android-build-it-yourself)). The\ngame's PowerPC code is translated to C ahead of time, the Cafe OS libraries the game uses are\nreimplemented natively, and GX2 graphics are implemented directly on Metal (macOS) or Vulkan (all\nplatforms), with no Cemu runtime and no GPU command emulation.\n\nHow it works and how it differs from running the game in Cemu: [docs/how-it-works.md](docs/how-it-works.md).\n\nThe project has three parts:\n- **The port** (this repository): the recompiled game on macOS, Linux, Windows and Android, described below.\n- **The decompilation** ([ZeldaWWHDDecomp/wwhd](https://github.com/ZeldaWWHDDecomp/wwhd)): readable C++ source\n  for the game's code, each function tested against the original. The port can already run it in an\n  experimental **decomp build**, the path towards a fully native source port; see\n  [decomp build](#optional-decomp-build-experimental).\n- **Mods** ([ZeldaWWHDRecomp/ZeldaWWHDMods](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods)): built-in options\n  and a catalogue of community mods, installed from inside the game; see [Mods](#mods).\n\n## What's new\n\n**v0.4.0: the world editor and a big Android update.**\n- **World editor** (a preview for mod makers): start the game with `--editor` to place the game's villagers,\n  enemies, chests, switches, doors and your own models while the game runs, and to build quests, letters, scenes,\n  islands and levels of your own. It also works with AI assistants through MCP (off by default).\n- **Android:** two-screen handhelds, a heat guard for handhelds with a fan, even frame pacing at 60 fps, code mods\n  and dynamic resolution.\n- **Faster on every platform**, a 40 fps mode, toon clouds, more comfort options and many fixes.\n\nThe changes in each update are in [CHANGELOG.md](CHANGELOG.md) and in the release notes on the\n[Releases](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/releases) page.\n\n## Legal notice\n\nThis is an unofficial fan project. It is not affiliated with, endorsed or sponsored by Nintendo.\n\"The Legend of Zelda\", \"The Wind Waker\", \"Wii U\" and related names are trademarks of their\nrespective owners and are used here only to describe what this software is compatible with.\n\nThis repository contains **no game code, no game assets and no keys**: no executable, no\nrecompiled or disassembled game code, no textures, models, audio, shaders, screenshots or other\nmaterial from the game, and no console encryption keys. It contains only the tools and the\nruntime written for this project (plus the third-party code listed under Credits).\n\nTo use it you need your own, legally obtained copy of the game, dumped from your own Wii U disc\nand console. Everything game-specific (the extracted files, the recompiled code in `build/gen/`,\nshader caches) is generated locally on your machine from your dump, and must not be\nredistributed. The `.gitignore` keeps all of it out of the repository.\n\n## Install (releases)\n\nReleases are portable: unzip, start **Wind Waker HD**, choose your dump. Releases contain only this\nproject's runtime, tools and setup: **no game files, no game code and no keys**. The game's code can\nonly exist once it is built from your own dump, so the first start prepares the game once, on your\ncomputer (about two minutes); every later start launches the game directly.\n\n1. Download the zip for your system from the\n   [Releases](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/releases) page and unzip it anywhere\n   (a games folder, an external drive):\n   - **macOS**: Apple Silicon, macOS 14 or newer (Metal renderer; Vulkan through MoltenVK, included, can\n     be picked in Graphics > Renderer)\n   - **Windows**: x86-64 (`windows-x86_64`, Windows 10 version 1903 or newer, or Windows 11) or arm64 (`windows-arm64`, Windows 11 on\n     ARM, e.g. Snapdragon X), a GPU with Vulkan 1.3 drivers (or Vulkan 1.1 / 1.2 drivers with\n     `VK_KHR_dynamic_rendering`). The arm64 zip runs natively, and only on ARM64 (its setup says so\n     on an x86-64 PC). On ARM, 60 fps keeps the game's speed by default (Graphics > \"Keep game\n     speed\"), as on Android: where two frames per step do not fit, in-between frames are skipped\n     instead of slowing the whole game down\n   - **Linux**: x86-64 (`linux-x86_64`) or arm64 (`linux-aarch64`, e.g. Raspberry Pi 5, Asahi Linux\n     on Apple Silicon, other ARM boards and laptops), glibc 2.35 or newer (Ubuntu 22.04+, Debian 12+,\n     Fedora 36+, Arch, SteamOS 3, Raspberry Pi OS 12), a GPU with Vulkan 1.3 drivers (or 1.1 / 1.2 with\n     `VK_KHR_dynamic_rendering`). Take the zip\n     that matches `uname -m` (`x86_64` or `aarch64`); setup says so if it doesn't. Or take the\n     single-file **AppImage** (same two architectures)",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:08.054584"
+  },
+  {
+    "basic_info": {
+      "name": "LanternEngine",
+      "full_name": "Awakenchan/LanternEngine",
+      "owner": "Awakenchan",
+      "description": "Lantern Engine: run your own copy of Bloodborne on Windows. A launcher and engine where the game's code runs natively; bring your own game dump.",
+      "url": "https://github.com/Awakenchan/LanternEngine",
+      "clone_url": "https://github.com/Awakenchan/LanternEngine.git",
+      "ssh_url": "git@github.com:Awakenchan/LanternEngine.git",
+      "homepage": "",
+      "created_at": "2026-10-11T19:52:46Z",
+      "updated_at": "2026-10-26T05:25:57Z",
+      "pushed_at": "2026-10-25T14:17:29Z"
+    },
+    "stats": {
+      "stars": 1067,
+      "forks": 47,
+      "watchers": 1067,
+      "open_issues": 17,
+      "size": 16099
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 6851981,
+        "C#": 1383444,
+        "C": 852832,
+        "Python": 578782,
+        "HTML": 156415,
+        "Shell": 91447,
+        "CMake": 35492,
+        "GLSL": 12112,
+        "Nix": 9301,
+        "Dockerfile": 4923,
+        "Perl": 4885,
+        "PowerShell": 4437,
+        "Batchfile": 2090
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "bloodborne",
+        "bloodborne-launcher",
+        "bloodborne-pc",
+        "bloodborne-windows",
+        "trendshift"
+      ]
+    },
+    "content": {
+      "readme": "# Lantern Engine\n<a href=\"https://trendshift.io/repositories/302591?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-302591\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/302591/daily?language=C%23\" alt=\"Awakenchan%2FBloodBorneButPc | Trendshift\" width=\"250\" height=\"55\"/></a>\n\nLantern Engine runs your own copy of Bloodborne on Windows and Linux: a launcher and my engine, built on bbport and shadPS4 and reworked by me for performance. The game's own code runs natively on your CPU; its graphics are translated to Vulkan.\n\n**No game files are included.** You need your own legal copy of Bloodborne (CUSA03173) with update 1.09, dumped from your own PS4.\n\n**Help:** [Help & FAQ](https://lantern-engine.netlify.app): setup, a graphics settings guide, fixes for common problems and the beta guide. Bug reports go to the `#issues` forum on the [Discord](https://discord.gg/d3Uv3Cfr5x).\n\n## Install\n\n1. Download `LanternEngine-<version>-win64.zip` from [Releases](https://github.com/Awakenchan/LanternEngine/releases) and extract it anywhere.\n2. Run `Lantern Engine.exe` and pick your game folder (the one with `eboot.bin`).\n3. Press **Play**. The launcher updates itself. `Bloodborne.exe` starts the game directly (add it to Steam as a non-Steam game).\n\n### Linux (beta)\n\n1. Download `LanternEngine-<version>-linux-x64.tar.gz` from [Releases](https://github.com/Awakenchan/LanternEngine/releases) and unpack it (`tar xzf LanternEngine-*-linux-x64.tar.gz`).\n2. Run `Lantern Engine` in the unpacked folder, pick your game folder and press **Play**. From a terminal: `./lantern.sh /path/to/CUSA03173`.\n3. It needs a Vulkan driver (Mesa or NVIDIA), Python 3 and glibc 2.38 or newer (Ubuntu 24.04, Fedora 39, Arch, SteamOS 3.6, Bazzite). From 0.9.37 beta 7 the launcher updates itself on Linux too, and DLSS Super Resolution works on RTX cards with NVIDIA's driver (DLSS Frame Generation is Windows only).\n\n## Credits\n\n| | |\n|---|---|\n| **Lantern Engine** | by **Awaken**: the launcher, the built-in game patches, and the engine reworked from its starting point (native shader compiler, direct draw calls, draw pipeline and memory performance work, PC menus and controls, upscaler integration, cheats, occlusion culling, trophies, fixes) |\n| Engine starting point | [DarkIzuku/bloodborne_pc](https://github.com/DarkIzuku/bloodborne_pc) (built on [bbport](https://github.com/deadinside28/bloodborne_pc) and [shadPS4](https://github.com/shadps4-emu/shadPS4)) |\n| Renderer crash fixes | adapted from [AwesomeObserver](https://github.com/AwesomeObserver/bloodborne_pc) and [deadinside28](https://github.com/deadinside28/bloodborne_pc) |\n| Online backend for The Hunter's Dream | [droogie/bbhost](https://github.com/droogie/bbhost) |\n| Online servers | [The Hunter's Dream](https://thehuntersdream.com) |\n| FSR 3.1 and FSR 4 on Vulkan | [FireBurn/FSR-Vulkan](https://github.com/FireBurn/FSR-Vulkan) and the AMD FidelityFX SDK |\n| FSR 4.1.1 | [fsr4vk](https://github.com/dvj5411/fsr4vk), with the AMD driver fix from [0xCydral](https://github.com/0xCydral/bloodborne_pc) |\n| DLSS | NVIDIA DLSS SDK |\n| Sound | [LibAtrac9](https://github.com/Thealexbarney/LibAtrac9) |\n| In-game menu | [Dear ImGui](https://github.com/ocornut/imgui) |\n| Controller mappings | [SDL_GameControllerDB](https://github.com/mdqinc/SDL_GameControllerDB) |\n| UI library | [WPF-UI](https://github.com/lepoco/wpfui) |\n\n## License\n\nLantern Engine's own code, the launcher and the built-in game patches are GPL-3.0-or-later with additional terms (see [LICENSE](LICENSE) and [NOTICE](NOTICE)): anything that uses or ships them must keep the credit \"Lantern Engine by Awaken\", changed versions must say they are changed and must not pass as an official Lantern Engine release, and the name \"Lantern Engine\" is not licensed for other projects. Parts by others keep their own licenses, listed in the engine's `licenses/` folder.\n\nSource: the engine's full source is in [`engine/`](engine) (0.9.37 beta 7 on), the launchers' in [`launcher/windows/`](launcher/windows), and the Help & FAQ page in [`faq/`](faq).\n",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:09.371094"
+  },
+  {
+    "basic_info": {
+      "name": "iss_pc",
+      "full_name": "HayatoG/iss_pc",
+      "owner": "HayatoG",
+      "description": "Native PC port (Linux/Windows) of inFAMOUS Second Son (PS4, CUSA00223) — in development, playable; runs your own game dump; no game or firmware files included. Motion sensor emulation. | Port nativo para PC de inFAMOUS Second Son (em desenvolvimento) — usa o seu próprio dump.",
+      "url": "https://github.com/HayatoG/iss_pc",
+      "clone_url": "https://github.com/HayatoG/iss_pc.git",
+      "ssh_url": "git@github.com:HayatoG/iss_pc.git",
+      "homepage": "https://www.youtube.com/@hayatog-dev",
+      "created_at": "2026-10-13T21:48:17Z",
+      "updated_at": "2026-10-26T05:27:38Z",
+      "pushed_at": "2026-10-26T04:34:36Z"
+    },
+    "stats": {
+      "stars": 907,
+      "forks": 63,
+      "watchers": 907,
+      "open_issues": 341,
+      "size": 17525
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 12315882,
+        "C": 1654864,
+        "Python": 1383481,
+        "QML": 129611,
+        "Shell": 75986,
+        "CMake": 59047,
+        "GLSL": 7064,
+        "Perl": 4899,
+        "PowerShell": 1754,
+        "Nix": 487
+      },
+      "license": null,
+      "topics": [
+        "game-preservation",
+        "homebrew",
+        "infamous-second-son",
+        "linux",
+        "native-port",
+        "pc-port",
+        "playstation-4",
+        "ps4",
+        "shadps4",
+        "sucker-punch-productions",
+        "vulkan",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\"><img src=\"port/packaging/icon/infamous-icon-1024.png\" width=\"160\" alt=\"\"></p>\n\n<h1 align=\"center\">inFAMOUS Second Son — native PC port</h1>\n\n<p align=\"center\"><a href=\"https://buymeacoffee.com/hayatog\"><img src=\"https://img.shields.io/badge/Buy_me_a_coffee-Support_the_project-FFDD00?logo=buymeacoffee&amp;logoColor=000000\" alt=\"Buy me a coffee\"></a></p>\n\n<p align=\"center\">\n  <a href=\"#portugues\"><b>Português abaixo</b></a> ·\n  <a href=\"https://github.com/HayatoG/iss_pc/releases/latest\">Download</a> ·\n  <a href=\"https://www.youtube.com/@hayatog-dev\">YouTube</a> ·\n  <a href=\"https://discord.gg/UMkdMYZh9g\">Discord</a>\n</p>\n\n<p align=\"center\"><a href=\"https://github.com/sponsors/HayatoG\"><img src=\"https://img.shields.io/badge/Sponsor-HayatoG-ea4aaa?logo=githubsponsors&logoColor=white\" alt=\"Sponsor HayatoG on GitHub\"></a></p>\n\n<p align=\"center\"><a href=\"https://github.com/HayatoG/iss_pc/actions/workflows/build.yml\"><img src=\"https://github.com/HayatoG/iss_pc/actions/workflows/build.yml/badge.svg\" alt=\"Build\"></a></p>\n\n<p align=\"center\">\n  <a href=\"https://trendshift.io/repositories/307125?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-307125\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/307125/daily?language=C%2B%2B\" alt=\"HayatoG/iss_pc | Trendshift (daily)\" width=\"250\" height=\"55\"></a>\n  <a href=\"https://trendshift.io/repositories/307125?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-307125\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://trendshift.io/api/badge/trendshift/repositories/307125/weekly?language=C%2B%2B\" alt=\"HayatoG/iss_pc | Trendshift (weekly)\" width=\"250\" height=\"55\"></a>\n</p>\n\n<p align=\"center\"><a href=\"https://youtu.be/F5sD_HCGCWo\"><img src=\"docs/screenshots/video-tutorial.jpg\" width=\"640\" alt=\"Como portar jogos de PS4 — vídeo no YouTube\"></a></p>\n\n<p align=\"center\">▶️ <a href=\"https://youtu.be/F5sD_HCGCWo\"><b>Tutorial video:</b> how to port PS4 games to PC (in Portuguese)</a></p>\n\n> **Playable, in development.** The game boots, reaches gameplay and gets through the first chapters, but performance is still unstable (20–30 FPS typical on an RTX 2060) and there are known graphics glitches. See the [Status](#status).\n\n**inFAMOUS Second Son** (PS4, CUSA00223, base game 1.00 + update 1.07) running on PC without a CPU emulator: the game's original code runs natively on the processor, the PS4 system is reimplemented, and the GPU is translated to Vulkan. It uses the same core as the [The Last Guardian](https://github.com/HayatoG/tlg_pc) and [Gravity Rush 2](https://github.com/HayatoG/gr2_pc) ports.\n\n> **No game files come with this project.** To play, you need your own copy, dumped from your own PS4.\n\nBy **HayatoG** · YouTube [@hayatog-dev](https://www.youtube.com/@hayatog-dev) · Discord [discord.gg/UMkdMYZh9g](https://discord.gg/UMkdMYZh9g)\n\n| | |\n|---|---|\n| ![Delsin in front of the billboard, with the prompt to turn the controller sideways](docs/screenshots/01-grafite-sensor.jpg) | ![Delsin in the dock warehouse](docs/screenshots/02-galpao.jpg) |\n| ![On the dock fence](docs/screenshots/03-cerca.jpg) | ![Running along the beach at sunset](docs/screenshots/04-praia.jpg) |\n\n![Climbing the rocks above the village](docs/screenshots/05-escalada.jpg)\n\n<sub>Captured at native resolution (1920×1080, scaled down to 1280), straight from the GPU, on Linux with an RTX 2060.</sub>\n\n## Contribuidores / Contributors\n\n<p align=\"center\">\n  <a href=\"https://github.com/HayatoG\"><img src=\"https://avatars.githubusercontent.com/u/22659047?v=4\" width=\"72\" alt=\"Contributor profile picture\"></a>&nbsp;&nbsp;\n  <a href=\"https://github.com/intemerated\"><img src=\"https://avatars.githubusercontent.com/u/343755099?v=4\" width=\"72\" alt=\"Contributor profile picture\"></a>&nbsp;&nbsp;\n  <a href=\"https://github.com/Andretuta\"><img src=\"https://avatars.githubusercontent.com/u/219594641?v=4\" width=\"72\" alt=\"Contributor profile picture\"></a>&nbsp;&nbsp;\n  <a href=\"https://github.com/Playdbunny\"><img src=\"https://avatars.githubusercontent.com/u/70190491?v=4\" width=\"72\" alt=\"Contributor profile picture\"></a>&nbsp;&nbsp;\n  <a href=\"https://github.com/EdouardSence\"><img src=\"https://avatars.githubusercontent.com/u/103503538?v=4\" width=\"72\" alt=\"Contributor profile picture\"></a>&nbsp;&nbsp;\n  <a href=\"https://github.com/HayatoG/iss_pc/graphs/contributors\"><img src=\"https://github.com/identicons/guilherme-oliveira.png\" width=\"72\" alt=\"Contributor avatar\"></a>&nbsp;&nbsp;\n  <a href=\"https://github.com/batuhankiskac\"><img src=\"https://github.com/batuhankiskac.png\" width=\"72\" alt=\"Contributor profile picture\"></a>&nbsp;&nbsp;\n  <a href=\"https://github.com/sapoguruoficial-cmd\"><img src=\"https://github.com/sapoguruoficial-cmd.png\" width=\"72\" alt=\"Contributor profile picture\"></a>\n</p>\n\n## What's new\n\n- **New launcher (Qt Quick), now the default:** 10 screens, including **Mods / Cheats** a",
+      "default_branch": "developer"
+    },
+    "fetched_at": "2026-10-26T05:37:10.681331"
+  },
+  {
+    "basic_info": {
+      "name": "ProsperoEden",
+      "full_name": "Swordpdf/ProsperoEden",
+      "owner": "Swordpdf",
+      "description": "Experimental Eden port for PS5",
+      "url": "https://github.com/Swordpdf/ProsperoEden",
+      "clone_url": "https://github.com/Swordpdf/ProsperoEden.git",
+      "ssh_url": "git@github.com:Swordpdf/ProsperoEden.git",
+      "homepage": "",
+      "created_at": "2026-09-30T02:15:33Z",
+      "updated_at": "2026-10-26T03:09:39Z",
+      "pushed_at": "2026-10-18T03:56:25Z"
+    },
+    "stats": {
+      "stars": 900,
+      "forks": 118,
+      "watchers": 900,
+      "open_issues": 85,
+      "size": 43551
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 2938996,
+        "Python": 574548,
+        "C": 445584,
+        "CMake": 367857,
+        "GLSL": 74509,
+        "Shell": 67691,
+        "NASL": 11577,
+        "Nix": 7823,
+        "Makefile": 4867,
+        "Assembly": 2460,
+        "Linker Script": 1048,
+        "Dockerfile": 696
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"sce_sys/icon0.png\" width=\"128\" alt=\"ProsperoEden icon\">\n</p>\n\n<h1 align=\"center\">ProsperoEden</h1>\n\n<p align=\"center\">\n  <strong>An unofficial Eden emulator port for PlayStation 5 homebrew</strong>\n</p>\n\n**ProsperoEden is an unofficial PlayStation 5 port of [Eden](https://github.com/eden-emulator/mirror)** - an accurate, high-performance emulator. All credit for the emulator core belongs to the Eden project and its contributors. ProsperoEden is not affiliated with or endorsed by the Eden team or Sony.\n\nThis is an early alpha. Video, audio, controller input, and saves have been confirmed working. Compatibility and performance will vary between games. The current release is **v1.005.000**. What changed in it, and in every release before, is in the [changelog](docs/CHANGELOG.md#v1005000).\n\n## Source code\n\nThe complete ProsperoEden source is in this repository: the PS5 frontend and launcher in `headless/`, and the build and packaging tools in `tools/`. To build it yourself, run `make` on Linux (Ubuntu 26.04; WSL works). It fetches every dependency at its pinned revision and writes the release files to `dist/`; `make help` lists the other targets. See [docs/BUILDING.md](docs/BUILDING.md). A release ZIP built by GitHub Actions can be checked with `gh attestation verify <ZIP> -R blackbearreloaded/ProsperoEden` (GitHub CLI); this covers releases built from now on (after v1.000.090), not earlier ones.\n\nLocal-wireless multiplayer through Eden rooms is new in v1.000.110 and experimental. See the\n[setup guide and current limitations](docs/MULTIPLAYER.md) and the\n[validation status](docs/MULTIPLAYER_IMPLEMENTATION.md); Tailscale forwarding is not yet qualified.\n\n## Project foundation\n\n> [!IMPORTANT]\n> **Built on the [PS5 Native App Boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate), the same native foundation used by ProsperoLight.**\n> It provides the native PS5 application structure, runtime, packaging, and homebrew deployment foundation.\n\n> [!IMPORTANT]\n> **Graphics are powered by [ps5-opengl](https://github.com/blackbearreloaded/ps5-opengl).**\n> This OpenGL implementation provides the native PS5 rendering layer used by the Eden graphics backend.\n\n> [!IMPORTANT]\n> **Vulkan is powered by Mihawk's [PS5 Mesa](https://github.com/mihawk-99/PS5_Mesa) and [PS5 Vulkan](https://github.com/mihawk-99/PS5_Vulkan).**\n> Mihawk's Mesa/RADV driver for the PS5 runs ProsperoEden's Vulkan renderer. Many thanks to Mihawk for this work and for [all of the PS5 projects](https://github.com/mihawk-99) behind it.\n\n> [!IMPORTANT]\n> **Thanks to [ps5-vulkan](https://github.com/mpereiraesaa/ps5-vulkan) by mpereiraesaa**, an experimental Vulkan graphics and compute API for native PS5 homebrew.\n\n## Features\n\n- **Vulkan renderer (recommended)** - the default backend, running on Mihawk's PS5 Mesa (RADV) driver.\n- **OpenGL renderer** - still available through ps5-opengl. Switch between them in **Settings > Video**.\n- **Resolution and upscaling** - render at 0.5x to 4x of the game's resolution and choose the filter that scales it to your TV (Bilinear, AMD FSR, Bicubic or Nearest) in **Settings > Video**. Textures in a format the PS5's GPU cannot read (ASTC) are kept compressed (as BC3), which takes a quarter of the graphics memory they would need decoded. **ASTC textures** in **Settings > Video**, and in each game's settings, can be set to **Full quality** instead: those textures are then kept decoded, which uses four times the graphics memory for them and can make a game run out of memory above 1x.\n- **Output resolution** - the picture is made at 1080p, 1440p or 2160p: **Output resolution** in **Settings > Video**. The menu is drawn at that size too, and the PS5 scales it to your TV.\n- **A steadier frame rate in heavy scenes** - some games time their own frames and drop to a lower frame rate (30 to 20, or 60 to 30) as soon as a frame takes a little too long. ProsperoEden lets the game's clock give by up to 15% in those moments, so the game keeps its frame rate and runs a few percent slower instead of losing a third of its frames.\n- **120 Hz output** - on a display that shows 120 Hz, games can run on a 120 Hz output: **Refresh rate** in **Settings > Video**, or in one game's settings. A frame that is a little late is then shown 8 ms later instead of 17 ms, and patches for more than 60 FPS need it. The menu stays at 60 Hz.\n- **Frame generation** - between two of a game's own pictures ProsperoEden can show one made up from them, so a 30 FPS game looks like 60: **Frame generation** in **Settings > Video**, or in one game's settings. Two methods: **MihawkGen**, which comes with the app, or Lossless Scaling with your own copy of it; see [Frame generation](docs/SETTINGS.md#frame-generation).\n- **Post-processing (ReShade FX)** - a look drawn over the game's picture: **Post-processing** in **Settings > Video**, or in one game's settings, with the Vulkan renderer. Six presets come with the app (Anime, Ci",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:11.997833"
+  },
+  {
+    "basic_info": {
+      "name": "BLACK-XBERecomp",
+      "full_name": "TGP482/BLACK-XBERecomp",
+      "owner": "TGP482",
+      "description": "An unofficial original Xbox version PC port of BLACK (2006) via static recompilation.",
+      "url": "https://github.com/TGP482/BLACK-XBERecomp",
+      "clone_url": "https://github.com/TGP482/BLACK-XBERecomp.git",
+      "ssh_url": "git@github.com:TGP482/BLACK-XBERecomp.git",
+      "homepage": "https://discord.gg/8dAn4ZSsap",
+      "created_at": "2026-10-03T22:11:56Z",
+      "updated_at": "2026-10-26T04:43:27Z",
+      "pushed_at": "2026-10-25T17:58:10Z"
+    },
+    "stats": {
+      "stars": 755,
+      "forks": 41,
+      "watchers": 755,
+      "open_issues": 37,
+      "size": 485
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 1750233,
+        "Batchfile": 6349,
+        "CMake": 3337,
+        "Python": 1299
+      },
+      "license": null,
+      "topics": [
+        "original-xbox",
+        "recompilation"
+      ]
+    },
+    "content": {
+      "readme": "# Black - XBE Recomp\nAn unofficial native PC port of the original Xbox version of Black, with extended graphics options, keyboard and mouse support, and other enhancements.\n\nThis port was created using the [Xbox XBE Recomp](https://github.com/TGP482/XboxXBE-Recomp) tool.\n\n> [!NOTE]\n> This project does not include any game assets. You must provide the files from your own legally acquired copy of the game to install or build.\n\n## Installation\n- Put your game files in the `assets` folder. This can be an ISO, or the extracted data files, of the USA or Europe release.\n- Run `BLACK.exe`. The first start compiles the game's code for your PC, this only happens once.\n- Recomp settings can be adjusted in the in-game options menu while the game is running, or through the Settings overlay, which is opened with F10 by default.\n<img width=\"1920\" height=\"1080\" alt=\"{5852D359-24A0-48C8-9319-07C3A619E355}\" src=\"https://github.com/user-attachments/assets/e0156eb8-c1b5-49d9-ab93-3abb46bf5f47\" />\n\n\n## Features\n### Display\n- **Monitor** - Picks the monitor the game shows on, for Fullscreen and Borderless (and where Windowed opens). Lists every connected monitor by its Windows number and desktop resolution.\n- **Display Mode** - Switch between Fullscreen, Borderless and Windowed.\n- **Resolution** - Lists every mode your monitor reports and defaults to your desktop resolution, replacing the original 640x480 resolution.\n- **Render Resolution** - Renders the game at 20% to 200% of the output resolution, allowing supersampling or downscaling independent of the window size.\n- **Field of View** - Sets the horizontal field of view during gameplay from 45 to 140 degrees, with 70 being the game's default.\n- **Viewmodel Field of View** - Adjusts the first-person weapon and arms field of view.\n- **Max Frame Rate** - Caps the frame rate to your monitor's refresh rate or a custom value, or removes the cap entirely, replacing the Xbox's 30 FPS limiter.\n- **V-Sync** - Reduces screen tearing.\n- **HDR Output** - Enables HDR10 output on displays with Windows HDR turned on, detected automatically. Highlights extend up to the display's peak brightness.\n- **FPS Counter** - Displays the frame rate on screen.\n- **FMV Scale** - Choose between Fill, which zooms the 4:3 FMVs to fill widescreen displays, and 4:3, which keeps them at their original aspect ratio.\n- **Colour Blind Mode** - Adjusts the colours for Protanopia, Deuteranopia or Tritanopia.\n\n### Graphics\n- **Multisample Antialiasing (MSAA)** - Enables 2x, 4x or 8x MSAA to smooth jagged edges while preserving a sharp image.\n- **Subpixel Morphological Antialiasing (SMAA)** - Enables SMAA to smooth jagged edges across the whole frame with a softer image. SMAA also smooths alpha-tested edges such as fences and foliage, and can be combined with MSAA.\n- **Anisotropic Filtering** - Forces the selected anisotropic filtering level on all textures.\n- **Draw Distance** - Increases the level of detail and draw distances past the game's values: 2x, 4x, 8x, 12x or 16x.\n- **Ambient Occlusion** - Adds screen space ambient occlusion, creating soft contact shadows where surfaces meet. Choose between SSAO and GTAO.\n- **Reload Blur** - Toggles the blur effect while reloading.\n\n### Input\n- **Mouse and Keyboard** - Full keyboard and mouse support with raw input, adjustable horizontal and vertical sensitivity, inverted look and rebindable controls.\n- **Controller** - Controller with SDL3 support and additional features.\n- **Gyro Aiming** - Adds gyro aiming for controllers with motion sensors, such as the DualSense, DualShock 4 and Switch Pro Controller, with adjustable sensitivity. Works together with the right stick.\n\n### General\n- **Skip Intro** - Skips the intro logos.\n- **Pause On Focus Loss** - Pauses the game and its sound while the window is in the background or minimized.\n\n### Textures\n- **Texture Replacement** - Replaces the game's textures with the `.dds` or `.png` images in the `textures\\replacement` folder beside the exe.\n- **Texture Dumping** - Saves every texture the game uses into the `textures\\dumps` folder beside the exe.\n- **Dump Format** - Choose between PNG or DDS, which keeps the original compression and mipmaps.\n\n### Miscellaneous\n- **Custom Menu Cursor** - Place a `cursor.png` (or `cursor.dds`) beside the exe to replace the Windows arrow in the game's menus.\n\n## System Requirements\n### Minimum\n- **OS**\n  - Windows 10 64-bit\n- **CPU** with 2 cores and support for SSE4.2 and POPCNT\n  - Intel Nehalem (Intel Core 1st Generation)\n  - AMD Bulldozer (AMD FX series)\n- **GPU** with support for Direct3D 12\n  - NVIDIA GeForce GT 630 (Kepler)\n  - AMD Radeon HD 7750\n  - Intel HD Graphics 510 (Skylake)\n- **Memory**\n  - 4 GB\n- **Storage**\n  - 3 GB for the game files, the compiled game code and saves\n\n## Building\n### 1. Clone the Repository\nClone this repository using [Git](https://git-scm.com/).\n```\ngit clone https://github.com/TGP482/BLACK-XBERecomp.git\n```\n\n### 2. Add the Required Game Files\nPlace your extract",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:13.301207"
+  },
+  {
+    "basic_info": {
+      "name": "driveclub-recomp",
+      "full_name": "OverkillLabs3/driveclub-recomp",
+      "owner": "OverkillLabs3",
+      "description": "DriveClub (PS4, version 1.28) running natively on Windows",
+      "url": "https://github.com/OverkillLabs3/driveclub-recomp",
+      "clone_url": "https://github.com/OverkillLabs3/driveclub-recomp.git",
+      "ssh_url": "git@github.com:OverkillLabs3/driveclub-recomp.git",
+      "homepage": null,
+      "created_at": "2026-10-16T20:43:28Z",
+      "updated_at": "2026-10-26T02:25:33Z",
+      "pushed_at": "2026-10-26T04:22:02Z"
+    },
+    "stats": {
+      "stars": 717,
+      "forks": 36,
+      "watchers": 717,
+      "open_issues": 52,
+      "size": 45332
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 7261832,
+        "C": 841770,
+        "CMake": 24040,
+        "PowerShell": 19519,
+        "Assembly": 10317,
+        "GLSL": 8800,
+        "Shell": 7127,
+        "Batchfile": 182
+      },
+      "license": "GNU General Public License v2.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# DriveClub Recomp\n\n**DriveClub for PS4 (version 1.28), running natively on Windows.**\n\n<img width=\"1920\" height=\"1080\" alt=\"s009 20\" src=\"https://github.com/user-attachments/assets/4c0fe155-eae9-4c78-aa24-4a5b154e2b9f\" />\n\nThe source code is in this repository and the build is on the [Releases](../../releases) page.\n\n## Join our Discord community: https://discord.gg/62b8jceumR\n\n## Planned for the next major release\n- **DLSS/FSR Frame Generation, DLSS up to 4X, FSR up to 2X**\n- **DLSS Neural Rendering (Standard and Optimised model support)**\n- **Further performance and stability improvements**\n\n## New in 0.3.0\n- **DLSS and FSR upscaling.** Pick the Output size and a mode from Quality to Ultra Performance: the game renders smaller and DLSS (GeForce RTX) or FSR 3.1 (any card) brings the picture to the output, with a Sharpness slider. Shadows no longer flicker while upscaling, and it works in car selection and the pre-race flyovers.\n- **HDR10 output** on HDR displays, with a brightness control (Page Up / Page Down in the game).\n- **Steering wheels, rewritten.** Force feedback from a physics model of the front tyres or a software model, live tuning in the FFB Tuner, pedals on their own USB device, Fanatec style wheels that show up as two controllers, a handbrake on its own USB or on a button, a Driving tab with assists, and a field of view you can change while playing (F5 / F6).\n- **Faster.** A two-thread draw path is on by default, with far less processor work per draw. Cars load faster in car selection and menus no longer hitch on missing game files.\n\n## New in 0.2.0: DLSS and FSR anti-aliasing\nThe game's own anti-aliasing is replaced by a modern one, chosen in the launcher:\n- **NVIDIA DLAA** (GeForce RTX) for the sharpest, steadiest picture: thin lines, wires, fences and foliage stay clean.\n- **AMD FSR 3.1** on any graphics card, with no special hardware and nothing extra to install.\n\nBoth use the game's own camera motion. In the game the overlay shows what is active, **F9** switches the new anti-aliasing off and on to compare, and **F10** switches between FSR and DLSS on RTX cards.\n\n**Upscaling** (launcher, next to Anti-aliasing): the game draws at a lower resolution and DLSS or FSR rebuilds the picture at the full output size, after the game's own effects, so it stays sharp. At 5120x1440 on an RTX 4070 Ti the average went from 48 FPS (DLAA) to 80 (DLSS Quality), 88 (Balanced) and 104 (Performance); FSR 3.1 Quality gave 103 (DLSS's transformer model costs about 3 ms a frame there, for a cleaner picture). It works with every output and widescreen size; the render size follows from it. **Sharpness** sharpens the finished picture (AMD's RCAS, also after DLSS, which no longer sharpens by itself).\n\n## How to play\n1. Download the latest `driveclub-recomp-<version>-win64.zip` from the [Releases](../../releases) page and extract it anywhere you can write to (not `Program Files`).\n2. Have **your own** game dumps ready:\n   - the **version 1.28 update** folder (it contains `eboot.bin`)\n   - the **base game** folder (it contains `game000.dat`)\n3. Double-click `DriveClub.exe`, press **Browse** next to each folder, check the settings and press **Play**.\n\nNothing to install. Your own files are never modified or copied, and the folders you chose are remembered.\n\nLogs are in the `logs` folder.\n\n## Highlights\n- The game's own x86-64 code runs directly on your CPU, with no CPU emulation. The PS4 system libraries are reimplemented and the GPU commands are translated to Vulkan, similar to Wine and DXVK\n- Playable from the menus through races, photo mode and saves\n- About 60 FPS at 4K in the heaviest scenes on our test PC (RTX 5070 Ti, Ryzen 7 5800X3D), higher in lighter ones, with an unlocked frame rate option in the launcher that keeps the game at its normal speed\n- Runs on NVIDIA, AMD and Intel graphics through Vulkan, with Resizable BAR used automatically where the driver allows it\n- Keyboard racing layout and any gamepad (Xbox, PlayStation, Switch Pro, 8BitDo)\n- Steering wheels with force feedback from the car's tyre physics, pedals with clutch, an H-pattern shifter and a USB handbrake\n- DLC content (add-on cars, bikes, tours and livery decals) can be unlocked from the launcher, built from your own game files. Cars you earn by playing still unlock through normal progression\n- A launcher window that resizes from every edge and corner and stays sharp at any display scale\n- A `mods` folder for loose-file mods: files in it replace the game's own files of the same path\n\n## Controls\nAny gamepad works. Keyboard, mouse and gamepad can be used at the same time.\n\n| Action | Keyboard |\n|---|---|\n| Accelerate | W |\n| Brake / reverse | S |\n| Steer | A / D |\n| Handbrake | Space |\n| Shift down / up | Q / E |\n| Change camera | C |\n| Touchpad left / right half | R / T (R is Reset to Track) |\n| Accept | Enter / Z |\n| Back | Backspace |\n| Pause | Esc / P |\n| D-pad | Arrow keys |\n| Look around | I J K L or the mouse |\n\nF5 and F6 narrow and wid",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:14.616837"
+  },
+  {
+    "basic_info": {
+      "name": "PS5LM",
+      "full_name": "cobanov/PS5LM",
+      "owner": "cobanov",
+      "description": "llama.cpp on a jailbroken PS5: run any GGUF model natively on the console, starting with Qwen 3.8",
+      "url": "https://github.com/cobanov/PS5LM",
+      "clone_url": "https://github.com/cobanov/PS5LM.git",
+      "ssh_url": "git@github.com:cobanov/PS5LM.git",
+      "homepage": "https://ps5lm.cobanov.dev",
+      "created_at": "2026-10-01T21:09:59Z",
+      "updated_at": "2026-10-26T05:35:00Z",
+      "pushed_at": "2026-10-23T21:19:44Z"
+    },
+    "stats": {
+      "stars": 707,
+      "forks": 60,
+      "watchers": 707,
+      "open_issues": 19,
+      "size": 16971
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 312526,
+        "Shell": 47725,
+        "C": 41776,
+        "HTML": 36098,
+        "Python": 10042,
+        "CSS": 9360,
+        "CMake": 3516,
+        "Makefile": 1987
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": [
+        "homebrew",
+        "llama-cpp",
+        "llm",
+        "playstation-5",
+        "ps5",
+        "qwen"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"ps5/app/sce_sys/icon0.png\" width=\"128\" alt=\"PS5LM\">\n</p>\n\n<h1 align=\"center\">PS5LM</h1>\n\n<p align=\"center\">\n  <b>Your PS5 runs the language model. Every device on your network uses it.</b><br>\n  llama.cpp on the console's GPU, with OpenAI and Anthropic APIs and a screen made for the TV.\n</p>\n\n<p align=\"center\">\n  <b><a href=\"https://github.com/cobanov/PS5LM/releases/latest\">Get the app</a></b> ·\n  <a href=\"https://ps5lm.cobanov.dev\">Website</a> ·\n  <a href=\"#try-it\">Get started</a> ·\n  <a href=\"https://github.com/cobanov/PS5LM/issues\">Issues</a>\n</p>\n\n> **New: decision models, powered by [Ollaya](https://ollaya.dev).** PS5LM now runs Jev-like\n> decision models (d1, Clef, OpenJev and more) on the GPU and answers the same `/v1/systemone`\n> API as Ollaya: typed decisions with calibrated probabilities, in a fraction of a second.\n\nPS5LM is for anyone with a jailbroken PS5 who wants a private model server at home. It loads a GGUF\nmodel onto the console's GPU and serves it to your laptop, your phone and your coding tools. It needs\nno PC while it runs, no cloud and no account.\n\n<p align=\"center\">\n  <a href=\"docs/media/ps5lm-home.mp4\"><img src=\"docs/media/ps5lm-home.gif\" width=\"720\" alt=\"Qwen 3.5 9B generating on a PS5, with the requests streaming across the TV\"></a><br>\n  <sub>Qwen 3.5 9B answering requests from a laptop on a PS5 Slim. Click for the video.</sub>\n</p>\n\n<p align=\"center\">\n  <img src=\"docs/media/app/home.jpg\" width=\"49%\" alt=\"Home: the model, its speed and the live requests\">\n  <img src=\"docs/media/app/models.jpg\" width=\"49%\" alt=\"Models: the ones suggested for the PS5\">\n  <img src=\"docs/media/app/home-decision.jpg\" width=\"49%\" alt=\"Home with a decision model\">\n  <img src=\"docs/media/app/console.jpg\" width=\"49%\" alt=\"Console: temperature, power and load over time\">\n  <img src=\"docs/media/app/api.jpg\" width=\"49%\" alt=\"API: the endpoints and an example\">\n  <img src=\"docs/media/app/settings.jpg\" width=\"49%\" alt=\"Settings: a list of choices under the row\">\n  <br><sub>Home, Models, Console, API and Settings on the TV.</sub>\n</p>\n\n## A model server under your TV\n\n- **It runs on the GPU.** llama.cpp's Vulkan backend on the console's RDNA 2 GPU, with 11.4 GB of the\n  shared memory for the model and its context. Every architecture and quantization llama.cpp knows\n  comes along.\n- **It answers your network.** OpenAI's `/v1/chat/completions`, Anthropic's `/v1/messages` (Claude Code\n  works against it) and a chat page in any browser. Point a client at `http://<console>:8081` and use\n  any model name: the loaded one answers.\n- **It decides, too.** Load a decision model and the console answers TypeSafe's `/v1/systemone`:\n  choice, score and yes-or-no questions about text and images, the API Ollaya serves on a PC.\n- **It shows its work.** Every request streams across the TV as a chat: which device asked, what it\n  asked, and the reply as it is written. Square sends a demo and Triangle opens a keyboard, so the\n  console can be tried from the couch.\n- **It watches the console.** A Console page charts temperature, power, GPU and CPU load over the\n  last two minutes or the last hour, beside a table of every reading.\n- **It picks what fits.** The planner reads each GGUF and gives it the longest context and best cache\n  that fit the memory free. A Suggested list holds models measured on the console, and the app\n  downloads from Hugging Face by itself, to internal storage, the M.2 drive or a USB drive.\n- **It reads images.** Models with an image projector (Gemma 4, MiniCPM-V, d1) take pictures in chat\n  and in decisions.\n\n| Model | Size | On a PS5 Slim |\n|---|---|---|\n| Qwen 3.5 0.8B, Q4_K_M | 0.5 GB | 207 tokens a second |\n| Qwen 3.5 9B, Q4_K_M | 5.3 GB | 55 tokens a second |\n| Qwen 3.8 27B, UD-Q2_K_XL | 9.2 GB | about 20 tokens a second, 64k context |\n| d1 Omni 600M, a decision model | 1.1 GB | 3 questions in 0.3 s; a 720p image and 7 questions in 2.9 s |\n\n## Decision models, powered by Ollaya\n\n[Ollaya](https://github.com/ollaya-dev/ollaya) runs open decision models on a PC the way Ollama runs\nlanguage models. PS5LM brings the same idea to the console: a decision model reads a state and\nanswers typed questions in one forward pass, with no text generated.\n\n```sh\ncurl http://<console>:8081/v1/systemone -H 'Content-Type: application/json' -d '{\n  \"state\": \"I was charged twice this month. Refund me or I cancel.\",\n  \"questions\": {\n    \"intent\": {\"type\": \"choice\", \"instructions\": \"What does the customer want?\",\n               \"criteria\": {\"refund\": null, \"information\": null, \"cancel\": null}},\n    \"angry\":  {\"type\": \"noul\", \"instructions\": \"Is the customer angry?\"}\n  }\n}'\n```\n\nThe Suggested list has d1 Omni 600M, d1 3B and Clef Flash. Any GGUF that carries llama.cpp's\ndecision metadata loads the same way, and the app labels it a decision model.\n\n## Try it\n\nYou need a PS5 on firmware 7.00 to 13.60, jailbroken, with these payloads loaded:\n\n| Payload | For | |\n|---|---|---|\n| [kstuff-lite](https://gi",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:15.908777"
+  },
+  {
+    "basic_info": {
+      "name": "bbhost",
+      "full_name": "droogie/bbhost",
+      "owner": "droogie",
+      "description": "Definitive Bloodborne PC Experience",
+      "url": "https://github.com/droogie/bbhost",
+      "clone_url": "https://github.com/droogie/bbhost.git",
+      "ssh_url": "git@github.com:droogie/bbhost.git",
+      "homepage": null,
+      "created_at": "2026-10-07T14:22:17Z",
+      "updated_at": "2026-10-26T04:50:54Z",
+      "pushed_at": "2026-10-26T04:52:20Z"
+    },
+    "stats": {
+      "stars": 686,
+      "forks": 49,
+      "watchers": 686,
+      "open_issues": 85,
+      "size": 10202
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 13862058,
+        "Python": 783534,
+        "C": 414495,
+        "Shell": 160883,
+        "CMake": 62816,
+        "PowerShell": 8659,
+        "GLSL": 2870,
+        "Batchfile": 1618
+      },
+      "license": "GNU General Public License v3.0",
+      "topics": []
+    },
+    "content": {
+      "readme": "# bbhost\n\nbbhost is a translation layer that runs Bloodborne on Windows and Linux. The\ngame's own 1.09 executable runs unmodified on the PC's x86-64 CPU; bbhost\nanswers its calls into the PS4's system libraries with PC implementations, and\nrecompiles its GPU work, GCN shaders and the engine's draw calls, for Vulkan.\nThe aim is a definitive PC version of the game - the original, intact, with\nwhat a PC release would add: any resolution and aspect ratio, 60 fps and\nbeyond, keyboard and mouse, proper settings, mods and online play.\n\n![Cainhurst Castle](docs/images/cainhurst.jpg)\n\nbbhost contains no game code or data. You need your own copy of the game: a\ndump with the 1.09 update and its decrypted executable.\n\n## Why not emulation\n\nThe PS4 has an x86-64 CPU, so the game's code does not need to be translated\nto run on a PC - it needs a place to live. bbhost provides that place:\n\n- **The CPU side runs natively.** bbhost loads the game's ELF executable,\n  relocates it, links its imports to its own implementations and starts it.\n  The game's code runs at full speed on the host CPU, with no interpreter or\n  recompiler involved.\n- **The PS4's system libraries are reimplemented** for the PC: files and\n  saves, threads and memory, input, audio, movies, networking and the\n  PlayStation Network calls the online features use - every one of the 660\n  named functions the game imports.\n- **Graphics are being moved from emulation to native code.** The game's\n  renderer was written for the PS4's GPU: it builds command buffers for an AMD\n  GCN GPU and ships GCN shader programs. bbhost hooks FromSoftware's own\n  graphics layer instead, so draws, dispatches, clears and copies are built\n  directly from the engine's objects, and decompiles the shaders to typed,\n  structured SPIR-V, which it prints as HLSL for the player's PC to compile.\n  The status table below shows what is native today and what the GPU command\n  processor still emulates.\n- **Game functions are being rewritten as source**, one at a time, each checked\n  against the original, so the game can be fixed and extended where a patch\n  would not reach.\n\n## Features\n\n| | |\n|---|---|\n| ![Yharnam in 21:9](docs/images/yharnam-ultrawide.jpg) | **Any resolution, ultrawide included.** 21:9 and 32:9 with a wider field of view and the HUD where it belongs, and the resolution can be changed while playing. FSR 1 upscaling for slower GPUs. |\n| ![PC Graphics settings](docs/images/pc-graphics.jpg) | **Settings in the game's own menus.** The System menu gains PC Settings, PC Graphics, PC Effects, PC Controls, PC Camera and Key Bindings, drawn in the game's style: anti-aliasing, ambient occlusion, shadow distance, fog, motion blur, field of view, frame rate and more. |\n\n- **60 fps and beyond**: 30, 60, 90, 120 or uncapped, with the game's timing\n  corrected so physics, animation and cutscenes run at the right speed at each,\n  and its effects keeping the pace they have at 30 while they move smoothly.\n- **Keyboard and mouse**: mouse camera, a pointer in every menu, rebindable\n  keys, and button prompts that show the keys.\n- **PC enhancements** that can be switched off for the game as it shipped: the\n  Hunter's Dream mirror opens the character appearance editor (a feature cut\n  from the release), \"Rebirth in the Nightmare\" at the Altar of\n  Despair lets you redistribute your levels, and the late areas allow two\n  invaders, as the chalice dungeons do.\n- **Online play** through a private server: co-op, invasions, messages,\n  bloodstains and summon signs between bbhost players.\n- **Mods** without touching the game files: replacement files, param tables\n  edited by field name, byte patches as data (the community's among them, each\n  with a switch in the setup window), and native plugins - a\n  randomizer (items, shops and enemies), a boss rush, gameplay mutators and\n  the developers' own debug menu ship with it.\n- **A setup window** that finds and checks your game files, and the Steam Deck\n  as a supported device.\n\n![The setup window](docs/images/setup-window.png)\n\n## Status\n\nThe game is playable on Windows and Linux: the world, its bosses and online\nsessions. What runs on native code and what is still emulated:\n\n| Part | State |\n|---|---|\n| Game logic (CPU) | the game's own code, running natively |\n| System libraries | reimplemented by bbhost: all 660 named imports the game binds |\n| Window, input, audio, movies, saves | native (SDL3, Vulkan, FFmpeg, LibAtrac9) |\n| Online | native sockets and HTTP against a private server; peer-to-peer UDP with NAT traversal |\n| Draws | native: each draw is built from the engine's graphics objects; the command buffer only marks its place in the stream |\n| Post-processing (YEBIS) | native: every stage's resources built by bbhost |\n| Tessellation | native: the host GPU's own tessellation stages, all three stages lifted; the game's mesh hulls draw as one native pipeline, without the PS4's on-chip ring |\n| Shaders | decompiled (\"lifted\") from GCN to typed, structure",
+      "default_branch": "master"
+    },
+    "fetched_at": "2026-10-26T05:37:17.199411"
+  },
+  {
+    "basic_info": {
+      "name": "CTR-NitroFueled-PC",
+      "full_name": "GetLostIn/CTR-NitroFueled-PC",
+      "owner": "GetLostIn",
+      "description": "Crash Team Racing: Nitro-Fueled (PS4) running natively on Windows 10/11. Windows fork of SacredFire, built on bbport and shadPS4. No game files included.",
+      "url": "https://github.com/GetLostIn/CTR-NitroFueled-PC",
+      "clone_url": "https://github.com/GetLostIn/CTR-NitroFueled-PC.git",
+      "ssh_url": "git@github.com:GetLostIn/CTR-NitroFueled-PC.git",
+      "homepage": null,
+      "created_at": "2026-10-12T15:24:23Z",
+      "updated_at": "2026-10-26T04:13:22Z",
+      "pushed_at": "2026-10-19T04:57:14Z"
+    },
+    "stats": {
+      "stars": 642,
+      "forks": 73,
+      "watchers": 642,
+      "open_issues": 77,
+      "size": 4048
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 5062419,
+        "C": 973346,
+        "Python": 395723,
+        "Shell": 41668,
+        "CMake": 21843,
+        "Nix": 9960,
+        "GLSL": 3992,
+        "Batchfile": 2315
+      },
+      "license": "GNU General Public License v2.0",
+      "topics": [
+        "crash-team-racing",
+        "ctr",
+        "shadps4",
+        "vulkan",
+        "windows"
+      ]
+    },
+    "content": {
+      "readme": "<p align=\"center\">\n  <img src=\"docs/images/logo.png\" alt=\"CTR Nitro-Fueled PC\" width=\"360\">\n</p>\n\n# CTR-NitroFueled-PC\n\n**Crash Team Racing: Nitro-Fueled (PS4, CUSA13795 v1.21) running natively on Windows 10/11.**\n\nThis is a Windows fork of [SacredFire](https://github.com/T3CHNOLOG1C/SacredFire), the native\nLinux port of the game by T3CHNOLOG1C. The game's own x86-64 code runs directly on the CPU, a\nsmall runtime replaces the PS4 system libraries, and a renderer derived from shadPS4 translates\nthe PS4 GPU work to Vulkan. This fork adds the Windows layer (loader, memory, TLS, exceptions,\nfiles, timers) from Supermedo's Windows port of bbport, plus the fixes SacredFire needed on top\nof it: see [packaging/windows/README.md](packaging/windows/README.md).\n\n> **No game files are included.** You need your own dump of the game and its 1.21 update.\n> Both builds of the 1.21 update work: the one for firmware 5.05 (the reference) and the one for\n> 6.72+ (since v0.2.1).\n> Not affiliated with or endorsed by Sony Interactive Entertainment, Activision or Beenox.\n> *Crash Team Racing*, *Nitro-Fueled* and *PlayStation* are trademarks of their owners, named\n> here only to identify the game this software runs.\n\n**Status on Windows: playable.** Menus, Adventure and Arcade, races, sound, cutscenes, Xbox/SDL\ncontrollers and keyboard, saving, the community patches (60 FPS, no motion blur), restart from\nthe in-game menu, and the game's DLC from your own packages (optional). Internal resolution from\n480p to native 4K, with AMD FSR 1 or temporal upscaling (AMD FSR 3.1, or NVIDIA DLSS on RTX\ncards; experimental). Tested on\nWindows 11 24H2 with an NVIDIA RTX 3070 and an Intel i5-9500: 110-130 FPS uncapped in races with\nthe 60 FPS patch (the FPS limit keeps it at 60 by default; up to 240). Shaders seen for the first\ntime cause short stalls; they are cached and load at start from the next session on, or compile\nin the background with the experimental switch.\n\n| Release | What it brought |\n|---|---|\n| [v0.4](https://github.com/GetLostIn/CTR-NitroFueled-PC/releases/tag/v0.4) | Redesigned launcher with a *Controls* tab (live controller test and rumble, players 1-4, gamepad buttons remapped by pressing them, stick dead zone; the keyboard page moves there); *Achievements*: trophies kept when unlocked, a launcher-style notice in the game (picture, name, grade, what it was for) and a tab with all 48 (picture, name, what to do, progress and dates); the in-game menu restyled in tabs, in Spanish or English; game languages per edition; AMD FSR 4 (experimental) in the *Upscaling* list; *Frame generation* (AMD FSR 3, experimental): an interpolated frame between each pair of game frames; *Aspect ratio* 16:9, 21:9 UltraWide or 32:9 Super UltraWide with centered HUD (by tcosi, in Settings > Display, not Patches); the European edition CUSA14876 (by martijnhe), ultrawide included; the game's 2x MSAA as a setting, off by default (fixes dotted sky lines); CPUs without MOVBE/BMI1/LZCNT (by MetaHeart); damaged dumps reported (by Naif Alqurashi); rare libwinpthread crashes fixed; FSR 3 no longer turns off without Resizable BAR |\n| [v0.3](https://github.com/GetLostIn/CTR-NitroFueled-PC/releases/tag/v0.3) | Internal resolution 480p to native 4K (the game's own render scale; replaces the PS4 Pro switch); one *Upscaling* list: AMD FSR 1, AMD FSR 3.1 or NVIDIA DLSS (temporal, experimental) with DLSS quality modes, output and model (Transformer/CNN); game languages of this build (English, Latin American Spanish, French, Brazilian Portuguese); PS4 PKG Tool dumps (Image0 + Sc0); fullscreen switch in game fixed |\n| [v0.2.1](https://github.com/GetLostIn/CTR-NitroFueled-PC/releases/tag/v0.2.1) | The 1.21 update built for firmware 6.72+ is accepted (patches found by signature); keyboard page in the launcher to rebind keys |\n| [v0.2.0](https://github.com/GetLostIn/CTR-NitroFueled-PC/releases/tag/v0.2.0) | Launcher (`CTR-NitroFueled-PC.exe`): game setup with hard-link merge, settings, patches, save backups and imports, optional DLC; bundled Python; the project's icon |\n| [v0.1.1](https://github.com/GetLostIn/CTR-NitroFueled-PC/releases/tag/v0.1.1) | First portable build: FPS limit up to 240, fullscreen switch, licenses in the package |\n\n### Quick start (Windows)\n\n**Easiest: the portable build.** Download `CTR-NitroFueled-PC-portable-windows.zip` from\n[Releases](https://github.com/GetLostIn/CTR-NitroFueled-PC/releases), unzip it anywhere and open\n**`CTR-NitroFueled-PC.exe`**, the launcher: choose your `CUSA13795` (base game) and\n`CUSA13795-patch` (update 1.21) folders, press *Prepare the game* once (it merges them with hard\nlinks, no extra disk space) and then *Play*. Python is bundled; you only need a Vulkan 1.3 GPU.\n\n**Picture** (launcher: Settings > Display; in game: Insert):\n\n- *Internal resolution*: the size the game draws its 3D scene at. 480p and 720p for modest PCs;\n  1440p to 2160p output a 4K picture, which also smooths edges on a 1080p screen. Needs a restart\n  (",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:18.489676"
+  },
+  {
+    "basic_info": {
+      "name": "DeepGEMM-Ascend",
+      "full_name": "deepseek-ai/DeepGEMM-Ascend",
+      "owner": "deepseek-ai",
+      "description": "DeepGEMM-Ascend: clean and efficient matrix multiplication kernel library for Huawei Ascend NPUs",
+      "url": "https://github.com/deepseek-ai/DeepGEMM-Ascend",
+      "clone_url": "https://github.com/deepseek-ai/DeepGEMM-Ascend.git",
+      "ssh_url": "git@github.com:deepseek-ai/DeepGEMM-Ascend.git",
+      "homepage": "",
+      "created_at": "2026-09-29T15:49:55Z",
+      "updated_at": "2026-10-26T04:27:06Z",
+      "pushed_at": "2026-10-14T09:22:37Z"
+    },
+    "stats": {
+      "stars": 612,
+      "forks": 66,
+      "watchers": 612,
+      "open_issues": 14,
+      "size": 283
+    },
+    "tech_info": {
+      "language": "C++",
+      "languages": {
+        "C++": 728131,
+        "Python": 276261,
+        "CMake": 2976,
+        "Shell": 1057
+      },
+      "license": "MIT License",
+      "topics": []
+    },
+    "content": {
+      "readme": "# DeepGEMM Ascend\n\nDeepGEMM Ascend is a port of DeepGEMM to the HUAWEI Ascend platform. It is fully API-compatible with DeepGEMM and supports BF16, FP8, FP4 GEMM, MQA logits, and MegaMoE. On Ascend platforms, users can simply install the package and use the same APIs and development workflow as DeepGEMM on other supported platforms.\n\nDeepGEMM Ascend provides a lightweight abstraction over the Ascend MAD (matrix multiply-add) primitives, hiding much of the complexity associated with fractal layouts, alignment constraints, address calculations, and verbose low-level parameters. This enables GEMM kernels to remain both concise and efficient. DeepGEMM Ascend makes extensive use of Ascend-specific optimization techniques, such as sparse data loading and coroutine-based pipelining, to approach the performance limits of the Ascend hardware. These implementations can also serve as references for extreme performance optimization on the Ascend platform.\n\nDespite its lightweight codebase, DeepGEMM Ascend can achieve peak hardware performance across a wide range of matrix shapes.\n\nDeepGEMM Ascend 是华为昇腾平台上的 DeepGEMM 实现。它完全兼容 DeepGEMM 的 API，支持 BF16、FP8、FP4 GEMM、MQA logits 和 MegaMoE 算子。DeepGEMM Ascend 和 DeepGEMM 使用相同的包名，用户只需安装当前包，即可沿用其他平台上 DeepGEMM 的 API 和开发流程。\n\nDeepGEMM Ascend 对昇腾平台的矩阵乘加原语（MAD）提供了一个轻量的抽象，能够隐藏分形矩阵布局、对齐约束、地址计算、参数转换等细节，让 GEMM kernel 的实现保持简洁高效。DeepGEMM Ascend 广泛采用昇腾平台特有的优化技术，包括稀疏数据加载、基于协程的流水线等，以接近硬件的性能极限。这些实现也可以作为昇腾平台极致性能优化的参考。\n\nDeepGEMM Ascend 代码轻量，并且在多种矩阵形状上能达到硬件极限性能。\n\n## News\n\n- 2026.09.30: Initial release of DeepGEMM Ascend, with support for Ascend 950 devices. The kernels are designed to achieve near-peak hardware performance.\n\n## Quick Start\n\n### Requirements\n\n- HUAWEI Ascend NPU (developed and validated on the Ascend 950 series)\n- CANN 9.20 toolkit providing `bin/bisheng`, `bin/ld.lld`\n- Torch NPU package `torch_npu`\n- Python 3.10 or higher\n- Compilers and standard libraries with C++20 `<format>` support\n- `tilelang`, used by the HC prenorm kernel (declared as a package dependency)\n- `tree-sitter` and `tree-sitter-cpp`, used to generate Python type stubs when building from source\n\n### Development\n\n```bash\n# Submodule must be cloned\ngit clone --recursive https://github.com/deepseek-ai/DeepGEMM-Ascend.git\ncd DeepGEMM-Ascend\n\n# Link some essential includes and build the C++ extension\ncat develop.sh\n./develop.sh\n```\n\n### Installation\n\n```bash\npip install . --no-build-isolation\n```\n\n## Interfaces\n\n### Kernel Interface\n\nPlease refer to [DeepGEMM's interfaces](https://github.com/deepseek-ai/DeepGEMM#interfaces) for the kernel APIs.\n\n> [!NOTE]\n> The scaling factor format on Ascend differs from NVIDIA's: each pair of UE8M0 scaling factors along the K dimension is packed into an `int16`, and the packed values are stored in MN-major order for optimal hardware efficiency.\n\nDense BF16, FP8, FP4 and mixed FP8×FP4 GEMMs accept `c` with shape `[M, N]` or `[1, N]`\nand the same dtype as `d`. Full C uses atomic add. A contiguous `[1, N]` bias is loaded\nand added in the AIV epilogue before the output cast.\nThe `bf16_gemm_nn` and `fp8_fp4_gemm_nn` interfaces take `A[M, K]` and `B[K, N]`:\n\n```python\ndeep_gemm.bf16_gemm_nn(a, b, c=bias, d=d)\n```\n\n### Utilities\n\nThe library provides some utility functions besides the above kernels:\n\n- `deep_gemm.set_num_sms` / `get_num_sms`: set/get the number of AI cores the kernels may use\n- `deep_gemm.set_npu_arch` / `get_npu_arch`: override/query the `dav-*` NPU architecture used for JIT compilation, `0` queries the device\n- `deep_gemm.set_mk_alignment_for_contiguous_layout` / `get_mk_alignment_for_contiguous_layout`: set/get the group-level M/K alignment for contiguous layout\n- `deep_gemm.get_theoretical_mk_alignment_for_contiguous_layout`: get the theoretical minimum M/K alignment\n- `deep_gemm.use_deterministic_algorithms` / `get_deterministic_algorithms`: enable/disable deterministic algorithms\n- `deep_gemm.transform_sf_into_required_layout`: transform scaling factors into the required layout\n- `deep_gemm.transform_k_grouped_sf_into_required_layout`: transform K-grouped scaling factors into the required layout\n- `deep_gemm.get_paged_mqa_logits_metadata`: build the scheduling metadata for the paged MQA kernels\n- `deep_gemm.aclnn_fp8_fp4_gemm_{nt, nn, tn, tt}` and `deep_gemm.aclnn_bf16_gemm_{nt, nn, tn, tt}`: ACLNN reference GEMMs used to cross-check the kernels in tests\n\n### Environment Variables\n\nAscend home path is given by `ASCEND_HOME_PATH` or `ASCEND_TOOLKIT_HOME`.\n\nEach `DG_JIT_*` variable falls back to the corresponding global `DJ_JIT_*` variable when unset, and is snapshotted when the JIT runtime is first created.\n\n- General\n    - `DG_JIT_DEBUG`: `0` or `1`, enable JIT debugging features, including compiler commands, load-time reporting, and the selected config per shape; `0` by default\n    - `DG_PRINT_CONFIGS`: `0` or `1`, print the selected config for each shape, `0` by default\n- JIT cache\n    - `DG_JIT_CACHE_DIR`: string, cache directory (or a `:`-separated list of directori",
+      "default_branch": "main"
+    },
+    "fetched_at": "2026-10-26T05:37:19.774788"
+  }
+]

@@ -1,0 +1,61 @@
+
+# Tholian® Scout Inventory Agent
+
+Tholian® Scout is the Inventory Agent for the Tholian Network. It collect system
+reports including all necessary data and writes them to an external file.
+
+## Platform Support
+
+Scout detects distributions through `/etc/os-release` and collects inventory
+through platform-specific interfaces. The following distributions and package
+managers are supported:
+
+| Distribution  | Package Manager | Antiques | Packages | Devices | Drives | Incidents | Networks | Programs | Services | Updates | Users |
+|---------------|-----------------|----------|----------|---------|--------|-----------|----------|----------|----------|---------|-------|
+| `almalinux`   | `dnf`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `alpinelinux` | `apk`           | yes      | yes      | yes     | yes    | partial   | yes      | yes      | yes      | yes     | yes   |
+| `amazonlinux` | `dnf`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `antergos`    | `pacman`        | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `archlinux`   | `pacman`        | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `cblmariner`  | `tdnf`          | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `centos`      | `dnf`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `debian`      | `apt`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `fedora`      | `dnf`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `freebsd`     | `pkg`           | yes      | yes      | yes     | yes    | partial   | yes      | yes      | yes      | yes     | yes   |
+| `gentoolinux` |                 |          |          |         |        |           |          |          |          |         |       |
+| `linuxmint`   | `apt`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `manjaro`     | `pacman`        | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `netbsd`      |                 |          |          |         |        |           |          |          |          |         |       |
+| `openbsd`     |                 |          |          |         |        |           |          |          |          |         |       |
+| `opensuse`    | `zypper`        | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `openwrt`     | `opkg`          | yes      | yes      | yes     | yes    | partial   | yes      | yes      | yes      | yes     | yes   |
+| `oraclelinux` | `dnf`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `photonos`    | `tdnf`          | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `redhat`      | `dnf`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `rockylinux`  | `dnf`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `suse`        | `zypper`        | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `trisquel`    | `apt`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+| `ubuntu`      | `apt`           | yes      | yes      | yes     | yes    | yes       | yes      | yes      | yes      | yes     | yes   |
+
+`yes` means a collector is implemented for that datatype. `no` means it is not
+implemented. `partial` means incidents come from live process analysis and from
+syslog sources when available, but historical journal entries are not collected.
+
+Incidents are collected through `systemd`/`journalctl` where available, through
+`procfs` process analysis on Linux, through `procstat` process analysis on
+FreeBSD, and through syslog files or OpenWrt `logread`. On Alpine Linux,
+FreeBSD, and OpenWrt, live process findings and syslog-based
+authentication/reconnaissance incidents are reported when the relevant logs or
+services exist.
+
+### Linux Fallback Support
+
+Both fallbacks collect packages only.
+
+- On Debian-family systems without `apt`, Scout falls back to `dpkg`.
+- On RPM-family systems without `dnf`, `tdnf`, or `zypper`, Scout falls back to `rpm`.
+
+### FreeBSD Support
+
+FreeBSD is supported through `pkg` and native `procstat`, `pciconf`, `usbconfig`,
+`kldstat`, `k

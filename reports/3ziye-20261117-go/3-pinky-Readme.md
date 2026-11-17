@@ -1,0 +1,25 @@
+<p align="center"><img src="assets/icon/pinky-macos-1024.png" width="112" alt=""></p>
+<h1 align="center">Pinky</h1>
+<p align="center"><b>Let AI use your iPhone or Android phone, with you in the loop: any agent from macOS, Windows or Linux, or Pinky itself, right on the phone.</b></p>
+<p align="center"><a href="https://github.com/DIYgod/pinky/releases/latest">Download</a> · <a href="#get-started">Get started</a> · <a href="#faq">FAQ</a> · <a href="https://discord.gg/S27b7SHjng">Discord</a></p>
+<p align="center">English · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.tr.md">Türkçe</a></p>
+<p align="center"><img src="assets/readme/demo.gif" width="760" alt="Claude Code types a reply in Messages; Pinky holds the Send tap until it is allowed, then the text goes out"><br><sub>A real Claude Code run on an Android 16 emulator. Pinky asks before payments by default; this run also asks before messages.</sub></p>
+
+Pinky lets any agent (Claude Code, Claude Desktop, Codex, Cursor or a script) operate a real iPhone or Android phone over MCP, while you watch on your computer, approve risky steps, take over and review what happened. Pinky can also do tasks by itself, with an AI model you choose: from your computer, or in Pinky's app right on the phone, with no computer at all. Whoever does the task, approvals are enforced by Pinky's gateway, not by instructions to the agent.
+
+- **Every platform.** One app for macOS (Apple silicon and Intel), Windows and Linux. It drives Android phones (Android 10 to 17) and iPhones on iOS 17.4 or later: nothing to install on iOS 27 and later, and Pinky on the iPhone, Pinky's app, installed once from a Mac with Xcode on iOS 17.4 to 26, which you can also choose on iOS 27 (tried there, on a phone below it and on Simulators; [details](#phones)).
+- **Tiny and native.** The window is drawn by [MyGo](https://github.com/egoist/mygo) on the GPU, with no Electron and no webview: a 16–22 MB download that idles at about 70 MB of memory and 0% CPU on a Mac.
+- **Any agent, one click.** Settings › Agents connects Claude Code, Claude Desktop, Codex, Cursor and more, and any agent that can use MCP servers works, on the same computer or over HTTP.
+- **Pinky on the phone, no computer needed.** Pinky's app on Android and iPhone does tasks by itself with a model you choose, from DeepSeek, Qwen, Kimi and GLM to Claude, GPT, Gemini and local models in Ollama or LM Studio. Type or speak a task, or share something to it; on Android, ask about what the screen shows from a floating button, and let it work on a hidden background screen while you keep using the phone ([how](#pinky-on-the-phone)).
+- **Scheduled tasks and memory.** Pinky can run a task at set times or tell you when a condition holds, on the computer and on Android. After a task it may suggest a note to remember, such as a preference you told it, and keeps it only if you say yes ([more](#ask-pinky)).
+- **Locked phone? Unlock it from your computer.** Save the phone's PIN in Pinky once, then confirm each unlock with Touch ID, Windows Hello or your keyring's password. Agents never see the PIN.
+- **Free and open source** under the Apache-2.0 license, with no account to create.
+
+<table>
+<tr>
+<td width="50%" valign="top"><img src="assets/readme/card-approval.jpg" width="100%" alt="You decide what waits: Pinky's window holds an agent's Send tap until you click Allow"><br><b>You approve the risky steps.</b> Payments, trades and transfers wait for your click; in Settings › Safety you can have sends, orders, deletions, calls, installs, links that leave the app and settings changes wait too, or every step. Pinky spots these buttons in 10 languages. The rules run in Pinky's gateway, so an agent can't approve itself, even when text on the screen tries to talk it into it.</td>
+<td width="50%" valign="top"><img src="assets/readme/card-off-limits.jpg" width="100%" alt="Off-limits by default: Settings › Safety with when agents ask you, and the blocked apps"><br><b>Off-limits by default.</b> Banking, wallet and password-manager apps are invisible to agents, and agents can't type into password or one-time-code fields. When an agent needs a banking or wallet app for a task, it asks, and you can allow that app for that task only. Every new agent needs your approval and gets only the scope you give it.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="assets/readme/card-second-screen.jpg" width="100%" alt="A hidden second screen for the agent: the agent's screen beside the phone's own home screen"><br><b>Your phone stays yours.</b> On Android 13 and later, agents work on a hidden second screen, so the phone's own screen stays yours, or off and locked. On older Android phones and on iPhones they use the main screen.</td>
+<td width="50%" valign="top"><img src="assets/readme/card-take-over.jpg" width="100%" alt="Take over any time: Claude Code is paused while you are in control, until you hand back"><br><b>Take over any time.</b> Cli

@@ -1,0 +1,114 @@
+# GIF 工厂
+
+把这句话发给 Codex 安装：
+
+> 帮我安装 GIF 工厂：[https://github.com/WoYun520/gif-factory](https://github.com/WoYun520/gif-factory)
+
+安装 Skill 是加入制作说明和脚本；运行时需要的工具按功能分别准备，见[需要装什么](GUIDE.md#需要装什么)。
+
+装好后，给一张图、一段文字，或直接说想做什么。角色图、场景图、片名、字稿和配乐都可以自己提供，缺的部分再一起补。
+
+[表情包](#stickers) · [光栅变画卡](#cards-transforms) · [动态海报](#posters-type) · [动态签名](#dynamic-signatures) · [电影片头](#cinematic-title-lettering) · [文章封面配色](#article-cover-palette) · [动态绘本](#storybooks) · [品牌短片](#brand-films) · [vibe 知识大赏](#mechanism-explainers)
+
+[分类说明](styles/README.md) · [完整作品库](GALLERY.md) · [使用指南](GUIDE.md) · [下载项目](https://github.com/WoYun520/gif-factory/archive/refs/heads/main.zip)
+
+## 仓库里有哪些 Skill
+
+一般安装 GIF 工厂总入口即可，直接说需求。如果只用某个功能，也可以让 Codex 单独安装对应的 Skill 文件夹。
+
+| Skill | 能做什么 | 说明 |
+| --- | --- | --- |
+| GIF 工厂总入口 | 根据需求选择表情包、卡片、海报、签名、片头、文章配色、绘本、品牌短片或「vibe 知识大赏」的做法 | [查看](SKILL.md) |
+| 动态签名 | 支持多种字体和自定义字稿，把名字与意象融成动态签名 | [查看](skills/dynamic-art-signature/SKILL.md) |
+| 电影片头 | 中文50种写法，英文50款基础字体与装饰封面；可用自己的字体、照片或字稿 | [查看](skills/cinematic-title-lettering/SKILL.md) |
+| 文章封面配色 | 按文章选配色，写清标题、底色和点缀怎么搭；推荐搭配Punk制作封面 | [说明与安装](skills/article-cover-palette/README.md) |
+| 动态绘本 | 让插画做完一个动作，再翻到下一页，能做横屏或竖屏 | [查看](skills/compact-storybook/SKILL.md) |
+| vibe 知识大赏 | 四种内置风格，含同屏实验；立体剖面联动使用外部 lemo-opuscar Skill | [查看](skills/paper-mechanism-explainer/SKILL.md) |
+
+<a id="stickers"></a>
+<a id="表情包展厅"></a>
+
+## 表情包
+
+可以做像素、插画、真人、宠物和粘土角色。既能轻轻点头、摇摆，也能让角色完整做完挥手、行礼等动作。
+
+<table>
+<tr>
+<td align="center"><a href="styles/pixel-light/STYLE.md"><img src="docs/previews/pixel-light.gif" alt="像素表情包" width="180"></a><br>像素</td>
+<td align="center"><a href="styles/illustrated-actions/STYLE.md"><img src="docs/previews/illustrated-actions.gif" alt="插画角色动作" width="180"></a><br>插画</td>
+<td align="center"><a href="styles/photo-pets/STYLE.md"><img src="docs/previews/photo-pets.gif" alt="宠物表情包" width="180"></a><br>宠物</td>
+</tr>
+</table>
+
+<a id="pixel-games"></a>
+<a id="illustration-anime"></a>
+<a id="people-pets"></a>
+<a id="materials-mascots"></a>
+
+[像素轻动效](styles/pixel-light/STYLE.md) · [像素完整动作](styles/pixel-actions/STYLE.md) · [插画](styles/illustrated-actions/STYLE.md) · [真人](styles/photo-people/STYLE.md) · [宠物](styles/photo-pets/STYLE.md) · [粘土吉祥物](styles/clay-mascot/STYLE.md) · [全部案例](GALLERY.md#表情包展厅)
+
+> 用这张角色图做 12 张中文表情包，每张表情和姿势不同，加轻微点头或摇摆，文字用我给的这组台词。
+
+<a id="cards-transforms"></a>
+<a id="电子光栅卡展厅"></a>
+
+## 光栅变画卡
+
+让一张卡片在两种样子之间切换，比如人物与面罩、日常与变身、产品的两种配色。
+
+<a href="styles/lenticular/STYLE.md"><img src="docs/previews/lenticular.gif" alt="光栅变画卡" width="240"></a>
+
+[看做法](styles/lenticular/STYLE.md) · [全部案例](GALLERY.md#电子光栅卡展厅)
+
+> 用这两张图做一张变画卡，来回切换两种状态，标题保持不动。
+
+<a id="posters-type"></a>
+<a id="动态海报展厅"></a>
+
+## 动态海报
+
+可以保留原画，让人物和文字一起变化；也可以把人物、背景和大字重新设计成一张完整海报。
+
+<table>
+<tr>
+<td align="center"><a href="styles/type-linked/STYLE.md"><img src="docs/previews/type-linked.gif" alt="保留原画，人物和字体一起动" width="240"></a><br>保留原画，字体联动</td>
+<td align="center"><a href="styles/comic-fusion/STYLE.md"><img src="docs/previews/comic-fusion.gif" alt="人物背景和文字一起设计的漫画海报" width="240"></a><br>人物、背景和字一起设计</td>
+</tr>
+</table>
+
+[字体联动](styles/type-linked/STYLE.md) · [漫画印刷风格](styles/comic-fusion/STYLE.md) · [全部案例](GALLERY.md#动态海报展厅)
+
+> 用这个角色做一张动态宣传海报，人物从安静切到登场，大字一起展开，日期和地点固定。
+
+<a id="dynamic-signatures"></a>
+
+## 动态签名
+
+动态签名分成下面四种。每种都有动图和做法，选喜欢的效果，再换成你的名字、字体和颜色。也可以直接用你提供的字稿。
+
+| 风格 | 主要效果 | 看预览和做法 |
+| --- | --- | --- |
+| 纯文字连笔 | 沿字迹写出名字，配单色或渐变色 | [打开](skills/dynamic-art-signature/references/styles.md#word-only) |
+| 意象融字 | 鸟、月亮、植物等融进名字的笔画 | [打开](skills/dynamic-art-signature/references/styles.md#motif-fusion) |
+| 乐器融字 | 琴弦、笛身、音孔成为字的一部分 | [打开](skills/dynamic-art-signature/references/styles.md#instrument-fusion) |
+| 墨迹聚合 | 墨迹碎片移动、聚拢，最后成字 | [打开](skills/dynamic-art-signature/references/styles.md#ink-assembly) |
+
+同一张字稿可以换成七种配色，笔迹和书写节奏保留。
+
+<a href="skills/dynamic-art-signature/assets/media/multifont/MultiFont_Nine_Grid.mp4"><img src="docs/previews/dynamic-signatures-multifont.gif" alt="九种字体方向的乐器融字动态签名，支持自定义" width="560"></a>
+
+[多字体视频](skills/dynamic-art-signature/assets/media/multifont/MultiFont_Nine_Grid.mp4) · [九款字体与自定义说明](skills/dynamic-art-signature/references/multifont.md) · [中英文案例](examples/dynamic-signatures/README.md) · [早期乐器案例](skills/dynamic-art-signature/references/instrument-semantic.md) · [Skill](skills/dynamic-art-signature/SKILL.md)
+
+> 做一款「卧云间＋竹笛＋月白到浅青渐变」的动态签名，让乐器融进笔画，沿用仓库的快写和慢收锋节奏。
+
+> 用我提供的字稿，保留字体和颜色，自定义一款动态签名；书写、墨迹聚合和收锋按字形来。
+
+<a id="cinematic-title-lettering"></a>
+
+## 电影片头
+
+中文50种字的写法，另有英文50款基础字体和装饰封面。中文选 F 编号，英文选 EN 编号；都支持自定义字体和字稿。选喜欢的编号，换成你的片名，字和场景一起设计。新增的十款手写风格是 F41–F50，每款都有原稿、白底字稿、换句对照和独立场景。也可以提供自己的照片、文案、字体参考或现成字稿，只做你需要的部分。
+
+<a href="skills/cinematic-title-lettering/references/handwriting-stability.md"><img src="skills/cinematic-title-lettering/assets/style-catalog/previews/handwriting-scenes-01.jpg" alt="十款手写电影片头 F41–F50，每款各有片名和场景" width="720"></a>
+
+[50 种字形与原图](skills/cinematic-title-lettering/references/style-catalog.md) · [十款手写字怎么用](skills/cinematic-title-lettering/references/handwriting-stability.md) · [五种排法](skills/cinematic-titl

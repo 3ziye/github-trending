@@ -1,0 +1,81 @@
+# Super Mario All-Stars — PC Port
+
+A native Windows and Android version of *Super Mario All-Stars* (SNES) with a launcher, true widescreen,
+re-anchored HUDs, display options, cheats, level select, achievements, a sound test and a music
+player. **It contains no game data: it runs from your own ROM**
+(`Super Mario All-Stars (USA).sfc`, CRC32 `925637C7`); no game starts without it.
+
+## Building
+Requirements: Windows 10/11, Visual Studio 2022 (C++ workload) and CMake 3.20+.
+No other libraries are needed (Direct3D 11, Direct2D, XAudio2, XInput and
+DirectInput come with Windows).
+
+```
+build.bat
+```
+The program is written to `build\Release\SuperMarioAllStars.exe`.
+
+### Android
+The same code builds for Android (`android/`), as the Mickey & Donald Collection's does: SDL2 2.32.10
+compiled from source for the window, sound and controllers, OpenGL ES 3.0 for the picture. You need the
+Android SDK with NDK 28.2 and CMake 3.31.6 (both from the SDK manager) and JDK 17 or later. The SDL2 source
+belongs in `third_party/SDL2-2.32.10-src` (`android/fetch_sdl.ps1` downloads and checks it), then:
+
+```
+cd android
+gradlew assembleDebug
+```
+The APK ends up in `android/app/build/outputs/apk/debug/` (64-bit ARM phones and tablets, Android 6.0 or
+later, and the x86_64 emulator). Release builds are signed when `android/keystore.properties` names a
+keystore (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`), as the Disney collection's are.
+
+## Running
+Put the ROM next to the executable, in a `roms` folder beside it, or in any parent folder up to
+three levels up; the location is remembered in `rompath.txt`. Without it the launcher's cards say
+*ROM not found* and what is needed, and a ROM copied in while the launcher is open is picked up
+within a second. Another version or dump of All-Stars runs too, its file name shown in amber on the
+cards: widescreen, cheats and the level select are tuned for the USA version.
+
+To start a game directly, give `SuperMarioAllStars.exe` the argument `--game smb1`, `--game smbll`,
+`--game smb2` or `--game smb3` (for example in a shortcut).
+
+Battery saves go to `saves\smas.srm`, save states to `saves\`,
+screenshots to `screenshots\`, settings to `smas_port.ini`. Files are written in full before
+they replace the old ones, so a full disk can't leave a truncated save (you are told the save
+failed instead). Save states carry a checksum: a damaged one is refused rather than loaded. They
+also keep the widescreen state, so a state loads exactly as it was saved, and one saved at a
+narrower width (or by an older version) brings in the enemies of the wider view. If the graphics
+driver resets (a driver update or crash), the picture comes back by itself and the game keeps
+running.
+
+## On Android
+Install the APK (Android asks you to allow installing apps from the place you opened it). On the first
+start the launcher's card says *ROM not found*: tap it, pick `Super Mario All-Stars (USA).sfc` (or a
+`.smc`) in the file picker, and it is copied into the app. A ROM can also be put in the app's folder
+`Android/data/com.darhkfox.allstars/files` (or a `roms` folder there) with a computer.
+
+- **Touch:** an SNES pad over the game: the D-pad bottom left, A B X Y bottom right, L and R at the
+  sides, Select and Start bottom centre, Menu top left, and (when they're switched on and achievements
+  are off) rewind and fast forward top right. Tap a game's card to choose it, tap it again to play; in
+  the menus tap a row to use it, drag to scroll, and the button top right goes back.
+- **Controllers and keyboards** work as on Windows (the same bindings); the on-screen controls hide
+  while one is in use (*Options → Controls → On-Screen Controls*: While Touching, Always or Never, and
+  their opacity).
+- **Back** opens and closes the menu, as Esc does.
+- The picture fills the screen (*Aspect Ratio: Auto*), with the same filters and colour settings. The
+  window settings, VSync, Black Frame Insertion, High Frame Rate and slang shaders are Windows only.
+- Saves, states and settings are kept in the app's own storage; screenshots go to
+  `Android/data/com.darhkfox.allstars/files/screenshots`. Leaving the app saves the game's progress.
+
+## Launcher
+The program opens on a launcher, laid out like the Mickey & Donald Collection's, over a night-blue
+sky with twinkling stars and a checkerboard floor after the All-Stars title screen. By default it
+shows one **Super Mario All-Stars** card with a live preview of the cartridge's title: choosing it
+starts the cartridge as it is, at its own title and game select (`--game allstars` starts it
+directly). Below are buttons for **Options**, **Achievements**, **Music Player**, **Credits** and
+**Quit**.
+
+*Options → Launcher Shows → The Four Games* gives one card per game instead (Super Mario Bros., The
+Lost Levels, Super Mario Bros. 2, Super Mario Bros. 3), each with a live attract-mode preview of that
+game and the chosen card's sound playing. Each preview is its own console run through the All-Stars
+game se

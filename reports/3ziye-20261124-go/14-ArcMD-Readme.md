@@ -1,0 +1,96 @@
+<div align="center">
+
+<img src="docs/images/readme/logo-horizontal.png" width="400" alt="ArcMD logo">
+
+**重新想象 Markdown 编辑器：纯 Go 原生满帧、行云流水的触感，让每个想法都有自己的空间。**
+
+简体中文 · [English](README.en.md)
+
+<a href="mygo.json"><img src="https://img.shields.io/badge/version-0.2.8-F21158" alt="版本 0.2.8"></a>
+<img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-F25F11" alt="支持 macOS、Windows 与 Linux">
+<a href="https://github.com/egoist/mygo"><img src="https://img.shields.io/badge/built%20with-Go%20%2B%20MyGo-00ADD8?logo=go&amp;logoColor=white" alt="使用 Go 与 MyGo 原生开发"></a>
+<a href=".github/workflows/build.yml"><img src="https://img.shields.io/badge/CI-GitHub%20Actions-2088ff?logo=githubactions&amp;logoColor=white" alt="CI 工作流配置"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-C912D6" alt="MIT 许可证"></a>
+<img src="https://img.shields.io/badge/status-preview-F2410F" alt="预览版">
+
+[![Listed on Awesome MyGo](https://awesomemygo.dev/badge.svg)](https://awesomemygo.dev/apps/arcmd)
+
+<br>
+
+<img src="docs/images/readme/flow-zh-CN.svg" width="100%" alt="ArcMD 书写与微交互主视觉：光标丝滑滑行，行内语法与公式实时成形，管道符回车展开表格并推动下方双栏顺滑让位，任务轻弹勾选、拍立得图片落位">
+
+<br><br>
+
+<a href="https://github.com/Ciao1019/ArcMD/releases"><img src="docs/images/download-macos-zh-CN.svg" height="56" alt="下载 ArcMD macOS 版：Apple 芯片与 Intel，.dmg"></a>
+<a href="https://github.com/Ciao1019/ArcMD/releases"><img src="docs/images/download-windows-zh-CN.svg" height="56" alt="下载 ArcMD Windows 版：x64 安装程序与 ZIP"></a>
+<a href="https://github.com/Ciao1019/ArcMD/releases"><img src="docs/images/download-linux-zh-CN.svg" height="56" alt="下载 ArcMD Linux 版：x64 与 ARM64，DEB 与 TAR.GZ"></a>
+
+<sub>当前预览版本为 0.2.8，按钮会打开发布页；也可以直接<a href="#从源码运行">从源码运行</a>。</sub>
+
+<br><br>
+
+[书写交互](#行云流水的书写交互) · [空间与阅读](#空间与阅读亮点) · [原生 Markdown](#原生-markdown不绑架你的文件) · [功能全景](#功能全景) · [常用快捷键](#常用快捷键) · [性能](#性能) · [从源码运行](#从源码运行) · [参与贡献](#参与贡献)
+
+</div>
+
+<br>
+
+ArcMD 将熟悉的 Markdown 写作流带入细腻跟手的原生富文本画布。
+完全使用 **Go** 与 **[MyGo](https://github.com/egoist/mygo) Native UI** 自研开发——由 Go 直接驱动窗口绘制、字形排版与系统输入，**零 HTML、JavaScript、WebView、Electron 或 cgo**。
+
+| ⚡ 纯粹原生，120 Hz 满帧 | 📄 原生 `.md`，来去自由 | 🎨 Arc 式空间与微交互 |
+| --- | --- | --- |
+| 自研结构化文档引擎与增量排版，百万字混合长文输入 P50 仅 **0.248 ms**，后台落盘主线程零卡顿。 | 直接原地读写标准 `.md` 文件，不制造私有副本，随时与 Obsidian、VS Code、Typora 和 Git 共用同一文件夹。 | 多彩 Space 轻扫切换、全局收藏、置顶常驻标签页，配合光标滑行、即时语法编译与弹簧微动效。 |
+
+> **致敬与起源**
+>
+> The Browser Company 宣布 Arc 步入维护模式的那天，X 上无数人都在惋惜一款如此充满审美、手感与灵魂的软件走向终局。作为一个 Arc 的长期拥趸，我不舍得那些彻底改变了我工作流的竖向侧栏、多色彩 Space、全局收藏以及安静克制的呼吸感。既然 Arc 停下了脚步，那我们就用纯 Go 与原生 UI，在文档编辑的世界里把它延续下去——献给每一个依然相信「软件应该有审美与触感」的创作者。
+
+> [!NOTE]
+> **ArcMD 仍处于早期预览阶段**，不少细节仍在持续打磨迭代。如果你也喜欢这个方向，欢迎在 [Issues](https://github.com/Ciao1019/ArcMD/issues) 分享反馈与想法，或直接提交 Pull Request 一起构建。
+
+---
+
+## 行云流水的书写交互
+
+不用在「源码」与「预览」两栏之间分心切换——你在首屏动图中看到的每一次落笔、展开与拖拽，都运行在同一张安静连贯的纸面上：
+
+| 🪄 即时成形与反悔自由 | ∑ 行内与块级公式浮窗 |
+| --- | --- |
+| 输入 `**粗体**`、`*斜体*`、`~~删除线~~`、`` `代码` ``、`--` 与 `...` 即刻原地成形；括号、弯引号与 `$…$` 自动配对并浮现柔和范围染色与 <kbd>Tab</kbd> 跳出徽章，紧接按一次 <kbd>⌫</kbd> 随时退回字面原文。 | 内嵌 KaTeX 字体原生排版 TeX 公式；行内 `$…$` 在正下方浮出实时源码胶囊而不挤动行高与基线，块级公式展开「上方实时预览 + 下方源码」一体化卡片，按 <kbd>Tab</kbd> 或连按两次回车即可接续正文。 |
+| **📐 顺滑让位与磁吸对齐** | **🖼️ 弹簧触感与零跳动媒体** |
+| 敲下 `\| 表头 \|` 回车直接展开原生表格，折叠章节、增删块与拖拽换位的表格行列都会指数阻尼顺滑让位；拖动表格列宽、双栏中缝或分屏分隔条靠近等分时自动浮现 `50% · 50%` 磁吸胶囊。 | 光标跨字跨行平滑滑行，圆角胶囊选区贴合字句，任务框轻弹勾选；从访达拖入图片浮现微倾拍立得预览卡并轻弹落位，图片头部瞬时定尺寸（零布局跳动）并支持双击原位阻尼缩放灯箱。 |
+
+---
+
+## 空间与阅读亮点
+
+### 专属空间与实时配色：颜色、渐变、通透与深浅纸面
+
+<p align="center"><img src="docs/images/readme/themes-zh-CN.svg" width="100%" alt="ArcMD 空间主题动图：拖动圆点连续换色，组合一到三色柔和渐变，拉低强度呈现通透柔焦材质，再平滑切换浅色与飞书深色纸面"></p>
+
+每个空间对应一个本地文件夹，拥有独立的名称、图标、置顶常驻文档与阅读现场。在侧边栏双指轻扫或按 <kbd>⌃1</kbd>…<kbd>⌃9</kbd> 即可滑入下一个空间；顶部的全局收藏跨越所有空间，点一下就在当前空间原地打开。打开「••• › 编辑主题颜色…」，可自由组合 1–3 色渐变、调节通透光影与颗粒感，或在浅色白纸与飞书风格深色纸面（`#1F2023`，自动重映射全部文字与高亮色调）之间平滑切换。
+
+### 资料库：所有空间，一眼尽览
+
+<p align="center"><img src="docs/images/readme/library-zh-CN.svg" width="100%" alt="ArcMD 资料库动图：点击左下角资料库图标，展开 Personal、工作、阅读三张主题空间卡片，点击阅读空间里的读书笔记直接切入打开"></p>
+
+点击左下角的资料库图标或按 <kbd>⇧⌘L</kbd>，侧边栏会平滑展开成一排空间卡片，每张卡片都以各自空间的主题色绘制，文件夹与文档随手可点开跳转。插件管理与保留 30 天的「最近删除」也集中在这里。
+
+### 专注时让开，需要时浮现
+
+<p align="center"><img src="docs/images/readme/sidebar-zh-CN.svg" width="100%" alt="ArcMD 侧边栏与悬停预览动图：按 Command 加反斜杠收起侧边栏铺满页面，移到窗口左缘滑出浮层侧栏并即时预览文档纸面缩略图，移开自动收回"></p>
+
+按 <kbd>⌘&#92;</kbd> 收起侧边栏（窄窗口下也会自动收起），让页面安静铺满整个窗口。需要切换文档时无需重新展开：把指针移到窗口左缘，毛玻璃浮动侧边栏便轻巧滑出；悬停任意文档或文件夹即可查看实时纸面缩略图预览，移回正文即自动收回。
+
+### 手绘标注：让重点，有一点温度
+
+<p align="center"><img src="docs/images/readme/annotations-zh-CN.svg" width="100%" alt="ArcMD 手绘标注动图：圆角选区选中文字，依次逐笔画出波浪线、圈出、荧光笔、双下划线、打叉、箭头与方框"></p>
+
+选中文字后点开浮动工具栏的标注面板，从 **12 种手绘笔触**与可选色彩中挑一种语气——圈出关键决定、划掉犹豫、给下一步画一枚箭头。每一笔都会逐笔自然绘出，并无损保存在 `.md`（及旧版 `.arcmd`）文档中。试试这篇[灵感手记示例](docs/images/readme/annotations-demo-zh-CN.arcmd)，或从自己的第一句开始。
+
+### 页边书签：读到哪儿，回到哪儿
+
+<p align="center"><img src="docs/images/readme/bookmarks-zh-CN.svg" width="100%" alt="ArcMD 书签动图：悬停段落页边添加书签，右侧大纲同步列出，点击平滑滚回原文并点亮，按 Shift Command D 跨空间检索全部书签"></p>
+
+指针移到任意段落旁，页边即淡显书签图标，点一下或按 <kbd>⌘D</kbd> 即可标记。文档目录会同步列出书签（公式块自动渲染为公式缩略图），<kbd>⌃⌘↑</kbd> / <kbd>⌃⌘↓</kbd> 在书签间平滑跳转，<kbd>⇧⌘D</kbd> 在命令栏检索所有空间的书签；

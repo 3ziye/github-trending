@@ -1,0 +1,140 @@
+# HyperOS 预装组件调查报告
+
+> 对一台 Xiaomi HyperOS 3.0（Android 16）设备的静态与动态分析。
+> 记录两套运营商 DM、电信终端自动注册、系统遥测、本地反诈库、AI 通话防诈与系统包管理器安装上报的行为、协议与安全问题。
+
+- 报告版本：v2
+- 分析方式：静态反编译 + 运行时数据库取证 + 真机抓包 + 解密验证
+- 公开报告：[`docs/report_public.md`](docs/report_public.md)
+- 执行摘要：[`docs/executive_summary.md`](docs/executive_summary.md)
+- PDF：[`dist/report_public.pdf`](dist/report_public.pdf) / [`dist/executive_summary.pdf`](dist/executive_summary.pdf)
+- 完整 APK + 反编译源码：[Artifacts v1.2.5](https://github.com/acxun/hyperos-dm-report/releases/tag/artifacts-v1.2.5)
+- 已知缺口：[`docs/gaps.md`](docs/gaps.md)
+- IOC 清单：[`docs/iocs.md`](docs/iocs.md)
+
+---
+
+## 主要发现
+
+| 组件 | 包名 | 服务器 | 状态 |
+|---|---|---|---|
+| 联通 DM | `com.mobiletools.systemhelper` | `dm.wo.com.cn:18080`（HTTP） | 活跃，周期上报 |
+| 移动 DM | `com.miui.dmregservice` | `a.fxltsbl.com:443`（HTTPS）+ CoAP 5683 | 按需唤醒 |
+| 电信自动注册 | `com.xiaomi.registration` | `zzhc.vnet.cn:443`（HTTPS）+ `typdm.tydevice.com:80`（HTTP） | 偏好项表明曾注册（未捕获请求） |
+| 系统遥测 | `com.miui.misightservice` + `/system_ext/bin/misight`(root) | `event-log.cnbj1.mi-fds.com` | 活跃 |
+| 本地反诈库 | `com.miui.securitycenter` | 未发现上传 | 本地写入 |
+| AI 通话防诈 | `com.miui.guardprovider` | `detection-aigc.engine.miui.com` 等 | 开关关闭 |
+| 系统包管理器 | `com.miui.packageinstaller` | `api.installer.xiaomi.com` / `virus-engine.sec.miui.com` | 安装/取消均上报；风险应用需单次授权 |
+
+关键结论：
+
+1. `SystemHelper` 默认每 30 分钟调度采集位置/基站/WiFi，并周期上报设备标识、SIM 标识（部分打码）、经纬度（最多 6 位小数）、行政区、基站参数、WiFi、存储信息与 App 使用清单；实测 R 样本 100 条跨度 55.57h，83/99 个间隔为 30 分钟，存在中断/额外采样。
+2. 上报链路为 **明文 HTTP + AES-128-ECB**，`key = MD5(明文)`，`sign = RSA(1024 位公钥, MD5)`。对已有匹配本地明文的样本可还原网络密文；不能推广为可解密任意未知流量。
+3. **B/R/A 解密成功**：B（1,024 B）、R（68,784 B，100 条）、A（40,464 B，169 个 App）；A 的 200 成功样本不落队列。
+4. `com.xiaomi.registration` 采集 MEID/IMEI/IMSI/ICCID/MAC/Cell ID 等标识；路径 A/B 二选一，路径 C 是 A 的子路径；偏好项与代码表明曾成功注册，基于当前 SIM/分支条件推断可在移动卡 + WiFi 下完成，未捕获该次请求/响应。
+5. AI 通话防诈的视频路径为 **录 3 秒 → 上传 → 未命中隔 2 秒再录**；预装 2.5.6 与当前 3.1.4 均确认存在该循环，当前开关为 0。
+6. 两套 DM 与电信自动注册组件的导出组件在静态检查中未见调用方校验，存在潜在未授权调用面；普通第三方应用的实际可达性/重定向效果尚未用最小 PoC 验证。
+7. 截屏时间、安装记录、通话记录仅写入本地反诈库，未发现上传路径。
+8. `com.miui.packageinstaller` 打开安装界面即向 `api.installer.xiaomi.com` 发包名/设备信息；安装与取消都会向 `/avl/upload` 上传安装元数据；云端可按 `cInfo` 要求上传 APK 加密片段与 TLSH。GuardProvider 云查有服务日志和 DNS/SNI 证据，字段列表为代码级；实测 Avl 风险应用显示“发现风险”并要求“单次安装授权”，取消仍上传元数据，授权后安装成功且 `installCnt=1`。本次检查时威胁报告目录为空，窗口内未观察到 `/virus/localResult/report`，不证明从未入队；两条 shell 安装测试在窗口内未出现同一 UI `/avl/upload`，不推广为所有后台/延迟链路均不上报。全局配置含 `forbiddenList`、`offlineInstallAppSignList` 与 `oneClick` 授权参数。
+
+---
+
+## 仓库结构
+
+```
+.
+├── README.md
+├── LICENSE.md
+├── LICENSE-CCBY
+├── LICENSE-MIT
+├── .gitignore
+├── docs/
+│   ├── report_public.md       # 公开版报告（已脱敏）
+│   ├── executive_summary.md   # 执行摘要
+│   ├── gaps.md                # 已知缺口与后续工作
+│   └── iocs.md                # 域名 / IP / 包名 / 哈希
+├── dist/                      # 生成的 PDF
+├── tools/
+│   ├── pcap_tcp.py            # 纯 Python 的 pcap / TCP 流重组
+│   ├── decrypt_match.py       # 队列明文匹配 + AES 解密
+│   ├── clash.js
+│   └── README.md
+├── evidence/
+│   ├── MANIFEST.md            # 证据清单 + SHA-256
+│   ├── SHA256SUMS             # sha256sum -c 可校验
+│   ├── apk/                   # 6 个 APK（不入库）
+│   ├── decompiled/
+│   │   ├── key/               # 83 个 Java + 2 个转储/伪代码 + 1 个 Manifest（86 个文件）
+│   │   └── full/              # 完整源码树（不入库）
+│   ├── certificates/          # pub.cer / pub.pem / openssl 文本
+│   ├── databases/             # 仅 schema 与行数
+│   └── redacted/              # 脱敏样本与日志
+└── private/                   # 不入库（.gitignore）
+    ├── report_internal.md     # 内部版（含隐私数据）
+    ├── pcap/                  # B/R/A 与安装器测试原始抓包
+    ├── A_decrypted_ID59.json / .csv
+    └── R_decrypted_ID47.json / .csv
+```
+
+> `private/` 已被 `.gitignore` 排除，不会进入版本历史。
+> 原始 pcap、数据库、APK 与解密 CSV 均不入库。
+
+---
+
+## 复现思路
+
+环境：已 root、已授权 ADB 的 HyperOS 设备。
+
+```bash
+# 1) 枚举与静态分析
+adb shell pm path com.mobiletools.systemhelper
+adb pull /system/priv-app/SystemHelper/SystemHelper.apk
+jadx -d out --no-res SystemHelper.apk
+
+# 2) 数据库取证
+adb shell su -c 'sqlite3 /data/user/0/com.mobiletools.systemhelper/databases/systemhelper \
+  "select ID, length(jsonString) from dmregister"'
+
+# 3) 抓包（注意 tcpdump 有缓冲，需 SIGINT 落盘）
+adb shell su -c "tcpdump -i any -n -s0 -w /data/local/tmp/cap.pcap 'tcp port 18080'"
+# ...触发...
+adb shell su -c "pkill -INT tcpdump"
+
+# 4) 重组 + 解密
+python3 tools/pcap_tcp.py cap.pcap <server_ip> 18080
+python3 tools/decrypt_match.py cap.pcap systemhelper.db
+```
+
+解密原理：
+
+```text
+key  = MD5(UTF8(plaintext))
+body = AES-128-ECB/PKCS5(plaintext, key)
+sign = Base64(RSA/ECB/PKCS1(pub.cer, key))
+```
+
+> 本次没有匹配明文/密钥，未完成恢复；这不代表协议上不可能恢复。已有匹配明文时可按 `key = MD5(明文)` 还原该条流量。
+
+---
+
+## 隐私与伦理
+
+- 本仓库的公开文档已移除设备标识、SIM 标识、位置、WiFi、App 清单等个人信息。
+- `private/` 目录仅本地保留，不进入 Git。
+- 分析基于本人自用设备，并在取证前取得设备所有者授权。
+- 如引用本报告，请遵守当地法律与平台规则，不要用于攻击或骚扰。
+
+---
+
+## 免责声明
+
+- 本报告基于单台设备、单次取证，不代表所有小米机型/系统版本。
+- 反编译代码可能因混淆存在偏差；关键结论尽量通过运行时数据与抓包交叉验证，无法实测的已在正文标注。
+- 文中组件均为系统预装、Xiaomi 平台签名；报告关注采集范围、加密方式与用户可控性，不推断其主观意图。
+
+---
+
+## 许可
+
+- 文档：CC BY 4.0
+- 代码（`tools/`）：MIT

@@ -1,0 +1,87 @@
+<p align="center"><img src="docs/images/banner.jpg" alt="RecompLauncher: PC recomps, all in one place." width="100%"></p>
+
+<p align="center">
+  <a href="https://github.com/elripalda/RecompLauncher/releases/latest"><b>Download the beta</b></a> ·
+  <a href="https://recomplauncher.com">recomplauncher.com</a> ·
+  <a href="https://discord.gg/FUzqGM2cvf">Discord</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/elripalda/RecompLauncher/stargazers"><img src="https://img.shields.io/github/stars/elripalda/RecompLauncher?style=flat&color=34f2e8&label=Stars" alt="Stars"></a>
+  <a href="https://github.com/elripalda/RecompLauncher/releases"><img src="https://img.shields.io/github/downloads/elripalda/RecompLauncher/total?style=flat&color=34f2e8&label=Downloads" alt="Downloads"></a>
+  <a href="https://github.com/elripalda/RecompLauncher/releases"><img src="https://img.shields.io/github/v/release/elripalda/RecompLauncher?include_prereleases&style=flat&color=34f2e8&label=Latest" alt="Latest version"></a>
+</p>
+
+<p align="center">
+  <b>English</b> · <a href="README.vi.md">Tiếng Việt</a>
+</p>
+
+---
+
+RecompLauncher finds, installs, updates and plays PC recomps: native PC versions of console
+games, made by their developers from the original game. You bring your own copy of the game and
+the launcher sets it up.
+
+## What's in it
+
+- **Catalog:** every recomp on recomplauncher.com, with screenshots, what it needs and how it
+  runs for other players.
+- **Coming Soon:** the recomps on the way. Save one and the launcher tells you when it comes out
+  (by email too when you're signed in), and
+  Request a Recomp to ask for a project on GitHub or GitLab.
+- **Install and update in one click,** straight from the developer's own GitHub release. Every
+  download is checked against GitHub's checksum.
+- **Easy Setup:** point it at your disc image or game folder and it does the rest, for the recomps
+  that support it.
+- **Versions:** games with more than one recomp show once, and you can switch between versions or
+  keep a few side by side.
+- **Saves:** backups before every update, and cloud saves with a free account.
+- **Big Picture mode:** a full-screen view for a controller and a TV.
+- **Looks:** CRT and other screen effects, per game.
+- **Player reports:** see how a recomp runs for people before you install it, and add your own.
+- **Verified developers:** follow the people making the recomps you like and hear when they put
+  out something new.
+
+## A look around
+
+<p align="center"><img src="docs/images/home.jpg" alt="Home" width="100%"></p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/discover.jpg" alt="Catalog"><p align="center"><b>Catalog</b></p></td>
+    <td width="50%"><img src="docs/images/game.jpg" alt="A game's page"><p align="center"><b>A game's page</b></p></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/bigpicture.jpg" alt="Big Picture mode"><p align="center"><b>Big Picture mode</b></p></td>
+    <td width="50%"><img src="docs/images/saves.jpg" alt="Saves"><p align="center"><b>Saves</b></p></td>
+  </tr>
+</table>
+
+## Get it
+
+Windows 10 or 11, 64-bit. Initial macOS support targets Apple Silicon: see the
+[Mac build and test-artifact instructions](docs/BUILDING.md#macos-initial-apple-silicon-support).
+Mac test builds support native Mac games packaged as ZIP, DMG, RAR or 7z and are not Apple-notarized releases. If macOS blocks the first launch because it cannot verify the developer, follow the [Mac first-launch steps](docs/TROUBLESHOOTING.md#macos-cannot-verify-the-developer).
+
+Arch Linux x86_64 has a native `.pkg.tar.zst` build: see the
+[Arch package instructions](packaging/arch/README.md) for building and installing it with pacman.
+
+NixOS and Nix (x86_64): `nix run github:elripalda/RecompLauncher`, or see the
+[Nix instructions](packaging/nix/README.md) to install it with your system.
+
+Download the setup file from [Releases](https://github.com/elripalda/RecompLauncher/releases/latest)
+and run it. While the beta is new, Windows may say "Windows protected your PC". Click
+**More info**, then **Run anyway**. Each release lists its file's SHA-256 so you can check you
+have the real one.
+
+In **Settings > General > When you close the window**, **Close to tray** controls whether
+closing the window keeps RecompLauncher in the system tray. Turn it off to exit the launcher
+and its background work when you close the window. **Quit RecompLauncher** always exits.
+The setting is also available in Big Picture mode. It is off by default for new installations;
+existing saved choices are kept. Games already running keep playing.
+
+**Settings > General > Starting up > Start with your PC** starts RecompLauncher when you sign
+in, waiting in the system tray. The entry goes in your system's own startup list (Startup apps
+on Windows, Autostart on KDE Plasma and GNOME, Login Items on a Mac), so you can turn it off
+there too. The Flatpak asks your desktop through its Background portal. On a Mac (macOS 13 or
+newer) the window opens a
